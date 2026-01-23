@@ -30,3 +30,6 @@ coverage/
 *.tmp
 *.temp
 .cache/
+
+# SEOmator local data
+.seomator/

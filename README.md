@@ -2,6 +2,8 @@
 
 A comprehensive SEO audit command-line tool with **55 audit rules** across **9 categories**. Analyze any website for SEO best practices, Core Web Vitals, security headers, structured data, and more.
 
+> **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
+
 ## Features
 
 - **55 SEO Audit Rules** across 9 categories
@@ -17,10 +19,10 @@ A comprehensive SEO audit command-line tool with **55 audit rules** across **9 c
 
 ```bash
 # Install globally
-npm install -g @seomator/audit-cli
+npm install -g @seomator/seo-audit
 
 # Or use npx without installing
-npx @seomator/audit-cli https://example.com
+npx @seomator/seo-audit https://example.com
 ```
 
 ### From source
@@ -245,7 +247,7 @@ jobs:
           node-version: '20'
 
       - name: Install SEOmator
-        run: npm install -g @seomator/audit-cli
+        run: npm install -g @seomator/seo-audit
 
       - name: Install Playwright browsers
         run: npx playwright install chromium
@@ -266,7 +268,7 @@ jobs:
 seo-audit:
   image: node:20
   script:
-    - npm install -g @seomator/audit-cli
+    - npm install -g @seomator/seo-audit
     - npx playwright install chromium
     - seomator https://your-staging-url.com --json > seo-report.json
   artifacts:
@@ -277,7 +279,7 @@ seo-audit:
 ## Programmatic Usage
 
 ```typescript
-import { Auditor, createAuditor } from '@seomator/audit-cli';
+import { Auditor, createAuditor } from '@seomator/seo-audit';
 
 const auditor = createAuditor({
   categories: ['meta-tags', 'security'],

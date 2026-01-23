@@ -14,31 +14,57 @@ export class ProgressReporter {
   private categoryResults: Map<string, CategoryResult> = new Map();
   private isJsonMode: boolean;
   private isCrawlMode: boolean;
+  private isVerbose: boolean;
 
-  constructor(options: { json?: boolean; crawl?: boolean } = {}) {
+  constructor(options: { json?: boolean; crawl?: boolean; verbose?: boolean } = {}) {
     this.isJsonMode = options.json ?? false;
     this.isCrawlMode = options.crawl ?? false;
+    this.isVerbose = options.verbose ?? false;
+  }
+
+  /**
+   * Check if we should show progress (either not JSON mode, or verbose mode)
+   */
+  private shouldShowProgress(): boolean {
+    return !this.isJsonMode || this.isVerbose;
+  }
+
+  /**
+   * Log to stderr (for verbose mode in JSON output)
+   */
+  private log(message: string): void {
+    if (this.isJsonMode && this.isVerbose) {
+      process.stderr.write(message + '\n');
+    } else if (!this.isJsonMode) {
+      console.log(message);
+    }
   }
 
   /**
    * Start the audit progress display
    */
   start(url: string): void {
-    if (this.isJsonMode) {
-      return; // No progress output in JSON mode
+    if (!this.shouldShowProgress()) {
+      return;
     }
 
-    console.log();
-    console.log(chalk.bold.cyan('SEO Audit'));
-    console.log(chalk.gray(`Target: ${url}`));
-    console.log();
+    this.log('');
+    this.log(chalk.bold.cyan('SEO Audit'));
+    this.log(chalk.gray(`Target: ${url}`));
+    this.log('');
   }
 
   /**
    * Called when a category audit starts
    */
   onCategoryStart(categoryId: string, categoryName: string): void {
-    if (this.isJsonMode) {
+    if (!this.shouldShowProgress()) {
+      return;
+    }
+
+    // In verbose JSON mode, just log to stderr (no spinner)
+    if (this.isJsonMode && this.isVerbose) {
+      this.log(chalk.yellow(`Auditing ${categoryName}...`));
       return;
     }
 
@@ -52,12 +78,21 @@ export class ProgressReporter {
    * Called when a rule completes
    */
   onRuleComplete(ruleId: string, ruleName: string, result: RuleResult): void {
-    if (this.isJsonMode || !this.spinner) {
+    if (!this.shouldShowProgress()) {
       return;
     }
 
     const statusIcon = this.getStatusIcon(result.status);
-    this.spinner.text = chalk.yellow(`Auditing... ${statusIcon} ${ruleName}`);
+
+    // In verbose JSON mode, log each rule to stderr
+    if (this.isJsonMode && this.isVerbose) {
+      this.log(`  ${statusIcon} ${ruleName}`);
+      return;
+    }
+
+    if (this.spinner) {
+      this.spinner.text = chalk.yellow(`Auditing... ${statusIcon} ${ruleName}`);
+    }
   }
 
   /**
@@ -68,7 +103,7 @@ export class ProgressReporter {
     categoryName: string,
     result: CategoryResult
   ): void {
-    if (this.isJsonMode) {
+    if (!this.shouldShowProgress()) {
       return;
     }
 
@@ -98,7 +133,7 @@ export class ProgressReporter {
     const warnStr = result.warnCount > 0 ? chalk.yellow(`, ${result.warnCount} warnings`) : '';
     const failStr = result.failCount > 0 ? chalk.red(`, ${result.failCount} failed`) : '';
 
-    console.log(
+    this.log(
       `  ${this.getCategoryIcon(result)} ${categoryName.padEnd(20)} ` +
       `${scoreColor(scoreStr)} ${passStr}${warnStr}${failStr}`
     );
@@ -144,12 +179,17 @@ export class ProgressReporter {
    * Start crawl progress bar
    */
   startCrawlProgress(totalPages: number): void {
-    if (this.isJsonMode) {
+    if (!this.shouldShowProgress()) {
       return;
     }
 
-    console.log();
-    console.log(chalk.bold('Crawling pages...'));
+    this.log('');
+    this.log(chalk.bold(`Crawling up to ${totalPages} pages...`));
+
+    // In verbose JSON mode, don't use progress bar (use simple logs)
+    if (this.isJsonMode && this.isVerbose) {
+      return;
+    }
 
     this.progressBar = new cliProgress.SingleBar(
       {
@@ -168,17 +208,23 @@ export class ProgressReporter {
    * Update crawl progress
    */
   onPageComplete(url: string, pageNumber: number, totalPages: number): void {
-    if (this.isJsonMode) {
+    if (!this.shouldShowProgress()) {
+      return;
+    }
+
+    // Truncate URL if too long
+    const maxUrlLength = 50;
+    const displayUrl = url.length > maxUrlLength
+      ? url.substring(0, maxUrlLength - 3) + '...'
+      : url;
+
+    // In verbose JSON mode, log to stderr
+    if (this.isJsonMode && this.isVerbose) {
+      this.log(chalk.gray(`  [${pageNumber}/${totalPages}] ${displayUrl}`));
       return;
     }
 
     if (this.progressBar) {
-      // Truncate URL if too long
-      const maxUrlLength = 50;
-      const displayUrl = url.length > maxUrlLength
-        ? url.substring(0, maxUrlLength - 3) + '...'
-        : url;
-
       this.progressBar.update(pageNumber, { url: displayUrl });
 
       if (pageNumber >= totalPages) {
@@ -193,13 +239,13 @@ export class ProgressReporter {
    * Render the category tree with results
    */
   renderCategoryTree(): void {
-    if (this.isJsonMode || this.categoryResults.size === 0) {
+    if (!this.shouldShowProgress() || this.categoryResults.size === 0) {
       return;
     }
 
-    console.log();
-    console.log(chalk.bold('Category Results:'));
-    console.log();
+    this.log('');
+    this.log(chalk.bold('Category Results:'));
+    this.log('');
 
     for (const [categoryId, result] of this.categoryResults) {
       const category = getCategoryById(categoryId);
@@ -208,16 +254,16 @@ export class ProgressReporter {
       const icon = this.getCategoryIcon(result);
       const scoreColor = this.getScoreColor(result.score);
 
-      console.log(`${icon} ${chalk.bold(category.name)} - ${scoreColor(`${result.score}/100`)}`);
+      this.log(`${icon} ${chalk.bold(category.name)} - ${scoreColor(`${result.score}/100`)}`);
 
       // Show individual rule results
       for (const ruleResult of result.results) {
         const ruleIcon = this.getStatusIcon(ruleResult.status);
         const indent = '    ';
-        console.log(`${indent}${ruleIcon} ${ruleResult.message}`);
+        this.log(`${indent}${ruleIcon} ${ruleResult.message}`);
       }
 
-      console.log();
+      this.log('');
     }
   }
 

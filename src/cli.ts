@@ -89,6 +89,11 @@ program
     (value) => parseIntValue(value, 'timeout', 1000, 120000),
     30000
   )
+  .option(
+    '-v, --verbose',
+    'Show progress to stderr (useful with --json)',
+    false
+  )
   .addHelpText(
     'after',
     `
@@ -111,6 +116,7 @@ Exit codes:
   .action(async (url: string, options) => {
     const isJsonMode = options.json;
     const isCrawlMode = options.crawl;
+    const isVerbose = options.verbose;
     const selectedCategories: string[] = options.categories ?? [];
     const maxPages: number = options.maxPages;
     const concurrency: number = options.concurrency;
@@ -120,6 +126,7 @@ Exit codes:
     const progress = new ProgressReporter({
       json: isJsonMode,
       crawl: isCrawlMode,
+      verbose: isVerbose,
     });
 
     try {

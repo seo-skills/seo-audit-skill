@@ -1,6 +1,6 @@
 {
   "name": "@seomator/seo-audit",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "SEOmator - Comprehensive SEO audit CLI tool with 55 rules across 9 categories",
   "type": "module",
   "bin": {

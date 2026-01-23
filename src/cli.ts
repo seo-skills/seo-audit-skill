@@ -1,8 +1,13 @@
 import { Command, InvalidArgumentError } from 'commander';
-import chalk from 'chalk';
-import { Auditor } from './auditor.js';
-import { categories, getCategoryIds } from './categories/index.js';
-import { ProgressReporter, renderTerminalReport, outputJsonReport } from './reporters/index.js';
+import { getCategoryIds } from './categories/index.js';
+import {
+  runAudit,
+  runInit,
+  runCrawl,
+  runAnalyze,
+  runReport,
+  runConfig,
+} from './commands/index.js';
 
 /**
  * Validate that a string is a valid URL
@@ -18,7 +23,7 @@ function validateUrl(value: string): string {
     if (error instanceof InvalidArgumentError) {
       throw error;
     }
-    throw new InvalidArgumentError('Invalid URL format. Please provide a valid URL (e.g., https://example.com)');
+    throw new InvalidArgumentError('Invalid URL format');
   }
 }
 
@@ -32,7 +37,7 @@ function parseCategories(value: string): string[] {
   for (const cat of requested) {
     if (!validCategories.includes(cat)) {
       throw new InvalidArgumentError(
-        `Invalid category: "${cat}". Valid categories are: ${validCategories.join(', ')}`
+        `Invalid category: "${cat}". Valid: ${validCategories.join(', ')}`
       );
     }
   }
@@ -45,169 +50,83 @@ function parseCategories(value: string): string[] {
  */
 function parseIntValue(value: string, name: string, min: number, max: number): number {
   const parsed = parseInt(value, 10);
-  if (isNaN(parsed)) {
-    throw new InvalidArgumentError(`${name} must be a number`);
-  }
-  if (parsed < min || parsed > max) {
+  if (isNaN(parsed) || parsed < min || parsed > max) {
     throw new InvalidArgumentError(`${name} must be between ${min} and ${max}`);
   }
   return parsed;
 }
 
-/**
- * Main CLI program
- */
 const program = new Command();
 
 program
   .name('seomator')
-  .description('SEOmator - Comprehensive SEO audit CLI tool with 55 rules across 9 categories')
-  .version('1.0.0')
+  .description('SEOmator - Comprehensive SEO audit CLI with 55 rules across 9 categories')
+  .version('2.0.0');
+
+// Audit command (default)
+program
+  .command('audit <url>', { isDefault: true })
+  .description('Run SEO audit on a URL')
   .argument('<url>', 'URL to audit', validateUrl)
-  .option(
-    '-c, --categories <list>',
-    'Comma-separated list of categories to audit',
-    parseCategories
-  )
-  .option('-j, --json', 'Output results as JSON', false)
-  .option('--crawl', 'Enable crawl mode to audit multiple pages', false)
-  .option(
-    '--max-pages <n>',
-    'Maximum pages to crawl (default: 10)',
-    (value) => parseIntValue(value, 'max-pages', 1, 1000),
-    10
-  )
-  .option(
-    '--concurrency <n>',
-    'Number of concurrent requests (default: 3)',
-    (value) => parseIntValue(value, 'concurrency', 1, 20),
-    3
-  )
-  .option(
-    '--timeout <ms>',
-    'Request timeout in milliseconds (default: 30000)',
-    (value) => parseIntValue(value, 'timeout', 1000, 120000),
-    30000
-  )
-  .option(
-    '-v, --verbose',
-    'Show progress to stderr (useful with --json)',
-    false
-  )
-  .option(
-    '--no-cwv',
-    'Skip Core Web Vitals measurement (faster, no browser needed)'
-  )
-  .addHelpText(
-    'after',
-    `
-Examples:
-  $ seomator https://example.com
-  $ seomator https://example.com --categories meta-tags,headings
-  $ seomator https://example.com --json
-  $ seomator https://example.com --crawl --max-pages 20
-  $ seomator https://example.com --crawl --concurrency 5 --timeout 60000
+  .option('-c, --categories <list>', 'Categories to audit', parseCategories)
+  .option('-j, --json', 'Output as JSON', false)
+  .option('--crawl', 'Enable multi-page crawl', false)
+  .option('--max-pages <n>', 'Max pages to crawl', (v) => parseIntValue(v, 'max-pages', 1, 1000), 10)
+  .option('--concurrency <n>', 'Concurrent requests', (v) => parseIntValue(v, 'concurrency', 1, 20), 3)
+  .option('--timeout <ms>', 'Request timeout', (v) => parseIntValue(v, 'timeout', 1000, 120000), 30000)
+  .option('-v, --verbose', 'Show progress', false)
+  .option('--no-cwv', 'Skip Core Web Vitals')
+  .option('--config <path>', 'Config file path')
+  .option('--save', 'Save report to .seomator/reports/', false)
+  .action(runAudit);
 
-Available categories:
-${categories.map((c) => `  - ${c.id}: ${c.name}`).join('\n')}
+// Init command
+program
+  .command('init')
+  .description('Create seomator.toml config file')
+  .option('--name <name>', 'Project name')
+  .option('--preset <type>', 'Use preset (default, blog, ecommerce, ci)')
+  .option('-y, --yes', 'Use defaults without prompts', false)
+  .action(runInit);
 
-Exit codes:
-  0 - Audit passed (score >= 70)
-  1 - Audit failed (score < 70)
-  2 - Error occurred
-`
-  )
-  .action(async (url: string, options) => {
-    const isJsonMode = options.json;
-    const isCrawlMode = options.crawl;
-    const isVerbose = options.verbose;
-    const measureCwv = options.cwv !== false; // true by default, false with --no-cwv
-    const selectedCategories: string[] = options.categories ?? [];
-    const maxPages: number = options.maxPages;
-    const concurrency: number = options.concurrency;
-    const timeout: number = options.timeout;
+// Crawl command
+program
+  .command('crawl <url>')
+  .description('Crawl website without analysis')
+  .argument('<url>', 'URL to crawl', validateUrl)
+  .option('--max-pages <n>', 'Max pages to crawl', (v) => parseIntValue(v, 'max-pages', 1, 1000))
+  .option('--output <path>', 'Output directory')
+  .option('-v, --verbose', 'Show progress', false)
+  .action(runCrawl);
 
-    // Create progress reporter
-    const progress = new ProgressReporter({
-      json: isJsonMode,
-      crawl: isCrawlMode,
-      verbose: isVerbose,
-    });
+// Analyze command
+program
+  .command('analyze [crawl-id]')
+  .description('Run rules on stored crawl data')
+  .option('-c, --categories <list>', 'Categories to analyze', parseCategories)
+  .option('--latest', 'Use most recent crawl', false)
+  .option('--save', 'Save report', false)
+  .option('-j, --json', 'Output as JSON', false)
+  .option('-v, --verbose', 'Show progress', false)
+  .action(runAnalyze);
 
-    try {
-      // Start progress display
-      progress.start(url);
+// Report command
+program
+  .command('report [query]')
+  .description('View and query past reports')
+  .option('--list', 'List all reports', false)
+  .option('--project <name>', 'Filter by project')
+  .option('--since <date>', 'Filter by date (ISO format)')
+  .option('--format <type>', 'Output format (table, json)', 'table')
+  .action(runReport);
 
-      // Create auditor with options and callbacks
-      const auditor = new Auditor({
-        categories: selectedCategories,
-        timeout,
-        measureCwv, // CWV measurement enabled by default, disable with --no-cwv
-        onCategoryStart: (categoryId, categoryName) => {
-          progress.onCategoryStart(categoryId, categoryName);
-        },
-        onCategoryComplete: (categoryId, categoryName, result) => {
-          progress.onCategoryComplete(categoryId, categoryName, result);
-        },
-        onRuleComplete: (ruleId, ruleName, result) => {
-          progress.onRuleComplete(ruleId, ruleName, result);
-        },
-        onPageComplete: (pageUrl, pageNumber, totalPages) => {
-          progress.onPageComplete(pageUrl, pageNumber, totalPages);
-        },
-      });
+// Config command
+program
+  .command('config [key] [value]')
+  .description('View or modify configuration')
+  .option('--global', 'Modify global settings', false)
+  .option('--local', 'Modify local settings', false)
+  .option('--list', 'Show all config values', false)
+  .action(runConfig);
 
-      let result;
-
-      if (isCrawlMode) {
-        // Start crawl progress bar
-        progress.startCrawlProgress(maxPages);
-
-        // Run crawl audit
-        result = await auditor.auditWithCrawl(url, maxPages, concurrency);
-      } else {
-        // Run single-page audit
-        result = await auditor.audit(url);
-      }
-
-      // Stop any progress indicators
-      progress.stop();
-
-      // Output results
-      if (isJsonMode) {
-        outputJsonReport(result);
-      } else {
-        renderTerminalReport(result);
-      }
-
-      // Exit with appropriate code
-      const exitCode = result.overallScore >= 70 ? 0 : 1;
-      process.exit(exitCode);
-    } catch (error) {
-      // Stop any progress indicators
-      progress.stop();
-
-      if (!isJsonMode) {
-        console.error();
-        console.error(chalk.red('Error: ') + (error instanceof Error ? error.message : 'Unknown error'));
-        console.error();
-
-        if (error instanceof Error && error.stack) {
-          console.error(chalk.gray(error.stack));
-        }
-      } else {
-        // Output error as JSON
-        const errorOutput = {
-          error: true,
-          message: error instanceof Error ? error.message : 'Unknown error',
-          timestamp: new Date().toISOString(),
-        };
-        console.log(JSON.stringify(errorOutput, null, 2));
-      }
-
-      process.exit(2);
-    }
-  });
-
-// Parse arguments and run
 program.parse();

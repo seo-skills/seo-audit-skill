@@ -94,6 +94,10 @@ program
     'Show progress to stderr (useful with --json)',
     false
   )
+  .option(
+    '--no-cwv',
+    'Skip Core Web Vitals measurement (faster, no browser needed)'
+  )
   .addHelpText(
     'after',
     `
@@ -117,6 +121,7 @@ Exit codes:
     const isJsonMode = options.json;
     const isCrawlMode = options.crawl;
     const isVerbose = options.verbose;
+    const measureCwv = options.cwv !== false; // true by default, false with --no-cwv
     const selectedCategories: string[] = options.categories ?? [];
     const maxPages: number = options.maxPages;
     const concurrency: number = options.concurrency;
@@ -137,7 +142,7 @@ Exit codes:
       const auditor = new Auditor({
         categories: selectedCategories,
         timeout,
-        measureCwv: false, // CWV measurement is optional
+        measureCwv, // CWV measurement enabled by default, disable with --no-cwv
         onCategoryStart: (categoryId, categoryName) => {
           progress.onCategoryStart(categoryId, categoryName);
         },

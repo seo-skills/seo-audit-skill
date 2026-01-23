@@ -1,6 +1,6 @@
 ---
 name: seo-audit
-description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 55 rules across 9 categories including meta tags, Core Web Vitals, security headers, and structured data. Provides actionable recommendations based on results.
+description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 55 rules across 9 categories including meta tags, Core Web Vitals, security headers, and structured data. Supports HTML/Markdown reports, URL filtering, and config validation.
 ---
 
 # SEO Audit Skill
@@ -21,17 +21,63 @@ npm install -g @seomator/seo-audit
 
 ### Single Page Audit
 ```bash
-seomator <url> --json --verbose
+seomator audit <url> --json
 ```
 
 ### Multi-Page Crawl
 ```bash
-seomator <url> --crawl --max-pages 20 --json --verbose
+seomator audit <url> --crawl --max-pages 20 --json
 ```
 
 ### Fast Audit (Skip CWV)
 ```bash
-seomator <url> --json --no-cwv
+seomator audit <url> --json --no-cwv
+```
+
+### HTML Report Output
+```bash
+seomator audit <url> --format html -o report.html --no-cwv
+```
+
+### Markdown Report Output
+```bash
+seomator audit <url> --format markdown -o report.md --no-cwv
+```
+
+## Output Formats
+
+| Format | Flag | Description |
+|--------|------|-------------|
+| Console | `--format console` | Terminal output with colors (default) |
+| JSON | `--format json` or `--json` | Machine-readable JSON |
+| HTML | `--format html -o file.html` | Self-contained HTML report |
+| Markdown | `--format markdown -o file.md` | GitHub-flavored Markdown |
+
+## Configuration
+
+### Validate Config
+```bash
+seomator config validate    # Check for errors/warnings
+seomator config show        # Show merged config with sources
+seomator config path        # Show config file locations
+```
+
+### Config File (seomator.toml)
+```toml
+[project]
+name = "my-website"
+
+[crawler]
+max_pages = 100
+exclude = ["/admin/**", "/api/**"]  # Glob patterns
+drop_query_prefixes = ["utm_", "gclid", "fbclid"]
+
+[rules]
+enable = ["*"]
+disable = ["core-web-vitals-*"]  # Wildcards supported
+
+[output]
+format = "console"  # console, json, html, markdown
 ```
 
 ## Evaluating Results
@@ -147,21 +193,26 @@ When asked to audit a website:
 
 1. **Run the audit**:
    ```bash
-   seomator https://example.com --json --verbose 2>/dev/null
+   seomator audit https://example.com --json --no-cwv 2>/dev/null
    ```
 
-2. **Parse the JSON output** and identify:
+2. **Or generate HTML report**:
+   ```bash
+   seomator audit https://example.com --format html -o audit-report.html --no-cwv
+   ```
+
+3. **Parse the JSON output** and identify:
    - Overall score
    - Categories with lowest scores
    - All failures (status: "fail")
    - All warnings (status: "warn")
 
-3. **Generate recommendations** in priority order:
+4. **Generate recommendations** in priority order:
    - Group by category
    - Sort by severity (failures first)
    - Provide specific fix instructions
 
-4. **Summarize**:
+5. **Summarize**:
    - Total issues found
    - Top 3-5 priority fixes
    - Expected score improvement if fixed

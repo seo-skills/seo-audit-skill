@@ -61,15 +61,16 @@ const program = new Command();
 program
   .name('seomator')
   .description('SEOmator - Comprehensive SEO audit CLI with 55 rules across 9 categories')
-  .version('2.0.0');
+  .version('2.1.0');
 
-// Audit command (default)
+// Audit command
 program
-  .command('audit <url>', { isDefault: true })
+  .command('audit <url>')
   .description('Run SEO audit on a URL')
-  .argument('<url>', 'URL to audit', validateUrl)
   .option('-c, --categories <list>', 'Categories to audit', parseCategories)
-  .option('-j, --json', 'Output as JSON', false)
+  .option('-j, --json', 'Output as JSON (deprecated, use --format json)', false)
+  .option('-f, --format <type>', 'Output format: console, json, html, markdown', 'console')
+  .option('-o, --output <path>', 'Output file path (for html/markdown/json)')
   .option('--crawl', 'Enable multi-page crawl', false)
   .option('--max-pages <n>', 'Max pages to crawl', (v) => parseIntValue(v, 'max-pages', 1, 1000), 10)
   .option('--concurrency <n>', 'Concurrent requests', (v) => parseIntValue(v, 'concurrency', 1, 20), 3)
@@ -93,7 +94,6 @@ program
 program
   .command('crawl <url>')
   .description('Crawl website without analysis')
-  .argument('<url>', 'URL to crawl', validateUrl)
   .option('--max-pages <n>', 'Max pages to crawl', (v) => parseIntValue(v, 'max-pages', 1, 1000))
   .option('--output <path>', 'Output directory')
   .option('-v, --verbose', 'Show progress', false)

@@ -25,3 +25,11 @@ export {
   type CrawlerOptions,
   type CrawledPage,
 } from './crawler.js';
+
+// URL filter exports
+export {
+  UrlFilter,
+  createUrlFilter,
+  globToRegex,
+  type UrlFilterOptions,
+} from './url-filter.js';

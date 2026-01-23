@@ -17,3 +17,12 @@ export {
 
 // Rule loader
 export { loadAllRules, CATEGORY_MODULES } from './loader.js';
+
+// Pattern matcher for enable/disable rules
+export {
+  matchesPattern,
+  matchesAnyPattern,
+  isRuleEnabled,
+  filterRules,
+  getRuleCategory,
+} from './pattern-matcher.js';

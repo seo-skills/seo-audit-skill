@@ -2,6 +2,8 @@
 
 A comprehensive SEO audit tool with **55 rules** across **9 categories**.
 
+**Version:** 2.1.0
+
 ## Quick Links
 
 - **npm**: https://www.npmjs.com/package/@seomator/seo-audit
@@ -19,50 +21,172 @@ npm install -g @seomator/seo-audit
 
 > **Note:** The CLI automatically uses your system Chrome, Chromium, or Edge for Core Web Vitals. No additional browser installation needed.
 
-## CLI Usage
+---
 
-### Single Page Audit
+## Commands
+
+### `seomator audit <url>`
+Run SEO audit on a URL.
+
 ```bash
-seomator https://example.com
+seomator audit https://example.com              # Single page audit
+seomator audit https://example.com --json       # JSON output
+seomator audit https://example.com --crawl      # Multi-page crawl
+seomator audit https://example.com --no-cwv     # Skip Core Web Vitals
+seomator audit https://example.com --save       # Save report
+seomator audit https://example.com --format html -o report.html  # HTML report
+seomator audit https://example.com --format markdown             # Markdown report
 ```
 
-### JSON Output (for parsing)
-```bash
-seomator https://example.com --json
-```
-
-### Multi-Page Crawl
-```bash
-seomator https://example.com --crawl --max-pages 20
-```
-
-### With Progress (verbose)
-```bash
-seomator https://example.com --json --verbose
-```
-
-### Fast Mode (skip Core Web Vitals)
-```bash
-seomator https://example.com --no-cwv
-```
-
-### Specific Categories
-```bash
-seomator https://example.com --categories meta-tags,security
-```
-
-## CLI Options
-
+**Options:**
 | Option | Description |
 |--------|-------------|
-| `--json`, `-j` | Output as JSON |
-| `--verbose`, `-v` | Show progress to stderr |
+| `-f, --format <type>` | Output format: console, json, html, markdown |
+| `-o, --output <path>` | Output file path (for html/markdown/json) |
+| `-j, --json` | Output as JSON (deprecated, use --format json) |
+| `-v, --verbose` | Show progress |
 | `--crawl` | Crawl multiple pages |
 | `--max-pages <n>` | Max pages to crawl (default: 10) |
 | `--concurrency <n>` | Concurrent requests (default: 3) |
 | `--timeout <ms>` | Request timeout (default: 30000) |
-| `--no-cwv` | Skip Core Web Vitals measurement |
-| `--categories <list>` | Comma-separated categories |
+| `--no-cwv` | Skip Core Web Vitals |
+| `-c, --categories <list>` | Comma-separated categories |
+| `--config <path>` | Config file path |
+| `--save` | Save report to `.seomator/reports/` |
+
+### `seomator init`
+Create a `seomator.toml` config file.
+
+```bash
+seomator init                    # Interactive setup
+seomator init -y                 # Use defaults
+seomator init --preset blog      # Use blog preset
+seomator init --preset ecommerce # Use e-commerce preset
+seomator init --preset ci        # Minimal CI config
+```
+
+### `seomator crawl <url>`
+Crawl website without running analysis.
+
+```bash
+seomator crawl https://example.com --max-pages 20
+```
+
+Saves crawl data to `.seomator/crawls/` for later analysis.
+
+### `seomator analyze [crawl-id]`
+Run SEO rules on stored crawl data.
+
+```bash
+seomator analyze                           # Analyze latest crawl
+seomator analyze 2026-01-23-abc123         # Analyze specific crawl
+seomator analyze --latest --save           # Analyze latest, save report
+```
+
+### `seomator report [query]`
+View and query past reports.
+
+```bash
+seomator report --list                     # List all reports
+seomator report 2026-01-23-abc123          # View specific report
+seomator report --project mysite           # Filter by project
+```
+
+### `seomator config [key] [value]`
+View or modify configuration.
+
+```bash
+seomator config --list                     # Show all config
+seomator config crawler.max_pages          # Get value
+seomator config crawler.max_pages 50       # Set value
+seomator config --global                   # Modify global config
+seomator config validate                   # Validate current config
+seomator config show                       # Show merged config with sources
+seomator config path                       # Show config file paths
+```
+
+**Subcommands:**
+| Subcommand | Description |
+|------------|-------------|
+| `validate` | Validate config and show errors/warnings |
+| `show` | Show merged config with source information |
+| `path` | Show paths to all config files |
+
+---
+
+## Configuration
+
+### Config File (`seomator.toml`)
+
+Create with `seomator init` or manually:
+
+```toml
+[project]
+name = "my-website"
+domains = ["example.com", "www.example.com"]
+
+[crawler]
+max_pages = 100
+concurrency = 3
+timeout_ms = 30000
+respect_robots = true
+delay_ms = 100
+# URL filtering (glob patterns)
+include = []                    # Empty = crawl all
+exclude = ["/admin/**", "/api/**"]
+# Query param handling
+drop_query_prefixes = ["utm_", "gclid", "fbclid"]
+allow_query_params = []         # Empty = keep all except dropped
+
+[rules]
+enable = ["*"]
+disable = ["core-web-vitals-inp"]  # Supports wildcards: "meta-tags-*"
+
+[external_links]
+enabled = true
+cache_ttl_days = 7
+timeout_ms = 10000
+concurrency = 5
+
+[output]
+format = "console"              # console, json, html, markdown
+path = ""
+```
+
+### Config Priority (highest to lowest)
+1. CLI arguments (`--max-pages 50`)
+2. Local config (`./seomator.toml`)
+3. Parent directory configs (searches up tree)
+4. Global config (`~/.seomator/config.toml`)
+5. Built-in defaults
+
+### Presets
+| Preset | Description |
+|--------|-------------|
+| `default` | Standard configuration |
+| `blog` | Optimized for content sites |
+| `ecommerce` | Optimized for e-commerce |
+| `ci` | Minimal config for CI/CD |
+
+---
+
+## Storage
+
+SEOmator stores data in `.seomator/` directories:
+
+```
+.seomator/
+├── crawls/           # Saved crawl data
+│   └── 2026-01-23-abc123.json
+└── reports/          # Saved audit reports
+    └── 2026-01-23-xyz789.json
+```
+
+**Locations:**
+- **Project:** `./.seomator/` (current directory)
+- **Global:** `~/.seomator/` (home directory)
+
+---
 
 ## Exit Codes
 
@@ -86,6 +210,8 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 "Run an SEO audit on https://example.com"
 "Audit https://mysite.com and tell me what to fix first"
 "Check SEO health of https://example.com with 20-page crawl"
+"Crawl my site and save the results"
+"Show me my past SEO reports"
 ```
 
 ---
@@ -168,16 +294,41 @@ seo-audit-skill/
 ├── SKILL.md              # Claude Code skill (root for skills.sh)
 ├── references/
 │   └── rules.md          # 55 rules reference
-├── skill/                # Skill folder (legacy)
 ├── src/                  # CLI source code
-│   ├── cli.ts            # Main CLI entry
+│   ├── cli.ts            # Main CLI entry (subcommands)
 │   ├── auditor.ts        # Audit orchestration
 │   ├── scoring.ts        # Score calculation
 │   ├── types.ts          # TypeScript types
+│   ├── config/           # Configuration system
+│   │   ├── schema.ts     # Config type definitions
+│   │   ├── defaults.ts   # Default values & presets
+│   │   ├── loader.ts     # Config file loading
+│   │   ├── writer.ts     # Config file generation
+│   │   └── validator.ts  # Config validation
+│   ├── storage/          # Data persistence
+│   │   ├── paths.ts      # Directory utilities
+│   │   ├── crawl-store.ts# Crawl data storage
+│   │   ├── report-store.ts# Report storage
+│   │   └── link-cache.ts # SQLite cache for external links
+│   ├── commands/         # CLI commands
+│   │   ├── audit.ts      # seomator audit
+│   │   ├── init.ts       # seomator init
+│   │   ├── crawl.ts      # seomator crawl
+│   │   ├── analyze.ts    # seomator analyze
+│   │   ├── report.ts     # seomator report
+│   │   └── config.ts     # seomator config (validate/show/path)
 │   ├── categories/       # Category definitions
 │   ├── crawler/          # Fetcher & crawler
+│   │   ├── crawler.ts    # Queue-based crawler
+│   │   ├── fetcher.ts    # HTTP fetcher
+│   │   └── url-filter.ts # URL include/exclude & normalization
 │   ├── reporters/        # Output formatters
+│   │   ├── terminal.ts   # Console output
+│   │   ├── json.ts       # JSON output
+│   │   ├── html-reporter.ts    # Self-contained HTML
+│   │   └── markdown-reporter.ts # GitHub-flavored Markdown
 │   └── rules/            # 55 audit rules
+│       ├── pattern-matcher.ts  # Wildcard rule matching
 │       ├── meta-tags/
 │       ├── headings/
 │       ├── technical/
@@ -188,7 +339,6 @@ seo-audit-skill/
 │       ├── structured-data/
 │       └── social/
 ├── dist/                 # Built CLI
-├── README.md             # Full documentation
 ├── package.json
 ├── tsconfig.json
 └── tsup.config.ts
@@ -206,11 +356,15 @@ npm run build
 ### Test
 ```bash
 npm test
+npm run test:run  # Single run (no watch)
 ```
 
 ### Run locally
 ```bash
-./dist/cli.js https://example.com
+./dist/cli.js audit https://example.com
+./dist/cli.js init -y
+./dist/cli.js crawl https://example.com
+./dist/cli.js report --list
 ```
 
 ### Publish

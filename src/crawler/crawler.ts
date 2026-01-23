@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio';
 import { fetchPage, createAuditContext, type FetchResult } from './fetcher.js';
 import type { AuditContext, CoreWebVitals } from '../types.js';
+import { UrlFilter, type UrlFilterOptions } from './url-filter.js';
 
 /**
  * Progress callback for reporting crawl status
@@ -35,6 +36,8 @@ export interface CrawlerOptions {
   onProgress?: CrawlProgressCallback;
   /** Function to get Core Web Vitals for a URL (optional) */
   getCwv?: (url: string) => Promise<CoreWebVitals>;
+  /** URL filter options for include/exclude patterns and query param handling */
+  urlFilter?: Partial<UrlFilterOptions>;
 }
 
 /**
@@ -59,6 +62,7 @@ export class Crawler {
   private options: CrawlerOptions;
   private results: CrawledPage[] = [];
   private activeCount = 0;
+  private urlFilter: UrlFilter;
 
   constructor(options: Partial<CrawlerOptions> = {}) {
     this.options = {
@@ -67,7 +71,11 @@ export class Crawler {
       timeout: options.timeout ?? 30000,
       onProgress: options.onProgress,
       getCwv: options.getCwv,
+      urlFilter: options.urlFilter,
     };
+
+    // Initialize URL filter with provided options
+    this.urlFilter = new UrlFilter(options.urlFilter);
   }
 
   /**
@@ -254,6 +262,11 @@ export class Crawler {
         continue;
       }
 
+      // Apply include/exclude patterns from URL filter
+      if (!this.urlFilter.shouldCrawl(normalizedUrl)) {
+        continue;
+      }
+
       // Add to queue
       this.visited.add(normalizedUrl);
       this.queue.push(normalizedUrl);
@@ -294,27 +307,10 @@ export class Crawler {
   }
 
   /**
-   * Normalize URL by removing fragments and trailing slashes
+   * Normalize URL using the URL filter (removes tracking params, fragments, etc.)
    */
   private normalizeUrl(url: string): string {
-    try {
-      const urlObj = new URL(url);
-
-      // Remove fragment
-      urlObj.hash = '';
-
-      // Get normalized href
-      let normalized = urlObj.href;
-
-      // Remove trailing slash (except for root)
-      if (normalized.endsWith('/') && urlObj.pathname !== '/') {
-        normalized = normalized.slice(0, -1);
-      }
-
-      return normalized;
-    } catch {
-      return url;
-    }
+    return this.urlFilter.normalizeUrl(url);
   }
 
   /**

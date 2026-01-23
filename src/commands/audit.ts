@@ -1,8 +1,16 @@
 import chalk from 'chalk';
+import * as fs from 'fs';
+import * as path from 'path';
 import { Auditor } from '../auditor.js';
-import { ProgressReporter, renderTerminalReport, outputJsonReport } from '../reporters/index.js';
+import {
+  ProgressReporter,
+  renderTerminalReport,
+  outputJsonReport,
+  renderHtmlReport,
+  renderMarkdownReport,
+} from '../reporters/index.js';
 import { loadConfig } from '../config/index.js';
-import { saveReport, createReport } from '../storage/index.js';
+import { saveReport, createReport, generateId } from '../storage/index.js';
 
 export interface AuditOptions {
   categories?: string[];
@@ -15,10 +23,14 @@ export interface AuditOptions {
   cwv: boolean;
   config?: string;
   save: boolean;
+  format?: 'console' | 'json' | 'html' | 'markdown';
+  output?: string;
 }
 
 export async function runAudit(url: string, options: AuditOptions): Promise<void> {
-  const isJsonMode = options.json;
+  // Determine output format (--format takes precedence over --json)
+  const outputFormat = options.format ?? (options.json ? 'json' : 'console');
+  const isJsonMode = outputFormat === 'json';
   const isCrawlMode = options.crawl;
   const isVerbose = options.verbose;
   const measureCwv = options.cwv !== false;
@@ -26,6 +38,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   const maxPages: number = options.maxPages;
   const concurrency: number = options.concurrency;
   const shouldSave = options.save;
+  const outputPath = options.output;
 
   // Load config
   const { config } = loadConfig(process.cwd(), {
@@ -91,11 +104,37 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       saveReport(process.cwd(), report);
     }
 
-    // Output results
-    if (isJsonMode) {
-      outputJsonReport(result);
-    } else {
-      renderTerminalReport(result);
+    // Output results based on format
+    switch (outputFormat) {
+      case 'json':
+        if (outputPath) {
+          fs.writeFileSync(outputPath, JSON.stringify(result, null, 2), 'utf-8');
+          console.log(chalk.green(`Report saved to: ${outputPath}`));
+        } else {
+          outputJsonReport(result);
+        }
+        break;
+
+      case 'html': {
+        const htmlContent = renderHtmlReport(result);
+        const htmlPath = outputPath ?? `seo-report-${generateId()}.html`;
+        fs.writeFileSync(htmlPath, htmlContent, 'utf-8');
+        console.log(chalk.green(`HTML report saved to: ${htmlPath}`));
+        break;
+      }
+
+      case 'markdown': {
+        const mdContent = renderMarkdownReport(result);
+        const mdPath = outputPath ?? `seo-report-${generateId()}.md`;
+        fs.writeFileSync(mdPath, mdContent, 'utf-8');
+        console.log(chalk.green(`Markdown report saved to: ${mdPath}`));
+        break;
+      }
+
+      case 'console':
+      default:
+        renderTerminalReport(result);
+        break;
     }
 
     // Exit with appropriate code

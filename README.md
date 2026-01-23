@@ -292,6 +292,39 @@ const result = await auditor.audit('https://example.com');
 console.log(`Overall Score: ${result.overallScore}`);
 ```
 
+## Claude Code Skill
+
+Use SEOmator directly in [Claude Code](https://claude.ai/claude-code) as an AI skill for automated SEO auditing.
+
+### Setup
+
+Add to your Claude Code settings (`.claude/settings.json`):
+
+```json
+{
+  "skills": [
+    "https://github.com/seo-skills/seo-audit-skill/tree/main/skill"
+  ]
+}
+```
+
+### Usage
+
+Once configured, simply ask Claude to audit any website:
+
+```
+"Run an SEO audit on https://example.com"
+"Check the SEO health of my site https://mysite.com"
+"Audit https://example.com focusing on security and meta tags"
+```
+
+Claude will install the CLI (if needed), run the audit, and provide actionable recommendations based on the results.
+
+### Skill Contents
+
+- **[SKILL.md](skill/SKILL.md)** - Main skill definition with installation and usage instructions
+- **[references/rules.md](skill/references/rules.md)** - Complete reference of all 55 audit rules
+
 ## Requirements
 
 - **Node.js 18+** (uses native fetch API)

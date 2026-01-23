@@ -58,7 +58,7 @@ export function renderTerminalReport(result: AuditResult): void {
   console.log(chalk.bold('URL:       ') + chalk.white(result.url));
   console.log(chalk.bold('Timestamp: ') + chalk.gray(new Date(result.timestamp).toLocaleString()));
   if (result.crawledPages > 1) {
-    console.log(chalk.bold('Pages:     ') + chalk.white(`${result.crawledPages} pages crawled`));
+    console.log(chalk.bold('Pages:     ') + chalk.cyan(`${result.crawledPages} pages audited`));
   }
   console.log();
 
@@ -197,11 +197,35 @@ export function renderTerminalReport(result: AuditResult): void {
 
   const totalChecks = totalPassed + warnings.length + failures.length;
   console.log(chalk.bold('Summary:'));
+  if (result.crawledPages > 1) {
+    console.log(`  Pages audited: ${chalk.cyan(result.crawledPages.toString())}`);
+  }
   console.log(`  Total checks: ${totalChecks}`);
   console.log(`  ${chalk.green('\u2713')} Passed: ${totalPassed}`);
   console.log(`  ${chalk.yellow('\u26A0')} Warnings: ${warnings.length}`);
   console.log(`  ${chalk.red('\u2717')} Failures: ${failures.length}`);
   console.log();
+
+  // Score breakdown for crawl mode
+  if (result.crawledPages > 1) {
+    console.log(chalk.bold('Score Breakdown:'));
+    console.log(`  Overall: ${getScoreLabel(result.overallScore)} (${result.overallScore}/100)`);
+
+    // Find best and worst categories
+    const sorted = [...result.categoryResults].sort((a, b) => b.score - a.score);
+    if (sorted.length > 0) {
+      const best = sorted[0];
+      const worst = sorted[sorted.length - 1];
+      const bestCategory = getCategoryById(best.categoryId);
+      const worstCategory = getCategoryById(worst.categoryId);
+
+      console.log(`  Best:    ${bestCategory?.name ?? best.categoryId} (${chalk.green(best.score + '/100')})`);
+      if (worst.score < best.score) {
+        console.log(`  Worst:   ${worstCategory?.name ?? worst.categoryId} (${chalk.red(worst.score + '/100')})`);
+      }
+    }
+    console.log();
+  }
 
   // Exit code hint
   if (result.overallScore >= 70) {

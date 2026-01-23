@@ -15,12 +15,9 @@ A comprehensive SEO audit tool with **55 rules** across **9 categories**.
 
 ```bash
 npm install -g @seomator/seo-audit
-
-# Install Playwright browsers (required for Core Web Vitals)
-cd $(npm root -g)/@seomator/seo-audit && npx playwright install chromium
 ```
 
-> **Note:** If you get "browserType.launch: Executable doesn't exist" error, run the Playwright install command above.
+> **Note:** The CLI automatically uses your system Chrome, Chromium, or Edge for Core Web Vitals. No additional browser installation needed.
 
 ## CLI Usage
 

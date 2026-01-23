@@ -4,22 +4,49 @@ import type { CoreWebVitals } from '../types.js';
 let browserPromise: Promise<Browser> | null = null;
 
 /**
+ * Try to launch browser with given options
+ */
+async function tryLaunch(options: Parameters<typeof chromium.launch>[0]): Promise<Browser> {
+  return chromium.launch(options);
+}
+
+/**
  * Initialize the Chromium browser for Playwright operations
  * Uses Promise-based singleton pattern to prevent race conditions
+ * Tries system Chrome first, then falls back to Playwright's bundled browser
  * @returns Promise that resolves to the Browser instance
  */
 export async function initBrowser(): Promise<Browser> {
   if (!browserPromise) {
-    browserPromise = chromium.launch({
-      headless: true,
-      args: [
+    browserPromise = (async () => {
+      const baseArgs = [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-accelerated-2d-canvas',
         '--disable-gpu',
-      ],
-    });
+      ];
+
+      // Try system Chrome first (no download needed)
+      const channels = ['chrome', 'chromium', 'msedge'] as const;
+      for (const channel of channels) {
+        try {
+          return await tryLaunch({
+            channel,
+            headless: true,
+            args: baseArgs,
+          });
+        } catch {
+          // Channel not available, try next
+        }
+      }
+
+      // Fall back to Playwright's bundled Chromium
+      return await tryLaunch({
+        headless: true,
+        args: baseArgs,
+      });
+    })();
   }
   return browserPromise;
 }

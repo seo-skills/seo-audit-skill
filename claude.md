@@ -1,6 +1,6 @@
 # SEOmator - SEO Audit CLI & Claude Code Skill
 
-A comprehensive SEO audit tool with **81 rules** across **11 categories**.
+A comprehensive SEO audit tool with **90 rules** across **11 categories**.
 
 **Version:** 2.1.0
 
@@ -297,7 +297,7 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Links | 10% | 13 |
 | Images | 10% | 12 |
 | Security | 10% | 6 |
-| Structured Data | 6% | 4 |
+| Structured Data | 6% | 13 |
 | Social | 5% | 5 |
 | Content | 7% | 10 |
 
@@ -382,6 +382,19 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Large inline SVGs | Move >5KB SVGs to external files |
 | Invalid picture element | Add `<img>` fallback inside `<picture>` |
 
+### Structured Data
+| Issue | Fix |
+|-------|-----|
+| Missing Article schema | Add headline, author, datePublished, image |
+| Missing Breadcrumb | Add BreadcrumbList on non-homepage pages |
+| Invalid FAQPage | Ensure mainEntity has Question items with acceptedAnswer |
+| Missing LocalBusiness | Add name, address, telephone, geo for local SEO |
+| Missing Organization | Add name, logo, sameAs for brand presence |
+| Invalid Product | Add offers with price, priceCurrency, availability |
+| Invalid Review | Add itemReviewed, author, reviewRating |
+| Missing VideoObject | Add name, thumbnailUrl, uploadDate |
+| No sitelinks searchbox | Add WebSite with SearchAction on homepage |
+
 ### Content
 | Issue | Fix |
 |-------|-----|
@@ -400,7 +413,7 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 seo-audit-skill/
 ├── SKILL.md              # Claude Code skill (root for skills.sh)
 ├── docs/
-│   ├── SEO-AUDIT-RULES.md      # 76 rules reference
+│   ├── SEO-AUDIT-RULES.md      # 90 rules reference
 │   └── STORAGE-ARCHITECTURE.md # SQLite storage technical docs
 ├── src/                  # CLI source code
 │   ├── cli.ts            # Main CLI entry (subcommands)

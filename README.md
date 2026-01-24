@@ -1,6 +1,6 @@
 # SEOmator Audit CLI
 
-A comprehensive SEO audit command-line tool with **81 audit rules** across **11 categories**. Analyze any website for SEO best practices, Core Web Vitals, security headers, structured data, and more.
+A comprehensive SEO audit command-line tool with **90 audit rules** across **11 categories**. Analyze any website for SEO best practices, Core Web Vitals, security headers, structured data, and more.
 
 > **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
 
@@ -180,13 +180,22 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `security-x-frame-options` | X-Frame-Options header |
 | `security-x-content-type-options` | X-Content-Type-Options: nosniff |
 
-### Structured Data (4 rules) - 6% weight
+### Structured Data (13 rules) - 6% weight
 | Rule | Description |
 |------|-------------|
 | `structured-data-present` | JSON-LD or microdata should exist |
 | `structured-data-valid` | JSON-LD should be valid JSON |
 | `structured-data-type` | @type field should be present |
 | `structured-data-required-fields` | Required fields for schema type |
+| `structured-data-article` | Validates Article schema properties |
+| `structured-data-breadcrumb` | Checks BreadcrumbList on non-homepage |
+| `structured-data-faq` | Validates FAQPage schema structure |
+| `structured-data-local-business` | Validates LocalBusiness for local SEO |
+| `structured-data-organization` | Validates Organization schema |
+| `structured-data-product` | Validates Product schema for e-commerce |
+| `structured-data-review` | Validates Review/AggregateRating schema |
+| `structured-data-video` | Validates VideoObject schema |
+| `structured-data-website-search` | Checks WebSite sitelinks searchbox |
 
 ### Social (5 rules) - 5% weight
 | Rule | Description |

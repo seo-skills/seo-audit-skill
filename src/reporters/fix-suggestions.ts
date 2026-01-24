@@ -89,6 +89,15 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'structured-data-valid': 'Fix JSON-LD syntax errors using Google Rich Results Test',
   'structured-data-type': 'Use appropriate schema type (Article, Product, LocalBusiness, etc.)',
   'structured-data-required-fields': 'Add required schema fields for the chosen type',
+  'structured-data-article': 'Add Article schema with headline, author (Person/Organization), datePublished, and image',
+  'structured-data-breadcrumb': 'Add BreadcrumbList schema with itemListElement array for navigation hierarchy',
+  'structured-data-faq': 'Add FAQPage schema with mainEntity array of Question items with acceptedAnswer',
+  'structured-data-local-business': 'Add LocalBusiness schema with name, address (PostalAddress), telephone, and geo coordinates',
+  'structured-data-organization': 'Add Organization schema with name, logo, url, and sameAs for social profiles',
+  'structured-data-product': 'Add Product schema with name, image, offers (price, priceCurrency, availability)',
+  'structured-data-review': 'Add Review schema with itemReviewed, author, reviewRating; or AggregateRating with ratingValue, reviewCount',
+  'structured-data-video': 'Add VideoObject schema with name, thumbnailUrl, uploadDate, and description',
+  'structured-data-website-search': 'Add WebSite schema with potentialAction SearchAction for sitelinks searchbox',
 
   // ============ Social ============
   'social-og-title': 'Add <meta property="og:title" content="..."> for social sharing',

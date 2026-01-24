@@ -23,11 +23,11 @@ SEOmator audits websites using 81 rules organized into 11 categories. Each rule 
 | [Links](#links) | 10% | 13 | Internal/external links, anchor text, validation |
 | [Images](#images) | 10% | 12 | Alt text, dimensions, lazy loading, broken images, accessibility |
 | [Security](#security) | 10% | 6 | HTTPS, HSTS, CSP, security headers |
-| [Structured Data](#structured-data) | 6% | 4 | JSON-LD, Schema.org markup |
+| [Structured Data](#structured-data) | 6% | 13 | JSON-LD, Schema.org markup |
 | [Social](#social) | 5% | 5 | Open Graph, Twitter Cards |
 | [Content](#content) | 7% | 10 | Text quality, readability, keyword density |
 
-**Total: 100% weight, 81 rules**
+**Total: 100% weight, 90 rules**
 
 ---
 
@@ -467,6 +467,15 @@ Checks for valid JSON-LD, Schema.org markup, and rich snippets.
 | `structured-data-valid` | Valid | fail | Validates JSON-LD syntax |
 | `structured-data-type` | Type | warn | Checks @type is specified |
 | `structured-data-required-fields` | Required Fields | warn | Validates required properties for type |
+| `structured-data-article` | Article Schema | warn | Validates Article/NewsArticle/BlogPosting |
+| `structured-data-breadcrumb` | Breadcrumb Schema | info | Checks BreadcrumbList on non-homepage |
+| `structured-data-faq` | FAQ Schema | fail | Validates FAQPage structure |
+| `structured-data-local-business` | LocalBusiness Schema | warn | Validates LocalBusiness for local SEO |
+| `structured-data-organization` | Organization Schema | info | Validates Organization schema |
+| `structured-data-product` | Product Schema | fail | Validates Product for e-commerce |
+| `structured-data-review` | Review Schema | warn | Validates Review/AggregateRating |
+| `structured-data-video` | Video Schema | warn | Validates VideoObject schema |
+| `structured-data-website-search` | WebSite Search | info | Checks sitelinks searchbox eligibility |
 
 ### Rule Details
 
@@ -485,6 +494,42 @@ Checks for valid JSON-LD, Schema.org markup, and rich snippets.
 #### structured-data-required-fields
 - **What it checks:** Required properties for schema type
 - **Example:** Article needs headline, datePublished, author
+
+#### structured-data-article
+- **What it checks:** Article/NewsArticle/BlogPosting has headline, author, datePublished
+- **Fix:** Add author as Person/Organization object, not string
+
+#### structured-data-breadcrumb
+- **What it checks:** BreadcrumbList on non-homepage with itemListElement
+- **Fix:** Add at least 2 breadcrumb items for navigation hierarchy
+
+#### structured-data-faq
+- **What it checks:** FAQPage has mainEntity with Question/Answer pairs
+- **Fix:** Each Question needs name and acceptedAnswer with text
+
+#### structured-data-local-business
+- **What it checks:** LocalBusiness has name, address, geo coordinates
+- **Fix:** Use PostalAddress object for address, not string
+
+#### structured-data-organization
+- **What it checks:** Organization has name, logo, sameAs social profiles
+- **Fix:** Add logo URL and sameAs array with social media URLs
+
+#### structured-data-product
+- **What it checks:** Product has offers with price, priceCurrency, availability
+- **Fix:** Add Offer object with required pricing fields
+
+#### structured-data-review
+- **What it checks:** Review has itemReviewed, author; AggregateRating has ratingValue
+- **Fix:** Add ratingValue and reviewCount or ratingCount
+
+#### structured-data-video
+- **What it checks:** VideoObject has name, thumbnailUrl, uploadDate
+- **Fix:** Use ISO 8601 format for duration (PT1M30S) and dates
+
+#### structured-data-website-search
+- **What it checks:** WebSite schema with SearchAction for sitelinks searchbox
+- **Fix:** Add potentialAction with target containing {search_term_string}
 
 ### Example
 

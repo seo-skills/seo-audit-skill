@@ -1,6 +1,6 @@
 ---
 name: seo-audit
-description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 55 rules across 9 categories including meta tags, Core Web Vitals, security headers, and structured data. Supports HTML/Markdown reports, URL filtering, and config validation.
+description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 59 rules across 10 categories including Core SEO, meta tags, Core Web Vitals, security headers, and structured data. Supports HTML/Markdown reports, URL filtering, and config validation.
 ---
 
 # SEO Audit Skill
@@ -95,15 +95,16 @@ Fix issues in this order (highest impact first):
 
 | Priority | Category | Weight | Impact |
 |----------|----------|--------|--------|
-| 1 | Meta Tags | 15% | Critical for search visibility |
-| 2 | Technical SEO | 15% | Foundation for crawling |
-| 3 | Core Web Vitals | 15% | User experience + ranking |
+| 1 | Core Web Vitals | 15% | User experience + ranking |
+| 2 | Meta Tags | 13% | Critical for search visibility |
+| 3 | Technical SEO | 13% | Foundation for crawling |
 | 4 | Security | 10% | Trust signals |
 | 5 | Links | 10% | Internal linking structure |
 | 6 | Images | 10% | Performance + accessibility |
 | 7 | Headings | 10% | Content structure |
-| 8 | Structured Data | 8% | Rich snippets |
-| 9 | Social | 7% | Social sharing |
+| 8 | Structured Data | 7% | Rich snippets |
+| 9 | Core SEO | 6% | Canonical & indexing validation |
+| 10 | Social | 6% | Social sharing |
 
 ### 3. Fix by Severity
 1. **Failures (status: "fail")** - Must fix immediately
@@ -111,6 +112,15 @@ Fix issues in this order (highest impact first):
 3. **Passes (status: "pass")** - No action needed
 
 ## Common Issues and Fixes
+
+### Core SEO
+
+| Rule | Issue | Fix |
+|------|-------|-----|
+| `core-seo-canonical-header` | Canonical mismatch | Use HTML canonical only; reserve Link header for PDFs |
+| `core-seo-nosnippet` | Blocks snippets | Remove nosnippet unless needed for sensitive content |
+| `core-seo-robots-meta` | Noindex/nofollow | Remove unless intentionally blocking search engines |
+| `core-seo-title-unique` | Duplicate titles | Create unique titles: "Page Topic \| Brand Name" |
 
 ### Meta Tags
 
@@ -250,4 +260,4 @@ When asked to audit a website:
 - npm: https://www.npmjs.com/package/@seomator/seo-audit
 - GitHub: https://github.com/seo-skills/seo-audit-skill
 - Web UI: https://seomator.com/free-seo-audit-tool
-- Rules Reference: See `references/rules.md` for all 55 rules
+- Rules Reference: See `docs/SEO-AUDIT-RULES.md` for all 59 rules

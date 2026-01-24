@@ -6,10 +6,16 @@ import type { CategoryDefinition } from '../types.js';
  */
 export const categories: CategoryDefinition[] = [
   {
+    id: 'core-seo',
+    name: 'Core SEO',
+    description: 'Essential SEO checks: canonical validation, indexing directives, and title uniqueness',
+    weight: 6,
+  },
+  {
     id: 'meta-tags',
     name: 'Meta Tags',
     description: 'Validates title, description, canonical, and other meta tags',
-    weight: 15,
+    weight: 13,
   },
   {
     id: 'headings',
@@ -21,7 +27,7 @@ export const categories: CategoryDefinition[] = [
     id: 'technical',
     name: 'Technical SEO',
     description: 'Validates robots.txt, sitemap, SSL, and other technical aspects',
-    weight: 15,
+    weight: 13,
   },
   {
     id: 'core-web-vitals',
@@ -51,13 +57,13 @@ export const categories: CategoryDefinition[] = [
     id: 'structured-data',
     name: 'Structured Data',
     description: 'Checks for valid JSON-LD, Schema.org markup, and rich snippets',
-    weight: 8,
+    weight: 7,
   },
   {
     id: 'social',
     name: 'Social',
     description: 'Validates Open Graph, Twitter Cards, and social sharing metadata',
-    weight: 7,
+    weight: 6,
   },
 ];
 

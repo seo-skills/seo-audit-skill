@@ -1,5 +1,6 @@
 // Static imports for all rule categories
 // These modules self-register their rules when imported
+import '../rules/core-seo/index.js';
 import '../rules/meta-tags/index.js';
 import '../rules/headings/index.js';
 import '../rules/technical/index.js';
@@ -32,6 +33,7 @@ export async function loadAllRules(): Promise<void> {
  * Useful for debugging or introspection
  */
 export const CATEGORY_MODULES = [
+  'core-seo',
   'meta-tags',
   'headings',
   'technical',

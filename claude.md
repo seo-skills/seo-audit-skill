@@ -1,6 +1,6 @@
 # SEOmator - SEO Audit CLI & Claude Code Skill
 
-A comprehensive SEO audit tool with **55 rules** across **9 categories**.
+A comprehensive SEO audit tool with **59 rules** across **10 categories**.
 
 **Version:** 2.1.0
 
@@ -220,15 +220,16 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 
 | Category | Weight | Rules |
 |----------|--------|-------|
-| Meta Tags | 15% | 8 |
-| Technical SEO | 15% | 8 |
-| Core Web Vitals | 15% | 5 |
+| Core SEO | 6% | 4 |
+| Meta Tags | 13% | 8 |
 | Headings | 10% | 6 |
+| Technical SEO | 13% | 8 |
+| Core Web Vitals | 15% | 5 |
 | Links | 10% | 6 |
 | Images | 10% | 7 |
 | Security | 10% | 6 |
-| Structured Data | 8% | 4 |
-| Social | 7% | 5 |
+| Structured Data | 7% | 4 |
+| Social | 6% | 5 |
 
 ---
 
@@ -241,19 +242,28 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 - **0-49**: Poor - Critical issues
 
 ### Priority Order (by impact)
-1. Meta Tags (15%) - Search visibility
-2. Technical SEO (15%) - Crawling foundation
-3. Core Web Vitals (15%) - UX + ranking
+1. Core Web Vitals (15%) - UX + ranking
+2. Meta Tags (13%) - Search visibility
+3. Technical SEO (13%) - Crawling foundation
 4. Security (10%) - Trust signals
 5. Links (10%) - Internal structure
 6. Images (10%) - Performance
 7. Headings (10%) - Content structure
-8. Structured Data (8%) - Rich snippets
-9. Social (7%) - Social sharing
+8. Structured Data (7%) - Rich snippets
+9. Core SEO (6%) - Canonical & indexing validation
+10. Social (6%) - Social sharing
 
 ---
 
 ## Common Fixes
+
+### Core SEO
+| Issue | Fix |
+|-------|-----|
+| Canonical mismatch | Use HTML canonical only; reserve Link header for PDFs |
+| Nosnippet directive | Remove unless needed for sensitive content |
+| Noindex/nofollow | Remove unless intentionally blocking search |
+| Duplicate titles | Create unique titles: "Page Topic \| Brand Name" |
 
 ### Meta Tags
 | Issue | Fix |
@@ -292,8 +302,8 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 ```
 seo-audit-skill/
 ├── SKILL.md              # Claude Code skill (root for skills.sh)
-├── references/
-│   └── rules.md          # 55 rules reference
+├── docs/
+│   └── SEO-AUDIT-RULES.md # 59 rules reference
 ├── src/                  # CLI source code
 │   ├── cli.ts            # Main CLI entry (subcommands)
 │   ├── auditor.ts        # Audit orchestration
@@ -327,8 +337,9 @@ seo-audit-skill/
 │   │   ├── json.ts       # JSON output
 │   │   ├── html-reporter.ts    # Self-contained HTML
 │   │   └── markdown-reporter.ts # GitHub-flavored Markdown
-│   └── rules/            # 55 audit rules
+│   └── rules/            # 59 audit rules
 │       ├── pattern-matcher.ts  # Wildcard rule matching
+│       ├── core-seo/     # Canonical, indexing, title uniqueness
 │       ├── meta-tags/
 │       ├── headings/
 │       ├── technical/

@@ -1,10 +1,10 @@
 # SEO Audit Rules Reference
 
-> Complete reference of all 96 SEO audit rules across 11 categories
+> Complete reference of all 108 SEO audit rules across 12 categories
 
 ## Overview
 
-SEOmator audits websites using 96 rules organized into 11 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 108 rules organized into 12 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -15,19 +15,20 @@ SEOmator audits websites using 96 rules organized into 11 categories. Each rule 
 
 | Category | Weight | Rules | Description |
 |----------|--------|-------|-------------|
-| [Core SEO](#core-seo) | 5% | 4 | Essential SEO checks: canonical validation, indexing directives |
-| [Meta Tags](#meta-tags) | 12% | 8 | Title, description, canonical, viewport, favicon |
-| [Headings](#headings) | 9% | 6 | H1-H6 structure and hierarchy |
-| [Technical SEO](#technical) | 12% | 8 | robots.txt, sitemap, URL structure |
-| [Core Web Vitals](#core-web-vitals) | 14% | 5 | LCP, CLS, FCP, TTFB, INP |
+| [Core SEO](#core-seo) | 4% | 4 | Essential SEO checks: canonical validation, indexing directives |
+| [Meta Tags](#meta-tags) | 11% | 8 | Title, description, canonical, viewport, favicon |
+| [Headings](#headings) | 8% | 6 | H1-H6 structure and hierarchy |
+| [Technical SEO](#technical) | 11% | 8 | robots.txt, sitemap, URL structure |
+| [Core Web Vitals](#core-web-vitals) | 13% | 5 | LCP, CLS, FCP, TTFB, INP |
 | [Links](#links) | 10% | 13 | Internal/external links, anchor text, validation |
 | [Images](#images) | 10% | 12 | Alt text, dimensions, lazy loading, broken images, accessibility |
 | [Security](#security) | 10% | 12 | HTTPS, HSTS, CSP, security headers, leaked secrets |
 | [Structured Data](#structured-data) | 6% | 13 | JSON-LD, Schema.org markup |
 | [Social](#social) | 5% | 5 | Open Graph, Twitter Cards |
-| [Content](#content) | 7% | 10 | Text quality, readability, keyword density |
+| [Content](#content) | 6% | 10 | Text quality, readability, keyword density |
+| [Accessibility](#accessibility) | 6% | 12 | WCAG compliance, screen reader support, keyboard navigation |
 
-**Total: 100% weight, 90 rules**
+**Total: 100% weight, 108 rules**
 
 ---
 
@@ -705,6 +706,108 @@ Analyzes text quality, readability, keyword density, and content structure.
 - **Warn:** Description appears on multiple pages
 - **Fail:** No meta description
 - **Fix:** Write unique, compelling descriptions (120-160 chars) for each page
+
+---
+
+## Accessibility
+
+Checks for WCAG compliance, screen reader support, and keyboard navigation.
+
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `a11y-aria-labels` | ARIA Labels | warn/fail | Checks interactive elements have accessible names |
+| `a11y-color-contrast` | Color Contrast | warn | Detects potential color contrast issues |
+| `a11y-focus-visible` | Focus Visible | warn/fail | Checks for focus indicator styles |
+| `a11y-form-labels` | Form Labels | warn/fail | Checks form inputs have associated labels |
+| `a11y-heading-order` | Heading Order | warn/fail | Checks heading levels don't skip |
+| `a11y-landmark-regions` | Landmark Regions | warn | Checks for proper landmark regions (main, nav, footer) |
+| `a11y-link-text` | Link Text | warn/fail | Checks for descriptive link text |
+| `a11y-skip-link` | Skip Link | warn | Checks for skip-to-content link for keyboard navigation |
+| `a11y-table-headers` | Table Headers | warn/fail | Checks data tables have proper headers |
+| `a11y-touch-targets` | Touch Targets | warn | Checks for minimum touch target sizing |
+| `a11y-video-captions` | Video Captions | warn/fail | Checks videos have captions or transcripts |
+| `a11y-zoom-disabled` | Zoom Disabled | fail | Checks if viewport disables user zoom |
+
+### Rule Details
+
+#### a11y-aria-labels
+- **What it checks:** Interactive elements (buttons, links, inputs) for accessible names
+- **Pass:** All interactive elements have accessible names (text, aria-label, or title)
+- **Warn:** 1-5 elements missing accessible names
+- **Fail:** More than 5 elements missing accessible names
+- **Fix:** Add aria-label, visible text content, or title attribute to interactive elements
+
+#### a11y-color-contrast
+- **What it checks:** Inline styles for potential low contrast color combinations
+- **Pass:** No obvious contrast issues detected
+- **Warn:** Potential contrast issues found (light gray text, text on images)
+- **Fix:** Ensure minimum 4.5:1 contrast ratio for normal text, 3:1 for large text
+
+#### a11y-focus-visible
+- **What it checks:** CSS for focus indicator removal (outline: none without alternatives)
+- **Pass:** No focus indicator issues
+- **Warn:** Focus styles removed but :focus-visible detected
+- **Fail:** Global or widespread focus outline removal
+- **Fix:** Keep visible focus indicators; use :focus-visible for keyboard-only focus styles
+
+#### a11y-form-labels
+- **What it checks:** Form inputs for associated labels via `<label for>`, aria-label, or wrapping label
+- **Pass:** All form inputs have labels
+- **Warn:** Some inputs missing labels
+- **Fail:** More than 30% of inputs lack labels
+- **Fix:** Add `<label for="inputId">` or aria-label attribute; placeholder is not a substitute
+
+#### a11y-heading-order
+- **What it checks:** Heading hierarchy for skipped levels (e.g., H1 → H3)
+- **Pass:** Proper heading hierarchy (H1 → H2 → H3)
+- **Warn:** 1-3 heading hierarchy issues
+- **Fail:** Multiple heading skips or first heading is not H1
+- **Fix:** Use proper sequence (H1 → H2 → H3); don't skip levels
+
+#### a11y-landmark-regions
+- **What it checks:** Presence of landmark elements: main, nav, header, footer
+- **Pass:** All essential landmarks present
+- **Warn:** Missing some landmark regions
+- **Fix:** Add `<main>`, `<nav>`, `<header>`, `<footer>` elements for screen reader navigation
+
+#### a11y-link-text
+- **What it checks:** Link text for generic phrases ("click here", "read more", "here")
+- **Pass:** All links have descriptive text
+- **Warn:** Some links use generic text
+- **Fail:** Many links with generic or empty text
+- **Fix:** Use descriptive link text that makes sense out of context
+
+#### a11y-skip-link
+- **What it checks:** Presence of skip-to-content link early in the page
+- **Pass:** Skip link found pointing to main content
+- **Warn:** No skip link (unless page is very simple)
+- **Fix:** Add `<a href="#main" class="skip-link">Skip to content</a>` before navigation
+
+#### a11y-table-headers
+- **What it checks:** Data tables for `<th>` elements with scope attributes
+- **Pass:** All data tables have proper headers
+- **Warn:** Tables missing scope attributes or captions
+- **Fail:** Tables without any header cells
+- **Fix:** Use `<th scope="col">` for column headers, `<th scope="row">` for row headers
+
+#### a11y-touch-targets
+- **What it checks:** Interactive elements for minimum 44x44px touch target size
+- **Pass:** No obvious small touch targets
+- **Warn:** Potential small touch targets detected
+- **Fix:** Ensure buttons/links are at least 44x44 CSS pixels (WCAG 2.5.8)
+
+#### a11y-video-captions
+- **What it checks:** Video/audio elements for captions or transcripts
+- **Pass:** All media has captions or transcript links
+- **Warn:** Some media may need captions
+- **Fail:** Multiple videos without captions
+- **Fix:** Add `<track kind="captions">` or link to transcript near video
+
+#### a11y-zoom-disabled
+- **What it checks:** Viewport meta tag for zoom-blocking settings
+- **Pass:** User zoom is allowed
+- **Fail:** user-scalable=no or maximum-scale≤1 prevents zooming
+- **Fix:** Remove user-scalable=no and maximum-scale=1 from viewport meta tag
 
 ---
 

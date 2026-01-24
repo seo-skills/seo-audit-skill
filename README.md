@@ -1,6 +1,6 @@
 # SEOmator Audit CLI
 
-A comprehensive SEO audit command-line tool with **96 audit rules** across **11 categories**. Analyze any website for SEO best practices, Core Web Vitals, security headers, structured data, and more.
+A comprehensive SEO audit command-line tool with **108 audit rules** across **12 categories**. Analyze any website for SEO best practices, Core Web Vitals, security headers, structured data, accessibility, and more.
 
 > **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
 
@@ -86,7 +86,7 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 
 ## Categories & Rules
 
-### Meta Tags (8 rules) - 12% weight
+### Meta Tags (8 rules) - 11% weight
 | Rule | Description |
 |------|-------------|
 | `meta-tags-title-present` | Check `<title>` tag exists |
@@ -98,7 +98,7 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `meta-tags-viewport-present` | Check viewport meta tag exists |
 | `meta-tags-favicon-present` | Check favicon link exists |
 
-### Core SEO (4 rules) - 5% weight
+### Core SEO (4 rules) - 4% weight
 | Rule | Description |
 |------|-------------|
 | `core-seo-canonical-header` | HTML canonical and Link header should match |
@@ -106,7 +106,7 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `core-seo-robots-meta` | Checks for noindex/nofollow directives |
 | `core-seo-title-unique` | Page titles should be unique site-wide |
 
-### Headings (6 rules) - 9% weight
+### Headings (6 rules) - 8% weight
 | Rule | Description |
 |------|-------------|
 | `headings-h1-present` | At least one H1 should exist |
@@ -116,7 +116,7 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `headings-content-unique` | Headings should be unique |
 | `headings-lang-attribute` | HTML lang attribute should exist |
 
-### Technical SEO (8 rules) - 12% weight
+### Technical SEO (8 rules) - 11% weight
 | Rule | Description |
 |------|-------------|
 | `technical-robots-txt-exists` | robots.txt should return 200 |
@@ -128,7 +128,7 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `technical-www-redirect` | www/non-www should redirect to one version |
 | `technical-404-page` | Custom 404 page should exist |
 
-### Core Web Vitals (5 rules) - 14% weight
+### Core Web Vitals (5 rules) - 13% weight
 | Rule | Threshold |
 |------|-----------|
 | `cwv-lcp` | Pass: <2.5s, Warn: 2.5-4s, Fail: >4s |
@@ -212,7 +212,7 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `social-twitter-card` | twitter:card meta tag |
 | `social-og-url` | og:url meta tag |
 
-### Content (10 rules) - 7% weight
+### Content (10 rules) - 6% weight
 | Rule | Description |
 |------|-------------|
 | `content-word-count` | Page should have 300+ words |
@@ -225,6 +225,22 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `content-meta-in-body` | Meta tags should be in head |
 | `content-mime-type` | Validates Content-Type header |
 | `content-duplicate-description` | Meta descriptions should be unique |
+
+### Accessibility (12 rules) - 6% weight
+| Rule | Description |
+|------|-------------|
+| `a11y-aria-labels` | Interactive elements have accessible names |
+| `a11y-color-contrast` | Checks for color contrast issues |
+| `a11y-focus-visible` | Checks for focus indicator styles |
+| `a11y-form-labels` | Form inputs have associated labels |
+| `a11y-heading-order` | Heading levels don't skip |
+| `a11y-landmark-regions` | Proper landmark regions (main, nav, footer) |
+| `a11y-link-text` | Descriptive link text |
+| `a11y-skip-link` | Skip-to-content link for keyboard navigation |
+| `a11y-table-headers` | Data tables have proper headers |
+| `a11y-touch-targets` | Minimum touch target sizing |
+| `a11y-video-captions` | Videos have captions or transcripts |
+| `a11y-zoom-disabled` | Viewport doesn't disable user zoom |
 
 ## Output Examples
 

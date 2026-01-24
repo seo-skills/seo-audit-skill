@@ -123,6 +123,20 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'content-broken-html': 'Fix HTML validation errors using W3C validator',
   'content-article-links': 'Add relevant internal and external links within article content',
   'content-duplicate-description': 'Use unique meta descriptions for each page',
+
+  // ============ Accessibility ============
+  'a11y-aria-labels': 'Add aria-label or visible text to interactive elements for screen readers',
+  'a11y-color-contrast': 'Ensure text has minimum 4.5:1 contrast ratio against background',
+  'a11y-focus-visible': 'Keep visible focus indicators; use :focus-visible for keyboard users',
+  'a11y-form-labels': 'Add <label for="id"> or aria-label to all form inputs',
+  'a11y-heading-order': 'Use proper heading hierarchy (H1→H2→H3); never skip levels',
+  'a11y-landmark-regions': 'Add <main>, <nav>, <header>, <footer> landmark elements',
+  'a11y-link-text': 'Use descriptive link text instead of "click here" or "read more"',
+  'a11y-skip-link': 'Add skip-to-content link at top of page for keyboard users',
+  'a11y-table-headers': 'Add <th scope="col/row"> to data table headers',
+  'a11y-touch-targets': 'Ensure interactive elements are at least 44x44 CSS pixels',
+  'a11y-video-captions': 'Add <track kind="captions"> or link to transcript for videos',
+  'a11y-zoom-disabled': 'Remove user-scalable=no and maximum-scale=1 from viewport',
 };
 
 /**

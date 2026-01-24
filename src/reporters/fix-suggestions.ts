@@ -140,6 +140,15 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   // ============ Internationalization (i18n) ============
   'i18n-lang-attribute': 'Add lang attribute to <html> tag: <html lang="en">',
   'i18n-hreflang': 'Add <link rel="alternate" hreflang="xx"> for each language version with self-reference',
+
+  // ============ Performance ============
+  'perf-dom-size': 'Reduce DOM size: remove unused elements, use virtualization for long lists',
+  'perf-css-file-size': 'Bundle and minify CSS; use critical CSS inline, defer non-critical',
+  'perf-font-loading': 'Add font-display: swap to @font-face; preload critical fonts',
+  'perf-preconnect': 'Add <link rel="preconnect" href="..."> for third-party origins',
+  'perf-render-blocking': 'Add async/defer to scripts; use media queries for non-critical CSS',
+  'perf-lazy-above-fold': 'Remove loading="lazy" from above-fold images; add fetchpriority="high"',
+  'perf-lcp-hints': 'Preload LCP image with <link rel="preload" as="image">; add fetchpriority="high"',
 };
 
 /**

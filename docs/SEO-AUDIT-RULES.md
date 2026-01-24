@@ -1,10 +1,10 @@
 # SEO Audit Rules Reference
 
-> Complete reference of all 109 SEO audit rules across 13 categories
+> Complete reference of all 116 SEO audit rules across 14 categories
 
 ## Overview
 
-SEOmator audits websites using 109 rules organized into 13 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 116 rules organized into 14 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -16,20 +16,21 @@ SEOmator audits websites using 109 rules organized into 13 categories. Each rule
 | Category | Weight | Rules | Description |
 |----------|--------|-------|-------------|
 | [Core SEO](#core-seo) | 4% | 4 | Essential SEO checks: canonical validation, indexing directives |
-| [Meta Tags](#meta-tags) | 11% | 8 | Title, description, canonical, viewport, favicon |
-| [Headings](#headings) | 7% | 5 | H1-H6 structure and hierarchy |
-| [Technical SEO](#technical) | 11% | 8 | robots.txt, sitemap, URL structure |
-| [Core Web Vitals](#core-web-vitals) | 13% | 5 | LCP, CLS, FCP, TTFB, INP |
-| [Links](#links) | 10% | 13 | Internal/external links, anchor text, validation |
-| [Images](#images) | 10% | 12 | Alt text, dimensions, lazy loading, broken images, accessibility |
-| [Security](#security) | 10% | 12 | HTTPS, HSTS, CSP, security headers, leaked secrets |
+| [Meta Tags](#meta-tags) | 10% | 8 | Title, description, canonical, viewport, favicon |
+| [Headings](#headings) | 6% | 5 | H1-H6 structure and hierarchy |
+| [Technical SEO](#technical) | 10% | 8 | robots.txt, sitemap, URL structure |
+| [Core Web Vitals](#core-web-vitals) | 12% | 5 | LCP, CLS, FCP, TTFB, INP |
+| [Links](#links) | 9% | 13 | Internal/external links, anchor text, validation |
+| [Images](#images) | 9% | 12 | Alt text, dimensions, lazy loading, broken images, accessibility |
+| [Security](#security) | 9% | 12 | HTTPS, HSTS, CSP, security headers, leaked secrets |
 | [Structured Data](#structured-data) | 6% | 13 | JSON-LD, Schema.org markup |
 | [Social](#social) | 4% | 5 | Open Graph, Twitter Cards |
-| [Content](#content) | 6% | 10 | Text quality, readability, keyword density |
+| [Content](#content) | 5% | 10 | Text quality, readability, keyword density |
 | [Accessibility](#accessibility) | 6% | 12 | WCAG compliance, screen reader support, keyboard navigation |
 | [Internationalization](#internationalization) | 2% | 2 | Language declarations, hreflang |
+| [Performance](#performance) | 8% | 7 | Static analysis for render-blocking, DOM size, fonts |
 
-**Total: 100% weight, 109 rules**
+**Total: 100% weight, 116 rules**
 
 ---
 
@@ -832,6 +833,63 @@ Checks language declarations and multi-region hreflang support.
 - **Warn:** Missing x-default or self-reference recommendations
 - **Fail:** Invalid hreflang format, duplicate codes, or relative URLs
 - **Fix:** Add `<link rel="alternate" hreflang="xx" href="...">` for each language version
+
+---
+
+## Performance
+
+Static analysis for performance optimization hints. Complements Core Web Vitals (real browser measurements) with preventive checks.
+
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `perf-dom-size` | DOM Size | warn/fail | Checks DOM node count, depth, and max children per element |
+| `perf-css-file-size` | CSS File Size | warn/fail | Checks external CSS count and inline CSS size |
+| `perf-font-loading` | Font Loading | warn/fail | Checks font-display, preload, and Google Fonts display=swap |
+| `perf-preconnect` | Preconnect Hints | warn | Checks for preconnect to critical third-party origins |
+| `perf-render-blocking` | Render-Blocking Resources | warn/fail | Checks for scripts without async/defer in head |
+| `perf-lazy-above-fold` | Lazy Loading Above Fold | warn/fail | Detects lazy loading on above-fold images |
+| `perf-lcp-hints` | LCP Optimization Hints | warn/fail | Checks LCP candidate for preload and fetchpriority |
+
+### Rule Details
+
+#### perf-dom-size
+- **What it checks:** Total DOM nodes, maximum nesting depth, max children per element
+- **Thresholds:** <800 nodes pass, 800-1500 warn, >1500 fail
+- **Depth:** <32 pass, >32 warn
+- **Children:** <60 per element
+- **Fix:** Remove unused elements, use virtualization for long lists, flatten deep nesting
+
+#### perf-css-file-size
+- **What it checks:** External CSS file count and inline CSS size
+- **Thresholds:** <=3 files pass, 4-6 warn, >6 fail; inline CSS >50KB warn
+- **Fix:** Bundle CSS files, extract critical CSS inline, defer non-critical
+
+#### perf-font-loading
+- **What it checks:** Font loading optimization
+- **Detects:** font-display in @font-face, font preloads, Google Fonts display=swap
+- **Fix:** Add font-display: swap; preload critical fonts; add &display=swap to Google Fonts
+
+#### perf-preconnect
+- **What it checks:** Preconnect hints for critical third-party origins
+- **Critical origins:** fonts.googleapis.com, CDNs, analytics services
+- **Fix:** Add `<link rel="preconnect" href="https://fonts.googleapis.com">`
+
+#### perf-render-blocking
+- **What it checks:** Scripts in `<head>` without async or defer
+- **Thresholds:** 0 blocking pass, 1-2 warn, >2 fail
+- **Fix:** Add async for independent scripts, defer for scripts that need DOM
+
+#### perf-lazy-above-fold
+- **What it checks:** First 3 images for loading="lazy" (anti-pattern)
+- **Pass:** No above-fold images have lazy loading
+- **Fail:** Hero image (first) has lazy loading
+- **Fix:** Remove loading="lazy" from above-fold images; add fetchpriority="high"
+
+#### perf-lcp-hints
+- **What it checks:** LCP candidate optimization
+- **Detects:** Hero images, first large images, video posters
+- **Checks:** fetchpriority="high", preload link, lazy loading (bad)
+- **Fix:** Add `<link rel="preload" as="image" href="...">` and fetchpriority="high" to LCP image
 
 ---
 

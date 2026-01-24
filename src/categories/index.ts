@@ -15,43 +15,43 @@ export const categories: CategoryDefinition[] = [
     id: 'meta-tags',
     name: 'Meta Tags',
     description: 'Validates title, description, canonical, and other meta tags',
-    weight: 11,
+    weight: 10,
   },
   {
     id: 'headings',
     name: 'Headings',
     description: 'Checks heading structure and hierarchy (H1-H6)',
-    weight: 7,
+    weight: 6,
   },
   {
     id: 'technical',
     name: 'Technical SEO',
     description: 'Validates robots.txt, sitemap, SSL, and other technical aspects',
-    weight: 11,
+    weight: 10,
   },
   {
     id: 'core-web-vitals',
     name: 'Core Web Vitals',
     description: 'Measures LCP, FID, CLS, and other performance metrics',
-    weight: 13,
+    weight: 12,
   },
   {
     id: 'links',
     name: 'Links',
     description: 'Analyzes internal and external links, anchor text, and broken links',
-    weight: 10,
+    weight: 9,
   },
   {
     id: 'images',
     name: 'Images',
     description: 'Checks alt attributes, dimensions, lazy loading, and optimization',
-    weight: 10,
+    weight: 9,
   },
   {
     id: 'security',
     name: 'Security',
     description: 'Validates HTTPS, security headers, and mixed content',
-    weight: 10,
+    weight: 9,
   },
   {
     id: 'structured-data',
@@ -69,7 +69,7 @@ export const categories: CategoryDefinition[] = [
     id: 'content',
     name: 'Content',
     description: 'Analyzes text quality, readability, keyword density, and content structure',
-    weight: 6,
+    weight: 5,
   },
   {
     id: 'accessibility',
@@ -82,6 +82,12 @@ export const categories: CategoryDefinition[] = [
     name: 'Internationalization',
     description: 'Checks language declarations and multi-region hreflang support',
     weight: 2,
+  },
+  {
+    id: 'performance',
+    name: 'Performance',
+    description: 'Static analysis for performance optimization (render-blocking, DOM size, fonts)',
+    weight: 8,
   },
 ];
 

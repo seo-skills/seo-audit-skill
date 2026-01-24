@@ -1,6 +1,6 @@
 ---
 name: seo-audit
-description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 69 rules across 11 categories including Core SEO, meta tags, Core Web Vitals, security headers, structured data, and content quality. Supports HTML/Markdown reports, URL filtering, and config validation.
+description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 116 rules across 14 categories including Core SEO, meta tags, Core Web Vitals, security headers, structured data, accessibility, performance, and content quality. Supports HTML/Markdown reports, URL filtering, and config validation.
 ---
 
 # SEO Audit Skill
@@ -44,6 +44,11 @@ seomator audit <url> --format html -o report.html --no-cwv
 seomator audit <url> --format markdown -o report.md --no-cwv
 ```
 
+### LLM-Optimized Output
+```bash
+seomator audit <url> --format llm --no-cwv
+```
+
 ## Output Formats
 
 | Format | Flag | Description |
@@ -52,6 +57,7 @@ seomator audit <url> --format markdown -o report.md --no-cwv
 | JSON | `--format json` or `--json` | Machine-readable JSON |
 | HTML | `--format html -o file.html` | Self-contained HTML report |
 | Markdown | `--format markdown -o file.md` | GitHub-flavored Markdown |
+| LLM | `--format llm` | Token-optimized XML for AI agents |
 
 ## Configuration
 
@@ -77,7 +83,7 @@ enable = ["*"]
 disable = ["core-web-vitals-*"]  # Wildcards supported
 
 [output]
-format = "console"  # console, json, html, markdown
+format = "console"  # console, json, html, markdown, llm
 ```
 
 ## Evaluating Results
@@ -93,19 +99,22 @@ After running the audit, parse the JSON output and evaluate as follows:
 ### 2. Prioritize by Category Weight
 Fix issues in this order (highest impact first):
 
-| Priority | Category | Weight | Impact |
-|----------|----------|--------|--------|
-| 1 | Core Web Vitals | 14% | User experience + ranking |
-| 2 | Meta Tags | 12% | Critical for search visibility |
-| 3 | Technical SEO | 12% | Foundation for crawling |
-| 4 | Security | 10% | Trust signals |
-| 5 | Links | 10% | Internal linking structure |
-| 6 | Images | 10% | Performance + accessibility |
-| 7 | Headings | 9% | Content structure |
-| 8 | Content | 7% | Text quality + readability |
-| 9 | Structured Data | 6% | Rich snippets |
-| 10 | Core SEO | 5% | Canonical & indexing validation |
-| 11 | Social | 5% | Social sharing |
+| Priority | Category | Weight | Rules | Impact |
+|----------|----------|--------|-------|--------|
+| 1 | Core Web Vitals | 12% | 5 | User experience + ranking |
+| 2 | Meta Tags | 10% | 8 | Search visibility |
+| 3 | Technical SEO | 10% | 8 | Foundation for crawling |
+| 4 | Security | 9% | 12 | Trust signals |
+| 5 | Links | 9% | 13 | Internal linking structure |
+| 6 | Images | 9% | 12 | Performance + accessibility |
+| 7 | Performance | 8% | 7 | Static optimization hints |
+| 8 | Headings | 6% | 5 | Content structure |
+| 9 | Structured Data | 6% | 13 | Rich snippets |
+| 10 | Accessibility | 6% | 12 | WCAG compliance |
+| 11 | Content | 5% | 10 | Text quality + readability |
+| 12 | Social | 4% | 5 | Social sharing |
+| 13 | Core SEO | 4% | 4 | Canonical & indexing |
+| 14 | Internationalization | 2% | 2 | Language & hreflang |
 
 ### 3. Fix by Severity
 1. **Failures (status: "fail")** - Must fix immediately
@@ -145,6 +154,18 @@ Fix issues in this order (highest impact first):
 | `cwv-ttfb` | >800ms poor | Use CDN, optimize server, enable caching |
 | `cwv-inp` | >200ms poor | Optimize JavaScript, break up long tasks |
 
+### Performance
+
+| Rule | Issue | Fix |
+|------|-------|-----|
+| `perf-dom-size` | Large DOM | Reduce nodes, use virtualization for long lists |
+| `perf-css-file-size` | Many CSS files | Bundle and minify CSS; inline critical CSS |
+| `perf-font-loading` | Poor font loading | Add font-display: swap; preload critical fonts |
+| `perf-preconnect` | Missing preconnect | Add `<link rel="preconnect">` for third-party origins |
+| `perf-render-blocking` | Blocking scripts | Add async/defer to scripts in head |
+| `perf-lazy-above-fold` | Lazy above fold | Remove loading="lazy" from hero images |
+| `perf-lcp-hints` | LCP not optimized | Preload LCP image; add fetchpriority="high" |
+
 ### Technical SEO
 
 | Rule | Issue | Fix |
@@ -162,6 +183,8 @@ Fix issues in this order (highest impact first):
 | `security-hsts` | Missing HSTS | Add header: `Strict-Transport-Security: max-age=31536000` |
 | `security-csp` | Missing CSP | Add Content-Security-Policy header |
 | `security-x-frame-options` | Clickjacking risk | Add header: `X-Frame-Options: DENY` |
+| `security-external-links` | Unsafe external links | Add `rel="noopener noreferrer"` to target="_blank" links |
+| `security-leaked-secrets` | Exposed secrets | Remove secrets and rotate compromised credentials |
 
 ### Images
 
@@ -172,6 +195,7 @@ Fix issues in this order (highest impact first):
 | `images-lazy-loading` | No lazy loading | Add `loading="lazy"` to below-fold images |
 | `images-modern-format` | Old formats | Convert to WebP or AVIF |
 | `images-responsive` | Not responsive | Use `srcset` for different screen sizes |
+| `images-broken` | 404 images | Fix or remove broken image references |
 
 ### Links
 
@@ -180,6 +204,8 @@ Fix issues in this order (highest impact first):
 | `links-broken-internal` | 404 links | Fix or remove broken internal links |
 | `links-anchor-text` | Generic anchors | Use descriptive text instead of "click here" |
 | `links-depth` | Too deep | Restructure navigation, max 3 clicks from home |
+| `links-dead-end-pages` | Dead ends | Add navigation links or related content |
+| `links-https-downgrade` | HTTP links | Update links to HTTPS |
 
 ### Structured Data
 
@@ -188,6 +214,20 @@ Fix issues in this order (highest impact first):
 | `structured-data-present` | No schema | Add JSON-LD structured data |
 | `structured-data-valid` | Invalid JSON | Fix JSON syntax errors |
 | `structured-data-type` | Missing @type | Add `"@type": "WebPage"` or appropriate type |
+| `structured-data-article` | Missing Article | Add headline, author, datePublished, image |
+| `structured-data-organization` | Missing Organization | Add name, logo, sameAs for brand presence |
+
+### Accessibility
+
+| Rule | Issue | Fix |
+|------|-------|-----|
+| `a11y-aria-labels` | Missing labels | Add aria-label to interactive elements |
+| `a11y-color-contrast` | Low contrast | Ensure 4.5:1 contrast ratio for text |
+| `a11y-form-labels` | Unlabeled inputs | Add `<label for="id">` to form inputs |
+| `a11y-heading-order` | Skipped levels | Use proper hierarchy (H1->H2->H3) |
+| `a11y-landmark-regions` | Missing landmarks | Add `<main>`, `<nav>`, `<header>`, `<footer>` |
+| `a11y-skip-link` | No skip link | Add skip-to-content link for keyboard users |
+| `a11y-zoom-disabled` | Zoom blocked | Remove user-scalable=no from viewport |
 
 ### Social (Open Graph)
 
@@ -205,13 +245,16 @@ Fix issues in this order (highest impact first):
 | `content-word-count` | Thin content | Expand to 300+ words, 500+ for standard pages |
 | `content-reading-level` | Poor readability | Use shorter sentences, simpler vocabulary |
 | `content-keyword-stuffing` | Keyword stuffing | Write naturally, use synonyms instead of repeating |
-| `content-article-links` | Wrong link density | Add internal/external links proportional to content |
 | `content-author-info` | No author info | Add Person schema with author attribution |
 | `content-freshness` | No date signals | Add datePublished/dateModified to Article schema |
-| `content-broken-html` | Malformed HTML | Use HTML validator, fix structural issues |
 | `content-meta-in-body` | Meta in body | Move all `<meta>` tags to `<head>` section |
-| `content-mime-type` | Wrong MIME type | Configure server to send `text/html; charset=utf-8` |
-| `content-duplicate-description` | Duplicate descriptions | Write unique descriptions for each page |
+
+### Internationalization
+
+| Rule | Issue | Fix |
+|------|-------|-----|
+| `i18n-lang-attribute` | Missing lang | Add `<html lang="en">` with valid BCP 47 code |
+| `i18n-hreflang` | Missing hreflang | Add `<link rel="alternate" hreflang="xx">` for each language |
 
 ## Example Analysis Workflow
 
@@ -276,4 +319,4 @@ When asked to audit a website:
 - npm: https://www.npmjs.com/package/@seomator/seo-audit
 - GitHub: https://github.com/seo-skills/seo-audit-skill
 - Web UI: https://seomator.com/free-seo-audit-tool
-- Rules Reference: See `docs/SEO-AUDIT-RULES.md` for all 69 rules
+- Rules Reference: See `docs/SEO-AUDIT-RULES.md` for all 116 rules

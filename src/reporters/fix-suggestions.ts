@@ -165,6 +165,11 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   // ============ URL Structure ============
   'url-slug-keywords': 'Use descriptive keywords in URL slugs (e.g., /blue-running-shoes instead of /product-12345)',
   'url-stop-words': 'Remove stop words (a, the, of) from URLs; prefer /best-running-shoes over /the-best-running-shoes-for-you',
+
+  // ============ Mobile ============
+  'mobile-font-size': 'Use minimum 16px for body text, 12px absolute minimum; prefer relative units (rem, em)',
+  'mobile-horizontal-scroll': 'Use max-width: 100% on images, overflow-x: auto on tables, responsive iframes',
+  'mobile-interstitials': 'Remove popups that cover main content on mobile; use compact banners instead of full-screen overlays',
 };
 
 /**

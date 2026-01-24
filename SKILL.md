@@ -1,6 +1,6 @@
 ---
 name: seo-audit
-description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 128 rules across 16 categories including Core SEO, meta tags, Core Web Vitals, security headers, structured data, accessibility, performance, crawlability, URL structure, and content quality. Supports HTML/Markdown reports, URL filtering, and config validation.
+description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 131 rules across 17 categories including Core SEO, meta tags, Core Web Vitals, security headers, structured data, accessibility, performance, crawlability, URL structure, mobile, and content quality. Supports HTML/Markdown reports, URL filtering, and config validation.
 ---
 
 # SEO Audit Skill
@@ -102,20 +102,22 @@ Fix issues in this order (highest impact first):
 | Priority | Category | Weight | Rules | Impact |
 |----------|----------|--------|-------|--------|
 | 1 | Core Web Vitals | 11% | 5 | User experience + ranking |
-| 2 | Meta Tags | 9% | 8 | Search visibility |
-| 3 | Technical SEO | 9% | 8 | Foundation for crawling |
+| 2 | Links | 9% | 13 | Internal linking structure |
+| 3 | Images | 9% | 12 | Performance + accessibility |
 | 4 | Security | 9% | 12 | Trust signals |
-| 5 | Links | 9% | 13 | Internal linking structure |
-| 6 | Images | 9% | 12 | Performance + accessibility |
-| 7 | Performance | 7% | 7 | Static optimization hints |
-| 8 | Headings | 6% | 5 | Content structure |
-| 9 | Structured Data | 6% | 13 | Rich snippets |
-| 10 | Accessibility | 6% | 12 | WCAG compliance |
+| 5 | Meta Tags | 8% | 8 | Search visibility |
+| 6 | Technical SEO | 8% | 8 | Foundation for crawling |
+| 7 | Headings | 6% | 5 | Content structure |
+| 8 | Structured Data | 6% | 13 | Rich snippets |
+| 9 | Accessibility | 5% | 12 | WCAG compliance |
+| 10 | Performance | 5% | 7 | Static optimization hints |
 | 11 | Content | 5% | 10 | Text quality + readability |
-| 12 | Crawlability | 5% | 6 | Indexability signals + sitemap conflicts |
+| 12 | Crawlability | 4% | 6 | Indexability signals + sitemap conflicts |
 | 13 | Social | 4% | 9 | Social sharing |
 | 14 | Core SEO | 3% | 4 | Canonical & indexing |
-| 15 | Internationalization | 2% | 2 | Language & hreflang |
+| 15 | URL Structure | 3% | 2 | Slug keywords & stop words |
+| 16 | Mobile | 3% | 3 | Font size, horizontal scroll |
+| 17 | Internationalization | 2% | 2 | Language & hreflang |
 
 ### 3. Fix by Severity
 1. **Failures (status: "fail")** - Must fix immediately
@@ -272,6 +274,21 @@ Fix issues in this order (highest impact first):
 | `crawl-noindex-in-sitemap` | Noindex page in sitemap | Either remove noindexed page from sitemap or remove the noindex directive |
 | `crawl-indexability-conflict` | robots.txt vs meta conflict | Choose one blocking method: either robots.txt disallow OR noindex meta, not both |
 | `crawl-canonical-redirect` | Canonical redirect chain | Update canonical to point directly to final destination URL; avoid redirect chains |
+
+### URL Structure
+
+| Rule | Issue | Fix |
+|------|-------|-----|
+| `url-slug-keywords` | Generic URL slug | Use descriptive keywords (e.g., `/blue-running-shoes` instead of `/product-12345`) |
+| `url-stop-words` | Stop words in URL | Remove stop words (a, the, of); prefer `/best-running-shoes` over `/the-best-running-shoes-for-you` |
+
+### Mobile
+
+| Rule | Issue | Fix |
+|------|-------|-----|
+| `mobile-font-size` | Small font size | Use minimum 16px for body text, 12px absolute minimum; prefer rem/em units |
+| `mobile-horizontal-scroll` | Horizontal scroll | Add `max-width: 100%` to images, `overflow-x: auto` to tables, responsive iframes |
+| `mobile-interstitials` | Intrusive popups | Remove popups covering main content; use compact banners instead of full-screen overlays |
 
 ## Example Analysis Workflow
 

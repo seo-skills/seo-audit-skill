@@ -1,10 +1,10 @@
 # SEO Audit Rules Reference
 
-> Complete reference of all 128 SEO audit rules across 16 categories
+> Complete reference of all 131 SEO audit rules across 17 categories
 
 ## Overview
 
-SEOmator audits websites using 128 rules organized into 16 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 131 rules organized into 17 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -16,7 +16,7 @@ SEOmator audits websites using 128 rules organized into 16 categories. Each rule
 | Category | Weight | Rules | Description |
 |----------|--------|-------|-------------|
 | [Core SEO](#core-seo) | 3% | 4 | Essential SEO checks: canonical validation, indexing directives |
-| [Meta Tags](#meta-tags) | 9% | 8 | Title, description, canonical, viewport, favicon |
+| [Meta Tags](#meta-tags) | 8% | 8 | Title, description, canonical, viewport, favicon |
 | [Headings](#headings) | 6% | 5 | H1-H6 structure and hierarchy |
 | [Technical SEO](#technical) | 8% | 8 | robots.txt, sitemap, URL structure |
 | [Core Web Vitals](#core-web-vitals) | 11% | 5 | LCP, CLS, FCP, TTFB, INP |
@@ -26,13 +26,14 @@ SEOmator audits websites using 128 rules organized into 16 categories. Each rule
 | [Structured Data](#structured-data) | 6% | 13 | JSON-LD, Schema.org markup |
 | [Social](#social) | 4% | 9 | Open Graph, Twitter Cards, share buttons, profiles |
 | [Content](#content) | 5% | 10 | Text quality, readability, keyword density |
-| [Accessibility](#accessibility) | 6% | 12 | WCAG compliance, screen reader support, keyboard navigation |
+| [Accessibility](#accessibility) | 5% | 12 | WCAG compliance, screen reader support, keyboard navigation |
 | [Internationalization](#internationalization) | 2% | 2 | Language declarations, hreflang |
-| [Performance](#performance) | 6% | 7 | Static analysis for render-blocking, DOM size, fonts |
+| [Performance](#performance) | 5% | 7 | Static analysis for render-blocking, DOM size, fonts |
 | [Crawlability](#crawlability) | 4% | 6 | Indexability signals, sitemap conflicts, canonical chains |
 | [URL Structure](#url-structure) | 3% | 2 | Slug keywords, stop words |
+| [Mobile](#mobile) | 3% | 3 | Font size, horizontal scroll, interstitials |
 
-**Total: 100% weight, 128 rules**
+**Total: 100% weight, 131 rules**
 
 ---
 
@@ -1008,6 +1009,44 @@ Analyzes URL formatting, keywords in slugs, and stop word usage for SEO optimiza
 - **Pass:** No stop words or acceptable ratio (<40%)
 - **Warn:** High ratio of stop words in URL (>40%)
 - **Fix:** Remove unnecessary stop words; prefer `/best-running-shoes` over `/the-best-running-shoes-for-you`
+
+---
+
+## Mobile
+
+Mobile-friendliness checks for font size, horizontal scroll, and intrusive interstitials.
+
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `mobile-font-size` | Mobile Font Size | fail/warn | Checks for readable font sizes on mobile devices |
+| `mobile-horizontal-scroll` | Horizontal Scroll | fail/warn | Detects elements that may cause horizontal scrolling |
+| `mobile-interstitials` | Intrusive Interstitials | fail/warn | Detects popups and overlays that cover main content |
+
+### Rule Details
+
+#### mobile-font-size
+- **What it checks:** Text font sizes for mobile readability
+- **Pass:** Body text uses 16px+ or relative units (rem, em)
+- **Warn:** Font sizes between 12-16px may require zooming
+- **Fail:** Font sizes below 12px are too small for mobile
+- **Fix:** Use minimum 16px for body text, 12px absolute minimum; prefer relative units
+
+#### mobile-horizontal-scroll
+- **What it checks:** Elements that may cause horizontal scrolling on mobile
+- **Detects:** Fixed-width elements >400px, images without max-width, wide tables, fixed iframes
+- **Pass:** No elements likely to cause horizontal scroll
+- **Warn:** Some elements may cause horizontal scroll
+- **Fail:** Multiple critical elements (images, iframes) cause horizontal scroll
+- **Fix:** Add `max-width: 100%` to images, `overflow-x: auto` to tables, use responsive iframes
+
+#### mobile-interstitials
+- **What it checks:** Popups and overlays that cover main content
+- **Detects:** Modal overlays, newsletter popups, exit-intent scripts, splash screens
+- **Skips:** Cookie consent, GDPR notices, age verification, login dialogs
+- **Pass:** No intrusive interstitials detected
+- **Warn:** Potential interstitial elements found
+- **Fail:** Exit-intent popups, on-load popups, or full-screen overlays detected
+- **Fix:** Remove popups covering main content; use compact banners instead
 
 ---
 

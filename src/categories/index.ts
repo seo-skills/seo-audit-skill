@@ -15,7 +15,7 @@ export const categories: CategoryDefinition[] = [
     id: 'meta-tags',
     name: 'Meta Tags',
     description: 'Validates title, description, canonical, and other meta tags',
-    weight: 9,
+    weight: 8,
   },
   {
     id: 'headings',
@@ -75,7 +75,7 @@ export const categories: CategoryDefinition[] = [
     id: 'accessibility',
     name: 'Accessibility',
     description: 'Checks for WCAG compliance, screen reader support, and keyboard navigation',
-    weight: 6,
+    weight: 5,
   },
   {
     id: 'i18n',
@@ -87,7 +87,7 @@ export const categories: CategoryDefinition[] = [
     id: 'performance',
     name: 'Performance',
     description: 'Static analysis for performance optimization (render-blocking, DOM size, fonts)',
-    weight: 6,
+    weight: 5,
   },
   {
     id: 'crawlability',
@@ -99,6 +99,12 @@ export const categories: CategoryDefinition[] = [
     id: 'url-structure',
     name: 'URL Structure',
     description: 'Analyzes URL formatting, keywords in slugs, and stop word usage',
+    weight: 3,
+  },
+  {
+    id: 'mobile',
+    name: 'Mobile',
+    description: 'Mobile-friendliness checks: font size, horizontal scroll, and interstitials',
     weight: 3,
   },
 ];

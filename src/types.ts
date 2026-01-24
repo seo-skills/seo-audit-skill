@@ -72,6 +72,36 @@ export interface ImageInfo {
 }
 
 /**
+ * Invalid link information
+ */
+export interface InvalidLinkInfo {
+  /** Raw href value */
+  href: string;
+  /** Reason it's invalid: 'empty' | 'javascript' | 'malformed' */
+  reason: 'empty' | 'javascript' | 'malformed';
+  /** Link text content */
+  text: string;
+}
+
+/**
+ * Special protocol link (tel:, mailto:)
+ */
+export interface SpecialLinkInfo {
+  /** Protocol type */
+  type: 'tel' | 'mailto';
+  /** Raw href value */
+  href: string;
+  /** Extracted value (phone number or email) */
+  value: string;
+  /** Link text content */
+  text: string;
+  /** Whether format is valid */
+  isValid: boolean;
+  /** Validation issue if invalid */
+  issue?: string;
+}
+
+/**
  * Context passed to each audit rule's run function
  */
 export interface AuditContext {
@@ -93,6 +123,10 @@ export interface AuditContext {
   links: LinkInfo[];
   /** Images found on the page */
   images: ImageInfo[];
+  /** Invalid links found on the page */
+  invalidLinks: InvalidLinkInfo[];
+  /** Special protocol links (tel:, mailto:) */
+  specialLinks: SpecialLinkInfo[];
 }
 
 /**

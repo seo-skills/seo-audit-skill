@@ -1,10 +1,10 @@
 # SEO Audit Rules Reference
 
-> Complete reference of all 69 SEO audit rules across 11 categories
+> Complete reference of all 76 SEO audit rules across 11 categories
 
 ## Overview
 
-SEOmator audits websites using 69 rules organized into 11 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 76 rules organized into 11 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -20,14 +20,14 @@ SEOmator audits websites using 69 rules organized into 11 categories. Each rule 
 | [Headings](#headings) | 9% | 6 | H1-H6 structure and hierarchy |
 | [Technical SEO](#technical) | 12% | 8 | robots.txt, sitemap, URL structure |
 | [Core Web Vitals](#core-web-vitals) | 14% | 5 | LCP, CLS, FCP, TTFB, INP |
-| [Links](#links) | 10% | 6 | Internal/external links, anchor text |
+| [Links](#links) | 10% | 13 | Internal/external links, anchor text, validation |
 | [Images](#images) | 10% | 7 | Alt text, dimensions, lazy loading |
 | [Security](#security) | 10% | 6 | HTTPS, HSTS, CSP, security headers |
 | [Structured Data](#structured-data) | 6% | 4 | JSON-LD, Schema.org markup |
 | [Social](#social) | 5% | 5 | Open Graph, Twitter Cards |
 | [Content](#content) | 7% | 10 | Text quality, readability, keyword density |
 
-**Total: 100% weight, 69 rules**
+**Total: 100% weight, 76 rules**
 
 ---
 
@@ -254,7 +254,7 @@ Measures LCP, CLS, FCP, TTFB, and INP performance metrics.
 
 ## Links
 
-Analyzes internal and external links, anchor text, and broken links.
+Analyzes internal and external links, anchor text, broken links, and link quality.
 
 | Rule ID | Name | Severity | Description |
 |---------|------|----------|-------------|
@@ -264,6 +264,13 @@ Analyzes internal and external links, anchor text, and broken links.
 | `links-nofollow-appropriate` | Nofollow Appropriate | warn | Validates nofollow usage |
 | `links-anchor-text` | Anchor Text | warn | Checks descriptive anchor text |
 | `links-depth` | Link Depth | warn | Validates pages reachable in ≤ 3 clicks |
+| `links-dead-end-pages` | Dead-End Pages | warn | Checks page has outgoing internal links |
+| `links-https-downgrade` | HTTPS Downgrade | warn | Checks HTTPS pages don't link to HTTP |
+| `links-external-count` | External Links Count | warn | Warns if >100 external links (link farm signal) |
+| `links-invalid` | Invalid Links | warn | Detects empty, javascript:, or malformed hrefs |
+| `links-tel-mailto` | Tel & Mailto Valid | warn | Validates tel: and mailto: link formats |
+| `links-redirect-chains` | Redirect Chains | warn/fail | Detects links going through multiple redirects |
+| `links-orphan-pages` | Orphan Pages | info | Checks for pages with no incoming links (crawl mode) |
 
 ### Rule Details
 
@@ -291,6 +298,45 @@ Analyzes internal and external links, anchor text, and broken links.
 #### links-depth
 - **What it checks:** Page reachable within 3 clicks from homepage
 - **Fix:** Restructure navigation, add internal links
+
+#### links-dead-end-pages
+- **What it checks:** Page has at least one outgoing internal link
+- **Why:** Dead-end pages hurt user experience and crawlability
+- **Fix:** Add navigation links, related content, or breadcrumbs
+
+#### links-https-downgrade
+- **What it checks:** HTTPS pages don't link to HTTP URLs
+- **Why:** Mixed content can cause security warnings
+- **Fix:** Update HTTP links to HTTPS or remove insecure links
+
+#### links-external-count
+- **What it checks:** Number of external links on page
+- **Threshold:** >100 external links triggers warning
+- **Why:** Excessive external links can signal a link farm
+- **Fix:** Reduce to essential, high-quality resources only
+
+#### links-invalid
+- **What it checks:** Link href attribute validity
+- **Detects:** Empty href, `href="#"`, `javascript:*`, malformed URLs
+- **Fix:** Replace javascript: links with buttons, fix malformed URLs
+
+#### links-tel-mailto
+- **What it checks:** Phone and email link formats
+- **Phone format:** E.164-like (7-15 digits with optional +, spaces, dashes)
+- **Email format:** Basic email validation (user@domain.tld)
+- **Fix:** Use `tel:+1234567890` format, valid email addresses
+
+#### links-redirect-chains
+- **What it checks:** Internal links that redirect
+- **Warn:** 1-2 redirect hops
+- **Fail:** 3+ redirect hops
+- **Why:** Redirect chains waste crawl budget and slow navigation
+- **Fix:** Update links to point directly to final destination URLs
+
+#### links-orphan-pages
+- **What it checks:** Pages with no incoming internal links
+- **Note:** Full detection requires crawl mode to build link graph
+- **Fix:** Add internal links from other pages to improve discoverability
 
 ---
 

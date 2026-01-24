@@ -1,6 +1,6 @@
 # SEOmator - SEO Audit CLI & Claude Code Skill
 
-A comprehensive SEO audit tool with **69 rules** across **11 categories**.
+A comprehensive SEO audit tool with **76 rules** across **11 categories**.
 
 **Version:** 2.1.0
 
@@ -36,12 +36,13 @@ seomator audit https://example.com --no-cwv     # Skip Core Web Vitals
 seomator audit https://example.com --save       # Save report
 seomator audit https://example.com --format html -o report.html  # HTML report
 seomator audit https://example.com --format markdown             # Markdown report
+seomator audit https://example.com --format llm                  # AI agent format
 ```
 
 **Options:**
 | Option | Description |
 |--------|-------------|
-| `-f, --format <type>` | Output format: console, json, html, markdown |
+| `-f, --format <type>` | Output format: console, json, html, markdown, llm |
 | `-o, --output <path>` | Output file path (for html/markdown/json) |
 | `-j, --json` | Output as JSON (deprecated, use --format json) |
 | `-v, --verbose` | Show progress |
@@ -149,7 +150,7 @@ timeout_ms = 10000
 concurrency = 5
 
 [output]
-format = "console"              # console, json, html, markdown
+format = "console"              # console, json, html, markdown, llm
 path = ""
 ```
 
@@ -217,6 +218,45 @@ seomator db restore              # Rollback migration (restore from backup)
 
 ---
 
+## AI Agent Integration
+
+### LLM Format
+
+The `--format llm` option produces token-optimized XML output for AI agents:
+- **50-70% smaller** than JSON output
+- **Issues sorted by severity** (critical first)
+- **Fix suggestions included** for each issue
+- **Clean stdout** for piping to Claude/LLMs
+
+### Output Formats
+
+| Format | Flag | Best For |
+|--------|------|----------|
+| console | `--format console` | Human terminal output (default) |
+| json | `--format json` | CI/CD, programmatic processing |
+| html | `--format html` | Standalone reports, sharing |
+| markdown | `--format markdown` | Documentation, GitHub |
+| llm | `--format llm` | AI agents, piping to Claude |
+
+### Usage Examples
+
+**Pipe to Claude:**
+```bash
+seomator audit https://example.com --format llm --no-cwv | claude "analyze and prioritize fixes"
+```
+
+**Save for later analysis:**
+```bash
+seomator audit https://example.com --format llm -o audit.xml --no-cwv
+```
+
+**Audit and fix workflow:**
+```bash
+seomator audit https://mysite.com --format llm | claude "fix all critical issues in my codebase"
+```
+
+---
+
 ## Exit Codes
 
 - `0` - Passed (score >= 70)
@@ -254,7 +294,7 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Headings | 9% | 6 |
 | Technical SEO | 12% | 8 |
 | Core Web Vitals | 14% | 5 |
-| Links | 10% | 6 |
+| Links | 10% | 13 |
 | Images | 10% | 7 |
 | Security | 10% | 6 |
 | Structured Data | 6% | 4 |
@@ -319,6 +359,17 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | No HSTS | Add `Strict-Transport-Security` header |
 | No CSP | Add `Content-Security-Policy` header |
 
+### Links
+| Issue | Fix |
+|-------|-----|
+| Dead-end pages | Add navigation links, breadcrumbs, or related content |
+| HTTPS downgrade | Update HTTP links to HTTPS |
+| Too many external links | Reduce to essential, high-quality resources |
+| Invalid links | Replace javascript: with buttons, fix malformed URLs |
+| Invalid tel/mailto | Use E.164 phone format, valid email addresses |
+| Redirect chains | Update links to final destination URLs |
+| Orphan pages | Add internal links from other pages (crawl mode) |
+
 ### Images
 | Issue | Fix |
 |-------|-----|
@@ -344,7 +395,7 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 seo-audit-skill/
 ├── SKILL.md              # Claude Code skill (root for skills.sh)
 ├── docs/
-│   ├── SEO-AUDIT-RULES.md      # 69 rules reference
+│   ├── SEO-AUDIT-RULES.md      # 76 rules reference
 │   └── STORAGE-ARCHITECTURE.md # SQLite storage technical docs
 ├── src/                  # CLI source code
 │   ├── cli.ts            # Main CLI entry (subcommands)

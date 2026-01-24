@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import type { CheerioAPI } from 'cheerio';
-import type { AuditContext, LinkInfo, ImageInfo, CoreWebVitals } from '../types.js';
+import type { AuditContext, LinkInfo, ImageInfo, CoreWebVitals, InvalidLinkInfo, SpecialLinkInfo } from '../types.js';
 
 /**
  * Result of fetching a page
@@ -97,23 +97,51 @@ export async function fetchUrl(url: string, timeout = 10000): Promise<number> {
 }
 
 /**
+ * Result of link extraction including invalid links
+ */
+interface LinkExtractionResult {
+  links: LinkInfo[];
+  invalidLinks: InvalidLinkInfo[];
+}
+
+/**
  * Extract links from parsed HTML
  * @param $ - Cheerio instance
  * @param baseUrl - Base URL for resolving relative links
- * @returns Array of LinkInfo objects
+ * @returns Object with valid links and invalid links
  */
-function extractLinks($: CheerioAPI, baseUrl: string): LinkInfo[] {
+function extractLinks($: CheerioAPI, baseUrl: string): LinkExtractionResult {
   const links: LinkInfo[] = [];
+  const invalidLinks: InvalidLinkInfo[] = [];
   const baseUrlObj = new URL(baseUrl);
 
   $('a[href]').each((_, element) => {
     const $el = $(element);
     const href = $el.attr('href');
+    const text = ($el.text().trim() || $el.attr('title') || '').slice(0, 200);
 
-    if (!href) return;
+    // Check for empty or hash-only href
+    if (!href || href === '' || href === '#') {
+      invalidLinks.push({
+        href: href || '',
+        reason: 'empty',
+        text,
+      });
+      return;
+    }
 
-    // Skip javascript:, mailto:, tel:, and data: URLs
-    if (/^(javascript:|mailto:|tel:|data:|#)/i.test(href)) {
+    // Check for javascript: URLs
+    if (/^javascript:/i.test(href)) {
+      invalidLinks.push({
+        href,
+        reason: 'javascript',
+        text,
+      });
+      return;
+    }
+
+    // Skip mailto:, tel:, and data: URLs (handled separately)
+    if (/^(mailto:|tel:|data:)/i.test(href)) {
       return;
     }
 
@@ -129,21 +157,102 @@ function extractLinks($: CheerioAPI, baseUrl: string): LinkInfo[] {
       const rel = $el.attr('rel') || '';
       const isNoFollow = rel.toLowerCase().includes('nofollow');
 
-      // Get link text
-      const text = $el.text().trim() || $el.attr('title') || '';
-
       links.push({
         href: normalizedHref,
-        text: text.slice(0, 200), // Truncate long text
+        text,
         isInternal,
         isNoFollow,
       });
     } catch {
-      // Invalid URL, skip
+      // Malformed URL
+      invalidLinks.push({
+        href,
+        reason: 'malformed',
+        text,
+      });
     }
   });
 
-  return links;
+  return { links, invalidLinks };
+}
+
+/**
+ * Validate email format (basic validation)
+ */
+function isValidEmail(email: string): { isValid: boolean; issue?: string } {
+  if (!email) {
+    return { isValid: false, issue: 'Empty email address' };
+  }
+  // Basic email regex - checks for format: something@something.something
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return { isValid: false, issue: 'Invalid email format' };
+  }
+  return { isValid: true };
+}
+
+/**
+ * Validate phone number format (E.164-ish: digits, spaces, dashes, parens, plus)
+ */
+function isValidPhone(phone: string): { isValid: boolean; issue?: string } {
+  if (!phone) {
+    return { isValid: false, issue: 'Empty phone number' };
+  }
+  // Remove allowed characters and check if remaining are digits
+  const cleaned = phone.replace(/[\s\-\(\)\+\.]/g, '');
+  if (!/^\d{7,15}$/.test(cleaned)) {
+    return { isValid: false, issue: 'Invalid phone format (should be 7-15 digits)' };
+  }
+  return { isValid: true };
+}
+
+/**
+ * Extract special protocol links (tel:, mailto:) from parsed HTML
+ * @param $ - Cheerio instance
+ * @returns Array of SpecialLinkInfo objects
+ */
+function extractSpecialLinks($: CheerioAPI): SpecialLinkInfo[] {
+  const specialLinks: SpecialLinkInfo[] = [];
+
+  $('a[href]').each((_, element) => {
+    const $el = $(element);
+    const href = $el.attr('href');
+    if (!href) return;
+
+    const text = ($el.text().trim() || $el.attr('title') || '').slice(0, 200);
+
+    // Check for tel: links
+    if (/^tel:/i.test(href)) {
+      const value = href.replace(/^tel:/i, '');
+      const validation = isValidPhone(value);
+      specialLinks.push({
+        type: 'tel',
+        href,
+        value,
+        text,
+        isValid: validation.isValid,
+        ...(validation.issue && { issue: validation.issue }),
+      });
+      return;
+    }
+
+    // Check for mailto: links
+    if (/^mailto:/i.test(href)) {
+      // Extract email (before any ? for subject/body params)
+      const value = href.replace(/^mailto:/i, '').split('?')[0];
+      const validation = isValidEmail(value);
+      specialLinks.push({
+        type: 'mailto',
+        href,
+        value,
+        text,
+        isValid: validation.isValid,
+        ...(validation.issue && { issue: validation.issue }),
+      });
+    }
+  });
+
+  return specialLinks;
 }
 
 /**
@@ -188,6 +297,93 @@ function extractImages($: CheerioAPI, baseUrl: string): ImageInfo[] {
 }
 
 /**
+ * Result of fetching a URL with redirect tracking
+ */
+export interface RedirectResult {
+  /** Final URL after all redirects */
+  finalUrl: string;
+  /** HTTP status code of final response */
+  statusCode: number;
+  /** Number of redirects followed */
+  redirectCount: number;
+  /** Chain of URLs followed */
+  chain: string[];
+}
+
+/**
+ * Fetch URL with redirect tracking (no auto-follow)
+ * @param url - URL to check
+ * @param timeout - Request timeout in milliseconds (default: 10000)
+ * @param maxRedirects - Maximum redirects to follow (default: 5)
+ * @returns RedirectResult with final URL and redirect chain
+ */
+export async function fetchUrlWithRedirects(
+  url: string,
+  timeout = 10000,
+  maxRedirects = 5
+): Promise<RedirectResult> {
+  const chain: string[] = [url];
+  let currentUrl = url;
+  let redirectCount = 0;
+
+  while (redirectCount < maxRedirects) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(currentUrl, {
+        method: 'HEAD',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'SEOmatorBot/1.0 (+https://github.com/seo-skills/seo-audit-skill)',
+        },
+        redirect: 'manual', // Don't auto-follow redirects
+      });
+
+      clearTimeout(timeoutId);
+
+      // Check for redirect status codes
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get('location');
+        if (location) {
+          // Resolve relative redirect URLs
+          const nextUrl = new URL(location, currentUrl).href;
+          chain.push(nextUrl);
+          currentUrl = nextUrl;
+          redirectCount++;
+          continue;
+        }
+      }
+
+      // Not a redirect or no location header
+      return {
+        finalUrl: currentUrl,
+        statusCode: response.status,
+        redirectCount,
+        chain,
+      };
+    } catch (error) {
+      clearTimeout(timeoutId);
+      // Return current state on error
+      return {
+        finalUrl: currentUrl,
+        statusCode: 0, // Network error
+        redirectCount,
+        chain,
+      };
+    }
+  }
+
+  // Max redirects reached
+  return {
+    finalUrl: currentUrl,
+    statusCode: 0, // Treat as error
+    redirectCount,
+    chain,
+  };
+}
+
+/**
  * Build full AuditContext from fetch result
  * @param url - The URL that was fetched
  * @param fetchResult - Result from fetchPage
@@ -200,6 +396,8 @@ export function createAuditContext(
   cwv: CoreWebVitals = {}
 ): AuditContext {
   const { html, $, headers, statusCode, responseTime } = fetchResult;
+  const { links, invalidLinks } = extractLinks($, url);
+  const specialLinks = extractSpecialLinks($);
 
   return {
     url,
@@ -209,7 +407,9 @@ export function createAuditContext(
     statusCode,
     responseTime,
     cwv,
-    links: extractLinks($, url),
+    links,
     images: extractImages($, url),
+    invalidLinks,
+    specialLinks,
   };
 }

@@ -1,12 +1,12 @@
 # SEOmator Audit CLI
 
-A comprehensive SEO audit command-line tool with **55 audit rules** across **9 categories**. Analyze any website for SEO best practices, Core Web Vitals, security headers, structured data, and more.
+A comprehensive SEO audit command-line tool with **76 audit rules** across **11 categories**. Analyze any website for SEO best practices, Core Web Vitals, security headers, structured data, and more.
 
 > **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
 
 ## Features
 
-- **55 SEO Audit Rules** across 9 categories
+- **76 SEO Audit Rules** across 11 categories
 - **Single Page & Crawl Mode** - Audit one page or crawl entire sites
 - **Core Web Vitals** - LCP, CLS, FCP, TTFB, INP measurement
 - **JSON & Terminal Output** - Machine-readable or human-friendly reports
@@ -86,7 +86,7 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 
 ## Categories & Rules
 
-### Meta Tags (8 rules) - 15% weight
+### Meta Tags (8 rules) - 12% weight
 | Rule | Description |
 |------|-------------|
 | `meta-tags-title-present` | Check `<title>` tag exists |
@@ -98,7 +98,15 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `meta-tags-viewport-present` | Check viewport meta tag exists |
 | `meta-tags-favicon-present` | Check favicon link exists |
 
-### Headings (6 rules) - 10% weight
+### Core SEO (4 rules) - 5% weight
+| Rule | Description |
+|------|-------------|
+| `core-seo-canonical-header` | HTML canonical and Link header should match |
+| `core-seo-nosnippet` | Detects nosnippet/max-snippet:0 directives |
+| `core-seo-robots-meta` | Checks for noindex/nofollow directives |
+| `core-seo-title-unique` | Page titles should be unique site-wide |
+
+### Headings (6 rules) - 9% weight
 | Rule | Description |
 |------|-------------|
 | `headings-h1-present` | At least one H1 should exist |
@@ -108,7 +116,7 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `headings-content-unique` | Headings should be unique |
 | `headings-lang-attribute` | HTML lang attribute should exist |
 
-### Technical SEO (8 rules) - 15% weight
+### Technical SEO (8 rules) - 12% weight
 | Rule | Description |
 |------|-------------|
 | `technical-robots-txt-exists` | robots.txt should return 200 |
@@ -120,7 +128,7 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `technical-www-redirect` | www/non-www should redirect to one version |
 | `technical-404-page` | Custom 404 page should exist |
 
-### Core Web Vitals (5 rules) - 15% weight
+### Core Web Vitals (5 rules) - 14% weight
 | Rule | Threshold |
 |------|-----------|
 | `cwv-lcp` | Pass: <2.5s, Warn: 2.5-4s, Fail: >4s |
@@ -129,7 +137,7 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `cwv-ttfb` | Pass: <800ms, Warn: 800-1800ms, Fail: >1800ms |
 | `cwv-fcp` | Pass: <1.8s, Warn: 1.8-3s, Fail: >3s |
 
-### Links (6 rules) - 10% weight
+### Links (13 rules) - 10% weight
 | Rule | Description |
 |------|-------------|
 | `links-broken-internal` | Internal links should return 200 |
@@ -138,6 +146,13 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `links-nofollow-appropriate` | nofollow used appropriately |
 | `links-anchor-text` | Anchor text should be descriptive |
 | `links-depth` | Page depth should be ≤3 from homepage |
+| `links-dead-end-pages` | Page should have outgoing internal links |
+| `links-https-downgrade` | HTTPS pages should not link to HTTP |
+| `links-external-count` | Warn if >100 external links |
+| `links-invalid` | No empty, javascript:, or malformed hrefs |
+| `links-tel-mailto` | Valid tel: and mailto: link formats |
+| `links-redirect-chains` | Links should not go through redirects |
+| `links-orphan-pages` | Pages should have incoming links |
 
 ### Images (7 rules) - 10% weight
 | Rule | Description |
@@ -160,7 +175,7 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `security-x-frame-options` | X-Frame-Options header |
 | `security-x-content-type-options` | X-Content-Type-Options: nosniff |
 
-### Structured Data (4 rules) - 8% weight
+### Structured Data (4 rules) - 6% weight
 | Rule | Description |
 |------|-------------|
 | `structured-data-present` | JSON-LD or microdata should exist |
@@ -168,7 +183,7 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `structured-data-type` | @type field should be present |
 | `structured-data-required-fields` | Required fields for schema type |
 
-### Social (5 rules) - 7% weight
+### Social (5 rules) - 5% weight
 | Rule | Description |
 |------|-------------|
 | `social-og-title` | og:title meta tag |
@@ -176,6 +191,20 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `social-og-image` | og:image with valid URL |
 | `social-twitter-card` | twitter:card meta tag |
 | `social-og-url` | og:url meta tag |
+
+### Content (10 rules) - 7% weight
+| Rule | Description |
+|------|-------------|
+| `content-word-count` | Page should have 300+ words |
+| `content-reading-level` | Flesch-Kincaid reading level check |
+| `content-keyword-stuffing` | Detects excessive keyword repetition |
+| `content-article-links` | Checks link-to-content ratio |
+| `content-author-info` | Author attribution for E-E-A-T |
+| `content-freshness` | Date signals (datePublished/Modified) |
+| `content-broken-html` | Detects malformed HTML structure |
+| `content-meta-in-body` | Meta tags should be in head |
+| `content-mime-type` | Validates Content-Type header |
+| `content-duplicate-description` | Meta descriptions should be unique |
 
 ## Output Examples
 
@@ -325,7 +354,7 @@ Claude will install the CLI (if needed), run the audit, and provide actionable r
 ### Skill Contents
 
 - **[SKILL.md](skill/SKILL.md)** - Main skill definition with installation and usage instructions
-- **[references/rules.md](skill/references/rules.md)** - Complete reference of all 55 audit rules
+- **[references/rules.md](skill/references/rules.md)** - Complete reference of all 76 audit rules
 
 ## Requirements
 

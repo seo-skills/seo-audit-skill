@@ -1,6 +1,6 @@
 # SEOmator - SEO Audit CLI & Claude Code Skill
 
-A comprehensive SEO audit tool with **126 rules** across **15 categories**.
+A comprehensive SEO audit tool with **128 rules** across **16 categories**.
 
 **Version:** 2.1.0
 
@@ -292,7 +292,7 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Core SEO | 3% | 4 |
 | Meta Tags | 9% | 8 |
 | Headings | 6% | 5 |
-| Technical SEO | 9% | 8 |
+| Technical SEO | 8% | 8 |
 | Core Web Vitals | 11% | 5 |
 | Links | 9% | 13 |
 | Images | 9% | 12 |
@@ -302,8 +302,9 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Content | 5% | 10 |
 | Accessibility | 6% | 12 |
 | Internationalization | 2% | 2 |
-| Performance | 7% | 7 |
-| Crawlability | 5% | 6 |
+| Performance | 6% | 7 |
+| Crawlability | 4% | 6 |
+| URL Structure | 3% | 2 |
 
 ---
 
@@ -318,19 +319,20 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 ### Priority Order (by impact)
 1. Core Web Vitals (11%) - UX + ranking
 2. Meta Tags (9%) - Search visibility
-3. Technical SEO (9%) - Crawling foundation
-4. Security (9%) - Trust signals
-5. Links (9%) - Internal structure
-6. Images (9%) - Performance
-7. Performance (7%) - Static optimization hints
-8. Headings (6%) - Content structure
-9. Structured Data (6%) - Rich snippets
-10. Accessibility (6%) - WCAG compliance
+3. Links (9%) - Internal structure
+4. Images (9%) - Performance
+5. Security (9%) - Trust signals
+6. Technical SEO (8%) - Crawling foundation
+7. Headings (6%) - Content structure
+8. Structured Data (6%) - Rich snippets
+9. Accessibility (6%) - WCAG compliance
+10. Performance (6%) - Static optimization hints
 11. Content (5%) - Text quality + readability
-12. Crawlability (5%) - Indexability signals & sitemap conflicts
+12. Crawlability (4%) - Indexability signals & sitemap conflicts
 13. Social (4%) - Social sharing
 14. Core SEO (3%) - Canonical & indexing validation
-15. Internationalization (2%) - Language & hreflang
+15. URL Structure (3%) - Slug keywords & stop words
+16. Internationalization (2%) - Language & hreflang
 
 ---
 
@@ -474,6 +476,12 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Indexability conflict | Choose one blocking method: robots.txt disallow OR noindex meta, not both |
 | Canonical redirect chain | Update canonical to point directly to final destination URL; avoid redirect chains |
 
+### URL Structure
+| Issue | Fix |
+|-------|-----|
+| Generic URL slug | Use descriptive keywords (e.g., `/blue-running-shoes` instead of `/product-12345`) |
+| Stop words in URL | Remove stop words (a, the, of); prefer `/best-running-shoes` over `/the-best-running-shoes-for-you` |
+
 ---
 
 ## Project Structure
@@ -482,7 +490,7 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 seo-audit-skill/
 ├── SKILL.md              # Claude Code skill (root for skills.sh)
 ├── docs/
-│   ├── SEO-AUDIT-RULES.md      # 126 rules reference
+│   ├── SEO-AUDIT-RULES.md      # 128 rules reference
 │   └── STORAGE-ARCHITECTURE.md # SQLite storage technical docs
 ├── src/                  # CLI source code
 │   ├── cli.ts            # Main CLI entry (subcommands)
@@ -541,7 +549,7 @@ seo-audit-skill/
 │   │   ├── json.ts       # JSON output
 │   │   ├── html-reporter.ts    # Self-contained HTML
 │   │   └── markdown-reporter.ts # GitHub-flavored Markdown
-│   └── rules/            # 126 audit rules
+│   └── rules/            # 128 audit rules
 │       ├── pattern-matcher.ts  # Wildcard rule matching
 │       ├── core-seo/     # Canonical, indexing, title uniqueness
 │       ├── meta-tags/
@@ -557,7 +565,8 @@ seo-audit-skill/
 │       ├── accessibility/ # WCAG, ARIA, keyboard navigation
 │       ├── i18n/         # Language declarations, hreflang
 │       ├── performance/  # Static optimization hints
-│       └── crawlability/ # Sitemap conflicts, indexability signals
+│       ├── crawlability/ # Sitemap conflicts, indexability signals
+│       └── url-structure/ # Slug keywords, stop words
 ├── dist/                 # Built CLI
 ├── package.json
 ├── tsconfig.json

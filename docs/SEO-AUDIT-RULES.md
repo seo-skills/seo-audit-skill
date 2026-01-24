@@ -1,10 +1,10 @@
 # SEO Audit Rules Reference
 
-> Complete reference of all 126 SEO audit rules across 15 categories
+> Complete reference of all 128 SEO audit rules across 16 categories
 
 ## Overview
 
-SEOmator audits websites using 126 rules organized into 15 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 128 rules organized into 16 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -18,7 +18,7 @@ SEOmator audits websites using 126 rules organized into 15 categories. Each rule
 | [Core SEO](#core-seo) | 3% | 4 | Essential SEO checks: canonical validation, indexing directives |
 | [Meta Tags](#meta-tags) | 9% | 8 | Title, description, canonical, viewport, favicon |
 | [Headings](#headings) | 6% | 5 | H1-H6 structure and hierarchy |
-| [Technical SEO](#technical) | 9% | 8 | robots.txt, sitemap, URL structure |
+| [Technical SEO](#technical) | 8% | 8 | robots.txt, sitemap, URL structure |
 | [Core Web Vitals](#core-web-vitals) | 11% | 5 | LCP, CLS, FCP, TTFB, INP |
 | [Links](#links) | 9% | 13 | Internal/external links, anchor text, validation |
 | [Images](#images) | 9% | 12 | Alt text, dimensions, lazy loading, broken images, accessibility |
@@ -28,10 +28,11 @@ SEOmator audits websites using 126 rules organized into 15 categories. Each rule
 | [Content](#content) | 5% | 10 | Text quality, readability, keyword density |
 | [Accessibility](#accessibility) | 6% | 12 | WCAG compliance, screen reader support, keyboard navigation |
 | [Internationalization](#internationalization) | 2% | 2 | Language declarations, hreflang |
-| [Performance](#performance) | 7% | 7 | Static analysis for render-blocking, DOM size, fonts |
-| [Crawlability](#crawlability) | 5% | 6 | Indexability signals, sitemap conflicts, canonical chains |
+| [Performance](#performance) | 6% | 7 | Static analysis for render-blocking, DOM size, fonts |
+| [Crawlability](#crawlability) | 4% | 6 | Indexability signals, sitemap conflicts, canonical chains |
+| [URL Structure](#url-structure) | 3% | 2 | Slug keywords, stop words |
 
-**Total: 100% weight, 126 rules**
+**Total: 100% weight, 128 rules**
 
 ---
 
@@ -980,6 +981,33 @@ Validates indexability signals, sitemap conflicts, and canonical redirect chains
 - **Warn:** Canonical URL redirects once
 - **Fail:** Canonical URL has redirect chain (2+ hops) or returns 4xx/5xx
 - **Fix:** Update canonical to point directly to final destination URL; avoid redirect chains that waste crawl budget
+
+---
+
+## URL Structure
+
+Analyzes URL formatting, keywords in slugs, and stop word usage for SEO optimization.
+
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `url-slug-keywords` | Slug Keywords | fail/warn | Checks if URL slug contains descriptive keywords |
+| `url-stop-words` | URL Stop Words | warn | Flags common stop words in URL slugs |
+
+### Rule Details
+
+#### url-slug-keywords
+- **What it checks:** Whether URL slugs contain descriptive keywords vs generic identifiers
+- **Pass:** URL has descriptive keyword-rich slugs (e.g., `/blue-running-shoes`)
+- **Warn:** URL path may lack descriptive keywords
+- **Fail (generic):** URL uses generic identifiers (e.g., `/product-12345`, `/node/123`)
+- **Fail (dynamic):** URL uses dynamic parameters instead of slugs (e.g., `/?p=123`)
+- **Fix:** Use descriptive keywords in URL slugs; avoid numeric IDs, UUIDs, and query parameters
+
+#### url-stop-words
+- **What it checks:** Common stop words (a, an, the, of, for, etc.) in URL slugs
+- **Pass:** No stop words or acceptable ratio (<40%)
+- **Warn:** High ratio of stop words in URL (>40%)
+- **Fix:** Remove unnecessary stop words; prefer `/best-running-shoes` over `/the-best-running-shoes-for-you`
 
 ---
 

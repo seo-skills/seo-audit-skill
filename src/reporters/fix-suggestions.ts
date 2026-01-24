@@ -161,6 +161,10 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'crawl-noindex-in-sitemap': 'Either remove noindexed page from sitemap or remove the noindex directive',
   'crawl-indexability-conflict': 'Choose one blocking method: either robots.txt disallow OR noindex meta, not both',
   'crawl-canonical-redirect': 'Update canonical to point directly to final destination URL; avoid redirect chains',
+
+  // ============ URL Structure ============
+  'url-slug-keywords': 'Use descriptive keywords in URL slugs (e.g., /blue-running-shoes instead of /product-12345)',
+  'url-stop-words': 'Remove stop words (a, the, of) from URLs; prefer /best-running-shoes over /the-best-running-shoes-for-you',
 };
 
 /**

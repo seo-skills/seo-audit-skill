@@ -27,7 +27,7 @@ export const categories: CategoryDefinition[] = [
     id: 'technical',
     name: 'Technical SEO',
     description: 'Validates robots.txt, sitemap, SSL, and other technical aspects',
-    weight: 9,
+    weight: 8,
   },
   {
     id: 'core-web-vitals',
@@ -87,13 +87,19 @@ export const categories: CategoryDefinition[] = [
     id: 'performance',
     name: 'Performance',
     description: 'Static analysis for performance optimization (render-blocking, DOM size, fonts)',
-    weight: 7,
+    weight: 6,
   },
   {
     id: 'crawlability',
     name: 'Crawlability',
     description: 'Validates indexability signals, sitemap-noindex conflicts, and canonical chains',
-    weight: 5,
+    weight: 4,
+  },
+  {
+    id: 'url-structure',
+    name: 'URL Structure',
+    description: 'Analyzes URL formatting, keywords in slugs, and stop word usage',
+    weight: 3,
   },
 ];
 

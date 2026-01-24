@@ -1,6 +1,6 @@
 ---
 name: seo-audit
-description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 126 rules across 15 categories including Core SEO, meta tags, Core Web Vitals, security headers, structured data, accessibility, performance, crawlability, and content quality. Supports HTML/Markdown reports, URL filtering, and config validation.
+description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 128 rules across 16 categories including Core SEO, meta tags, Core Web Vitals, security headers, structured data, accessibility, performance, crawlability, URL structure, and content quality. Supports HTML/Markdown reports, URL filtering, and config validation.
 ---
 
 # SEO Audit Skill

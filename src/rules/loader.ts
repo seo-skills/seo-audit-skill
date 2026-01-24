@@ -15,6 +15,7 @@ import '../rules/accessibility/index.js';
 import '../rules/i18n/index.js';
 import '../rules/performance/index.js';
 import '../rules/crawlability/index.js';
+import '../rules/url-structure/index.js';
 
 let rulesLoaded = false;
 
@@ -53,4 +54,5 @@ export const CATEGORY_MODULES = [
   'i18n',
   'performance',
   'crawlability',
+  'url-structure',
 ] as const;

@@ -10,6 +10,7 @@ import '../rules/images/index.js';
 import '../rules/security/index.js';
 import '../rules/structured-data/index.js';
 import '../rules/social/index.js';
+import '../rules/content/index.js';
 
 let rulesLoaded = false;
 
@@ -43,4 +44,5 @@ export const CATEGORY_MODULES = [
   'security',
   'structured-data',
   'social',
+  'content',
 ] as const;

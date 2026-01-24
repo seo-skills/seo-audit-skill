@@ -1,6 +1,6 @@
 # SEOmator - SEO Audit CLI & Claude Code Skill
 
-A comprehensive SEO audit tool with **59 rules** across **10 categories**.
+A comprehensive SEO audit tool with **69 rules** across **11 categories**.
 
 **Version:** 2.1.0
 
@@ -220,16 +220,17 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 
 | Category | Weight | Rules |
 |----------|--------|-------|
-| Core SEO | 6% | 4 |
-| Meta Tags | 13% | 8 |
-| Headings | 10% | 6 |
-| Technical SEO | 13% | 8 |
-| Core Web Vitals | 15% | 5 |
+| Core SEO | 5% | 4 |
+| Meta Tags | 12% | 8 |
+| Headings | 9% | 6 |
+| Technical SEO | 12% | 8 |
+| Core Web Vitals | 14% | 5 |
 | Links | 10% | 6 |
 | Images | 10% | 7 |
 | Security | 10% | 6 |
-| Structured Data | 7% | 4 |
-| Social | 6% | 5 |
+| Structured Data | 6% | 4 |
+| Social | 5% | 5 |
+| Content | 7% | 10 |
 
 ---
 
@@ -242,16 +243,17 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 - **0-49**: Poor - Critical issues
 
 ### Priority Order (by impact)
-1. Core Web Vitals (15%) - UX + ranking
-2. Meta Tags (13%) - Search visibility
-3. Technical SEO (13%) - Crawling foundation
+1. Core Web Vitals (14%) - UX + ranking
+2. Meta Tags (12%) - Search visibility
+3. Technical SEO (12%) - Crawling foundation
 4. Security (10%) - Trust signals
 5. Links (10%) - Internal structure
 6. Images (10%) - Performance
-7. Headings (10%) - Content structure
-8. Structured Data (7%) - Rich snippets
-9. Core SEO (6%) - Canonical & indexing validation
-10. Social (6%) - Social sharing
+7. Headings (9%) - Content structure
+8. Content (7%) - Text quality + readability
+9. Structured Data (6%) - Rich snippets
+10. Core SEO (5%) - Canonical & indexing validation
+11. Social (5%) - Social sharing
 
 ---
 
@@ -295,6 +297,16 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | No dimensions | Add `width` and `height` |
 | Old formats | Convert to WebP/AVIF |
 
+### Content
+| Issue | Fix |
+|-------|-----|
+| Thin content | Expand to 300+ words, 500+ for standard pages |
+| Poor readability | Use shorter sentences, simpler vocabulary |
+| Keyword stuffing | Write naturally, use synonyms |
+| No author info | Add Person schema with author attribution |
+| No date signals | Add datePublished/dateModified to Article schema |
+| Meta in body | Move all `<meta>` tags to `<head>` |
+
 ---
 
 ## Project Structure
@@ -303,7 +315,7 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 seo-audit-skill/
 ├── SKILL.md              # Claude Code skill (root for skills.sh)
 ├── docs/
-│   └── SEO-AUDIT-RULES.md # 59 rules reference
+│   └── SEO-AUDIT-RULES.md # 69 rules reference
 ├── src/                  # CLI source code
 │   ├── cli.ts            # Main CLI entry (subcommands)
 │   ├── auditor.ts        # Audit orchestration
@@ -337,7 +349,7 @@ seo-audit-skill/
 │   │   ├── json.ts       # JSON output
 │   │   ├── html-reporter.ts    # Self-contained HTML
 │   │   └── markdown-reporter.ts # GitHub-flavored Markdown
-│   └── rules/            # 59 audit rules
+│   └── rules/            # 69 audit rules
 │       ├── pattern-matcher.ts  # Wildcard rule matching
 │       ├── core-seo/     # Canonical, indexing, title uniqueness
 │       ├── meta-tags/
@@ -348,7 +360,8 @@ seo-audit-skill/
 │       ├── images/
 │       ├── security/
 │       ├── structured-data/
-│       └── social/
+│       ├── social/
+│       └── content/      # Text quality, readability, keyword density
 ├── dist/                 # Built CLI
 ├── package.json
 ├── tsconfig.json

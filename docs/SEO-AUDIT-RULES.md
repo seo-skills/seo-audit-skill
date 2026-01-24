@@ -1,10 +1,10 @@
 # SEO Audit Rules Reference
 
-> Complete reference of all 59 SEO audit rules across 10 categories
+> Complete reference of all 69 SEO audit rules across 11 categories
 
 ## Overview
 
-SEOmator audits websites using 59 rules organized into 10 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 69 rules organized into 11 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -15,18 +15,19 @@ SEOmator audits websites using 59 rules organized into 10 categories. Each rule 
 
 | Category | Weight | Rules | Description |
 |----------|--------|-------|-------------|
-| [Core SEO](#core-seo) | 6% | 4 | Essential SEO checks: canonical validation, indexing directives |
-| [Meta Tags](#meta-tags) | 13% | 8 | Title, description, canonical, viewport, favicon |
-| [Headings](#headings) | 10% | 6 | H1-H6 structure and hierarchy |
-| [Technical SEO](#technical) | 13% | 8 | robots.txt, sitemap, URL structure |
-| [Core Web Vitals](#core-web-vitals) | 15% | 5 | LCP, CLS, FCP, TTFB, INP |
+| [Core SEO](#core-seo) | 5% | 4 | Essential SEO checks: canonical validation, indexing directives |
+| [Meta Tags](#meta-tags) | 12% | 8 | Title, description, canonical, viewport, favicon |
+| [Headings](#headings) | 9% | 6 | H1-H6 structure and hierarchy |
+| [Technical SEO](#technical) | 12% | 8 | robots.txt, sitemap, URL structure |
+| [Core Web Vitals](#core-web-vitals) | 14% | 5 | LCP, CLS, FCP, TTFB, INP |
 | [Links](#links) | 10% | 6 | Internal/external links, anchor text |
 | [Images](#images) | 10% | 7 | Alt text, dimensions, lazy loading |
 | [Security](#security) | 10% | 6 | HTTPS, HSTS, CSP, security headers |
-| [Structured Data](#structured-data) | 7% | 4 | JSON-LD, Schema.org markup |
-| [Social](#social) | 6% | 5 | Open Graph, Twitter Cards |
+| [Structured Data](#structured-data) | 6% | 4 | JSON-LD, Schema.org markup |
+| [Social](#social) | 5% | 5 | Open Graph, Twitter Cards |
+| [Content](#content) | 7% | 10 | Text quality, readability, keyword density |
 
-**Total: 100% weight, 59 rules**
+**Total: 100% weight, 69 rules**
 
 ---
 
@@ -464,6 +465,98 @@ Validates Open Graph, Twitter Cards, and social sharing metadata.
 - **What it checks:** `<meta name="twitter:card">` exists
 - **Types:** summary, summary_large_image, player, app
 - **Fix:** Add `<meta name="twitter:card" content="summary_large_image">`
+
+---
+
+## Content
+
+Analyzes text quality, readability, keyword density, and content structure.
+
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `content-word-count` | Word Count | warn/fail | Checks content length for thin content issues |
+| `content-reading-level` | Reading Level | warn | Analyzes readability using Flesch-Kincaid score |
+| `content-keyword-stuffing` | Keyword Stuffing | warn/fail | Detects excessive keyword repetition |
+| `content-article-links` | Article Link Density | warn | Checks link-to-content ratio |
+| `content-author-info` | Author Info | warn | Checks for author markup (E-E-A-T) |
+| `content-freshness` | Content Freshness | warn | Checks for date signals (datePublished, dateModified) |
+| `content-broken-html` | Broken HTML | warn/fail | Detects malformed HTML structure |
+| `content-meta-in-body` | Meta Tags in Body | fail | Detects meta tags incorrectly placed in body |
+| `content-mime-type` | MIME Type | warn/fail | Validates Content-Type header |
+| `content-duplicate-description` | Duplicate Description | warn/fail | Checks for duplicate meta descriptions (site-wide) |
+
+### Rule Details
+
+#### content-word-count
+- **What it checks:** Main content word count (excluding nav, footer, scripts)
+- **Pass:** >= 300 words
+- **Warn:** 100-299 words (thin content)
+- **Fail:** < 100 words (extremely thin)
+- **Fix:** Expand content to cover topic thoroughly; 500+ words for pages, 1000+ for articles
+
+#### content-reading-level
+- **What it checks:** Flesch-Kincaid Reading Ease score
+- **Optimal:** 60-70 (8th-9th grade, accessible to general audience)
+- **Too complex:** < 50 (college level)
+- **Too simple:** > 80 (elementary level)
+- **Fix:** Use shorter sentences, simpler vocabulary, bullet points
+
+#### content-keyword-stuffing
+- **What it checks:** Word frequency after removing stopwords
+- **Pass:** No word exceeds 2% density
+- **Warn:** 1-2 words exceed 2% density
+- **Fail:** Any word > 5% density or 3+ words > 2%
+- **Fix:** Use synonyms and related terms; write naturally for users
+
+#### content-article-links
+- **What it checks:** Links per 100 words of content
+- **Optimal:** 0.5-5 links per 100 words
+- **Too sparse:** < 0.5 links per 100 words
+- **Too dense:** > 5 links per 100 words
+- **Fix:** Add internal links to related content, cite external sources
+
+#### content-author-info
+- **What it checks:** Author attribution for E-E-A-T signals
+- **Detects:** Schema.org author, rel="author" links, meta author tag, byline elements
+- **Pass:** Any author signal found
+- **Warn:** No author info
+- **Fix:** Add author name with Person schema, link to author bio page
+
+#### content-freshness
+- **What it checks:** Date signals indicating content currency
+- **Detects:** Schema.org datePublished/dateModified, `<time>` elements, article:published_time meta, Last-Modified header
+- **Pass:** Any date signal found
+- **Warn:** No date signals
+- **Fix:** Add datePublished and dateModified to Article schema
+
+#### content-broken-html
+- **What it checks:** HTML structure validity
+- **Detects:** Duplicate IDs, invalid nesting, empty headings/buttons, missing attributes, deprecated elements
+- **Pass:** No issues
+- **Warn:** 1-3 issues
+- **Fail:** 4+ issues
+- **Fix:** Use HTML validator, fix structural problems
+
+#### content-meta-in-body
+- **What it checks:** Meta tags incorrectly placed in document body
+- **Detects:** `<meta>`, `<title>`, `<link rel="canonical">` inside `<body>`
+- **Pass:** All meta elements in `<head>`
+- **Fail:** Any meta element in `<body>`
+- **Fix:** Move all meta tags to `<head>`; check HTML template for errors
+
+#### content-mime-type
+- **What it checks:** Content-Type HTTP header
+- **Pass:** `text/html; charset=utf-8`
+- **Warn:** Missing charset or non-UTF-8
+- **Fail:** Wrong MIME type or missing header
+- **Fix:** Configure server to send `Content-Type: text/html; charset=utf-8`
+
+#### content-duplicate-description
+- **What it checks:** Unique meta descriptions across crawled pages
+- **Pass:** Description is unique
+- **Warn:** Description appears on multiple pages
+- **Fail:** No meta description
+- **Fix:** Write unique, compelling descriptions (120-160 chars) for each page
 
 ---
 

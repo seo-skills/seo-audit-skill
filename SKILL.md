@@ -1,6 +1,6 @@
 ---
 name: seo-audit
-description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 59 rules across 10 categories including Core SEO, meta tags, Core Web Vitals, security headers, and structured data. Supports HTML/Markdown reports, URL filtering, and config validation.
+description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 69 rules across 11 categories including Core SEO, meta tags, Core Web Vitals, security headers, structured data, and content quality. Supports HTML/Markdown reports, URL filtering, and config validation.
 ---
 
 # SEO Audit Skill
@@ -95,16 +95,17 @@ Fix issues in this order (highest impact first):
 
 | Priority | Category | Weight | Impact |
 |----------|----------|--------|--------|
-| 1 | Core Web Vitals | 15% | User experience + ranking |
-| 2 | Meta Tags | 13% | Critical for search visibility |
-| 3 | Technical SEO | 13% | Foundation for crawling |
+| 1 | Core Web Vitals | 14% | User experience + ranking |
+| 2 | Meta Tags | 12% | Critical for search visibility |
+| 3 | Technical SEO | 12% | Foundation for crawling |
 | 4 | Security | 10% | Trust signals |
 | 5 | Links | 10% | Internal linking structure |
 | 6 | Images | 10% | Performance + accessibility |
-| 7 | Headings | 10% | Content structure |
-| 8 | Structured Data | 7% | Rich snippets |
-| 9 | Core SEO | 6% | Canonical & indexing validation |
-| 10 | Social | 6% | Social sharing |
+| 7 | Headings | 9% | Content structure |
+| 8 | Content | 7% | Text quality + readability |
+| 9 | Structured Data | 6% | Rich snippets |
+| 10 | Core SEO | 5% | Canonical & indexing validation |
+| 11 | Social | 5% | Social sharing |
 
 ### 3. Fix by Severity
 1. **Failures (status: "fail")** - Must fix immediately
@@ -197,6 +198,21 @@ Fix issues in this order (highest impact first):
 | `social-og-image` | Missing/invalid | Add `<meta property="og:image" content="https://...">` |
 | `social-twitter-card` | Missing | Add `<meta name="twitter:card" content="summary_large_image">` |
 
+### Content
+
+| Rule | Issue | Fix |
+|------|-------|-----|
+| `content-word-count` | Thin content | Expand to 300+ words, 500+ for standard pages |
+| `content-reading-level` | Poor readability | Use shorter sentences, simpler vocabulary |
+| `content-keyword-stuffing` | Keyword stuffing | Write naturally, use synonyms instead of repeating |
+| `content-article-links` | Wrong link density | Add internal/external links proportional to content |
+| `content-author-info` | No author info | Add Person schema with author attribution |
+| `content-freshness` | No date signals | Add datePublished/dateModified to Article schema |
+| `content-broken-html` | Malformed HTML | Use HTML validator, fix structural issues |
+| `content-meta-in-body` | Meta in body | Move all `<meta>` tags to `<head>` section |
+| `content-mime-type` | Wrong MIME type | Configure server to send `text/html; charset=utf-8` |
+| `content-duplicate-description` | Duplicate descriptions | Write unique descriptions for each page |
+
 ## Example Analysis Workflow
 
 When asked to audit a website:
@@ -260,4 +276,4 @@ When asked to audit a website:
 - npm: https://www.npmjs.com/package/@seomator/seo-audit
 - GitHub: https://github.com/seo-skills/seo-audit-skill
 - Web UI: https://seomator.com/free-seo-audit-tool
-- Rules Reference: See `docs/SEO-AUDIT-RULES.md` for all 59 rules
+- Rules Reference: See `docs/SEO-AUDIT-RULES.md` for all 69 rules

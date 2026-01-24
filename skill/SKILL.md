@@ -172,8 +172,14 @@ Fix issues in this order (highest impact first):
 | Rule | Issue | Fix |
 |------|-------|-----|
 | `social-og-title` | Missing | Add `<meta property="og:title" content="...">` |
+| `social-og-description` | Missing | Add `<meta property="og:description" content="...">` |
 | `social-og-image` | Missing/invalid | Add `<meta property="og:image" content="https://...">` |
+| `social-og-image-size` | Missing dimensions | Add `og:image:width` (1200) and `og:image:height` (630) meta tags |
+| `social-og-url` | Missing | Add `<meta property="og:url" content="...">` matching canonical |
+| `social-og-url-canonical` | URL mismatch | Ensure og:url matches canonical URL exactly |
 | `social-twitter-card` | Missing | Add `<meta name="twitter:card" content="summary_large_image">` |
+| `social-share-buttons` | No share buttons | Add share buttons for Facebook, Twitter/X, LinkedIn |
+| `social-profiles` | No profile links | Add social profile links in header/footer; include sameAs in schema |
 
 ### Internationalization
 

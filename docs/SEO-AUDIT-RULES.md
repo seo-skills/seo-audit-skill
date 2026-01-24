@@ -1,10 +1,10 @@
 # SEO Audit Rules Reference
 
-> Complete reference of all 116 SEO audit rules across 14 categories
+> Complete reference of all 126 SEO audit rules across 15 categories
 
 ## Overview
 
-SEOmator audits websites using 120 rules organized into 14 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 126 rules organized into 15 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -15,11 +15,11 @@ SEOmator audits websites using 120 rules organized into 14 categories. Each rule
 
 | Category | Weight | Rules | Description |
 |----------|--------|-------|-------------|
-| [Core SEO](#core-seo) | 4% | 4 | Essential SEO checks: canonical validation, indexing directives |
-| [Meta Tags](#meta-tags) | 10% | 8 | Title, description, canonical, viewport, favicon |
+| [Core SEO](#core-seo) | 3% | 4 | Essential SEO checks: canonical validation, indexing directives |
+| [Meta Tags](#meta-tags) | 9% | 8 | Title, description, canonical, viewport, favicon |
 | [Headings](#headings) | 6% | 5 | H1-H6 structure and hierarchy |
-| [Technical SEO](#technical) | 10% | 8 | robots.txt, sitemap, URL structure |
-| [Core Web Vitals](#core-web-vitals) | 12% | 5 | LCP, CLS, FCP, TTFB, INP |
+| [Technical SEO](#technical) | 9% | 8 | robots.txt, sitemap, URL structure |
+| [Core Web Vitals](#core-web-vitals) | 11% | 5 | LCP, CLS, FCP, TTFB, INP |
 | [Links](#links) | 9% | 13 | Internal/external links, anchor text, validation |
 | [Images](#images) | 9% | 12 | Alt text, dimensions, lazy loading, broken images, accessibility |
 | [Security](#security) | 9% | 12 | HTTPS, HSTS, CSP, security headers, leaked secrets |
@@ -28,9 +28,10 @@ SEOmator audits websites using 120 rules organized into 14 categories. Each rule
 | [Content](#content) | 5% | 10 | Text quality, readability, keyword density |
 | [Accessibility](#accessibility) | 6% | 12 | WCAG compliance, screen reader support, keyboard navigation |
 | [Internationalization](#internationalization) | 2% | 2 | Language declarations, hreflang |
-| [Performance](#performance) | 8% | 7 | Static analysis for render-blocking, DOM size, fonts |
+| [Performance](#performance) | 7% | 7 | Static analysis for render-blocking, DOM size, fonts |
+| [Crawlability](#crawlability) | 5% | 6 | Indexability signals, sitemap conflicts, canonical chains |
 
-**Total: 100% weight, 120 rules**
+**Total: 100% weight, 126 rules**
 
 ---
 
@@ -921,6 +922,64 @@ Static analysis for performance optimization hints. Complements Core Web Vitals 
 - **Detects:** Hero images, first large images, video posters
 - **Checks:** fetchpriority="high", preload link, lazy loading (bad)
 - **Fix:** Add `<link rel="preload" as="image" href="...">` and fetchpriority="high" to LCP image
+
+---
+
+## Crawlability
+
+Validates indexability signals, sitemap conflicts, and canonical redirect chains.
+
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `crawl-schema-noindex-conflict` | Schema + Noindex Conflict | fail | Detects rich result schema on noindexed pages |
+| `crawl-pagination-canonical` | Pagination Canonical | warn/fail | Checks paginated pages have self-referencing canonicals |
+| `crawl-sitemap-domain` | Sitemap Domain | warn/fail | Validates all sitemap URLs match expected domain |
+| `crawl-noindex-in-sitemap` | Noindex in Sitemap | fail | Detects noindexed pages listed in sitemap |
+| `crawl-indexability-conflict` | Indexability Conflict | warn | Detects conflicts between robots.txt and noindex meta |
+| `crawl-canonical-redirect` | Canonical Redirect Chain | warn/fail | Checks if canonical URL redirects to another URL |
+
+### Rule Details
+
+#### crawl-schema-noindex-conflict
+- **What it checks:** Pages with rich result schema (Article, Product, Recipe, Event, FAQPage, etc.) that have noindex
+- **Pass:** Page is indexable or has no rich result schema
+- **Fail:** Page has rich result schema but is blocked from indexing
+- **Fix:** Remove noindex to allow rich results, or remove schema markup if page should stay hidden
+
+#### crawl-pagination-canonical
+- **What it checks:** Paginated pages (via query params like ?page=2 or rel=prev/next) for canonical handling
+- **Pass:** Paginated page has self-referencing canonical
+- **Warn:** Missing canonical on paginated page
+- **Fail:** Paginated page canonicalizes to page 1
+- **Fix:** Each paginated page should have its own self-referencing canonical; never canonicalize all pages to page 1
+
+#### crawl-sitemap-domain
+- **What it checks:** Sitemap URLs belong to the expected domain (including www/non-www variants)
+- **Pass:** All sitemap URLs match expected domain
+- **Warn:** Some URLs have different domain
+- **Fail:** More than 10% of URLs have incorrect domain
+- **Fix:** Remove cross-domain URLs from sitemap; search engines ignore URLs that don't match sitemap host
+
+#### crawl-noindex-in-sitemap
+- **What it checks:** Whether current page is noindexed AND listed in sitemap
+- **Pass:** Page is either indexable or not in sitemap
+- **Warn:** Could not verify sitemap status
+- **Fail:** Page has noindex but appears in sitemap
+- **Fix:** Either remove the page from sitemap or remove the noindex directive
+
+#### crawl-indexability-conflict
+- **What it checks:** Conflicts between robots.txt disallow rules and noindex meta tags
+- **Pass:** No conflict between robots.txt and page directives
+- **Warn (redundant):** robots.txt blocks AND page has noindex (crawlers can't see the noindex)
+- **Warn (blocked-but-indexable):** robots.txt blocks but no noindex (could still be indexed via external links)
+- **Fix:** Choose one blocking method: either robots.txt disallow OR noindex meta, not both
+
+#### crawl-canonical-redirect
+- **What it checks:** Whether the canonical URL redirects to another URL
+- **Pass:** Canonical URL returns 200 (no redirect)
+- **Warn:** Canonical URL redirects once
+- **Fail:** Canonical URL has redirect chain (2+ hops) or returns 4xx/5xx
+- **Fix:** Update canonical to point directly to final destination URL; avoid redirect chains that waste crawl budget
 
 ---
 

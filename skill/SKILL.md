@@ -1,6 +1,6 @@
 ---
 name: seo-audit
-description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 120 rules across 14 categories including Core SEO, meta tags, Core Web Vitals, security headers, structured data, accessibility, performance, and content quality. Supports HTML/Markdown reports, URL filtering, and config validation.
+description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 126 rules across 15 categories including Core SEO, meta tags, Core Web Vitals, security headers, structured data, accessibility, performance, crawlability, and content quality. Supports HTML/Markdown reports, URL filtering, and config validation.
 ---
 
 # SEO Audit Skill
@@ -69,20 +69,21 @@ Fix issues in this order (highest impact first):
 
 | Priority | Category | Weight | Rules | Impact |
 |----------|----------|--------|-------|--------|
-| 1 | Core Web Vitals | 12% | 5 | User experience + ranking |
-| 2 | Meta Tags | 10% | 8 | Search visibility |
-| 3 | Technical SEO | 10% | 8 | Foundation for crawling |
+| 1 | Core Web Vitals | 11% | 5 | User experience + ranking |
+| 2 | Meta Tags | 9% | 8 | Search visibility |
+| 3 | Technical SEO | 9% | 8 | Foundation for crawling |
 | 4 | Security | 9% | 12 | Trust signals |
 | 5 | Links | 9% | 13 | Internal linking structure |
 | 6 | Images | 9% | 12 | Performance + accessibility |
-| 7 | Performance | 8% | 7 | Static optimization hints |
+| 7 | Performance | 7% | 7 | Static optimization hints |
 | 8 | Headings | 6% | 5 | Content structure |
 | 9 | Structured Data | 6% | 13 | Rich snippets |
 | 10 | Accessibility | 6% | 12 | WCAG compliance |
 | 11 | Content | 5% | 10 | Text quality + readability |
-| 12 | Social | 4% | 9 | Social sharing |
-| 13 | Core SEO | 4% | 4 | Canonical & indexing |
-| 14 | Internationalization | 2% | 2 | Language & hreflang |
+| 12 | Crawlability | 5% | 6 | Indexability signals + sitemap conflicts |
+| 13 | Social | 4% | 9 | Social sharing |
+| 14 | Core SEO | 3% | 4 | Canonical & indexing |
+| 15 | Internationalization | 2% | 2 | Language & hreflang |
 
 ### 3. Fix by Severity
 1. **Failures (status: "fail")** - Must fix immediately
@@ -188,6 +189,17 @@ Fix issues in this order (highest impact first):
 | `i18n-lang-attribute` | Missing lang | Add `<html lang="en">` with valid BCP 47 code |
 | `i18n-hreflang` | Missing hreflang | Add `<link rel="alternate" hreflang="xx">` for each language |
 
+### Crawlability
+
+| Rule | Issue | Fix |
+|------|-------|-----|
+| `crawl-schema-noindex-conflict` | Schema on noindex page | Remove noindex to allow rich results, or remove schema if page should stay hidden |
+| `crawl-pagination-canonical` | Bad pagination canonical | Each paginated page should have self-referencing canonical; never canonicalize all to page 1 |
+| `crawl-sitemap-domain` | Cross-domain sitemap URLs | Remove external URLs from sitemap; all URLs must match sitemap host domain |
+| `crawl-noindex-in-sitemap` | Noindex page in sitemap | Either remove noindexed page from sitemap or remove the noindex directive |
+| `crawl-indexability-conflict` | robots.txt vs meta conflict | Choose one blocking method: either robots.txt disallow OR noindex meta, not both |
+| `crawl-canonical-redirect` | Canonical redirect chain | Update canonical to point directly to final destination URL; avoid redirect chains |
+
 ## Example Analysis Workflow
 
 When asked to audit a website:
@@ -246,4 +258,4 @@ When asked to audit a website:
 - npm: https://www.npmjs.com/package/@seomator/seo-audit
 - GitHub: https://github.com/seo-skills/seo-audit-skill
 - Web UI: https://seomator.com/free-seo-audit-tool
-- Rules Reference: See `docs/SEO-AUDIT-RULES.md` for all 120 rules
+- Rules Reference: See `docs/SEO-AUDIT-RULES.md` for all 126 rules

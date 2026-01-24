@@ -9,13 +9,13 @@ export const categories: CategoryDefinition[] = [
     id: 'core-seo',
     name: 'Core SEO',
     description: 'Essential SEO checks: canonical validation, indexing directives, and title uniqueness',
-    weight: 4,
+    weight: 3,
   },
   {
     id: 'meta-tags',
     name: 'Meta Tags',
     description: 'Validates title, description, canonical, and other meta tags',
-    weight: 10,
+    weight: 9,
   },
   {
     id: 'headings',
@@ -27,13 +27,13 @@ export const categories: CategoryDefinition[] = [
     id: 'technical',
     name: 'Technical SEO',
     description: 'Validates robots.txt, sitemap, SSL, and other technical aspects',
-    weight: 10,
+    weight: 9,
   },
   {
     id: 'core-web-vitals',
     name: 'Core Web Vitals',
     description: 'Measures LCP, FID, CLS, and other performance metrics',
-    weight: 12,
+    weight: 11,
   },
   {
     id: 'links',
@@ -87,7 +87,13 @@ export const categories: CategoryDefinition[] = [
     id: 'performance',
     name: 'Performance',
     description: 'Static analysis for performance optimization (render-blocking, DOM size, fonts)',
-    weight: 8,
+    weight: 7,
+  },
+  {
+    id: 'crawlability',
+    name: 'Crawlability',
+    description: 'Validates indexability signals, sitemap-noindex conflicts, and canonical chains',
+    weight: 5,
   },
 ];
 

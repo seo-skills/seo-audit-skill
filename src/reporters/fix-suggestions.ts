@@ -153,6 +153,14 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'perf-render-blocking': 'Add async/defer to scripts; use media queries for non-critical CSS',
   'perf-lazy-above-fold': 'Remove loading="lazy" from above-fold images; add fetchpriority="high"',
   'perf-lcp-hints': 'Preload LCP image with <link rel="preload" as="image">; add fetchpriority="high"',
+
+  // ============ Crawlability ============
+  'crawl-schema-noindex-conflict': 'Remove noindex to allow rich results, or remove schema markup if page should stay hidden',
+  'crawl-pagination-canonical': 'Each paginated page should have self-referencing canonical; do not canonicalize all pages to page 1',
+  'crawl-sitemap-domain': 'Remove cross-domain URLs from sitemap; all URLs must match sitemap host domain',
+  'crawl-noindex-in-sitemap': 'Either remove noindexed page from sitemap or remove the noindex directive',
+  'crawl-indexability-conflict': 'Choose one blocking method: either robots.txt disallow OR noindex meta, not both',
+  'crawl-canonical-redirect': 'Update canonical to point directly to final destination URL; avoid redirect chains',
 };
 
 /**

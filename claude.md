@@ -1,6 +1,6 @@
 # SEOmator - SEO Audit CLI & Claude Code Skill
 
-A comprehensive SEO audit tool with **120 rules** across **14 categories**.
+A comprehensive SEO audit tool with **126 rules** across **15 categories**.
 
 **Version:** 2.1.0
 
@@ -289,11 +289,11 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 
 | Category | Weight | Rules |
 |----------|--------|-------|
-| Core SEO | 4% | 4 |
-| Meta Tags | 10% | 8 |
+| Core SEO | 3% | 4 |
+| Meta Tags | 9% | 8 |
 | Headings | 6% | 5 |
-| Technical SEO | 10% | 8 |
-| Core Web Vitals | 12% | 5 |
+| Technical SEO | 9% | 8 |
+| Core Web Vitals | 11% | 5 |
 | Links | 9% | 13 |
 | Images | 9% | 12 |
 | Security | 9% | 12 |
@@ -302,7 +302,8 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Content | 5% | 10 |
 | Accessibility | 6% | 12 |
 | Internationalization | 2% | 2 |
-| Performance | 8% | 7 |
+| Performance | 7% | 7 |
+| Crawlability | 5% | 6 |
 
 ---
 
@@ -315,20 +316,21 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 - **0-49**: Poor - Critical issues
 
 ### Priority Order (by impact)
-1. Core Web Vitals (12%) - UX + ranking
-2. Meta Tags (10%) - Search visibility
-3. Technical SEO (10%) - Crawling foundation
+1. Core Web Vitals (11%) - UX + ranking
+2. Meta Tags (9%) - Search visibility
+3. Technical SEO (9%) - Crawling foundation
 4. Security (9%) - Trust signals
 5. Links (9%) - Internal structure
 6. Images (9%) - Performance
-7. Performance (8%) - Static optimization hints
+7. Performance (7%) - Static optimization hints
 8. Headings (6%) - Content structure
 9. Structured Data (6%) - Rich snippets
 10. Accessibility (6%) - WCAG compliance
 11. Content (5%) - Text quality + readability
-12. Social (4%) - Social sharing
-13. Core SEO (4%) - Canonical & indexing validation
-14. Internationalization (2%) - Language & hreflang
+12. Crawlability (5%) - Indexability signals & sitemap conflicts
+13. Social (4%) - Social sharing
+14. Core SEO (3%) - Canonical & indexing validation
+15. Internationalization (2%) - Language & hreflang
 
 ---
 
@@ -462,6 +464,16 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Lazy above fold | Remove loading="lazy" from hero images |
 | LCP not optimized | Preload LCP image; add fetchpriority="high" |
 
+### Crawlability
+| Issue | Fix |
+|-------|-----|
+| Schema + noindex conflict | Remove noindex to allow rich results, or remove schema if page should stay hidden |
+| Pagination canonical error | Each paginated page should have self-referencing canonical; never canonicalize all to page 1 |
+| Cross-domain sitemap URLs | Remove external URLs from sitemap; all URLs must match sitemap host domain |
+| Noindexed page in sitemap | Either remove noindexed page from sitemap or remove the noindex directive |
+| Indexability conflict | Choose one blocking method: robots.txt disallow OR noindex meta, not both |
+| Canonical redirect chain | Update canonical to point directly to final destination URL; avoid redirect chains |
+
 ---
 
 ## Project Structure
@@ -470,7 +482,7 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 seo-audit-skill/
 ├── SKILL.md              # Claude Code skill (root for skills.sh)
 ├── docs/
-│   ├── SEO-AUDIT-RULES.md      # 116 rules reference
+│   ├── SEO-AUDIT-RULES.md      # 126 rules reference
 │   └── STORAGE-ARCHITECTURE.md # SQLite storage technical docs
 ├── src/                  # CLI source code
 │   ├── cli.ts            # Main CLI entry (subcommands)
@@ -529,7 +541,7 @@ seo-audit-skill/
 │   │   ├── json.ts       # JSON output
 │   │   ├── html-reporter.ts    # Self-contained HTML
 │   │   └── markdown-reporter.ts # GitHub-flavored Markdown
-│   └── rules/            # 116 audit rules
+│   └── rules/            # 126 audit rules
 │       ├── pattern-matcher.ts  # Wildcard rule matching
 │       ├── core-seo/     # Canonical, indexing, title uniqueness
 │       ├── meta-tags/
@@ -544,7 +556,8 @@ seo-audit-skill/
 │       ├── content/      # Text quality, readability, keyword density
 │       ├── accessibility/ # WCAG, ARIA, keyboard navigation
 │       ├── i18n/         # Language declarations, hreflang
-│       └── performance/  # Static optimization hints
+│       ├── performance/  # Static optimization hints
+│       └── crawlability/ # Sitemap conflicts, indexability signals
 ├── dist/                 # Built CLI
 ├── package.json
 ├── tsconfig.json

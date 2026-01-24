@@ -1,10 +1,10 @@
 # SEO Audit Rules Reference
 
-> Complete reference of all 131 SEO audit rules across 17 categories
+> Complete reference of all 134 SEO audit rules across 18 categories
 
 ## Overview
 
-SEOmator audits websites using 131 rules organized into 17 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 134 rules organized into 18 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -17,13 +17,13 @@ SEOmator audits websites using 131 rules organized into 17 categories. Each rule
 |----------|--------|-------|-------------|
 | [Core SEO](#core-seo) | 3% | 4 | Essential SEO checks: canonical validation, indexing directives |
 | [Meta Tags](#meta-tags) | 8% | 8 | Title, description, canonical, viewport, favicon |
-| [Headings](#headings) | 6% | 5 | H1-H6 structure and hierarchy |
+| [Headings](#headings) | 5% | 5 | H1-H6 structure and hierarchy |
 | [Technical SEO](#technical) | 8% | 8 | robots.txt, sitemap, URL structure |
 | [Core Web Vitals](#core-web-vitals) | 11% | 5 | LCP, CLS, FCP, TTFB, INP |
 | [Links](#links) | 9% | 13 | Internal/external links, anchor text, validation |
 | [Images](#images) | 9% | 12 | Alt text, dimensions, lazy loading, broken images, accessibility |
 | [Security](#security) | 9% | 12 | HTTPS, HSTS, CSP, security headers, leaked secrets |
-| [Structured Data](#structured-data) | 6% | 13 | JSON-LD, Schema.org markup |
+| [Structured Data](#structured-data) | 5% | 13 | JSON-LD, Schema.org markup |
 | [Social](#social) | 4% | 9 | Open Graph, Twitter Cards, share buttons, profiles |
 | [Content](#content) | 5% | 10 | Text quality, readability, keyword density |
 | [Accessibility](#accessibility) | 5% | 12 | WCAG compliance, screen reader support, keyboard navigation |
@@ -32,8 +32,9 @@ SEOmator audits websites using 131 rules organized into 17 categories. Each rule
 | [Crawlability](#crawlability) | 4% | 6 | Indexability signals, sitemap conflicts, canonical chains |
 | [URL Structure](#url-structure) | 3% | 2 | Slug keywords, stop words |
 | [Mobile](#mobile) | 3% | 3 | Font size, horizontal scroll, interstitials |
+| [Legal Compliance](#legal-compliance) | 2% | 3 | Cookie consent, privacy policy, terms of service |
 
-**Total: 100% weight, 131 rules**
+**Total: 100% weight, 134 rules**
 
 ---
 
@@ -1047,6 +1048,45 @@ Mobile-friendliness checks for font size, horizontal scroll, and intrusive inter
 - **Warn:** Potential interstitial elements found
 - **Fail:** Exit-intent popups, on-load popups, or full-screen overlays detected
 - **Fix:** Remove popups covering main content; use compact banners instead
+
+---
+
+## Legal Compliance
+
+Privacy policy and legal compliance signals for GDPR, CCPA, and other regulations.
+
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `legal-cookie-consent` | Cookie Consent | pass/warn | Checks for cookie consent mechanism presence |
+| `legal-privacy-policy` | Privacy Policy | warn | Checks for privacy policy link presence |
+| `legal-terms-of-service` | Terms of Service | pass/warn | Checks for terms of service link presence |
+
+#### legal-cookie-consent
+- **What it checks:** Cookie consent mechanism presence
+- **Detects:** Consent management platforms (CookieYes, OneTrust, Cookiebot, Termly, Quantcast, etc.)
+- **Detects:** Cookie consent banners, modals, buttons (Accept, Decline, Preferences)
+- **Detects:** GDPR consent elements, inline consent scripts
+- **Pass:** Cookie consent mechanism detected, or no tracking scripts present
+- **Warn:** Tracking scripts detected but no cookie consent mechanism found
+- **Fix:** Add a cookie consent banner using CookieYes, OneTrust, or Cookiebot
+
+#### legal-privacy-policy
+- **What it checks:** Privacy policy link presence
+- **Detection patterns:** "Privacy Policy", "Privacy Notice", "Data Protection", /privacy, /privacy-policy
+- **Location preference:** Footer (best practice)
+- **Schema support:** Detects schema.org privacyPolicy markup
+- **Pass:** Privacy policy link found
+- **Warn:** No privacy policy link found
+- **Fix:** Add a link to your privacy policy in the footer of every page
+
+#### legal-terms-of-service
+- **What it checks:** Terms of service link presence
+- **Detection patterns:** "Terms of Service", "Terms & Conditions", "User Agreement", /terms, /tos
+- **Location preference:** Footer (best practice)
+- **Site type detection:** E-commerce, SaaS, user-generated content sites trigger warnings if missing
+- **Pass:** Terms of service link found, or site type doesn't require ToS
+- **Warn:** No ToS link found on e-commerce, SaaS, or UGC sites
+- **Fix:** Add a link to your terms of service in the footer
 
 ---
 

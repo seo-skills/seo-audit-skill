@@ -17,6 +17,7 @@ import '../rules/performance/index.js';
 import '../rules/crawlability/index.js';
 import '../rules/url-structure/index.js';
 import '../rules/mobile/index.js';
+import '../rules/legal/index.js';
 
 let rulesLoaded = false;
 
@@ -57,4 +58,5 @@ export const CATEGORY_MODULES = [
   'crawlability',
   'url-structure',
   'mobile',
+  'legal',
 ] as const;

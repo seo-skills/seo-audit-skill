@@ -1,6 +1,6 @@
 ---
 name: seo-audit
-description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 131 rules across 17 categories including Core SEO, meta tags, Core Web Vitals, security headers, structured data, accessibility, performance, crawlability, URL structure, mobile, and content quality. Supports HTML/Markdown reports, URL filtering, and config validation.
+description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 134 rules across 18 categories including Core SEO, meta tags, Core Web Vitals, security headers, structured data, accessibility, performance, crawlability, URL structure, mobile, and content quality. Supports HTML/Markdown reports, URL filtering, and config validation.
 ---
 
 # SEO Audit Skill
@@ -107,8 +107,8 @@ Fix issues in this order (highest impact first):
 | 4 | Security | 9% | 12 | Trust signals |
 | 5 | Meta Tags | 8% | 8 | Search visibility |
 | 6 | Technical SEO | 8% | 8 | Foundation for crawling |
-| 7 | Headings | 6% | 5 | Content structure |
-| 8 | Structured Data | 6% | 13 | Rich snippets |
+| 7 | Headings | 5% | 5 | Content structure |
+| 8 | Structured Data | 5% | 13 | Rich snippets |
 | 9 | Accessibility | 5% | 12 | WCAG compliance |
 | 10 | Performance | 5% | 7 | Static optimization hints |
 | 11 | Content | 5% | 10 | Text quality + readability |
@@ -118,6 +118,7 @@ Fix issues in this order (highest impact first):
 | 15 | URL Structure | 3% | 2 | Slug keywords & stop words |
 | 16 | Mobile | 3% | 3 | Font size, horizontal scroll |
 | 17 | Internationalization | 2% | 2 | Language & hreflang |
+| 18 | Legal Compliance | 2% | 3 | Cookie consent, privacy, terms |
 
 ### 3. Fix by Severity
 1. **Failures (status: "fail")** - Must fix immediately
@@ -289,6 +290,14 @@ Fix issues in this order (highest impact first):
 | `mobile-font-size` | Small font size | Use minimum 16px for body text, 12px absolute minimum; prefer rem/em units |
 | `mobile-horizontal-scroll` | Horizontal scroll | Add `max-width: 100%` to images, `overflow-x: auto` to tables, responsive iframes |
 | `mobile-interstitials` | Intrusive popups | Remove popups covering main content; use compact banners instead of full-screen overlays |
+
+### Legal Compliance
+
+| Rule | Issue | Fix |
+|------|-------|-----|
+| `legal-cookie-consent` | No cookie consent | Add consent banner using CookieYes, OneTrust, or Cookiebot |
+| `legal-privacy-policy` | Missing privacy policy | Add a privacy policy link in the footer of every page |
+| `legal-terms-of-service` | Missing terms | Add a terms of service link in the footer (especially for e-commerce, SaaS) |
 
 ## Example Analysis Workflow
 

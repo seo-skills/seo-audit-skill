@@ -170,6 +170,11 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'mobile-font-size': 'Use minimum 16px for body text, 12px absolute minimum; prefer relative units (rem, em)',
   'mobile-horizontal-scroll': 'Use max-width: 100% on images, overflow-x: auto on tables, responsive iframes',
   'mobile-interstitials': 'Remove popups that cover main content on mobile; use compact banners instead of full-screen overlays',
+
+  // ============ Legal Compliance ============
+  'legal-cookie-consent': 'Add a cookie consent banner using CookieYes, OneTrust, or Cookiebot; allow users to accept/reject non-essential cookies',
+  'legal-privacy-policy': 'Add a link to your privacy policy in the footer; document what data is collected and how it is used',
+  'legal-terms-of-service': 'Add a link to your terms of service in the footer; define usage rules, liability, and dispute resolution',
 };
 
 /**

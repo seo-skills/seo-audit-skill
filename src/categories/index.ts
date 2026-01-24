@@ -21,7 +21,7 @@ export const categories: CategoryDefinition[] = [
     id: 'headings',
     name: 'Headings',
     description: 'Checks heading structure and hierarchy (H1-H6)',
-    weight: 6,
+    weight: 5,
   },
   {
     id: 'technical',
@@ -57,7 +57,7 @@ export const categories: CategoryDefinition[] = [
     id: 'structured-data',
     name: 'Structured Data',
     description: 'Checks for valid JSON-LD, Schema.org markup, and rich snippets',
-    weight: 6,
+    weight: 5,
   },
   {
     id: 'social',
@@ -106,6 +106,12 @@ export const categories: CategoryDefinition[] = [
     name: 'Mobile',
     description: 'Mobile-friendliness checks: font size, horizontal scroll, and interstitials',
     weight: 3,
+  },
+  {
+    id: 'legal',
+    name: 'Legal Compliance',
+    description: 'Privacy policy and legal compliance signals: cookie consent, privacy policy, terms of service',
+    weight: 2,
   },
 ];
 

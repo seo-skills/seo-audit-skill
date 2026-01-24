@@ -1,6 +1,6 @@
 # SEOmator - SEO Audit CLI & Claude Code Skill
 
-A comprehensive SEO audit tool with **131 rules** across **17 categories**.
+A comprehensive SEO audit tool with **134 rules** across **18 categories**.
 
 **Version:** 2.1.0
 
@@ -291,13 +291,13 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 |----------|--------|-------|
 | Core SEO | 3% | 4 |
 | Meta Tags | 8% | 8 |
-| Headings | 6% | 5 |
+| Headings | 5% | 5 |
 | Technical SEO | 8% | 8 |
 | Core Web Vitals | 11% | 5 |
 | Links | 9% | 13 |
 | Images | 9% | 12 |
 | Security | 9% | 12 |
-| Structured Data | 6% | 13 |
+| Structured Data | 5% | 13 |
 | Social | 4% | 9 |
 | Content | 5% | 10 |
 | Accessibility | 5% | 12 |
@@ -306,6 +306,7 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Crawlability | 4% | 6 |
 | URL Structure | 3% | 2 |
 | Mobile | 3% | 3 |
+| Legal Compliance | 2% | 3 |
 
 ---
 
@@ -324,8 +325,8 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 4. Security (9%) - Trust signals
 5. Meta Tags (8%) - Search visibility
 6. Technical SEO (8%) - Crawling foundation
-7. Headings (6%) - Content structure
-8. Structured Data (6%) - Rich snippets
+7. Headings (5%) - Content structure
+8. Structured Data (5%) - Rich snippets
 9. Accessibility (5%) - WCAG compliance
 10. Performance (5%) - Static optimization hints
 11. Content (5%) - Text quality + readability
@@ -335,6 +336,7 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 15. URL Structure (3%) - Slug keywords & stop words
 16. Mobile (3%) - Font size, horizontal scroll, interstitials
 17. Internationalization (2%) - Language & hreflang
+18. Legal Compliance (2%) - Privacy policy, cookie consent, terms of service
 
 ---
 
@@ -491,6 +493,13 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Horizontal scroll | Add `max-width: 100%` to images, `overflow-x: auto` to tables, responsive iframes |
 | Intrusive interstitials | Remove popups covering main content; use compact banners instead of full-screen overlays |
 
+### Legal Compliance
+| Issue | Fix |
+|-------|-----|
+| No cookie consent | Add consent banner using CookieYes, OneTrust, or Cookiebot |
+| Missing privacy policy | Add a privacy policy link in the footer of every page |
+| Missing terms of service | Add a terms of service link in the footer (especially for e-commerce, SaaS) |
+
 ---
 
 ## Project Structure
@@ -499,7 +508,7 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 seo-audit-skill/
 ├── SKILL.md              # Claude Code skill (root for skills.sh)
 ├── docs/
-│   ├── SEO-AUDIT-RULES.md      # 131 rules reference
+│   ├── SEO-AUDIT-RULES.md      # 134 rules reference
 │   └── STORAGE-ARCHITECTURE.md # SQLite storage technical docs
 ├── src/                  # CLI source code
 │   ├── cli.ts            # Main CLI entry (subcommands)
@@ -558,7 +567,7 @@ seo-audit-skill/
 │   │   ├── json.ts       # JSON output
 │   │   ├── html-reporter.ts    # Self-contained HTML
 │   │   └── markdown-reporter.ts # GitHub-flavored Markdown
-│   └── rules/            # 128 audit rules
+│   └── rules/            # 134 audit rules
 │       ├── pattern-matcher.ts  # Wildcard rule matching
 │       ├── core-seo/     # Canonical, indexing, title uniqueness
 │       ├── meta-tags/
@@ -576,7 +585,8 @@ seo-audit-skill/
 │       ├── performance/  # Static optimization hints
 │       ├── crawlability/ # Sitemap conflicts, indexability signals
 │       ├── url-structure/ # Slug keywords, stop words
-│       └── mobile/       # Font size, horizontal scroll, interstitials
+│       ├── mobile/       # Font size, horizontal scroll, interstitials
+│       └── legal/        # Cookie consent, privacy policy, terms of service
 ├── dist/                 # Built CLI
 ├── package.json
 ├── tsconfig.json

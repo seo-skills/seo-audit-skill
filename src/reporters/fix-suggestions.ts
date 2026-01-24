@@ -83,6 +83,12 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'security-csp': 'Implement Content-Security-Policy header to prevent XSS attacks',
   'security-x-frame-options': 'Add X-Frame-Options: DENY or SAMEORIGIN to prevent clickjacking',
   'security-x-content-type-options': 'Add X-Content-Type-Options: nosniff header',
+  'security-external-links': 'Add rel="noopener noreferrer" to external target="_blank" links',
+  'security-form-https': 'Update form actions to use HTTPS URLs',
+  'security-mixed-content': 'Replace HTTP resource URLs with HTTPS or use protocol-relative URLs',
+  'security-permissions-policy': 'Add Permissions-Policy header to control browser features',
+  'security-referrer-policy': 'Add Referrer-Policy header (recommended: strict-origin-when-cross-origin)',
+  'security-leaked-secrets': 'Remove exposed secrets immediately and rotate compromised credentials',
 
   // ============ Structured Data ============
   'structured-data-present': 'Add JSON-LD structured data for rich search results',

@@ -72,7 +72,7 @@ program
   .description('Run SEO audit on a URL')
   .option('-c, --categories <list>', 'Categories to audit', parseCategories)
   .option('-j, --json', 'Output as JSON (deprecated, use --format json)', false)
-  .option('-f, --format <type>', 'Output format: console, json, html, markdown', 'console')
+  .option('-f, --format <type>', 'Output format: console, json, html, markdown, llm', 'console')
   .option('-o, --output <path>', 'Output file path (for html/markdown/json)')
   .option('--crawl', 'Enable multi-page crawl', false)
   .option('--max-pages <n>', 'Max pages to crawl', (v) => parseIntValue(v, 'max-pages', 1, 1000), 10)

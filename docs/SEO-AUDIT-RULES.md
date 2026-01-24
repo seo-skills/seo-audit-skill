@@ -1,10 +1,10 @@
 # SEO Audit Rules Reference
 
-> Complete reference of all 76 SEO audit rules across 11 categories
+> Complete reference of all 96 SEO audit rules across 11 categories
 
 ## Overview
 
-SEOmator audits websites using 81 rules organized into 11 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 96 rules organized into 11 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -22,7 +22,7 @@ SEOmator audits websites using 81 rules organized into 11 categories. Each rule 
 | [Core Web Vitals](#core-web-vitals) | 14% | 5 | LCP, CLS, FCP, TTFB, INP |
 | [Links](#links) | 10% | 13 | Internal/external links, anchor text, validation |
 | [Images](#images) | 10% | 12 | Alt text, dimensions, lazy loading, broken images, accessibility |
-| [Security](#security) | 10% | 6 | HTTPS, HSTS, CSP, security headers |
+| [Security](#security) | 10% | 12 | HTTPS, HSTS, CSP, security headers, leaked secrets |
 | [Structured Data](#structured-data) | 6% | 13 | JSON-LD, Schema.org markup |
 | [Social](#social) | 5% | 5 | Open Graph, Twitter Cards |
 | [Content](#content) | 7% | 10 | Text quality, readability, keyword density |
@@ -418,7 +418,7 @@ Checks alt attributes, dimensions, lazy loading, optimization, and accessibility
 
 ## Security
 
-Validates HTTPS, security headers, and mixed content.
+Validates HTTPS, security headers, mixed content, and leaked secrets.
 
 | Rule ID | Name | Severity | Description |
 |---------|------|----------|-------------|
@@ -428,6 +428,12 @@ Validates HTTPS, security headers, and mixed content.
 | `security-csp` | CSP | warn | Checks Content-Security-Policy header |
 | `security-x-frame` | X-Frame-Options | warn | Checks X-Frame-Options header |
 | `security-x-content-type` | X-Content-Type | warn | Checks X-Content-Type-Options header |
+| `security-external-links` | External Link Security | warn | Checks target="_blank" links have noopener/noreferrer |
+| `security-form-https` | Form HTTPS | warn/fail | Checks form actions use HTTPS |
+| `security-mixed-content` | Mixed Content | warn/fail | Checks for HTTP resources on HTTPS pages |
+| `security-permissions-policy` | Permissions-Policy | warn | Checks for Permissions-Policy header |
+| `security-referrer-policy` | Referrer-Policy | warn | Checks for Referrer-Policy header |
+| `security-leaked-secrets` | Leaked Secrets | fail | Detects exposed API keys, credentials in HTML/JS |
 
 ### Rule Details
 
@@ -454,6 +460,30 @@ Validates HTTPS, security headers, and mixed content.
 #### security-x-content-type
 - **What it checks:** X-Content-Type-Options prevents MIME sniffing
 - **Fix:** Add header: `X-Content-Type-Options: nosniff`
+
+#### security-external-links
+- **What it checks:** External links with `target="_blank"` have security attributes
+- **Fix:** Add `rel="noopener noreferrer"` to prevent window.opener access
+
+#### security-form-https
+- **What it checks:** Form actions don't submit to HTTP URLs
+- **Fix:** Update form action URLs to use HTTPS
+
+#### security-mixed-content
+- **What it checks:** HTTPS pages don't load HTTP resources
+- **Fix:** Replace HTTP resource URLs with HTTPS or protocol-relative URLs
+
+#### security-permissions-policy
+- **What it checks:** Permissions-Policy header controls browser features
+- **Fix:** Add header: `Permissions-Policy: camera=(), microphone=(), geolocation=()`
+
+#### security-referrer-policy
+- **What it checks:** Referrer-Policy controls referrer information
+- **Fix:** Add header: `Referrer-Policy: strict-origin-when-cross-origin`
+
+#### security-leaked-secrets
+- **What it checks:** Scans for exposed AWS keys, API tokens, private keys, database URLs
+- **Fix:** Remove secrets immediately, rotate compromised credentials
 
 ---
 

@@ -1,6 +1,6 @@
 # SEOmator - SEO Audit CLI & Claude Code Skill
 
-A comprehensive SEO audit tool with **90 rules** across **11 categories**.
+A comprehensive SEO audit tool with **96 rules** across **11 categories**.
 
 **Version:** 2.1.0
 
@@ -296,7 +296,7 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Core Web Vitals | 14% | 5 |
 | Links | 10% | 13 |
 | Images | 10% | 12 |
-| Security | 10% | 6 |
+| Security | 10% | 12 |
 | Structured Data | 6% | 13 |
 | Social | 5% | 5 |
 | Content | 7% | 10 |
@@ -358,6 +358,12 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | No HTTPS | Install SSL certificate |
 | No HSTS | Add `Strict-Transport-Security` header |
 | No CSP | Add `Content-Security-Policy` header |
+| External link security | Add `rel="noopener noreferrer"` to external `target="_blank"` links |
+| Form HTTPS | Update form actions to use HTTPS URLs |
+| Mixed content | Replace HTTP resource URLs with HTTPS |
+| No Permissions-Policy | Add `Permissions-Policy` header to control browser features |
+| No Referrer-Policy | Add `Referrer-Policy: strict-origin-when-cross-origin` header |
+| Leaked secrets | Remove exposed secrets and rotate compromised credentials |
 
 ### Links
 | Issue | Fix |

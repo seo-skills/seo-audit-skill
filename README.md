@@ -1,12 +1,12 @@
 # SEOmator Audit CLI
 
-A comprehensive SEO audit command-line tool with **90 audit rules** across **11 categories**. Analyze any website for SEO best practices, Core Web Vitals, security headers, structured data, and more.
+A comprehensive SEO audit command-line tool with **96 audit rules** across **11 categories**. Analyze any website for SEO best practices, Core Web Vitals, security headers, structured data, and more.
 
 > **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
 
 ## Features
 
-- **81 SEO Audit Rules** across 11 categories
+- **96 SEO Audit Rules** across 11 categories
 - **Single Page & Crawl Mode** - Audit one page or crawl entire sites
 - **Core Web Vitals** - LCP, CLS, FCP, TTFB, INP measurement
 - **JSON & Terminal Output** - Machine-readable or human-friendly reports
@@ -170,7 +170,7 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `images-inline-svg-size` | Inline SVGs should be <5KB |
 | `images-picture-element` | Picture elements must have img fallback |
 
-### Security (6 rules) - 10% weight
+### Security (12 rules) - 10% weight
 | Rule | Description |
 |------|-------------|
 | `security-https` | Site should use HTTPS |
@@ -179,6 +179,12 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `security-csp` | Content-Security-Policy header |
 | `security-x-frame-options` | X-Frame-Options header |
 | `security-x-content-type-options` | X-Content-Type-Options: nosniff |
+| `security-external-links` | External target="_blank" links have noopener/noreferrer |
+| `security-form-https` | Form actions use HTTPS |
+| `security-mixed-content` | No HTTP resources on HTTPS pages |
+| `security-permissions-policy` | Permissions-Policy header present |
+| `security-referrer-policy` | Referrer-Policy header present |
+| `security-leaked-secrets` | No exposed API keys or credentials |
 
 ### Structured Data (13 rules) - 6% weight
 | Rule | Description |

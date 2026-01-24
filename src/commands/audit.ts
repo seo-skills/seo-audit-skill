@@ -8,6 +8,8 @@ import {
   outputJsonReport,
   renderHtmlReport,
   renderMarkdownReport,
+  renderLlmReport,
+  outputLlmReport,
 } from '../reporters/index.js';
 import { loadConfig } from '../config/index.js';
 import { saveReport, createReport, generateId } from '../storage/index.js';
@@ -23,7 +25,7 @@ export interface AuditOptions {
   cwv: boolean;
   config?: string;
   save: boolean;
-  format?: 'console' | 'json' | 'html' | 'markdown';
+  format?: 'console' | 'json' | 'html' | 'markdown' | 'llm';
   output?: string;
 }
 
@@ -130,6 +132,16 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
         console.log(chalk.green(`Markdown report saved to: ${mdPath}`));
         break;
       }
+
+      case 'llm':
+        if (outputPath) {
+          fs.writeFileSync(outputPath, renderLlmReport(result), 'utf-8');
+          // Use stderr for status message so stdout stays clean for piping
+          console.error(chalk.green(`LLM report saved to: ${outputPath}`));
+        } else {
+          outputLlmReport(result);
+        }
+        break;
 
       case 'console':
       default:

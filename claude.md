@@ -172,19 +172,48 @@ path = ""
 
 ## Storage
 
-SEOmator stores data in `.seomator/` directories:
+SEOmator uses SQLite databases for efficient storage and querying:
 
 ```
-.seomator/
-├── crawls/           # Saved crawl data
-│   └── 2026-01-23-abc123.json
-└── reports/          # Saved audit reports
-    └── 2026-01-23-xyz789.json
+~/.seomator/                              # Global directory
+├── projects/                             # Per-domain project databases
+│   ├── example.com/
+│   │   └── project.db                    # Crawls, pages, links, images
+│   └── mysite.org/
+│       └── project.db
+├── audits.db                             # Centralized audit results
+├── link-cache.db                         # External link check cache
+└── config.toml                           # Global configuration
+
+./.seomator/                              # Legacy project directory
+├── crawls/                               # (Legacy) JSON crawl files
+└── reports/                              # (Legacy) JSON report files
 ```
 
-**Locations:**
-- **Project:** `./.seomator/` (current directory)
-- **Global:** `~/.seomator/` (home directory)
+**Database Architecture:**
+- **Project Databases** (`~/.seomator/projects/<domain>/project.db`): Per-domain SQLite databases storing crawl data, pages (with compressed HTML), links, and images
+- **Audits Database** (`~/.seomator/audits.db`): Centralized storage for all audit results, enabling cross-project analytics and trend tracking
+- **Link Cache** (`~/.seomator/link-cache.db`): SQLite cache for external link validation results
+
+**Key Features:**
+- WAL mode for concurrent reads during writes
+- HTML compression (zlib) for pages >10KB
+- Per-rule, per-page audit result granularity
+- Issue aggregation with priority scoring
+- Audit comparisons and score trends
+
+### `seomator db`
+Database management commands.
+
+```bash
+seomator db migrate              # Migrate JSON files to SQLite
+seomator db migrate --dry-run    # Preview migration
+seomator db stats                # Show database statistics
+seomator db stats -v             # Verbose statistics
+seomator db restore              # Rollback migration (restore from backup)
+```
+
+**Migration:** Existing JSON files in `.seomator/crawls/` and `.seomator/reports/` can be migrated to SQLite using `seomator db migrate`. Original files are backed up to `.bak` directories.
 
 ---
 
@@ -315,7 +344,8 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 seo-audit-skill/
 ├── SKILL.md              # Claude Code skill (root for skills.sh)
 ├── docs/
-│   └── SEO-AUDIT-RULES.md # 69 rules reference
+│   ├── SEO-AUDIT-RULES.md      # 69 rules reference
+│   └── STORAGE-ARCHITECTURE.md # SQLite storage technical docs
 ├── src/                  # CLI source code
 │   ├── cli.ts            # Main CLI entry (subcommands)
 │   ├── auditor.ts        # Audit orchestration
@@ -327,18 +357,42 @@ seo-audit-skill/
 │   │   ├── loader.ts     # Config file loading
 │   │   ├── writer.ts     # Config file generation
 │   │   └── validator.ts  # Config validation
-│   ├── storage/          # Data persistence
-│   │   ├── paths.ts      # Directory utilities
-│   │   ├── crawl-store.ts# Crawl data storage
-│   │   ├── report-store.ts# Report storage
-│   │   └── link-cache.ts # SQLite cache for external links
+│   ├── storage/          # Data persistence (SQLite-based)
+│   │   ├── index.ts      # Main exports
+│   │   ├── types.ts      # Database record types
+│   │   ├── paths.ts      # Directory & path utilities
+│   │   ├── utils/        # Utility functions
+│   │   │   ├── hash.ts   # URL hashing (SHA-256)
+│   │   │   └── compression.ts # HTML compression (zlib)
+│   │   ├── project-db/   # Per-domain project database
+│   │   │   ├── index.ts  # ProjectDatabase class
+│   │   │   ├── schema.ts # Table definitions
+│   │   │   ├── projects.ts # Project CRUD
+│   │   │   ├── crawls.ts # Crawl operations
+│   │   │   ├── pages.ts  # Page storage with compression
+│   │   │   ├── links.ts  # Link operations
+│   │   │   └── images.ts # Image operations
+│   │   ├── audits-db/    # Centralized audits database
+│   │   │   ├── index.ts  # AuditsDatabase singleton
+│   │   │   ├── schema.ts # Table definitions
+│   │   │   ├── audits.ts # Audit CRUD
+│   │   │   ├── results.ts # Per-rule results
+│   │   │   ├── issues.ts # Issue aggregation
+│   │   │   └── comparisons.ts # Audit comparisons
+│   │   ├── migrations/   # Database migrations
+│   │   │   ├── index.ts  # Migration runner
+│   │   │   └── json-to-sqlite.ts # Legacy JSON migration
+│   │   ├── crawl-store.ts  # (Legacy) JSON crawl storage
+│   │   ├── report-store.ts # (Legacy) JSON report storage
+│   │   └── link-cache.ts   # External link cache
 │   ├── commands/         # CLI commands
 │   │   ├── audit.ts      # seomator audit
 │   │   ├── init.ts       # seomator init
 │   │   ├── crawl.ts      # seomator crawl
 │   │   ├── analyze.ts    # seomator analyze
 │   │   ├── report.ts     # seomator report
-│   │   └── config.ts     # seomator config (validate/show/path)
+│   │   ├── config.ts     # seomator config
+│   │   └── db.ts         # seomator db (migrate/stats/restore)
 │   ├── categories/       # Category definitions
 │   ├── crawler/          # Fetcher & crawler
 │   │   ├── crawler.ts    # Queue-based crawler

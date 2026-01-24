@@ -7,6 +7,9 @@ import {
   runAnalyze,
   runReport,
   runConfig,
+  runDbMigrate,
+  runDbStats,
+  runDbRestore,
 } from './commands/index.js';
 
 /**
@@ -128,5 +131,28 @@ program
   .option('--local', 'Modify local settings', false)
   .option('--list', 'Show all config values', false)
   .action(runConfig);
+
+// Database management command
+const dbCommand = program
+  .command('db')
+  .description('Database management commands');
+
+dbCommand
+  .command('migrate')
+  .description('Migrate JSON files to SQLite databases')
+  .option('--dry-run', 'Preview migration without making changes', false)
+  .option('--no-backup', 'Skip creating backup of original files')
+  .action(runDbMigrate);
+
+dbCommand
+  .command('stats')
+  .description('Show database statistics')
+  .option('-v, --verbose', 'Show detailed statistics', false)
+  .action(runDbStats);
+
+dbCommand
+  .command('restore')
+  .description('Restore from backup (rollback migration)')
+  .action(runDbRestore);
 
 program.parse();

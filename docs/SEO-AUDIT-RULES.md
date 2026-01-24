@@ -4,7 +4,7 @@
 
 ## Overview
 
-SEOmator audits websites using 116 rules organized into 14 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 120 rules organized into 14 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -24,13 +24,13 @@ SEOmator audits websites using 116 rules organized into 14 categories. Each rule
 | [Images](#images) | 9% | 12 | Alt text, dimensions, lazy loading, broken images, accessibility |
 | [Security](#security) | 9% | 12 | HTTPS, HSTS, CSP, security headers, leaked secrets |
 | [Structured Data](#structured-data) | 6% | 13 | JSON-LD, Schema.org markup |
-| [Social](#social) | 4% | 5 | Open Graph, Twitter Cards |
+| [Social](#social) | 4% | 9 | Open Graph, Twitter Cards, share buttons, profiles |
 | [Content](#content) | 5% | 10 | Text quality, readability, keyword density |
 | [Accessibility](#accessibility) | 6% | 12 | WCAG compliance, screen reader support, keyboard navigation |
 | [Internationalization](#internationalization) | 2% | 2 | Language declarations, hreflang |
 | [Performance](#performance) | 8% | 7 | Static analysis for render-blocking, DOM size, fonts |
 
-**Total: 100% weight, 116 rules**
+**Total: 100% weight, 120 rules**
 
 ---
 
@@ -583,8 +583,12 @@ Validates Open Graph, Twitter Cards, and social sharing metadata.
 | `social-og-title` | OG Title | warn | Checks og:title meta tag |
 | `social-og-description` | OG Description | warn | Checks og:description meta tag |
 | `social-og-image` | OG Image | warn | Checks og:image meta tag |
+| `social-og-image-size` | OG Image Size | warn | Checks og:image has recommended dimensions (1200x630) |
 | `social-og-url` | OG URL | warn | Checks og:url meta tag |
+| `social-og-url-canonical` | OG URL Canonical Match | fail | Checks og:url matches canonical URL |
 | `social-twitter-card` | Twitter Card | warn | Checks twitter:card meta tag |
+| `social-share-buttons` | Share Buttons | warn | Checks for social sharing buttons |
+| `social-profiles` | Social Profiles | warn | Checks for links to social media profiles |
 
 ### Rule Details
 
@@ -603,14 +607,41 @@ Validates Open Graph, Twitter Cards, and social sharing metadata.
 - **Optimal size:** 1200x630 pixels for social sharing
 - **Fix:** Add `<meta property="og:image" content="https://...image.jpg">`
 
+#### social-og-image-size
+- **What it checks:** `og:image:width` and `og:image:height` meta tags
+- **Pass:** Dimensions ≥ 1200x630
+- **Warn:** Dimensions below recommended or missing
+- **Fail:** Dimensions < 200x200 (minimum)
+- **Fix:** Add `<meta property="og:image:width" content="1200">` and `<meta property="og:image:height" content="630">`
+
 #### social-og-url
 - **What it checks:** `<meta property="og:url">` exists
 - **Fix:** Add `<meta property="og:url" content="https://canonical-url">`
+
+#### social-og-url-canonical
+- **What it checks:** og:url matches canonical URL exactly
+- **Pass:** og:url and canonical URL match (normalized comparison)
+- **Fail:** og:url differs from canonical URL
+- **Fix:** Ensure og:url content matches `<link rel="canonical" href="...">`
 
 #### social-twitter-card
 - **What it checks:** `<meta name="twitter:card">` exists
 - **Types:** summary, summary_large_image, player, app
 - **Fix:** Add `<meta name="twitter:card" content="summary_large_image">`
+
+#### social-share-buttons
+- **What it checks:** Social sharing buttons for Facebook, Twitter/X, LinkedIn, etc.
+- **Detection:** Share URLs, widget scripts (AddThis, ShareThis), common class patterns
+- **Pass:** 2+ platforms detected
+- **Warn:** 0-1 platforms detected
+- **Fix:** Add share buttons for major platforms
+
+#### social-profiles
+- **What it checks:** Links to social media profiles (Facebook, Twitter/X, Instagram, LinkedIn, etc.)
+- **Locations:** Header, footer, navigation, sameAs in structured data
+- **Pass:** 3+ social profiles found
+- **Warn:** 0-2 profiles found
+- **Fix:** Add profile links in header/footer; include in Organization schema sameAs
 
 ---
 

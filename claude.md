@@ -1,6 +1,6 @@
 # SEOmator - SEO Audit CLI & Claude Code Skill
 
-A comprehensive SEO audit tool with **116 rules** across **14 categories**.
+A comprehensive SEO audit tool with **120 rules** across **14 categories**.
 
 **Version:** 2.1.0
 
@@ -298,7 +298,7 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Images | 9% | 12 |
 | Security | 9% | 12 |
 | Structured Data | 6% | 13 |
-| Social | 4% | 5 |
+| Social | 4% | 9 |
 | Content | 5% | 10 |
 | Accessibility | 6% | 12 |
 | Internationalization | 2% | 2 |
@@ -406,6 +406,18 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Invalid Review | Add itemReviewed, author, reviewRating |
 | Missing VideoObject | Add name, thumbnailUrl, uploadDate |
 | No sitelinks searchbox | Add WebSite with SearchAction on homepage |
+
+### Social
+| Issue | Fix |
+|-------|-----|
+| Missing og:title | Add `<meta property="og:title">` for social sharing |
+| Missing og:description | Add `<meta property="og:description">` for social sharing |
+| Missing og:image | Add `<meta property="og:image">` with 1200x630px image |
+| Missing og:image dimensions | Add `og:image:width` (1200) and `og:image:height` (630) meta tags |
+| og:url mismatch | Ensure og:url matches canonical URL exactly |
+| Missing Twitter card | Add `<meta name="twitter:card" content="summary_large_image">` |
+| No share buttons | Add social share buttons for Facebook, Twitter/X, LinkedIn |
+| No social profiles | Add profile links in header/footer; include sameAs in Organization schema |
 
 ### Content
 | Issue | Fix |

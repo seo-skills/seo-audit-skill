@@ -1,6 +1,6 @@
 ---
 name: seo-audit
-description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 116 rules across 14 categories including Core SEO, meta tags, Core Web Vitals, security headers, structured data, accessibility, performance, and content quality. Supports HTML/Markdown reports, URL filtering, and config validation.
+description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 120 rules across 14 categories including Core SEO, meta tags, Core Web Vitals, security headers, structured data, accessibility, performance, and content quality. Supports HTML/Markdown reports, URL filtering, and config validation.
 ---
 
 # SEO Audit Skill
@@ -112,7 +112,7 @@ Fix issues in this order (highest impact first):
 | 9 | Structured Data | 6% | 13 | Rich snippets |
 | 10 | Accessibility | 6% | 12 | WCAG compliance |
 | 11 | Content | 5% | 10 | Text quality + readability |
-| 12 | Social | 4% | 5 | Social sharing |
+| 12 | Social | 4% | 9 | Social sharing |
 | 13 | Core SEO | 4% | 4 | Canonical & indexing |
 | 14 | Internationalization | 2% | 2 | Language & hreflang |
 
@@ -319,4 +319,4 @@ When asked to audit a website:
 - npm: https://www.npmjs.com/package/@seomator/seo-audit
 - GitHub: https://github.com/seo-skills/seo-audit-skill
 - Web UI: https://seomator.com/free-seo-audit-tool
-- Rules Reference: See `docs/SEO-AUDIT-RULES.md` for all 116 rules
+- Rules Reference: See `docs/SEO-AUDIT-RULES.md` for all 120 rules

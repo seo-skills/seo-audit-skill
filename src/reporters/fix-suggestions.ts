@@ -108,8 +108,12 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'social-og-title': 'Add <meta property="og:title" content="..."> for social sharing',
   'social-og-description': 'Add <meta property="og:description" content="..."> for social sharing',
   'social-og-image': 'Add <meta property="og:image" content="..."> with 1200x630px image',
+  'social-og-image-size': 'Add og:image:width (1200) and og:image:height (630) meta tags for optimal display',
   'social-og-url': 'Add <meta property="og:url" content="..."> matching canonical URL',
+  'social-og-url-canonical': 'Ensure og:url matches canonical URL exactly for consistent SEO signals',
   'social-twitter-card': 'Add <meta name="twitter:card" content="summary_large_image">',
+  'social-share-buttons': 'Add social share buttons for Facebook, Twitter/X, and LinkedIn',
+  'social-profiles': 'Add social profile links in header/footer; include sameAs in Organization schema',
 
   // ============ Content ============
   'content-word-count': 'Expand thin content to at least 300 words for informational pages',

@@ -4,7 +4,7 @@
 
 ## Overview
 
-SEOmator audits websites using 76 rules organized into 11 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 81 rules organized into 11 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -21,13 +21,13 @@ SEOmator audits websites using 76 rules organized into 11 categories. Each rule 
 | [Technical SEO](#technical) | 12% | 8 | robots.txt, sitemap, URL structure |
 | [Core Web Vitals](#core-web-vitals) | 14% | 5 | LCP, CLS, FCP, TTFB, INP |
 | [Links](#links) | 10% | 13 | Internal/external links, anchor text, validation |
-| [Images](#images) | 10% | 7 | Alt text, dimensions, lazy loading |
+| [Images](#images) | 10% | 12 | Alt text, dimensions, lazy loading, broken images, accessibility |
 | [Security](#security) | 10% | 6 | HTTPS, HSTS, CSP, security headers |
 | [Structured Data](#structured-data) | 6% | 4 | JSON-LD, Schema.org markup |
 | [Social](#social) | 5% | 5 | Open Graph, Twitter Cards |
 | [Content](#content) | 7% | 10 | Text quality, readability, keyword density |
 
-**Total: 100% weight, 76 rules**
+**Total: 100% weight, 81 rules**
 
 ---
 
@@ -342,7 +342,7 @@ Analyzes internal and external links, anchor text, broken links, and link qualit
 
 ## Images
 
-Checks alt attributes, dimensions, lazy loading, and optimization.
+Checks alt attributes, dimensions, lazy loading, optimization, and accessibility.
 
 | Rule ID | Name | Severity | Description |
 |---------|------|----------|-------------|
@@ -353,6 +353,11 @@ Checks alt attributes, dimensions, lazy loading, and optimization.
 | `images-modern-format` | Modern Format | warn | Suggests WebP/AVIF for images |
 | `images-size` | Size | warn | Checks image file sizes aren't excessive |
 | `images-responsive` | Responsive | warn | Checks srcset for responsive images |
+| `images-broken` | No Broken Images | fail | Checks images don't return 404 errors |
+| `images-figure-captions` | Figure Captions | warn | Checks figure elements have figcaption |
+| `images-filename-quality` | Filename Quality | warn | Checks for descriptive image filenames |
+| `images-inline-svg-size` | Inline SVG Size | warn | Checks inline SVGs aren't too large (>5KB) |
+| `images-picture-element` | Picture Element | fail | Validates picture elements have img fallback |
 
 ### Rule Details
 
@@ -386,6 +391,28 @@ Checks alt attributes, dimensions, lazy loading, and optimization.
 #### images-responsive
 - **What it checks:** srcset attribute for responsive images
 - **Fix:** Add `srcset` for different screen sizes
+
+#### images-broken
+- **What it checks:** All image URLs return 200 status
+- **Fix:** Remove or fix broken image references (404 errors)
+
+#### images-figure-captions
+- **What it checks:** Figure elements have figcaption for accessibility
+- **Fix:** Add `<figcaption>` inside `<figure>` to describe content
+
+#### images-filename-quality
+- **What it checks:** Descriptive filenames instead of generic patterns
+- **Bad:** `IMG_001.jpg`, `DSC1234.png`, `untitled.webp`
+- **Good:** `red-running-shoes.jpg`, `team-photo-2024.webp`
+
+#### images-inline-svg-size
+- **What it checks:** Inline SVGs are small enough to not bloat HTML
+- **Threshold:** >5KB should be external files
+- **Fix:** Move large SVGs to external files for caching
+
+#### images-picture-element
+- **What it checks:** Picture elements have required img fallback
+- **Fix:** Every `<picture>` must contain `<img>` as fallback
 
 ---
 

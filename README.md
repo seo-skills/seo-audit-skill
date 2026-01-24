@@ -1,12 +1,12 @@
 # SEOmator Audit CLI
 
-A comprehensive SEO audit command-line tool with **76 audit rules** across **11 categories**. Analyze any website for SEO best practices, Core Web Vitals, security headers, structured data, and more.
+A comprehensive SEO audit command-line tool with **81 audit rules** across **11 categories**. Analyze any website for SEO best practices, Core Web Vitals, security headers, structured data, and more.
 
 > **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
 
 ## Features
 
-- **76 SEO Audit Rules** across 11 categories
+- **81 SEO Audit Rules** across 11 categories
 - **Single Page & Crawl Mode** - Audit one page or crawl entire sites
 - **Core Web Vitals** - LCP, CLS, FCP, TTFB, INP measurement
 - **JSON & Terminal Output** - Machine-readable or human-friendly reports
@@ -154,7 +154,7 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `links-redirect-chains` | Links should not go through redirects |
 | `links-orphan-pages` | Pages should have incoming links |
 
-### Images (7 rules) - 10% weight
+### Images (12 rules) - 10% weight
 | Rule | Description |
 |------|-------------|
 | `images-alt-present` | All images should have alt attribute |
@@ -164,6 +164,11 @@ seomator https://example.com --crawl --max-pages 50 --concurrency 5 --timeout 60
 | `images-modern-format` | Use WebP/AVIF formats |
 | `images-size` | Images should be <200KB |
 | `images-responsive` | Use srcset for responsive images |
+| `images-broken` | Images should not return 404 errors |
+| `images-figure-captions` | Figure elements should have figcaption |
+| `images-filename-quality` | Use descriptive filenames (not IMG_001.jpg) |
+| `images-inline-svg-size` | Inline SVGs should be <5KB |
+| `images-picture-element` | Picture elements must have img fallback |
 
 ### Security (6 rules) - 10% weight
 | Rule | Description |
@@ -354,7 +359,7 @@ Claude will install the CLI (if needed), run the audit, and provide actionable r
 ### Skill Contents
 
 - **[SKILL.md](skill/SKILL.md)** - Main skill definition with installation and usage instructions
-- **[references/rules.md](skill/references/rules.md)** - Complete reference of all 76 audit rules
+- **[references/rules.md](skill/references/rules.md)** - Complete reference of all 81 audit rules
 
 ## Requirements
 

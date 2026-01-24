@@ -102,6 +102,46 @@ export interface SpecialLinkInfo {
 }
 
 /**
+ * Figure element information
+ */
+export interface FigureInfo {
+  /** Whether figure has a figcaption */
+  hasFigcaption: boolean;
+  /** Number of images inside the figure */
+  imageCount: number;
+  /** The figcaption text (if present) */
+  captionText?: string;
+}
+
+/**
+ * Inline SVG information
+ */
+export interface InlineSvgInfo {
+  /** Size in bytes of the SVG markup */
+  sizeBytes: number;
+  /** Whether SVG has viewBox attribute */
+  hasViewBox: boolean;
+  /** Whether SVG has title element */
+  hasTitle: boolean;
+  /** Snippet of SVG for identification (first 100 chars) */
+  snippet: string;
+}
+
+/**
+ * Picture element information
+ */
+export interface PictureElementInfo {
+  /** Whether picture has an img fallback */
+  hasImgFallback: boolean;
+  /** Number of source elements */
+  sourceCount: number;
+  /** The img src if present */
+  imgSrc?: string;
+  /** Source types defined (e.g., ['image/webp', 'image/avif']) */
+  sourceTypes: string[];
+}
+
+/**
  * Context passed to each audit rule's run function
  */
 export interface AuditContext {
@@ -127,6 +167,12 @@ export interface AuditContext {
   invalidLinks: InvalidLinkInfo[];
   /** Special protocol links (tel:, mailto:) */
   specialLinks: SpecialLinkInfo[];
+  /** Figure elements on the page */
+  figures: FigureInfo[];
+  /** Inline SVG elements */
+  inlineSvgs: InlineSvgInfo[];
+  /** Picture elements */
+  pictureElements: PictureElementInfo[];
 }
 
 /**

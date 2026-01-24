@@ -1,6 +1,16 @@
 import * as cheerio from 'cheerio';
 import type { CheerioAPI } from 'cheerio';
-import type { AuditContext, LinkInfo, ImageInfo, CoreWebVitals, InvalidLinkInfo, SpecialLinkInfo } from '../types.js';
+import type {
+  AuditContext,
+  LinkInfo,
+  ImageInfo,
+  CoreWebVitals,
+  InvalidLinkInfo,
+  SpecialLinkInfo,
+  FigureInfo,
+  InlineSvgInfo,
+  PictureElementInfo,
+} from '../types.js';
 
 /**
  * Result of fetching a page
@@ -297,6 +307,81 @@ function extractImages($: CheerioAPI, baseUrl: string): ImageInfo[] {
 }
 
 /**
+ * Extract figure elements from parsed HTML
+ * @param $ - Cheerio instance
+ * @returns Array of FigureInfo objects
+ */
+function extractFigures($: CheerioAPI): FigureInfo[] {
+  const figures: FigureInfo[] = [];
+
+  $('figure').each((_, element) => {
+    const $el = $(element);
+    const $figcaption = $el.find('figcaption');
+
+    figures.push({
+      hasFigcaption: $figcaption.length > 0,
+      imageCount: $el.find('img').length,
+      captionText: $figcaption.text().trim().slice(0, 200) || undefined,
+    });
+  });
+
+  return figures;
+}
+
+/**
+ * Extract inline SVG elements from parsed HTML
+ * @param $ - Cheerio instance
+ * @returns Array of InlineSvgInfo objects
+ */
+function extractInlineSvgs($: CheerioAPI): InlineSvgInfo[] {
+  const svgs: InlineSvgInfo[] = [];
+
+  $('svg').each((_, element) => {
+    const $el = $(element);
+    const html = $.html($el);
+
+    svgs.push({
+      sizeBytes: Buffer.byteLength(html, 'utf8'),
+      hasViewBox: $el.attr('viewBox') !== undefined,
+      hasTitle: $el.find('title').length > 0,
+      snippet: html.slice(0, 100),
+    });
+  });
+
+  return svgs;
+}
+
+/**
+ * Extract picture elements from parsed HTML
+ * @param $ - Cheerio instance
+ * @returns Array of PictureElementInfo objects
+ */
+function extractPictureElements($: CheerioAPI): PictureElementInfo[] {
+  const pictures: PictureElementInfo[] = [];
+
+  $('picture').each((_, element) => {
+    const $el = $(element);
+    const $img = $el.find('img');
+    const $sources = $el.find('source');
+
+    const sourceTypes: string[] = [];
+    $sources.each((_, source) => {
+      const type = $(source).attr('type');
+      if (type) sourceTypes.push(type);
+    });
+
+    pictures.push({
+      hasImgFallback: $img.length > 0,
+      sourceCount: $sources.length,
+      imgSrc: $img.attr('src'),
+      sourceTypes,
+    });
+  });
+
+  return pictures;
+}
+
+/**
  * Result of fetching a URL with redirect tracking
  */
 export interface RedirectResult {
@@ -411,5 +496,8 @@ export function createAuditContext(
     images: extractImages($, url),
     invalidLinks,
     specialLinks,
+    figures: extractFigures($),
+    inlineSvgs: extractInlineSvgs($),
+    pictureElements: extractPictureElements($),
   };
 }

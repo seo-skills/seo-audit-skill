@@ -1,6 +1,6 @@
 # SEOmator - SEO Audit CLI & Claude Code Skill
 
-A comprehensive SEO audit tool with **76 rules** across **11 categories**.
+A comprehensive SEO audit tool with **81 rules** across **11 categories**.
 
 **Version:** 2.1.0
 
@@ -295,7 +295,7 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Technical SEO | 12% | 8 |
 | Core Web Vitals | 14% | 5 |
 | Links | 10% | 13 |
-| Images | 10% | 7 |
+| Images | 10% | 12 |
 | Security | 10% | 6 |
 | Structured Data | 6% | 4 |
 | Social | 5% | 5 |
@@ -376,6 +376,11 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Missing alt | Add descriptive `alt` attribute |
 | No dimensions | Add `width` and `height` |
 | Old formats | Convert to WebP/AVIF |
+| Broken images | Fix or remove 404 image references |
+| Missing figcaption | Add figcaption to describe figures |
+| Non-descriptive filenames | Rename `IMG_001.jpg` to descriptive names |
+| Large inline SVGs | Move >5KB SVGs to external files |
+| Invalid picture element | Add `<img>` fallback inside `<picture>` |
 
 ### Content
 | Issue | Fix |

@@ -70,6 +70,11 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'images-modern-format': 'Convert images to WebP or AVIF for better compression',
   'images-size': 'Compress images to reduce file size while maintaining quality',
   'images-responsive': 'Use srcset and sizes for responsive images on different devices',
+  'images-broken': 'Fix or remove broken image references (404 errors)',
+  'images-figure-captions': 'Add figcaption elements to describe figure content for accessibility',
+  'images-filename-quality': 'Use descriptive filenames like "red-running-shoes.jpg" instead of "IMG_001.jpg"',
+  'images-inline-svg-size': 'Move large SVGs (>5KB) to external files for better caching',
+  'images-picture-element': 'Ensure every <picture> element contains an <img> fallback element',
 
   // ============ Security ============
   'security-https': 'Install SSL certificate and redirect all HTTP traffic to HTTPS',

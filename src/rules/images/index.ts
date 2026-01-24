@@ -13,6 +13,11 @@ import { lazyLoadingRule } from './lazy-loading.js';
 import { modernFormatRule } from './modern-format.js';
 import { sizeRule } from './size.js';
 import { responsiveRule } from './responsive.js';
+import { brokenRule } from './broken.js';
+import { figureCaptionsRule } from './figure-captions.js';
+import { filenameQualityRule } from './filename-quality.js';
+import { inlineSvgSizeRule } from './inline-svg-size.js';
+import { pictureElementRule } from './picture-element.js';
 
 // Export all rules
 export {
@@ -23,6 +28,11 @@ export {
   modernFormatRule,
   sizeRule,
   responsiveRule,
+  brokenRule,
+  figureCaptionsRule,
+  filenameQualityRule,
+  inlineSvgSizeRule,
+  pictureElementRule,
 };
 
 // Register all rules
@@ -33,3 +43,8 @@ registerRule(lazyLoadingRule);
 registerRule(modernFormatRule);
 registerRule(sizeRule);
 registerRule(responsiveRule);
+registerRule(brokenRule);
+registerRule(figureCaptionsRule);
+registerRule(filenameQualityRule);
+registerRule(inlineSvgSizeRule);
+registerRule(pictureElementRule);

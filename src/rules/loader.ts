@@ -12,6 +12,7 @@ import '../rules/structured-data/index.js';
 import '../rules/social/index.js';
 import '../rules/content/index.js';
 import '../rules/accessibility/index.js';
+import '../rules/i18n/index.js';
 
 let rulesLoaded = false;
 
@@ -47,4 +48,5 @@ export const CATEGORY_MODULES = [
   'social',
   'content',
   'accessibility',
+  'i18n',
 ] as const;

@@ -28,7 +28,6 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'headings-hierarchy': 'Maintain proper heading order (H1 → H2 → H3, no skipping levels)',
   'headings-content-length': 'Keep headings concise (under 70 characters) and descriptive',
   'headings-content-unique': 'Use unique headings that differ from page title and each other',
-  'headings-lang-attribute': 'Add lang attribute to <html> tag: <html lang="en">',
 
   // ============ Technical SEO ============
   'technical-robots-txt-exists': 'Create robots.txt at site root with User-agent and sitemap directives',
@@ -137,6 +136,10 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'a11y-touch-targets': 'Ensure interactive elements are at least 44x44 CSS pixels',
   'a11y-video-captions': 'Add <track kind="captions"> or link to transcript for videos',
   'a11y-zoom-disabled': 'Remove user-scalable=no and maximum-scale=1 from viewport',
+
+  // ============ Internationalization (i18n) ============
+  'i18n-lang-attribute': 'Add lang attribute to <html> tag: <html lang="en">',
+  'i18n-hreflang': 'Add <link rel="alternate" hreflang="xx"> for each language version with self-reference',
 };
 
 /**

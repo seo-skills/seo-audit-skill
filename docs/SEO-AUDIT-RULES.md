@@ -1,10 +1,10 @@
 # SEO Audit Rules Reference
 
-> Complete reference of all 108 SEO audit rules across 12 categories
+> Complete reference of all 109 SEO audit rules across 13 categories
 
 ## Overview
 
-SEOmator audits websites using 108 rules organized into 12 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 109 rules organized into 13 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -17,18 +17,19 @@ SEOmator audits websites using 108 rules organized into 12 categories. Each rule
 |----------|--------|-------|-------------|
 | [Core SEO](#core-seo) | 4% | 4 | Essential SEO checks: canonical validation, indexing directives |
 | [Meta Tags](#meta-tags) | 11% | 8 | Title, description, canonical, viewport, favicon |
-| [Headings](#headings) | 8% | 6 | H1-H6 structure and hierarchy |
+| [Headings](#headings) | 7% | 5 | H1-H6 structure and hierarchy |
 | [Technical SEO](#technical) | 11% | 8 | robots.txt, sitemap, URL structure |
 | [Core Web Vitals](#core-web-vitals) | 13% | 5 | LCP, CLS, FCP, TTFB, INP |
 | [Links](#links) | 10% | 13 | Internal/external links, anchor text, validation |
 | [Images](#images) | 10% | 12 | Alt text, dimensions, lazy loading, broken images, accessibility |
 | [Security](#security) | 10% | 12 | HTTPS, HSTS, CSP, security headers, leaked secrets |
 | [Structured Data](#structured-data) | 6% | 13 | JSON-LD, Schema.org markup |
-| [Social](#social) | 5% | 5 | Open Graph, Twitter Cards |
+| [Social](#social) | 4% | 5 | Open Graph, Twitter Cards |
 | [Content](#content) | 6% | 10 | Text quality, readability, keyword density |
 | [Accessibility](#accessibility) | 6% | 12 | WCAG compliance, screen reader support, keyboard navigation |
+| [Internationalization](#internationalization) | 2% | 2 | Language declarations, hreflang |
 
-**Total: 100% weight, 108 rules**
+**Total: 100% weight, 109 rules**
 
 ---
 
@@ -136,7 +137,6 @@ Checks heading structure and hierarchy (H1-H6).
 | `headings-hierarchy` | Heading Hierarchy | warn | Checks proper heading level sequence (no skipping) |
 | `headings-content-length` | Content Length | warn | Validates heading text isn't too short or long |
 | `headings-content-unique` | Content Unique | warn | Checks headings aren't duplicated on page |
-| `headings-lang-attribute` | Lang Attribute | warn | Checks for `lang` attribute on `<html>` element |
 
 ### Rule Details
 
@@ -162,10 +162,6 @@ Checks heading structure and hierarchy (H1-H6).
 #### headings-content-unique
 - **What it checks:** No duplicate heading text on page
 - **Why:** Duplicate headings confuse content structure
-
-#### headings-lang-attribute
-- **What it checks:** `<html lang="en">` or similar exists
-- **Fix:** Add `lang` attribute matching page language
 
 ---
 
@@ -808,6 +804,34 @@ Checks for WCAG compliance, screen reader support, and keyboard navigation.
 - **Pass:** User zoom is allowed
 - **Fail:** user-scalable=no or maximum-scale≤1 prevents zooming
 - **Fix:** Remove user-scalable=no and maximum-scale=1 from viewport meta tag
+
+---
+
+## Internationalization
+
+Checks language declarations and multi-region hreflang support.
+
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `i18n-lang-attribute` | Lang Attribute | fail | Checks for `lang` attribute on `<html>` element |
+| `i18n-hreflang` | Hreflang Tags | warn/fail | Checks for hreflang link elements for international targeting |
+
+### Rule Details
+
+#### i18n-lang-attribute
+- **What it checks:** `<html lang="xx">` exists with valid BCP 47 language code
+- **Pass:** Valid lang attribute present (e.g., "en", "en-US", "zh-Hans")
+- **Warn:** Lang attribute format may be invalid
+- **Fail:** Missing or empty lang attribute
+- **Fix:** Add `<html lang="en">` with appropriate language code
+
+#### i18n-hreflang
+- **What it checks:** Hreflang link elements for multi-language/region sites
+- **Pass (no hreflang):** Single-language sites without hreflang are valid
+- **Pass (with hreflang):** Valid hreflang implementation with self-reference
+- **Warn:** Missing x-default or self-reference recommendations
+- **Fail:** Invalid hreflang format, duplicate codes, or relative URLs
+- **Fix:** Add `<link rel="alternate" hreflang="xx" href="...">` for each language version
 
 ---
 

@@ -21,7 +21,7 @@ export const categories: CategoryDefinition[] = [
     id: 'headings',
     name: 'Headings',
     description: 'Checks heading structure and hierarchy (H1-H6)',
-    weight: 8,
+    weight: 7,
   },
   {
     id: 'technical',
@@ -63,7 +63,7 @@ export const categories: CategoryDefinition[] = [
     id: 'social',
     name: 'Social',
     description: 'Validates Open Graph, Twitter Cards, and social sharing metadata',
-    weight: 5,
+    weight: 4,
   },
   {
     id: 'content',
@@ -76,6 +76,12 @@ export const categories: CategoryDefinition[] = [
     name: 'Accessibility',
     description: 'Checks for WCAG compliance, screen reader support, and keyboard navigation',
     weight: 6,
+  },
+  {
+    id: 'i18n',
+    name: 'Internationalization',
+    description: 'Checks language declarations and multi-region hreflang support',
+    weight: 2,
   },
 ];
 

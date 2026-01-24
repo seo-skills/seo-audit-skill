@@ -11,7 +11,6 @@ import { h1SingleRule } from './h1-single.js';
 import { hierarchyRule } from './hierarchy.js';
 import { contentLengthRule } from './content-length.js';
 import { contentUniqueRule } from './content-unique.js';
-import { langAttributeRule } from './lang-attribute.js';
 
 // Export all rules
 export {
@@ -20,7 +19,6 @@ export {
   hierarchyRule,
   contentLengthRule,
   contentUniqueRule,
-  langAttributeRule,
 };
 
 // Register all rules
@@ -29,4 +27,3 @@ registerRule(h1SingleRule);
 registerRule(hierarchyRule);
 registerRule(contentLengthRule);
 registerRule(contentUniqueRule);
-registerRule(langAttributeRule);

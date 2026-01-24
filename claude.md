@@ -1,6 +1,6 @@
 # SEOmator - SEO Audit CLI & Claude Code Skill
 
-A comprehensive SEO audit tool with **96 rules** across **11 categories**.
+A comprehensive SEO audit tool with **109 rules** across **13 categories**.
 
 **Version:** 2.1.0
 
@@ -289,17 +289,19 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 
 | Category | Weight | Rules |
 |----------|--------|-------|
-| Core SEO | 5% | 4 |
-| Meta Tags | 12% | 8 |
-| Headings | 9% | 6 |
-| Technical SEO | 12% | 8 |
-| Core Web Vitals | 14% | 5 |
+| Core SEO | 4% | 4 |
+| Meta Tags | 11% | 8 |
+| Headings | 7% | 5 |
+| Technical SEO | 11% | 8 |
+| Core Web Vitals | 13% | 5 |
 | Links | 10% | 13 |
 | Images | 10% | 12 |
 | Security | 10% | 12 |
 | Structured Data | 6% | 13 |
-| Social | 5% | 5 |
-| Content | 7% | 10 |
+| Social | 4% | 5 |
+| Content | 6% | 10 |
+| Accessibility | 6% | 12 |
+| Internationalization | 2% | 2 |
 
 ---
 
@@ -312,17 +314,18 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 - **0-49**: Poor - Critical issues
 
 ### Priority Order (by impact)
-1. Core Web Vitals (14%) - UX + ranking
-2. Meta Tags (12%) - Search visibility
-3. Technical SEO (12%) - Crawling foundation
+1. Core Web Vitals (13%) - UX + ranking
+2. Meta Tags (11%) - Search visibility
+3. Technical SEO (11%) - Crawling foundation
 4. Security (10%) - Trust signals
 5. Links (10%) - Internal structure
 6. Images (10%) - Performance
-7. Headings (9%) - Content structure
-8. Content (7%) - Text quality + readability
+7. Headings (8%) - Content structure
+8. Content (6%) - Text quality + readability
 9. Structured Data (6%) - Rich snippets
-10. Core SEO (5%) - Canonical & indexing validation
+10. Accessibility (6%) - WCAG compliance
 11. Social (5%) - Social sharing
+12. Core SEO (4%) - Canonical & indexing validation
 
 ---
 
@@ -411,6 +414,28 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | No date signals | Add datePublished/dateModified to Article schema |
 | Meta in body | Move all `<meta>` tags to `<head>` |
 
+### Accessibility
+| Issue | Fix |
+|-------|-----|
+| Missing ARIA labels | Add aria-label or visible text to interactive elements |
+| Low color contrast | Ensure 4.5:1 contrast ratio for text |
+| No focus indicators | Keep visible focus styles; use :focus-visible |
+| Unlabeled form inputs | Add `<label for="id">` or aria-label to inputs |
+| Skipped heading levels | Use proper hierarchy (H1→H2→H3) |
+| Missing landmarks | Add `<main>`, `<nav>`, `<header>`, `<footer>` |
+| Generic link text | Use descriptive text instead of "click here" |
+| No skip link | Add skip-to-content link for keyboard users |
+| Table without headers | Add `<th scope="col/row">` to data tables |
+| Small touch targets | Ensure 44x44px minimum for interactive elements |
+| No video captions | Add `<track kind="captions">` or transcript |
+| Zoom disabled | Remove user-scalable=no from viewport |
+
+### Internationalization
+| Issue | Fix |
+|-------|-----|
+| Missing lang attribute | Add `<html lang="en">` with valid BCP 47 code |
+| Missing hreflang | Add `<link rel="alternate" hreflang="xx">` for each language version |
+
 ---
 
 ## Project Structure
@@ -419,7 +444,7 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 seo-audit-skill/
 ├── SKILL.md              # Claude Code skill (root for skills.sh)
 ├── docs/
-│   ├── SEO-AUDIT-RULES.md      # 90 rules reference
+│   ├── SEO-AUDIT-RULES.md      # 109 rules reference
 │   └── STORAGE-ARCHITECTURE.md # SQLite storage technical docs
 ├── src/                  # CLI source code
 │   ├── cli.ts            # Main CLI entry (subcommands)
@@ -478,7 +503,7 @@ seo-audit-skill/
 │   │   ├── json.ts       # JSON output
 │   │   ├── html-reporter.ts    # Self-contained HTML
 │   │   └── markdown-reporter.ts # GitHub-flavored Markdown
-│   └── rules/            # 69 audit rules
+│   └── rules/            # 108 audit rules
 │       ├── pattern-matcher.ts  # Wildcard rule matching
 │       ├── core-seo/     # Canonical, indexing, title uniqueness
 │       ├── meta-tags/
@@ -490,7 +515,9 @@ seo-audit-skill/
 │       ├── security/
 │       ├── structured-data/
 │       ├── social/
-│       └── content/      # Text quality, readability, keyword density
+│       ├── content/      # Text quality, readability, keyword density
+│       ├── accessibility/ # WCAG, ARIA, keyboard navigation
+│       └── i18n/         # Language declarations, hreflang
 ├── dist/                 # Built CLI
 ├── package.json
 ├── tsconfig.json

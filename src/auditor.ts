@@ -279,16 +279,17 @@ export class Auditor {
       for (const rule of rules) {
         try {
           const result = await rule.run(context);
-          // Inject page URL into details for multi-page tracking
-          const resultWithUrl: RuleResult = {
+          // Inject ruleId and page URL for consistent tracking
+          const resultWithMeta: RuleResult = {
             ...result,
+            ruleId: rule.id,
             details: {
               ...result.details,
               pageUrl: context.url,
             },
           };
-          ruleResults.push(resultWithUrl);
-          this.options.onRuleComplete(rule.id, rule.name, resultWithUrl);
+          ruleResults.push(resultWithMeta);
+          this.options.onRuleComplete(rule.id, rule.name, resultWithMeta);
         } catch (error) {
           // Rule threw an error, treat as fail
           const errorResult: RuleResult = {

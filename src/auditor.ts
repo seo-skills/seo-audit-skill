@@ -279,8 +279,16 @@ export class Auditor {
       for (const rule of rules) {
         try {
           const result = await rule.run(context);
-          ruleResults.push(result);
-          this.options.onRuleComplete(rule.id, rule.name, result);
+          // Inject page URL into details for multi-page tracking
+          const resultWithUrl: RuleResult = {
+            ...result,
+            details: {
+              ...result.details,
+              pageUrl: context.url,
+            },
+          };
+          ruleResults.push(resultWithUrl);
+          this.options.onRuleComplete(rule.id, rule.name, resultWithUrl);
         } catch (error) {
           // Rule threw an error, treat as fail
           const errorResult: RuleResult = {
@@ -288,6 +296,9 @@ export class Auditor {
             status: 'fail',
             message: `Rule execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
             score: 0,
+            details: {
+              pageUrl: context.url,
+            },
           };
           ruleResults.push(errorResult);
           this.options.onRuleComplete(rule.id, rule.name, errorResult);

@@ -41,8 +41,9 @@ function escapeHtml(text: string | null | undefined): string {
 function extractUrlFromDetails(details: Record<string, unknown> | undefined): string | null {
   if (!details) return null;
 
-  // Check common URL fields
-  const urlFields = ['url', 'pageUrl', 'htmlCanonical', 'canonical'];
+  // pageUrl is the standard field injected by the auditor
+  // Check it first, then fall back to other common URL fields
+  const urlFields = ['pageUrl', 'url', 'htmlCanonical', 'canonical'];
   for (const field of urlFields) {
     const value = details[field];
     if (typeof value === 'string' && value.startsWith('http')) {
@@ -1330,9 +1331,9 @@ export function renderHtmlReport(result: AuditResult): string {
       const statusIcon = r.status === 'pass' ? '✓' : r.status === 'warn' ? '!' : '✕';
       const ruleUrl = extractUrlFromDetails(r.details);
 
-      // Filter out URL from details display since we show it separately
+      // Filter out URL fields from details display since we show the URL separately as a badge
       const filteredDetails = r.details ? Object.fromEntries(
-        Object.entries(r.details).filter(([k]) => !['url', 'pageUrl', 'htmlCanonical'].includes(k) || r.details?.url !== r.details?.[k])
+        Object.entries(r.details).filter(([k]) => !['url', 'pageUrl', 'htmlCanonical', 'canonical'].includes(k))
       ) : {};
 
       const detailsHtml = filteredDetails && Object.keys(filteredDetails).length > 0

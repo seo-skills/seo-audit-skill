@@ -122,27 +122,27 @@ function generateStyles(): string {
       --radius-full: 9999px;
     }
 
-    /* Dark theme */
+    /* Dark theme - True black */
     [data-theme="dark"] {
-      --color-bg: #0f172a;
-      --color-bg-elevated: #1e293b;
-      --color-bg-hover: #334155;
-      --color-bg-active: #475569;
-      --color-border: #334155;
-      --color-border-subtle: #1e293b;
-      --color-text: #f8fafc;
-      --color-text-secondary: #cbd5e1;
-      --color-text-muted: #64748b;
+      --color-bg: #000000;
+      --color-bg-elevated: #0a0a0a;
+      --color-bg-hover: #161616;
+      --color-bg-active: #1f1f1f;
+      --color-border: #1a1a1a;
+      --color-border-subtle: #111111;
+      --color-text: #ffffff;
+      --color-text-secondary: #a3a3a3;
+      --color-text-muted: #525252;
 
-      --color-pass-bg: rgba(16, 185, 129, 0.15);
-      --color-warn-bg: rgba(245, 158, 11, 0.15);
-      --color-fail-bg: rgba(239, 68, 68, 0.15);
-      --color-info-bg: rgba(59, 130, 246, 0.15);
-      --color-accent-light: rgba(6, 74, 218, 0.25);
+      --color-pass-bg: rgba(16, 185, 129, 0.12);
+      --color-warn-bg: rgba(245, 158, 11, 0.12);
+      --color-fail-bg: rgba(239, 68, 68, 0.12);
+      --color-info-bg: rgba(59, 130, 246, 0.12);
+      --color-accent-light: rgba(6, 74, 218, 0.2);
 
-      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
-      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+      --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.6);
+      --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.7);
     }
 
     /* ========================================

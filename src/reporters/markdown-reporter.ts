@@ -40,7 +40,8 @@ function getStatusIcon(status: string): string {
 /**
  * Escape markdown special characters in text
  */
-function escapeMarkdown(text: string): string {
+function escapeMarkdown(text: string | null | undefined): string {
+  if (text == null) return '';
   return text.replace(/[|\\`*_{}[\]()#+\-.!]/g, '\\$&');
 }
 

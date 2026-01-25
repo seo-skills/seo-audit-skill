@@ -24,7 +24,8 @@ function getScoreLabel(score: number): string {
 /**
  * Escape HTML special characters
  */
-function escapeHtml(text: string): string {
+function escapeHtml(text: string | null | undefined): string {
+  if (text == null) return '';
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

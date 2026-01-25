@@ -36,6 +36,35 @@ function escapeHtml(text: string | null | undefined): string {
 }
 
 /**
+ * Extract URL from rule result details
+ */
+function extractUrlFromDetails(details: Record<string, unknown> | undefined): string | null {
+  if (!details) return null;
+
+  // Check common URL fields
+  const urlFields = ['url', 'pageUrl', 'htmlCanonical', 'canonical'];
+  for (const field of urlFields) {
+    const value = details[field];
+    if (typeof value === 'string' && value.startsWith('http')) {
+      return value;
+    }
+  }
+  return null;
+}
+
+/**
+ * Get short URL path for display
+ */
+function getShortUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname === '/' ? '/' : parsed.pathname;
+  } catch {
+    return url;
+  }
+}
+
+/**
  * Generate the HTML CSS styles - complete redesign
  */
 function generateStyles(): string {
@@ -66,9 +95,10 @@ function generateStyles(): string {
       --color-info: #3b82f6;
       --color-info-bg: #dbeafe;
 
-      /* Accent */
-      --color-accent: #6366f1;
-      --color-accent-hover: #4f46e5;
+      /* Brand accent color */
+      --color-accent: #064ada;
+      --color-accent-hover: #0540b8;
+      --color-accent-light: rgba(6, 74, 218, 0.1);
 
       /* Shadows */
       --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -77,7 +107,7 @@ function generateStyles(): string {
 
       /* Spacing & Layout */
       --header-height: 64px;
-      --sidebar-width: 240px;
+      --sidebar-width: 260px;
       --content-max-width: 1200px;
 
       /* Typography */
@@ -107,6 +137,7 @@ function generateStyles(): string {
       --color-warn-bg: rgba(245, 158, 11, 0.15);
       --color-fail-bg: rgba(239, 68, 68, 0.15);
       --color-info-bg: rgba(59, 130, 246, 0.15);
+      --color-accent-light: rgba(6, 74, 218, 0.25);
 
       --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
       --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
@@ -330,6 +361,45 @@ function generateStyles(): string {
     .sidebar-link-count.pass {
       background: var(--color-pass-bg);
       color: var(--color-pass);
+    }
+
+    /* URL Filter in sidebar */
+    .url-filter {
+      padding: 0 12px;
+      margin-bottom: 16px;
+    }
+
+    .url-filter-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--color-text-muted);
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .url-filter-select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-size: 12px;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+    }
+
+    .url-filter-select:focus {
+      outline: none;
+      border-color: var(--color-accent);
+      box-shadow: 0 0 0 3px var(--color-accent-light);
     }
 
     /* ========================================
@@ -588,6 +658,10 @@ function generateStyles(): string {
       background: var(--color-bg-hover);
     }
 
+    .issues-table tbody tr.hidden {
+      display: none;
+    }
+
     .issue-row-name {
       display: flex;
       align-items: center;
@@ -630,10 +704,32 @@ function generateStyles(): string {
       margin-top: 2px;
     }
 
-    .issue-row-count {
+    .issue-row-url {
       font-family: var(--font-mono);
-      font-size: 13px;
+      font-size: 11px;
+      color: var(--color-accent);
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .issue-row-severity {
+      font-family: var(--font-mono);
+      font-size: 12px;
       font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+    }
+
+    .issue-row-severity.fail {
+      background: var(--color-fail-bg);
+      color: var(--color-fail);
+    }
+
+    .issue-row-severity.warn {
+      background: var(--color-warn-bg);
+      color: var(--color-warn);
     }
 
     /* ========================================
@@ -755,18 +851,38 @@ function generateStyles(): string {
       min-width: 0;
     }
 
+    .rule-title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+
     .rule-title {
       font-size: 14px;
       font-weight: 600;
-      margin-bottom: 4px;
     }
 
     .rule-id {
       font-family: var(--font-mono);
       font-size: 11px;
       color: var(--color-text-muted);
-      margin-left: 8px;
       font-weight: 400;
+    }
+
+    .rule-url {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-accent);
+      background: var(--color-accent-light);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+    }
+
+    .rule-url:hover {
+      text-decoration: underline;
     }
 
     .rule-message {
@@ -870,6 +986,9 @@ function generateStyles(): string {
       .main {
         padding: 16px;
       }
+      .issue-row-url {
+        display: none;
+      }
     }
 
     /* ========================================
@@ -892,7 +1011,7 @@ function generateStyles(): string {
 
     /* Highlight animation for scroll-to */
     @keyframes highlight {
-      0% { background: var(--color-info-bg); }
+      0% { background: var(--color-accent-light); }
       100% { background: transparent; }
     }
 
@@ -942,44 +1061,118 @@ function generateScript(): string {
         localStorage.setItem('seo-audit-theme', next);
       });
 
-      // Filter tabs
+      // State
+      let currentStatusFilter = 'all';
+      let currentUrlFilter = 'all';
+
+      // Elements
       const filterTabs = document.querySelectorAll('.filter-tab');
       const ruleCards = document.querySelectorAll('.rule-card');
       const categorySections = document.querySelectorAll('.category-section');
+      const issueRows = document.querySelectorAll('.issue-row');
+      const urlFilter = document.getElementById('url-filter');
 
+      // Apply filters
+      function applyFilters() {
+        // Filter rule cards
+        ruleCards.forEach(card => {
+          const status = card.dataset.status;
+          const url = card.dataset.url || '';
+
+          const statusMatch = currentStatusFilter === 'all' || status === currentStatusFilter;
+          const urlMatch = currentUrlFilter === 'all' || url.includes(currentUrlFilter);
+
+          card.classList.toggle('hidden', !(statusMatch && urlMatch));
+        });
+
+        // Filter issue rows in summary table
+        issueRows.forEach(row => {
+          const status = row.dataset.status;
+          const url = row.dataset.url || '';
+
+          const statusMatch = currentStatusFilter === 'all' || status === currentStatusFilter;
+          const urlMatch = currentUrlFilter === 'all' || url.includes(currentUrlFilter);
+
+          row.classList.toggle('hidden', !(statusMatch && urlMatch));
+        });
+
+        // Hide empty categories
+        categorySections.forEach(section => {
+          const visibleRules = section.querySelectorAll('.rule-card:not(.hidden)');
+          section.style.display = visibleRules.length === 0 ? 'none' : 'block';
+        });
+
+        // Update counts in filter tabs
+        updateFilterCounts();
+      }
+
+      function updateFilterCounts() {
+        const visible = {
+          all: 0,
+          fail: 0,
+          warn: 0,
+          pass: 0
+        };
+
+        ruleCards.forEach(card => {
+          const status = card.dataset.status;
+          const url = card.dataset.url || '';
+          const urlMatch = currentUrlFilter === 'all' || url.includes(currentUrlFilter);
+
+          if (urlMatch) {
+            visible.all++;
+            if (status === 'fail') visible.fail++;
+            if (status === 'warn') visible.warn++;
+            if (status === 'pass') visible.pass++;
+          }
+        });
+
+        filterTabs.forEach(tab => {
+          const filter = tab.dataset.filter;
+          const countEl = tab.querySelector('.filter-tab-count');
+          if (countEl && visible[filter] !== undefined) {
+            countEl.textContent = visible[filter];
+          }
+        });
+      }
+
+      // Status filter tabs
       filterTabs.forEach(tab => {
         tab.addEventListener('click', () => {
-          // Update active tab
           filterTabs.forEach(t => t.classList.remove('active'));
           tab.classList.add('active');
-
-          const filter = tab.dataset.filter;
-
-          // Filter rule cards
-          ruleCards.forEach(card => {
-            if (filter === 'all') {
-              card.classList.remove('hidden');
-            } else {
-              const status = card.dataset.status;
-              card.classList.toggle('hidden', status !== filter);
-            }
-          });
-
-          // Hide empty categories
-          categorySections.forEach(section => {
-            const visibleRules = section.querySelectorAll('.rule-card:not(.hidden)');
-            section.style.display = visibleRules.length === 0 ? 'none' : 'block';
-          });
+          currentStatusFilter = tab.dataset.filter;
+          applyFilters();
         });
       });
 
+      // URL filter dropdown
+      if (urlFilter) {
+        urlFilter.addEventListener('change', () => {
+          currentUrlFilter = urlFilter.value;
+          applyFilters();
+        });
+      }
+
       // Click-to-scroll from issues table
-      const issueRows = document.querySelectorAll('.issue-row');
       issueRows.forEach(row => {
         row.addEventListener('click', () => {
           const ruleId = row.dataset.ruleId;
-          const targetCard = document.querySelector('[data-rule-id="' + ruleId + '"]');
+          const url = row.dataset.url;
+
+          // Find matching card (match both ruleId and url if multi-page)
+          let targetCard = null;
+          ruleCards.forEach(card => {
+            if (card.dataset.ruleId === ruleId) {
+              if (!url || card.dataset.url === url) {
+                targetCard = card;
+              }
+            }
+          });
+
           if (targetCard) {
+            // Make sure it's visible
+            targetCard.classList.remove('hidden');
             targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
             targetCard.classList.add('highlight');
             setTimeout(() => targetCard.classList.remove('highlight'), 1500);
@@ -1048,18 +1241,23 @@ export function renderHtmlReport(result: AuditResult): string {
   const timestamp = new Date(result.timestamp).toLocaleString();
   const isPassing = result.overallScore >= 70;
 
-  // Collect all issues
-  const allIssues: { category: string; categoryId: string; result: RuleResult }[] = [];
+  // Collect all issues with URL info
+  const allIssues: { category: string; categoryId: string; result: RuleResult; url: string | null }[] = [];
+  const allUrls = new Set<string>();
 
   for (const categoryResult of result.categoryResults) {
     const category = getCategoryById(categoryResult.categoryId);
     const categoryName = category?.name ?? categoryResult.categoryId;
 
     for (const ruleResult of categoryResult.results) {
+      const url = extractUrlFromDetails(ruleResult.details);
+      if (url) allUrls.add(url);
+
       allIssues.push({
         category: categoryName,
         categoryId: categoryResult.categoryId,
-        result: ruleResult
+        result: ruleResult,
+        url
       });
     }
   }
@@ -1068,6 +1266,7 @@ export function renderHtmlReport(result: AuditResult): string {
   const warnings = allIssues.filter(i => i.result.status === 'warn');
   const passes = allIssues.filter(i => i.result.status === 'pass');
   const totalChecks = allIssues.length;
+  const uniqueUrls = Array.from(allUrls).sort();
 
   // Calculate circumference for score circle
   const radius = 58;
@@ -1076,8 +1275,8 @@ export function renderHtmlReport(result: AuditResult): string {
 
   // Generate issues table rows (failures and warnings only)
   const issueTableRows = [...failures, ...warnings]
-    .map(({ category, result: r }) => `
-      <tr class="issue-row" data-rule-id="${escapeHtml(r.ruleId)}">
+    .map(({ category, result: r, url }) => `
+      <tr class="issue-row" data-rule-id="${escapeHtml(r.ruleId)}" data-status="${r.status}" data-url="${escapeHtml(url || '')}">
         <td>
           <div class="issue-row-name">
             <div class="issue-row-icon ${r.status}">${r.status === 'fail' ? '✕' : '!'}</div>
@@ -1088,10 +1287,19 @@ export function renderHtmlReport(result: AuditResult): string {
           </div>
         </td>
         <td>
-          <span class="issue-row-count">${r.status === 'fail' ? 'Critical' : 'Warning'}</span>
+          ${url ? `<span class="issue-row-url" title="${escapeHtml(url)}">${escapeHtml(getShortUrl(url))}</span>` : '<span class="issue-row-url">-</span>'}
+        </td>
+        <td>
+          <span class="issue-row-severity ${r.status}">${r.status === 'fail' ? 'Critical' : 'Warning'}</span>
         </td>
       </tr>
     `).join('');
+
+  // Generate URL filter options
+  const urlFilterOptions = uniqueUrls.length > 1
+    ? `<option value="all">All Pages (${uniqueUrls.length})</option>
+       ${uniqueUrls.map(url => `<option value="${escapeHtml(url)}">${escapeHtml(getShortUrl(url))}</option>`).join('')}`
+    : '';
 
   // Generate sidebar links
   const sidebarLinks = result.categoryResults.map(cat => {
@@ -1120,10 +1328,16 @@ export function renderHtmlReport(result: AuditResult): string {
     const rulesHtml = cat.results.map(r => {
       const fix = getFixSuggestion(r.ruleId);
       const statusIcon = r.status === 'pass' ? '✓' : r.status === 'warn' ? '!' : '✕';
+      const ruleUrl = extractUrlFromDetails(r.details);
 
-      const detailsHtml = r.details && Object.keys(r.details).length > 0
+      // Filter out URL from details display since we show it separately
+      const filteredDetails = r.details ? Object.fromEntries(
+        Object.entries(r.details).filter(([k]) => !['url', 'pageUrl', 'htmlCanonical'].includes(k) || r.details?.url !== r.details?.[k])
+      ) : {};
+
+      const detailsHtml = filteredDetails && Object.keys(filteredDetails).length > 0
         ? `<div class="rule-details">
-            ${Object.entries(r.details).map(([k, v]) => {
+            ${Object.entries(filteredDetails).map(([k, v]) => {
               const displayValue = typeof v === 'object'
                 ? JSON.stringify(v)
                 : String(v);
@@ -1146,13 +1360,13 @@ export function renderHtmlReport(result: AuditResult): string {
         : '';
 
       return `
-        <div class="rule-card" data-status="${r.status}" data-rule-id="${escapeHtml(r.ruleId)}">
+        <div class="rule-card" data-status="${r.status}" data-rule-id="${escapeHtml(r.ruleId)}" data-url="${escapeHtml(ruleUrl || '')}">
           <div class="rule-header">
             <div class="rule-status-icon ${r.status}">${statusIcon}</div>
             <div class="rule-content">
-              <div class="rule-title">
-                ${escapeHtml(r.ruleId)}
-                <span class="rule-id">${escapeHtml(r.ruleId)}</span>
+              <div class="rule-title-row">
+                <span class="rule-title">${escapeHtml(r.ruleId)}</span>
+                ${ruleUrl ? `<a class="rule-url" href="${escapeHtml(ruleUrl)}" target="_blank" rel="noopener">${escapeHtml(getShortUrl(ruleUrl))}</a>` : ''}
               </div>
               <div class="rule-message">${escapeHtml(r.message)}</div>
               ${detailsHtml}
@@ -1219,6 +1433,14 @@ export function renderHtmlReport(result: AuditResult): string {
 
   <!-- Sidebar Navigation -->
   <nav class="sidebar">
+    ${uniqueUrls.length > 1 ? `
+    <div class="url-filter">
+      <label class="url-filter-label">Filter by Page</label>
+      <select id="url-filter" class="url-filter-select">
+        ${urlFilterOptions}
+      </select>
+    </div>
+    ` : ''}
     <div class="sidebar-section">
       <div class="sidebar-title">Categories</div>
       <ul class="sidebar-nav">
@@ -1298,6 +1520,7 @@ export function renderHtmlReport(result: AuditResult): string {
           <thead>
             <tr>
               <th>Issue</th>
+              <th>Page</th>
               <th>Severity</th>
             </tr>
           </thead>

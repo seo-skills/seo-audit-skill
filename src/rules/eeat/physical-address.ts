@@ -207,7 +207,7 @@ export const physicalAddressRule = defineRule({
     }
 
     return {
-      status: 'info',
+      status: 'pass',
       score: 100,
       message: 'No physical address found (may not be required for this site type)',
       details: {

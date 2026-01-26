@@ -247,8 +247,8 @@ export const authorExpertiseRule = defineRule({
     }
 
     return {
-      status: 'info',
-      score: 100, // Info only if no author present
+      status: 'warn',
+      score: 50,
       message: 'No author present - expertise check not applicable',
       details: {
         signals: [],

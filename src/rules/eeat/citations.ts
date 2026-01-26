@@ -195,8 +195,8 @@ export const citationsRule = defineRule({
 
     if (externalLinkCount > 0) {
       return {
-        status: 'info',
-        score: 100,
+        status: 'warn',
+        score: 60,
         message: `${externalLinkCount} external links found, but none to recognized authoritative sources`,
         details: {
           citationCount: 0,
@@ -209,9 +209,9 @@ export const citationsRule = defineRule({
     }
 
     return {
-      status: 'info',
+      status: 'pass',
       score: 100,
-      message: 'No external citations found',
+      message: 'No external citations found (may not be needed for this content type)',
       details: {
         citationCount: 0,
         hasCitationMarkup,

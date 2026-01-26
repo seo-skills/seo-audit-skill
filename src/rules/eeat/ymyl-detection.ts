@@ -133,8 +133,8 @@ export const ymylDetectionRule = defineRule({
 
     if (result.isYMYL) {
       return {
-        status: 'info',
-        score: 100, // Info status, not a problem
+        status: 'pass',
+        score: 100, // YMYL detection is informational, not a problem
         message: `YMYL content detected: ${result.categories.join(', ')} (${result.confidence} confidence)`,
         details: {
           isYMYL: true,

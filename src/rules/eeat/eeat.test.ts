@@ -212,10 +212,10 @@ describe('E-E-A-T Rules', () => {
       expect(result.details?.citationCount).toBe(1);
     });
 
-    it('should return info when no citations found', async () => {
+    it('should pass when no citations found (may not be needed)', async () => {
       const html = `<html><body><p>Content without citations</p></body></html>`;
       const result = await citationsRule.run(createContext(html));
-      expect(result.status).toBe('info');
+      expect(result.status).toBe('pass');
       expect(result.details?.citationCount).toBe(0);
     });
   });
@@ -378,10 +378,10 @@ describe('E-E-A-T Rules', () => {
       expect(result.status).toBe('pass');
     });
 
-    it('should return info when no address on non-business site', async () => {
+    it('should pass when no address on non-business site (not required)', async () => {
       const html = `<html><body><main>Blog post content</main></body></html>`;
       const result = await physicalAddressRule.run(createContext(html));
-      expect(result.status).toBe('info');
+      expect(result.status).toBe('pass');
     });
   });
 
@@ -462,10 +462,10 @@ describe('E-E-A-T Rules', () => {
       expect(result.details?.signalTypes?.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('should return info when no trust signals found', async () => {
+    it('should pass when no trust signals found (may not be required)', async () => {
       const html = `<html><body><main>Simple content</main></body></html>`;
       const result = await trustSignalsRule.run(createContext(html));
-      expect(result.status).toBe('info');
+      expect(result.status).toBe('pass');
     });
   });
 
@@ -481,7 +481,7 @@ describe('E-E-A-T Rules', () => {
         </body></html>
       `;
       const result = await ymylDetectionRule.run(createContext(html));
-      expect(result.status).toBe('info');
+      expect(result.status).toBe('pass'); // YMYL detection is informational, returns pass
       expect(result.details?.isYMYL).toBe(true);
       expect(result.details?.categories).toContain('Health & Medical');
     });
@@ -497,7 +497,7 @@ describe('E-E-A-T Rules', () => {
         </body></html>
       `;
       const result = await ymylDetectionRule.run(createContext(html));
-      expect(result.status).toBe('info');
+      expect(result.status).toBe('pass'); // YMYL detection is informational, returns pass
       expect(result.details?.isYMYL).toBe(true);
       expect(result.details?.categories).toContain('Financial');
     });

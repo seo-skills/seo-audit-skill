@@ -173,8 +173,8 @@ export const editorialPolicyRule = defineRule({
 
     if (foundSignals.length === 1) {
       return {
-        status: 'info',
-        score: 100,
+        status: 'pass',
+        score: 90,
         message: `Editorial signal found (${foundSignals[0]}) - consider adding editorial policy page`,
         details: {
           hasEditorialPolicy: false,
@@ -184,11 +184,11 @@ export const editorialPolicyRule = defineRule({
       };
     }
 
-    // No editorial policy - warn for content sites, info for others
+    // No editorial policy - warn for content sites
     if (isContentSite) {
       return {
-        status: 'info',
-        score: 100,
+        status: 'warn',
+        score: 50,
         message: 'No editorial policy found - recommended for content-focused sites',
         details: {
           hasEditorialPolicy: false,

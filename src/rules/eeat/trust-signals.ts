@@ -257,9 +257,9 @@ export const trustSignalsRule = defineRule({
     }
 
     return {
-      status: 'info',
+      status: 'pass',
       score: 100,
-      message: 'No trust signals detected',
+      message: 'No trust signals detected (may not be required for this site type)',
       details: {
         signalCount: 0,
         signalTypes: [],

@@ -138,9 +138,9 @@ describe('validateConfig', () => {
 
   describe('output.format validation', () => {
     it('should pass for valid formats', () => {
-      for (const format of ['console', 'json', 'html', 'markdown']) {
+      for (const format of ['console', 'text', 'json', 'html', 'markdown', 'llm']) {
         const result = validateConfig({
-          output: { format: format as 'console' | 'json' | 'html' },
+          output: { format: format as 'console' | 'text' | 'json' | 'html' | 'markdown' | 'llm' },
         });
 
         expect(result.valid).toBe(true);
@@ -154,7 +154,62 @@ describe('validateConfig', () => {
 
       expect(result.valid).toBe(false);
       expect(result.errors[0].path).toBe('output.format');
-      expect(result.errors[0].message).toContain('console, json, html, markdown');
+      expect(result.errors[0].message).toContain('console, text, json, html, markdown, llm');
+    });
+  });
+
+  describe('crawler.max_prefix_budget validation', () => {
+    it('should pass for valid max_prefix_budget', () => {
+      const result = validateConfig({
+        crawler: { max_prefix_budget: 0.25 },
+      });
+
+      expect(result.valid).toBe(true);
+    });
+
+    it('should error for max_prefix_budget below 0', () => {
+      const result = validateConfig({
+        crawler: { max_prefix_budget: -0.1 },
+      });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].path).toBe('crawler.max_prefix_budget');
+    });
+
+    it('should error for max_prefix_budget above 1', () => {
+      const result = validateConfig({
+        crawler: { max_prefix_budget: 1.5 },
+      });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].path).toBe('crawler.max_prefix_budget');
+    });
+  });
+
+  describe('crawler.user_agent validation', () => {
+    it('should pass for valid user_agent string', () => {
+      const result = validateConfig({
+        crawler: { user_agent: 'Mozilla/5.0 Custom Bot' },
+      });
+
+      expect(result.valid).toBe(true);
+    });
+
+    it('should pass for empty user_agent string', () => {
+      const result = validateConfig({
+        crawler: { user_agent: '' },
+      });
+
+      expect(result.valid).toBe(true);
+    });
+
+    it('should error for non-string user_agent', () => {
+      const result = validateConfig({
+        crawler: { user_agent: 123 as unknown as string },
+      });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].path).toBe('crawler.user_agent');
     });
   });
 

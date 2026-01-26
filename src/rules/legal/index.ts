@@ -1,20 +1,16 @@
 /**
  * Legal Compliance rules
  *
- * Privacy policy and legal compliance signals including:
+ * Legal compliance signals including:
  * - Cookie consent mechanism detection
- * - Privacy policy link presence
- * - Terms of service link presence
+ *
+ * Note: Privacy policy and terms of service rules moved to E-E-A-T category
  */
 
 import { registerRule } from '../registry.js';
 import { cookieConsentRule } from './cookie-consent.js';
-import { privacyPolicyRule } from './privacy-policy.js';
-import { termsOfServiceRule } from './terms-of-service.js';
 
-export { cookieConsentRule, privacyPolicyRule, termsOfServiceRule };
+export { cookieConsentRule };
 
 // Register all legal rules
 registerRule(cookieConsentRule);
-registerRule(privacyPolicyRule);
-registerRule(termsOfServiceRule);

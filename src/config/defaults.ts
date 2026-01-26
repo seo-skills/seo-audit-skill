@@ -23,6 +23,8 @@ export function getDefaultConfig(): SeomatorConfig {
       respect_robots: true,
       breadth_first: true,
       follow_redirects: true,
+      user_agent: '',
+      max_prefix_budget: 0.25,
     },
     rules: {
       enable: ['*'],

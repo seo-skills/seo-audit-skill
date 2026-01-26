@@ -23,6 +23,8 @@ export interface CrawlerConfig {
   respect_robots: boolean;
   breadth_first: boolean;
   follow_redirects: boolean;
+  user_agent: string;
+  max_prefix_budget: number;
 }
 
 /**
@@ -47,7 +49,7 @@ export interface ExternalLinksConfig {
  * Output configuration section
  */
 export interface OutputConfig {
-  format: 'console' | 'json' | 'html' | 'markdown';
+  format: 'console' | 'text' | 'json' | 'html' | 'markdown' | 'llm';
   path: string;
 }
 

@@ -1,6 +1,6 @@
 # SEOmator - SEO Audit CLI & Claude Code Skill
 
-A comprehensive SEO audit tool with **134 rules** across **18 categories**.
+A comprehensive SEO audit tool with **148 rules** across **16 categories**.
 
 **Version:** 2.1.0
 
@@ -154,7 +154,11 @@ allow_query_params = []         # Empty = keep all except dropped
 
 [rules]
 enable = ["*"]
-disable = ["core-web-vitals-inp"]  # Supports wildcards: "meta-tags-*"
+disable = ["perf-inp"]  # Supports wildcards: "core-*"
+
+# New crawler options
+user_agent = ""                 # Empty = random browser UA per crawl
+max_prefix_budget = 0.25        # Prevent over-crawling single paths (0-1)
 
 [external_links]
 enabled = true
@@ -315,26 +319,24 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 
 ## Categories & Weights
 
-| Category | Weight | Rules |
-|----------|--------|-------|
-| Core SEO | 3% | 4 |
-| Meta Tags | 8% | 8 |
-| Headings | 5% | 5 |
-| Technical SEO | 8% | 8 |
-| Core Web Vitals | 11% | 5 |
-| Links | 9% | 13 |
-| Images | 9% | 12 |
-| Security | 9% | 12 |
-| Structured Data | 5% | 13 |
-| Social | 4% | 9 |
-| Content | 5% | 10 |
-| Accessibility | 5% | 12 |
-| Internationalization | 2% | 2 |
-| Performance | 5% | 7 |
-| Crawlability | 4% | 6 |
-| URL Structure | 3% | 2 |
-| Mobile | 3% | 3 |
-| Legal Compliance | 2% | 3 |
+| Category | Weight | Rules | Description |
+|----------|--------|-------|-------------|
+| Core | 14% | 14 | Meta tags, canonical, H1, indexing |
+| Performance | 14% | 12 | Core Web Vitals + performance hints |
+| Links | 9% | 13 | Internal/external links |
+| Images | 9% | 12 | Image optimization |
+| Security | 9% | 12 | HTTPS, headers, mixed content |
+| Technical SEO | 8% | 8 | Robots.txt, sitemap, SSL |
+| Crawlability | 6% | 6 | Sitemap, indexability signals |
+| Structured Data | 5% | 13 | JSON-LD, Schema.org |
+| Accessibility | 5% | 12 | WCAG, ARIA compliance |
+| Content | 5% | 11 | Text quality, readability, headings |
+| Social | 4% | 9 | Open Graph, Twitter Cards |
+| E-E-A-T | 4% | 14 | Trust signals, expertise |
+| URL Structure | 3% | 2 | Slug keywords, stop words |
+| Mobile | 3% | 3 | Font size, horizontal scroll |
+| Internationalization | 1% | 2 | Language, hreflang |
+| Legal Compliance | 1% | 1 | Cookie consent |
 
 ---
 
@@ -347,52 +349,51 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 - **0-49**: Poor - Critical issues
 
 ### Priority Order (by impact)
-1. Core Web Vitals (11%) - UX + ranking
-2. Links (9%) - Internal structure
-3. Images (9%) - Performance
-4. Security (9%) - Trust signals
-5. Meta Tags (8%) - Search visibility
+1. Core (14%) - Meta tags, canonical, H1, indexing
+2. Performance (14%) - Core Web Vitals + optimization hints
+3. Links (9%) - Internal structure
+4. Images (9%) - Image optimization
+5. Security (9%) - Trust signals
 6. Technical SEO (8%) - Crawling foundation
-7. Headings (5%) - Content structure
+7. Crawlability (6%) - Indexability signals
 8. Structured Data (5%) - Rich snippets
 9. Accessibility (5%) - WCAG compliance
-10. Performance (5%) - Static optimization hints
-11. Content (5%) - Text quality + readability
-12. Crawlability (4%) - Indexability signals & sitemap conflicts
-13. Social (4%) - Social sharing
-14. Core SEO (3%) - Canonical & indexing validation
-15. URL Structure (3%) - Slug keywords & stop words
-16. Mobile (3%) - Font size, horizontal scroll, interstitials
-17. Internationalization (2%) - Language & hreflang
-18. Legal Compliance (2%) - Privacy policy, cookie consent, terms of service
+10. Content (5%) - Text quality + readability + headings
+11. Social (4%) - Social sharing
+12. E-E-A-T (4%) - Experience, Expertise, Authority, Trust
+13. URL Structure (3%) - Slug keywords & stop words
+14. Mobile (3%) - Font size, horizontal scroll
+15. Internationalization (1%) - Language & hreflang
+16. Legal Compliance (1%) - Cookie consent
 
 ---
 
 ## Common Fixes
 
-### Core SEO
-| Issue | Fix |
-|-------|-----|
-| Canonical mismatch | Use HTML canonical only; reserve Link header for PDFs |
-| Nosnippet directive | Remove unless needed for sensitive content |
-| Noindex/nofollow | Remove unless intentionally blocking search |
-| Duplicate titles | Create unique titles: "Page Topic \| Brand Name" |
-
-### Meta Tags
+### Core
 | Issue | Fix |
 |-------|-----|
 | Missing title | Add `<title>` in `<head>` |
 | Title too long/short | Keep 30-60 characters |
 | Missing description | Add `<meta name="description">` |
 | Missing canonical | Add `<link rel="canonical">` |
+| Canonical mismatch | Use HTML canonical only; reserve Link header for PDFs |
+| Nosnippet directive | Remove unless needed for sensitive content |
+| Noindex/nofollow | Remove unless intentionally blocking search |
+| Duplicate titles | Create unique titles: "Page Topic \| Brand Name" |
+| Missing H1 | Add exactly one `<h1>` per page |
+| Multiple H1s | Consolidate to single H1 element |
 
-### Core Web Vitals
-| Metric | Good | Fix |
-|--------|------|-----|
-| LCP | <2.5s | Optimize images, use CDN |
-| CLS | <0.1 | Set image dimensions |
-| FCP | <1.8s | Reduce render-blocking |
-| TTFB | <800ms | Use CDN, caching |
+### Performance
+| Issue | Fix |
+|-------|-----|
+| LCP >2.5s | Optimize images, use CDN, preload LCP element |
+| CLS >0.1 | Set image dimensions, avoid layout shifts |
+| FCP >1.8s | Reduce render-blocking resources |
+| TTFB >800ms | Use CDN, enable caching |
+| Large DOM | Reduce nodes, use virtualization |
+| Render-blocking | Add async/defer to scripts |
+| Poor font loading | Add font-display: swap; preload fonts |
 
 ### Security
 | Issue | Fix |
@@ -461,8 +462,6 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Thin content | Expand to 300+ words, 500+ for standard pages |
 | Poor readability | Use shorter sentences, simpler vocabulary |
 | Keyword stuffing | Write naturally, use synonyms |
-| No author info | Add Person schema with author attribution |
-| No date signals | Add datePublished/dateModified to Article schema |
 | Meta in body | Move all `<meta>` tags to `<head>` |
 
 ### Accessibility
@@ -486,17 +485,6 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 |-------|-----|
 | Missing lang attribute | Add `<html lang="en">` with valid BCP 47 code |
 | Missing hreflang | Add `<link rel="alternate" hreflang="xx">` for each language version |
-
-### Performance
-| Issue | Fix |
-|-------|-----|
-| Large DOM | Reduce nodes, use virtualization for long lists |
-| Many CSS files | Bundle and minify CSS; inline critical CSS |
-| Poor font loading | Add font-display: swap; preload critical fonts |
-| Missing preconnect | Add `<link rel="preconnect">` for third-party origins |
-| Render-blocking scripts | Add async/defer to scripts in head |
-| Lazy above fold | Remove loading="lazy" from hero images |
-| LCP not optimized | Preload LCP image; add fetchpriority="high" |
 
 ### Crawlability
 | Issue | Fix |
@@ -525,8 +513,23 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 | Issue | Fix |
 |-------|-----|
 | No cookie consent | Add consent banner using CookieYes, OneTrust, or Cookiebot |
-| Missing privacy policy | Add a privacy policy link in the footer of every page |
-| Missing terms of service | Add a terms of service link in the footer (especially for e-commerce, SaaS) |
+
+### E-E-A-T (Experience, Expertise, Authority, Trust)
+| Issue | Fix |
+|-------|-----|
+| No about page | Add an "About" or "About Us" page explaining who you are |
+| Missing author byline | Add author attribution using Schema.org Person, meta author, or visible byline |
+| No author expertise | Add author credentials, bio, and professional social links |
+| Missing citations | Link to authoritative sources (.gov, .edu, research papers) |
+| No contact page | Add contact page with email, phone, form, and/or address |
+| Missing content dates | Add datePublished/dateModified to Article schema or use `<time>` elements |
+| YMYL without disclaimer | Add appropriate disclaimers for medical, financial, or legal content |
+| No editorial policy | Add editorial policy page documenting content standards |
+| Missing physical address | Add business address using Schema.org PostalAddress |
+| No privacy policy | Add privacy policy link in footer of every page |
+| No terms of service | Add ToS link in footer (especially for e-commerce, SaaS) |
+| Missing trust signals | Add customer reviews, certifications, security badges, or media mentions |
+| Affiliate links without disclosure | Add FTC-compliant disclosure near affiliate content |
 
 ---
 
@@ -536,7 +539,7 @@ Or manually copy to `~/.claude/skills/seo-audit/`
 seo-audit-skill/
 ├── SKILL.md              # Claude Code skill (root for skills.sh)
 ├── docs/
-│   ├── SEO-AUDIT-RULES.md      # 134 rules reference
+│   ├── SEO-AUDIT-RULES.md      # 148 rules reference
 │   └── STORAGE-ARCHITECTURE.md # SQLite storage technical docs
 ├── src/                  # CLI source code
 │   ├── cli.ts            # Main CLI entry (subcommands)
@@ -599,26 +602,24 @@ seo-audit-skill/
 │   │   ├── html-reporter.ts    # Self-contained HTML
 │   │   ├── markdown-reporter.ts # GitHub-flavored Markdown
 │   │   └── llm-reporter.ts     # Token-optimized LLM output
-│   └── rules/            # 134 audit rules
+│   └── rules/            # 148 audit rules across 16 categories
 │       ├── pattern-matcher.ts  # Wildcard rule matching
-│       ├── core-seo/     # Canonical, indexing, title uniqueness
-│       ├── meta-tags/
-│       ├── headings/
-│       ├── technical/
-│       ├── core-web-vitals/
-│       ├── links/
-│       ├── images/
-│       ├── security/
-│       ├── structured-data/
-│       ├── social/
-│       ├── content/      # Text quality, readability, keyword density
-│       ├── accessibility/ # WCAG, ARIA, keyboard navigation
-│       ├── i18n/         # Language declarations, hreflang
-│       ├── performance/  # Static optimization hints
-│       ├── crawlability/ # Sitemap conflicts, indexability signals
-│       ├── url-structure/ # Slug keywords, stop words
-│       ├── mobile/       # Font size, horizontal scroll, interstitials
-│       └── legal/        # Cookie consent, privacy policy, terms of service
+│       ├── core/         # Meta tags, canonical, H1, indexing (14 rules)
+│       ├── perf/         # Core Web Vitals + performance hints (12 rules)
+│       ├── links/        # Internal/external links (13 rules)
+│       ├── images/       # Image optimization (12 rules)
+│       ├── security/     # HTTPS, headers, mixed content (12 rules)
+│       ├── technical/    # Robots.txt, sitemap, SSL (8 rules)
+│       ├── crawl/        # Sitemap, indexability signals (6 rules)
+│       ├── schema/       # JSON-LD, Schema.org (13 rules)
+│       ├── a11y/         # WCAG, ARIA, accessibility (12 rules)
+│       ├── content/      # Text quality, readability, headings (11 rules)
+│       ├── social/       # Open Graph, Twitter Cards (9 rules)
+│       ├── eeat/         # E-E-A-T: trust, expertise signals (14 rules)
+│       ├── url/          # Slug keywords, stop words (2 rules)
+│       ├── mobile/       # Font size, horizontal scroll (3 rules)
+│       ├── i18n/         # Language declarations, hreflang (2 rules)
+│       └── legal/        # Cookie consent (1 rule)
 ├── dist/                 # Built CLI
 ├── package.json
 ├── tsconfig.json

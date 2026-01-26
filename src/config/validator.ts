@@ -27,7 +27,7 @@ export interface ValidationResult {
 /**
  * Valid output formats
  */
-const VALID_OUTPUT_FORMATS = ['console', 'json', 'html', 'markdown'] as const;
+const VALID_OUTPUT_FORMATS = ['console', 'text', 'json', 'html', 'markdown', 'llm'] as const;
 
 /**
  * Validation rules with ranges
@@ -39,6 +39,7 @@ const VALIDATION_RULES = {
   'crawler.per_host_delay_ms': { min: 0, max: 60000 },
   'crawler.timeout_ms': { min: 1000, max: 300000 },
   'crawler.delay_ms': { min: 0, max: 60000 },
+  'crawler.max_prefix_budget': { min: 0, max: 1 },
   'external_links.cache_ttl_days': { min: 0, max: 365 },
   'external_links.timeout_ms': { min: 1000, max: 60000 },
   'external_links.concurrency': { min: 1, max: 20 },
@@ -291,6 +292,16 @@ export function validateConfig(config: PartialSeomatorConfig | SeomatorConfig): 
       path: 'project.name',
       message: 'project.name must be a string',
       value: projectName,
+    });
+  }
+
+  // Validate user_agent (optional string)
+  const userAgent = getNestedValue(configObj, 'crawler.user_agent');
+  if (userAgent !== undefined && typeof userAgent !== 'string') {
+    errors.push({
+      path: 'crawler.user_agent',
+      message: 'crawler.user_agent must be a string',
+      value: userAgent,
     });
   }
 

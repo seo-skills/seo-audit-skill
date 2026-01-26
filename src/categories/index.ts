@@ -3,25 +3,21 @@ import type { CategoryDefinition } from '../types.js';
 /**
  * All category definitions for the SEO audit
  * Weights must sum to 100%
+ *
+ * Categories aligned with SquirrelScan structure:
+ * - core: Meta tags, canonical, H1, indexing (merged from core-seo + meta-tags + headings)
+ * - perf: Core Web Vitals + performance hints (merged from core-web-vitals + performance)
+ * - schema: Structured data (renamed from structured-data)
+ * - a11y: Accessibility (renamed from accessibility)
+ * - crawl: Crawlability (renamed from crawlability)
+ * - url: URL structure (renamed from url-structure)
  */
 export const categories: CategoryDefinition[] = [
   {
-    id: 'core-seo',
-    name: 'Core SEO',
-    description: 'Essential SEO checks: canonical validation, indexing directives, and title uniqueness',
-    weight: 3,
-  },
-  {
-    id: 'meta-tags',
-    name: 'Meta Tags',
-    description: 'Validates title, description, canonical, and other meta tags',
-    weight: 8,
-  },
-  {
-    id: 'headings',
-    name: 'Headings',
-    description: 'Checks heading structure and hierarchy (H1-H6)',
-    weight: 5,
+    id: 'core',
+    name: 'Core',
+    description: 'Essential SEO: meta tags, canonical, H1, indexing directives, title uniqueness',
+    weight: 14,
   },
   {
     id: 'technical',
@@ -30,10 +26,10 @@ export const categories: CategoryDefinition[] = [
     weight: 8,
   },
   {
-    id: 'core-web-vitals',
-    name: 'Core Web Vitals',
-    description: 'Measures LCP, FID, CLS, and other performance metrics',
-    weight: 11,
+    id: 'perf',
+    name: 'Performance',
+    description: 'Core Web Vitals (LCP, CLS, INP, FCP, TTFB) and performance optimization hints',
+    weight: 14,
   },
   {
     id: 'links',
@@ -54,9 +50,27 @@ export const categories: CategoryDefinition[] = [
     weight: 9,
   },
   {
-    id: 'structured-data',
+    id: 'crawl',
+    name: 'Crawlability',
+    description: 'Validates indexability signals, sitemap-noindex conflicts, and canonical chains',
+    weight: 6,
+  },
+  {
+    id: 'schema',
     name: 'Structured Data',
     description: 'Checks for valid JSON-LD, Schema.org markup, and rich snippets',
+    weight: 5,
+  },
+  {
+    id: 'a11y',
+    name: 'Accessibility',
+    description: 'Checks for WCAG compliance, screen reader support, and keyboard navigation',
+    weight: 5,
+  },
+  {
+    id: 'content',
+    name: 'Content',
+    description: 'Analyzes text quality, readability, keyword density, heading structure',
     weight: 5,
   },
   {
@@ -66,37 +80,13 @@ export const categories: CategoryDefinition[] = [
     weight: 4,
   },
   {
-    id: 'content',
-    name: 'Content',
-    description: 'Analyzes text quality, readability, keyword density, and content structure',
-    weight: 5,
-  },
-  {
-    id: 'accessibility',
-    name: 'Accessibility',
-    description: 'Checks for WCAG compliance, screen reader support, and keyboard navigation',
-    weight: 5,
-  },
-  {
-    id: 'i18n',
-    name: 'Internationalization',
-    description: 'Checks language declarations and multi-region hreflang support',
-    weight: 2,
-  },
-  {
-    id: 'performance',
-    name: 'Performance',
-    description: 'Static analysis for performance optimization (render-blocking, DOM size, fonts)',
-    weight: 5,
-  },
-  {
-    id: 'crawlability',
-    name: 'Crawlability',
-    description: 'Validates indexability signals, sitemap-noindex conflicts, and canonical chains',
+    id: 'eeat',
+    name: 'E-E-A-T',
+    description: 'Experience, Expertise, Authority, Trust signals for content quality',
     weight: 4,
   },
   {
-    id: 'url-structure',
+    id: 'url',
     name: 'URL Structure',
     description: 'Analyzes URL formatting, keywords in slugs, and stop word usage',
     weight: 3,
@@ -108,10 +98,16 @@ export const categories: CategoryDefinition[] = [
     weight: 3,
   },
   {
+    id: 'i18n',
+    name: 'Internationalization',
+    description: 'Checks language declarations and multi-region hreflang support',
+    weight: 1,
+  },
+  {
     id: 'legal',
     name: 'Legal Compliance',
-    description: 'Privacy policy and legal compliance signals: cookie consent, privacy policy, terms of service',
-    weight: 2,
+    description: 'Privacy policy and legal compliance signals: cookie consent',
+    weight: 1,
   },
 ];
 

@@ -42,15 +42,13 @@ export class ProgressReporter {
 
   /**
    * Start the audit progress display
+   * Note: Banner is now rendered separately before this is called
    */
   start(url: string): void {
     if (!this.shouldShowProgress()) {
       return;
     }
-
-    this.log('');
-    this.log(chalk.bold.cyan('SEO Audit'));
-    this.log(chalk.gray(`Target: ${url}`));
+    // Banner already shows URL, just add spacing
     this.log('');
   }
 
@@ -185,7 +183,7 @@ export class ProgressReporter {
 
     this.log('');
     this.log(chalk.bold(`Crawling and auditing up to ${totalPages} pages...`));
-    this.log(chalk.gray('(Each page runs 55 SEO checks across 9 categories)'));
+    this.log(chalk.gray('(Each page runs 134 SEO checks across 18 categories)'));
     this.log('');
 
     // In verbose JSON mode, don't use progress bar (use simple logs)

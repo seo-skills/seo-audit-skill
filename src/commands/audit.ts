@@ -10,6 +10,7 @@ import {
   renderMarkdownReport,
   renderLlmReport,
   outputLlmReport,
+  renderBanner,
 } from '../reporters/index.js';
 import { loadConfig } from '../config/index.js';
 import { saveReport, createReport, generateId } from '../storage/index.js';
@@ -59,6 +60,16 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   });
 
   try {
+    // Show banner (only for console output)
+    if (outputFormat === 'console') {
+      renderBanner({
+        url,
+        configPath: options.config,
+        maxPages: config.crawler.max_pages,
+        crawlMode: isCrawlMode,
+      });
+    }
+
     // Start progress display
     progress.start(url);
 

@@ -5,6 +5,14 @@
 
 export { ProgressReporter } from './progress.js';
 export { renderTerminalReport } from './terminal.js';
+export {
+  renderBanner,
+  getLetterGrade,
+  formatScoreWithGrade,
+  renderCompactBar,
+  getScoreColor,
+  renderSeparator,
+} from './banner.js';
 export { renderJsonReport, outputJsonReport } from './json.js';
 export { renderHtmlReport, writeHtmlReport } from './html-reporter.js';
 export { renderMarkdownReport, writeMarkdownReport } from './markdown-reporter.js';

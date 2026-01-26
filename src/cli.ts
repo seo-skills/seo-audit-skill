@@ -63,7 +63,7 @@ const program = new Command();
 
 program
   .name('seomator')
-  .description('SEOmator - Comprehensive SEO audit CLI with 55 rules across 9 categories')
+  .description('SEOmator - Comprehensive SEO audit CLI with 134 rules across 18 categories')
   .version('2.1.0');
 
 // Audit command

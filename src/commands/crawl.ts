@@ -5,6 +5,8 @@ import { saveCrawl, createCrawl, type StoredPage } from '../storage/index.js';
 
 export interface CrawlOptions {
   maxPages?: number;
+  refresh: boolean;
+  resume: boolean;
   output?: string;
   verbose: boolean;
 }

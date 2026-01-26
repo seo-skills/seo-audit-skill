@@ -24,6 +24,8 @@ export interface AuditOptions {
   timeout: number;
   verbose: boolean;
   cwv: boolean;
+  refresh: boolean;
+  resume: boolean;
   config?: string;
   save: boolean;
   format?: 'console' | 'json' | 'html' | 'markdown' | 'llm';
@@ -70,6 +72,9 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       });
     }
 
+    // Start timing
+    const startTime = Date.now();
+
     // Start progress display
     progress.start(url);
 
@@ -103,6 +108,17 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
 
     // Stop any progress indicators
     progress.stop();
+
+    // Calculate elapsed time
+    const elapsedMs = Date.now() - startTime;
+    const elapsedSec = (elapsedMs / 1000).toFixed(1);
+
+    // Show completion message (for non-JSON output)
+    if (outputFormat === 'console' || (isVerbose && !isJsonMode)) {
+      const pageText = result.crawledPages === 1 ? 'page' : 'pages';
+      console.log();
+      console.log(chalk.green(`\u2713 Audited ${result.crawledPages} ${pageText} in ${elapsedSec}s`));
+    }
 
     // Save report if requested
     if (shouldSave) {

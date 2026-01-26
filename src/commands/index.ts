@@ -12,3 +12,4 @@ export {
   type DbStatsOptions,
   type DbRestoreOptions,
 } from './db.js';
+export { runSelfDoctor, type SelfDoctorOptions } from './doctor.js';

@@ -47,10 +47,12 @@ seomator audit https://example.com --format llm                  # AI agent form
 | `-j, --json` | Output as JSON (deprecated, use --format json) |
 | `-v, --verbose` | Show progress |
 | `--crawl` | Crawl multiple pages |
-| `--max-pages <n>` | Max pages to crawl (default: 10) |
+| `-m, --max-pages <n>` | Max pages to crawl (default: 10) |
 | `--concurrency <n>` | Concurrent requests (default: 3) |
 | `--timeout <ms>` | Request timeout (default: 30000) |
 | `--no-cwv` | Skip Core Web Vitals |
+| `-r, --refresh` | Ignore cache, fetch all pages fresh |
+| `--resume` | Resume interrupted crawl |
 | `-c, --categories <list>` | Comma-separated categories |
 | `--config <path>` | Config file path |
 | `--save` | Save report to `.seomator/reports/` |
@@ -70,8 +72,19 @@ seomator init --preset ci        # Minimal CI config
 Crawl website without running analysis.
 
 ```bash
-seomator crawl https://example.com --max-pages 20
+seomator crawl https://example.com -m 20           # Crawl up to 20 pages
+seomator crawl https://example.com --refresh       # Ignore cache
+seomator crawl https://example.com --resume        # Resume interrupted crawl
 ```
+
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `-m, --max-pages <n>` | Max pages to crawl |
+| `-r, --refresh` | Ignore cache, fetch all pages fresh |
+| `--resume` | Resume interrupted crawl |
+| `--output <path>` | Output directory |
+| `-v, --verbose` | Show progress |
 
 Saves crawl data to `.seomator/crawls/` for later analysis.
 
@@ -215,6 +228,21 @@ seomator db restore              # Rollback migration (restore from backup)
 ```
 
 **Migration:** Existing JSON files in `.seomator/crawls/` and `.seomator/reports/` can be migrated to SQLite using `seomator db migrate`. Original files are backed up to `.bak` directories.
+
+### `seomator self doctor`
+Check system setup and dependencies.
+
+```bash
+seomator self doctor              # Quick check
+seomator self doctor -v           # Verbose output with paths
+```
+
+Checks:
+- Node.js version (18+ recommended)
+- npm availability
+- Chrome/Chromium for Core Web Vitals
+- ~/.seomator directory and permissions
+- Local seomator.toml config file
 
 ---
 
@@ -556,17 +584,21 @@ seo-audit-skill/
 │   │   ├── analyze.ts    # seomator analyze
 │   │   ├── report.ts     # seomator report
 │   │   ├── config.ts     # seomator config
-│   │   └── db.ts         # seomator db (migrate/stats/restore)
+│   │   ├── db.ts         # seomator db (migrate/stats/restore)
+│   │   └── doctor.ts     # seomator self doctor
 │   ├── categories/       # Category definitions
 │   ├── crawler/          # Fetcher & crawler
 │   │   ├── crawler.ts    # Queue-based crawler
 │   │   ├── fetcher.ts    # HTTP fetcher
 │   │   └── url-filter.ts # URL include/exclude & normalization
 │   ├── reporters/        # Output formatters
-│   │   ├── terminal.ts   # Console output
+│   │   ├── banner.ts     # ASCII banner, letter grades, progress bars
+│   │   ├── terminal.ts   # Console output with issue grouping
+│   │   ├── progress.ts   # Real-time progress indicators
 │   │   ├── json.ts       # JSON output
 │   │   ├── html-reporter.ts    # Self-contained HTML
-│   │   └── markdown-reporter.ts # GitHub-flavored Markdown
+│   │   ├── markdown-reporter.ts # GitHub-flavored Markdown
+│   │   └── llm-reporter.ts     # Token-optimized LLM output
 │   └── rules/            # 134 audit rules
 │       ├── pattern-matcher.ts  # Wildcard rule matching
 │       ├── core-seo/     # Canonical, indexing, title uniqueness

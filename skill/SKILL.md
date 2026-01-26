@@ -1,287 +1,332 @@
 ---
 name: seo-audit
-description: Run comprehensive SEO audits on websites using SEOmator CLI. Analyzes 134 rules across 18 categories including Core SEO, meta tags, Core Web Vitals, security headers, structured data, accessibility, performance, crawlability, URL structure, mobile, and content quality. Supports HTML/Markdown reports, URL filtering, and config validation.
+description: Audit websites for SEO, technical, content, and security issues using SEOmator CLI. Returns LLM-optimized reports with health scores, broken links, meta tag analysis, and actionable recommendations. Use when analyzing websites, debugging SEO issues, or checking site health.
+license: MIT
+compatibility: Requires Node.js 18+ and npm. Chrome/Chromium optional for Core Web Vitals.
+metadata:
+  author: seomator
+  version: "2.1"
+allowed-tools: Bash(seomator:*)
 ---
 
 # SEO Audit Skill
 
-Run comprehensive SEO audits and provide actionable recommendations based on results.
+Audit websites for SEO, technical, content, performance, and security issues using the SEOmator CLI.
 
-## Installation
+SEOmator provides comprehensive website auditing by analyzing website structure and content against **134 rules** across **18 categories**.
 
-Before first use, install the CLI globally:
+It provides a list of issues with severity levels, affected URLs, and actionable fix suggestions.
+
+## Links
+
+* SEOmator npm package: [npmjs.com/package/@seomator/seo-audit](https://www.npmjs.com/package/@seomator/seo-audit)
+* GitHub repository: [github.com/seo-skills/seo-audit-skill](https://github.com/seo-skills/seo-audit-skill)
+* Web UI: [seomator.com/free-seo-audit-tool](https://seomator.com/free-seo-audit-tool)
+
+## What This Skill Does
+
+This skill enables AI agents to audit websites for **134 rules** in **18 categories**, including:
+
+- **Core SEO**: Canonical URLs, indexing directives, title uniqueness
+- **Meta Tags**: Title, description, viewport, favicon, canonical
+- **Headings**: H1 presence, heading hierarchy, keyword usage
+- **Technical SEO**: robots.txt, sitemap.xml, URL structure, 404 pages
+- **Core Web Vitals**: LCP, CLS, FCP, TTFB, INP measurements
+- **Links**: Broken links, redirect chains, anchor text, orphan pages
+- **Images**: Alt text, dimensions, lazy loading, modern formats
+- **Security**: HTTPS, HSTS, CSP, external link safety, leaked secrets
+- **Structured Data**: Schema.org markup, Article, Organization, FAQ, Product
+- **Social**: Open Graph tags, Twitter cards, share buttons, profile links
+- **Content**: Word count, readability, keyword density, author info
+- **Accessibility**: ARIA labels, color contrast, form labels, landmarks
+- **Performance**: DOM size, CSS optimization, font loading, preconnect
+- **Crawlability**: Sitemap conflicts, indexability signals, canonical chains
+- **URL Structure**: Keyword slugs, stop words
+- **Mobile**: Font sizes, horizontal scroll, intrusive interstitials
+- **Internationalization**: lang attribute, hreflang tags
+- **Legal Compliance**: Cookie consent, privacy policy, terms of service
+
+The audit crawls the website, analyzes each page against audit rules, and returns a comprehensive report with:
+- Overall health score (0-100) with letter grade (A-F)
+- Category breakdowns with pass/warn/fail counts
+- Specific issues with affected URLs grouped by rule
+- Actionable fix recommendations
+
+## When to Use
+
+Use this skill when you need to:
+- Analyze a website's SEO health
+- Debug technical SEO issues
+- Check for broken links
+- Validate meta tags and structured data
+- Audit security headers and HTTPS
+- Check accessibility compliance
+- Generate site audit reports
+- Compare site health before/after changes
+- Improve website performance, accessibility, SEO, security and more
+
+## Prerequisites
+
+This skill requires the SEOmator CLI to be installed.
+
+### Installation
 
 ```bash
 npm install -g @seomator/seo-audit
 ```
 
-> **Note:** The CLI automatically uses your system Chrome, Chromium, or Edge for Core Web Vitals measurement. No additional browser installation needed.
+### Verify Installation
 
-## Running an Audit
+Check that seomator is installed and the system is ready:
 
-### Single Page Audit
 ```bash
-seomator audit <url> --json
+seomator self doctor
 ```
 
-### Multi-Page Crawl
+This checks:
+- Node.js version (18+ recommended)
+- npm availability
+- Chrome/Chromium for Core Web Vitals
+- Write permissions for ~/.seomator
+- Local config file presence
+
+## Setup
+
+Running `seomator init` creates a `seomator.toml` config file in the current directory.
+
 ```bash
-seomator audit <url> --crawl --max-pages 20 --json
+seomator init                    # Interactive setup
+seomator init -y                 # Use defaults
+seomator init --preset blog      # Blog-optimized config
+seomator init --preset ecommerce # E-commerce config
+seomator init --preset ci        # Minimal CI config
 ```
 
-### Fast Audit (Skip CWV)
+If there is no `seomator.toml` in the directory, CREATE ONE with `seomator init` before running audits.
+
+## Usage
+
+### AI Agent Best Practices
+
+**YOU SHOULD always prefer `--format llm`** - it provides token-optimized XML output specifically designed for AI agents (50-70% smaller than JSON).
+
+When auditing:
+1. **Prefer live websites** over local dev servers for accurate performance and rendering data
+2. **Use `--no-cwv` for faster audits** when Core Web Vitals aren't needed
+3. **Scope fixes as concurrent tasks** when implementing multiple fixes
+4. **Run typechecking/formatting** after implementing fixes (tsc, eslint, prettier, etc.)
+
+### Website Discovery
+
+If the user doesn't provide a website to audit:
+1. Check for local dev server configurations (package.json scripts, .env files)
+2. Look for Vercel/Netlify project links
+3. Check environment variables for deployment URLs
+4. Ask the user which URL to audit
+
+If you have both local and live websites available, **suggest auditing the live site** for accurate results.
+
+### Basic Workflow
+
 ```bash
-seomator audit <url> --json --no-cwv
+# Quick single-page audit with LLM output
+seomator audit https://example.com --format llm --no-cwv
+
+# Multi-page crawl (up to 50 pages)
+seomator audit https://example.com --crawl -m 50 --format llm --no-cwv
+
+# Full audit with Core Web Vitals
+seomator audit https://example.com --crawl -m 20 --format llm
 ```
 
-### HTML Report Output
+### Advanced Options
+
+Force fresh crawl (ignore cache):
 ```bash
-seomator audit <url> --format html -o report.html --no-cwv
+seomator audit https://example.com --refresh --format llm
 ```
 
-### LLM-Optimized Output
+Resume interrupted crawl:
 ```bash
-seomator audit <url> --format llm --no-cwv
+seomator audit https://example.com --resume --format llm
+```
+
+Save HTML report for sharing:
+```bash
+seomator audit https://example.com --format html -o report.html
+```
+
+Verbose output for debugging:
+```bash
+seomator audit https://example.com --format llm -v
+```
+
+## Command Reference
+
+### Audit Command Options
+
+| Option | Alias | Description | Default |
+|--------|-------|-------------|---------|
+| `--format <fmt>` | `-f` | Output format: console, json, html, markdown, llm | console |
+| `--max-pages <n>` | `-m` | Maximum pages to crawl | 10 |
+| `--crawl` | | Enable multi-page crawl | false |
+| `--refresh` | `-r` | Ignore cache, fetch fresh | false |
+| `--resume` | | Resume interrupted crawl | false |
+| `--no-cwv` | | Skip Core Web Vitals | false |
+| `--verbose` | `-v` | Show progress | false |
+| `--output <path>` | `-o` | Output file path | |
+| `--config <path>` | | Config file path | |
+| `--save` | | Save to ~/.seomator | false |
+
+### Other Commands
+
+```bash
+seomator init              # Create config file
+seomator self doctor       # Check system setup
+seomator config --list     # Show all config values
+seomator report --list     # List past reports
+seomator db stats          # Show database statistics
 ```
 
 ## Output Formats
 
-| Format | Flag | Description |
-|--------|------|-------------|
-| Console | `--format console` | Terminal output with colors (default) |
-| JSON | `--format json` or `--json` | Machine-readable JSON |
-| HTML | `--format html -o file.html` | Self-contained HTML report |
-| Markdown | `--format markdown -o file.md` | GitHub-flavored Markdown |
-| LLM | `--format llm` | Token-optimized XML for AI agents |
+| Format | Flag | Best For |
+|--------|------|----------|
+| console | `--format console` | Human terminal output (default) |
+| json | `--format json` | CI/CD, programmatic processing |
+| html | `--format html` | Standalone reports, sharing |
+| markdown | `--format markdown` | Documentation, GitHub |
+| llm | `--format llm` | **AI agents** (recommended) |
+
+The `--format llm` output is a compact XML format optimized for token efficiency:
+- **50-70% smaller** than JSON output
+- Issues sorted by severity (critical first)
+- Fix suggestions included for each issue
+- Clean stdout for piping to AI tools
+
+## Examples
+
+### Example 1: Quick Audit with LLM Output
+
+```bash
+# User asks: "Check example.com for SEO issues"
+seomator audit https://example.com --format llm --no-cwv
+```
+
+### Example 2: Deep Crawl for Large Site
+
+```bash
+# User asks: "Do a thorough audit with up to 100 pages"
+seomator audit https://example.com --crawl -m 100 --format llm --no-cwv
+```
+
+### Example 3: Fresh Audit After Changes
+
+```bash
+# User asks: "Re-audit the site, ignore cached results"
+seomator audit https://example.com --refresh --format llm --no-cwv
+```
+
+### Example 4: Generate Shareable Report
+
+```bash
+# User asks: "Create an HTML report I can share"
+seomator audit https://example.com --crawl -m 20 --format html -o seo-report.html
+```
 
 ## Evaluating Results
 
-After running the audit, parse the JSON output and evaluate as follows:
+### Score Ranges
 
-### 1. Check Overall Score
-- **90-100**: Excellent - Minor optimizations only
-- **70-89**: Good - Address warnings and failures
-- **50-69**: Needs Work - Priority fixes required
-- **0-49**: Poor - Critical issues to resolve
+| Score | Grade | Meaning |
+|-------|-------|---------|
+| 90-100 | A | Excellent - Minor optimizations only |
+| 80-89 | B | Good - Address warnings |
+| 70-79 | C | Needs Work - Priority fixes required |
+| 50-69 | D | Poor - Multiple critical issues |
+| 0-49 | F | Critical - Major problems to resolve |
 
-### 2. Prioritize by Category Weight
-Fix issues in this order (highest impact first):
+### Priority Order (by category weight)
 
-| Priority | Category | Weight | Rules | Impact |
-|----------|----------|--------|-------|--------|
-| 1 | Core Web Vitals | 11% | 5 | User experience + ranking |
-| 2 | Links | 9% | 13 | Internal linking structure |
-| 3 | Images | 9% | 12 | Performance + accessibility |
-| 4 | Security | 9% | 12 | Trust signals |
-| 5 | Meta Tags | 8% | 8 | Search visibility |
-| 6 | Technical SEO | 8% | 8 | Foundation for crawling |
-| 7 | Headings | 5% | 5 | Content structure |
-| 8 | Structured Data | 5% | 13 | Rich snippets |
-| 9 | Accessibility | 5% | 12 | WCAG compliance |
-| 10 | Performance | 5% | 7 | Static optimization hints |
-| 11 | Content | 5% | 10 | Text quality + readability |
-| 12 | Crawlability | 4% | 6 | Indexability signals + sitemap conflicts |
-| 13 | Social | 4% | 9 | Social sharing |
-| 14 | Core SEO | 3% | 4 | Canonical & indexing |
-| 15 | URL Structure | 3% | 2 | Slug keywords & stop words |
-| 16 | Mobile | 3% | 3 | Font size, horizontal scroll |
-| 17 | Internationalization | 2% | 2 | Language & hreflang |
-| 18 | Legal Compliance | 2% | 3 | Cookie consent, privacy, terms |
+Fix issues in this order for maximum impact:
 
-### 3. Fix by Severity
+1. **Core Web Vitals** (11%) - User experience + ranking
+2. **Links** (9%) - Internal linking structure
+3. **Images** (9%) - Performance + accessibility
+4. **Security** (9%) - Trust signals
+5. **Meta Tags** (8%) - Search visibility
+6. **Technical SEO** (8%) - Crawling foundation
+7. **Structured Data** (5%) - Rich snippets
+8. **Accessibility** (5%) - WCAG compliance
+9. **Performance** (5%) - Static optimization
+10. **Content** (5%) - Text quality
+
+### Fix by Severity
+
 1. **Failures (status: "fail")** - Must fix immediately
 2. **Warnings (status: "warn")** - Should fix soon
 3. **Passes (status: "pass")** - No action needed
 
-## Common Issues and Fixes
+## Output Summary
 
-### Meta Tags
+After implementing fixes, give the user a summary of all changes made.
 
-| Rule | Issue | Fix |
-|------|-------|-----|
-| `meta-tags-title-present` | Missing title | Add `<title>` tag in `<head>` |
-| `meta-tags-title-length` | Title too short/long | Keep between 30-60 characters |
-| `meta-tags-description-present` | Missing description | Add `<meta name="description">` |
-| `meta-tags-canonical-present` | Missing canonical | Add `<link rel="canonical" href="...">` |
-| `meta-tags-viewport-present` | Missing viewport | Add `<meta name="viewport" content="width=device-width, initial-scale=1">` |
+When planning scope, organize tasks so they can run concurrently as sub-agents to speed up implementation.
 
-### Core Web Vitals
+## Troubleshooting
 
-| Rule | Threshold | Fix |
-|------|-----------|-----|
-| `cwv-lcp` | >2.5s poor | Optimize largest image, use CDN, preload critical assets |
-| `cwv-cls` | >0.1 poor | Set explicit width/height on images |
-| `cwv-fcp` | >1.8s poor | Reduce server response time, eliminate render-blocking resources |
-| `cwv-ttfb` | >800ms poor | Use CDN, optimize server, enable caching |
-| `cwv-inp` | >200ms poor | Optimize JavaScript, break up long tasks |
+### seomator command not found
 
-### Performance
+If you see this error, seomator is not installed or not in your PATH.
 
-| Rule | Issue | Fix |
-|------|-------|-----|
-| `perf-dom-size` | Large DOM | Reduce nodes, use virtualization for long lists |
-| `perf-css-file-size` | Many CSS files | Bundle and minify CSS; inline critical CSS |
-| `perf-font-loading` | Poor font loading | Add font-display: swap; preload critical fonts |
-| `perf-preconnect` | Missing preconnect | Add `<link rel="preconnect">` for third-party origins |
-| `perf-render-blocking` | Blocking scripts | Add async/defer to scripts in head |
-| `perf-lazy-above-fold` | Lazy above fold | Remove loading="lazy" from hero images |
-| `perf-lcp-hints` | LCP not optimized | Preload LCP image; add fetchpriority="high" |
-
-### Security
-
-| Rule | Issue | Fix |
-|------|-------|-----|
-| `security-https` | Not using HTTPS | Install SSL certificate, redirect HTTP to HTTPS |
-| `security-hsts` | Missing HSTS | Add header: `Strict-Transport-Security: max-age=31536000` |
-| `security-csp` | Missing CSP | Add Content-Security-Policy header |
-| `security-external-links` | Unsafe external links | Add `rel="noopener noreferrer"` to target="_blank" links |
-
-### Images
-
-| Rule | Issue | Fix |
-|------|-------|-----|
-| `images-alt-present` | Missing alt text | Add descriptive `alt` attribute to all `<img>` |
-| `images-dimensions` | No width/height | Add `width` and `height` attributes |
-| `images-lazy-loading` | No lazy loading | Add `loading="lazy"` to below-fold images |
-| `images-modern-format` | Old formats | Convert to WebP or AVIF |
-
-### Links
-
-| Rule | Issue | Fix |
-|------|-------|-----|
-| `links-broken-internal` | 404 links | Fix or remove broken internal links |
-| `links-anchor-text` | Generic anchors | Use descriptive text instead of "click here" |
-| `links-dead-end-pages` | Dead ends | Add navigation links or related content |
-
-### Accessibility
-
-| Rule | Issue | Fix |
-|------|-------|-----|
-| `a11y-aria-labels` | Missing labels | Add aria-label to interactive elements |
-| `a11y-form-labels` | Unlabeled inputs | Add `<label for="id">` to form inputs |
-| `a11y-heading-order` | Skipped levels | Use proper hierarchy (H1->H2->H3) |
-| `a11y-landmark-regions` | Missing landmarks | Add `<main>`, `<nav>`, `<header>`, `<footer>` |
-| `a11y-zoom-disabled` | Zoom blocked | Remove user-scalable=no from viewport |
-
-### Structured Data
-
-| Rule | Issue | Fix |
-|------|-------|-----|
-| `structured-data-present` | No schema | Add JSON-LD structured data |
-| `structured-data-valid` | Invalid JSON | Fix JSON syntax errors |
-| `structured-data-article` | Missing Article | Add headline, author, datePublished, image |
-
-### Social (Open Graph)
-
-| Rule | Issue | Fix |
-|------|-------|-----|
-| `social-og-title` | Missing | Add `<meta property="og:title" content="...">` |
-| `social-og-description` | Missing | Add `<meta property="og:description" content="...">` |
-| `social-og-image` | Missing/invalid | Add `<meta property="og:image" content="https://...">` |
-| `social-og-image-size` | Missing dimensions | Add `og:image:width` (1200) and `og:image:height` (630) meta tags |
-| `social-og-url` | Missing | Add `<meta property="og:url" content="...">` matching canonical |
-| `social-og-url-canonical` | URL mismatch | Ensure og:url matches canonical URL exactly |
-| `social-twitter-card` | Missing | Add `<meta name="twitter:card" content="summary_large_image">` |
-| `social-share-buttons` | No share buttons | Add share buttons for Facebook, Twitter/X, LinkedIn |
-| `social-profiles` | No profile links | Add social profile links in header/footer; include sameAs in schema |
-
-### Internationalization
-
-| Rule | Issue | Fix |
-|------|-------|-----|
-| `i18n-lang-attribute` | Missing lang | Add `<html lang="en">` with valid BCP 47 code |
-| `i18n-hreflang` | Missing hreflang | Add `<link rel="alternate" hreflang="xx">` for each language |
-
-### Crawlability
-
-| Rule | Issue | Fix |
-|------|-------|-----|
-| `crawl-schema-noindex-conflict` | Schema on noindex page | Remove noindex to allow rich results, or remove schema if page should stay hidden |
-| `crawl-pagination-canonical` | Bad pagination canonical | Each paginated page should have self-referencing canonical; never canonicalize all to page 1 |
-| `crawl-sitemap-domain` | Cross-domain sitemap URLs | Remove external URLs from sitemap; all URLs must match sitemap host domain |
-| `crawl-noindex-in-sitemap` | Noindex page in sitemap | Either remove noindexed page from sitemap or remove the noindex directive |
-| `crawl-indexability-conflict` | robots.txt vs meta conflict | Choose one blocking method: either robots.txt disallow OR noindex meta, not both |
-| `crawl-canonical-redirect` | Canonical redirect chain | Update canonical to point directly to final destination URL; avoid redirect chains |
-
-### URL Structure
-
-| Rule | Issue | Fix |
-|------|-------|-----|
-| `url-slug-keywords` | Generic URL slug | Use descriptive keywords (e.g., `/blue-running-shoes` instead of `/product-12345`) |
-| `url-stop-words` | Stop words in URL | Remove stop words (a, the, of); prefer `/best-running-shoes` over `/the-best-running-shoes-for-you` |
-
-### Mobile
-
-| Rule | Issue | Fix |
-|------|-------|-----|
-| `mobile-font-size` | Small font size | Use minimum 16px for body text, 12px absolute minimum; prefer rem/em units |
-| `mobile-horizontal-scroll` | Horizontal scroll | Add `max-width: 100%` to images, `overflow-x: auto` to tables, responsive iframes |
-| `mobile-interstitials` | Intrusive popups | Remove popups covering main content; use compact banners instead of full-screen overlays |
-
-### Legal Compliance
-
-| Rule | Issue | Fix |
-|------|-------|-----|
-| `legal-cookie-consent` | No cookie consent | Add consent banner using CookieYes, OneTrust, or Cookiebot |
-| `legal-privacy-policy` | Missing privacy policy | Add a privacy policy link in the footer of every page |
-| `legal-terms-of-service` | Missing terms | Add a terms of service link in the footer (especially for e-commerce, SaaS) |
-
-## Example Analysis Workflow
-
-When asked to audit a website:
-
-1. **Run the audit**:
-   ```bash
-   seomator audit https://example.com --json --no-cwv 2>/dev/null
-   ```
-
-2. **Parse the JSON output** and identify:
-   - Overall score
-   - Categories with lowest scores
-   - All failures (status: "fail")
-   - All warnings (status: "warn")
-
-3. **Generate recommendations** in priority order:
-   - Group by category
-   - Sort by severity (failures first)
-   - Provide specific fix instructions
-
-4. **Summarize**:
-   - Total issues found
-   - Top 3-5 priority fixes
-   - Expected score improvement if fixed
-
-## Output Structure Reference
-
-```json
-{
-  "url": "https://example.com",
-  "overallScore": 85,
-  "crawledPages": 10,
-  "categoryResults": [
-    {
-      "categoryId": "meta-tags",
-      "score": 97,
-      "passCount": 7,
-      "warnCount": 1,
-      "failCount": 0,
-      "results": [
-        {
-          "ruleId": "meta-tags-title-present",
-          "status": "pass|warn|fail",
-          "message": "Human-readable result",
-          "score": 100,
-          "details": { /* rule-specific data */ }
-        }
-      ]
-    }
-  ]
-}
+**Solution:**
+```bash
+npm install -g @seomator/seo-audit
 ```
+
+### Core Web Vitals not measured
+
+If CWV metrics are missing, Chrome/Chromium may not be available.
+
+**Solution:**
+1. Install Chrome, Chromium, or Edge
+2. Run `seomator self doctor` to verify browser detection
+3. Use `--no-cwv` to skip CWV if not needed
+
+### Crawl timeout or slow performance
+
+For large sites, audits may take several minutes.
+
+**Solution:**
+- Use `--verbose` to see progress
+- Limit pages with `-m 20` for faster results
+- Use `--no-cwv` to skip browser-based measurements
+
+### Invalid URL
+
+Ensure the URL includes the protocol:
+
+```bash
+# Wrong
+seomator audit example.com
+
+# Correct
+seomator audit https://example.com
+```
+
+## How It Works
+
+1. **Fetch**: Downloads the page HTML and measures response time
+2. **Parse**: Extracts DOM, meta tags, links, images, structured data
+3. **Crawl** (if enabled): Discovers and fetches linked pages
+4. **Analyze**: Runs 134 audit rules against each page
+5. **Score**: Calculates category and overall scores
+6. **Report**: Generates output in requested format
+
+Results are stored in `~/.seomator/` for later retrieval with `seomator report`.
 
 ## Resources
 
-- npm: https://www.npmjs.com/package/@seomator/seo-audit
-- GitHub: https://github.com/seo-skills/seo-audit-skill
-- Web UI: https://seomator.com/free-seo-audit-tool
-- Rules Reference: See `docs/SEO-AUDIT-RULES.md` for all 134 rules
+- **Full rules reference**: See `docs/SEO-AUDIT-RULES.md` for all 134 rules
+- **Storage architecture**: See `docs/STORAGE-ARCHITECTURE.md` for database details
+- **CLI help**: `seomator --help` and `seomator <command> --help`

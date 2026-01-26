@@ -10,6 +10,7 @@ import {
   runDbMigrate,
   runDbStats,
   runDbRestore,
+  runSelfDoctor,
 } from './commands/index.js';
 
 /**
@@ -75,11 +76,13 @@ program
   .option('-f, --format <type>', 'Output format: console, json, html, markdown, llm', 'console')
   .option('-o, --output <path>', 'Output file path (for html/markdown/json)')
   .option('--crawl', 'Enable multi-page crawl', false)
-  .option('--max-pages <n>', 'Max pages to crawl', (v) => parseIntValue(v, 'max-pages', 1, 1000), 10)
+  .option('-m, --max-pages <n>', 'Max pages to crawl', (v) => parseIntValue(v, 'max-pages', 1, 1000), 10)
   .option('--concurrency <n>', 'Concurrent requests', (v) => parseIntValue(v, 'concurrency', 1, 20), 3)
   .option('--timeout <ms>', 'Request timeout', (v) => parseIntValue(v, 'timeout', 1000, 120000), 30000)
   .option('-v, --verbose', 'Show progress', false)
   .option('--no-cwv', 'Skip Core Web Vitals')
+  .option('-r, --refresh', 'Ignore cache, fetch all pages fresh', false)
+  .option('--resume', 'Resume interrupted crawl', false)
   .option('--config <path>', 'Config file path')
   .option('--save', 'Save report to .seomator/reports/', false)
   .action(runAudit);
@@ -97,7 +100,9 @@ program
 program
   .command('crawl <url>')
   .description('Crawl website without analysis')
-  .option('--max-pages <n>', 'Max pages to crawl', (v) => parseIntValue(v, 'max-pages', 1, 1000))
+  .option('-m, --max-pages <n>', 'Max pages to crawl', (v) => parseIntValue(v, 'max-pages', 1, 1000))
+  .option('-r, --refresh', 'Ignore cache, fetch all pages fresh', false)
+  .option('--resume', 'Resume interrupted crawl', false)
   .option('--output <path>', 'Output directory')
   .option('-v, --verbose', 'Show progress', false)
   .action(runCrawl);
@@ -154,5 +159,16 @@ dbCommand
   .command('restore')
   .description('Restore from backup (rollback migration)')
   .action(runDbRestore);
+
+// Self command (diagnostics)
+const selfCommand = program
+  .command('self')
+  .description('Self-diagnostics and maintenance');
+
+selfCommand
+  .command('doctor')
+  .description('Check system setup and dependencies')
+  .option('-v, --verbose', 'Show detailed output', false)
+  .action(runSelfDoctor);
 
 program.parse();

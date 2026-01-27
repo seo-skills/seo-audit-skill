@@ -4,13 +4,13 @@ import type { CategoryDefinition } from '../types.js';
  * All category definitions for the SEO audit
  * Weights must sum to 100%
  *
- * Categories aligned with SquirrelScan structure:
- * - core: Meta tags, canonical, H1, indexing (merged from core-seo + meta-tags + headings)
- * - perf: Core Web Vitals + performance hints (merged from core-web-vitals + performance)
- * - schema: Structured data (renamed from structured-data)
- * - a11y: Accessibility (renamed from accessibility)
- * - crawl: Crawlability (renamed from crawlability)
- * - url: URL structure (renamed from url-structure)
+ * Categories:
+ * - core: Meta tags, canonical, H1, indexing
+ * - perf: Core Web Vitals + performance hints
+ * - schema: Structured data
+ * - a11y: Accessibility
+ * - crawl: Crawlability
+ * - url: URL structure
  */
 export const categories: CategoryDefinition[] = [
   {

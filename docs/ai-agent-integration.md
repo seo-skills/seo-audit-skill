@@ -63,7 +63,7 @@ You can also specify a URL explicitly:
 Or use natural language:
 
 ```
-Use the seo-audit skill to audit squirrelscan.com
+Use the seo-audit skill to audit example.com
 ```
 
 Claude will:

@@ -146,11 +146,21 @@ seomator audit https://example.com --format json -o report.json
 
 ### 4. Generate HTML report
 
-Create a visual HTML report:
+Create a visual HTML report with interactive features:
 
 ```bash
 seomator audit https://example.com --format html -o report.html
 ```
+
+The HTML report includes:
+- **Category progress bars** - Visual overview of all category scores at a glance
+- **Rule names & descriptions** - Human-readable titles instead of just rule IDs
+- **Collapsible pages lists** - "N pages affected" toggles for multi-page issues
+- **Fix suggestions** - Prominent "How to Fix" guidance for each issue
+- **Dark mode toggle** - Switch between light and dark themes
+- **Status filtering** - Filter by All/Failures/Warnings/Passed
+- **URL filtering** - Filter issues by specific page (multi-page crawls)
+- **Sidebar navigation** - Quick jump to any category section
 
 ### 5. Fresh crawl
 
@@ -174,7 +184,7 @@ seomator audit https://example.com -c core,perf,security
 |--------|------|----------|
 | `console` | (default) | Human-readable terminal output |
 | `json` | `--format json` | CI/CD pipelines, programmatic processing |
-| `html` | `--format html` | Visual reports for sharing |
+| `html` | `--format html` | Interactive visual reports with dark mode, filtering, progress bars |
 | `markdown` | `--format markdown` | Documentation, GitHub |
 | `llm` | `--format llm` | Compact AI-optimized (50-70% smaller) |
 

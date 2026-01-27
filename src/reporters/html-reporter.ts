@@ -1,6 +1,112 @@
 import type { AuditResult, CategoryResult, RuleResult } from '../types.js';
 import { getCategoryById } from '../categories/index.js';
 import { getFixSuggestion } from './fix-suggestions.js';
+import { getRuleById } from '../rules/registry.js';
+
+/**
+ * Rule metadata cache structure
+ */
+interface RuleMetadata {
+  id: string;
+  name: string;
+  description: string;
+}
+
+/**
+ * Aggregated issue structure for grouping same-rule occurrences
+ */
+interface AggregatedIssue {
+  ruleId: string;
+  status: 'fail' | 'warn' | 'pass';
+  categoryId: string;
+  categoryName: string;
+  message: string;
+  ruleName: string;
+  ruleDescription: string;
+  pages: Array<{ url: string; details: Record<string, unknown> }>;
+  pageCount: number;
+}
+
+/**
+ * Build a cache of rule metadata for efficient lookup
+ */
+function buildRuleMetadataCache(categoryResults: CategoryResult[]): Map<string, RuleMetadata> {
+  const cache = new Map<string, RuleMetadata>();
+
+  for (const cat of categoryResults) {
+    for (const r of cat.results) {
+      if (!cache.has(r.ruleId)) {
+        const rule = getRuleById(r.ruleId);
+        cache.set(r.ruleId, {
+          id: r.ruleId,
+          name: rule?.name ?? formatRuleIdAsName(r.ruleId),
+          description: rule?.description ?? ''
+        });
+      }
+    }
+  }
+
+  return cache;
+}
+
+/**
+ * Format a rule ID as a human-readable name (fallback)
+ * e.g., "core-title-present" -> "Core Title Present"
+ */
+function formatRuleIdAsName(ruleId: string): string {
+  return ruleId
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+/**
+ * Aggregate issues by rule, grouping same-rule occurrences across pages
+ */
+function aggregateIssuesByRule(
+  categoryResults: CategoryResult[],
+  ruleMetadataCache: Map<string, RuleMetadata>
+): Map<string, AggregatedIssue[]> {
+  const aggregatedByCategory = new Map<string, AggregatedIssue[]>();
+
+  for (const cat of categoryResults) {
+    const category = getCategoryById(cat.categoryId);
+    const categoryName = category?.name ?? cat.categoryId;
+
+    // Group by ruleId + status within this category
+    const ruleGroups = new Map<string, AggregatedIssue>();
+
+    for (const r of cat.results) {
+      const key = `${r.ruleId}:${r.status}`;
+      const url = extractUrlFromDetails(r.details);
+      const metadata = ruleMetadataCache.get(r.ruleId);
+
+      if (!ruleGroups.has(key)) {
+        ruleGroups.set(key, {
+          ruleId: r.ruleId,
+          status: r.status,
+          categoryId: cat.categoryId,
+          categoryName,
+          message: r.message,
+          ruleName: metadata?.name ?? formatRuleIdAsName(r.ruleId),
+          ruleDescription: metadata?.description ?? '',
+          pages: [],
+          pageCount: 0
+        });
+      }
+
+      const group = ruleGroups.get(key)!;
+      if (url) {
+        group.pages.push({ url, details: r.details || {} });
+      }
+      group.pageCount++;
+    }
+
+    aggregatedByCategory.set(cat.categoryId, Array.from(ruleGroups.values()));
+  }
+
+  return aggregatedByCategory;
+}
 
 /**
  * Get color class for score
@@ -424,13 +530,24 @@ function generateStyles(): string {
     .score-overview {
       display: grid;
       grid-template-columns: auto 1fr;
-      gap: 32px;
+      gap: 24px 32px;
       background: var(--color-bg-elevated);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-lg);
       padding: 24px;
       margin-bottom: 24px;
       box-shadow: var(--shadow-sm);
+    }
+
+    .score-overview > .score-details {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .score-overview > .score-details > .category-progress-section {
+      grid-column: 1 / -1;
     }
 
     .score-circle {
@@ -478,13 +595,6 @@ function generateStyles(): string {
       margin-top: 4px;
     }
 
-    .score-details {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 16px;
-    }
-
     .score-status {
       display: inline-flex;
       align-items: center;
@@ -530,6 +640,76 @@ function generateStyles(): string {
     .score-stat-label {
       font-size: 12px;
       color: var(--color-text-muted);
+    }
+
+    /* ========================================
+       Category Progress Bars
+       ======================================== */
+    .category-progress-section {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--color-border);
+    }
+
+    .category-progress-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+
+    .category-progress-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 10px;
+    }
+
+    .category-progress-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      background: var(--color-bg);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background 0.15s;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .category-progress-item:hover {
+      background: var(--color-bg-hover);
+    }
+
+    .category-progress-name {
+      font-size: 12px;
+      font-weight: 500;
+      min-width: 100px;
+      flex-shrink: 0;
+    }
+
+    .category-progress-bar {
+      flex: 1;
+      height: 6px;
+      background: var(--color-border);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+    }
+
+    .category-progress-fill {
+      height: 100%;
+      border-radius: var(--radius-full);
+      transition: width 0.5s ease;
+    }
+
+    .category-progress-value {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      min-width: 36px;
+      text-align: right;
     }
 
     /* ========================================
@@ -889,24 +1069,127 @@ function generateStyles(): string {
     .rule-message {
       font-size: 13px;
       color: var(--color-text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .rule-description {
+      font-size: 12px;
+      color: var(--color-text-muted);
       margin-bottom: 8px;
+      font-style: italic;
     }
 
     .rule-fix {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      padding: 10px 12px;
-      background: var(--color-info-bg);
-      border-radius: var(--radius-md);
-      font-size: 12px;
-      color: var(--color-info);
       margin-top: 12px;
+      padding: 12px 16px;
+      border-left: 3px solid var(--color-info);
+      background: var(--color-bg);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
     }
 
-    .rule-fix-icon {
-      flex-shrink: 0;
-      margin-top: 1px;
+    .rule-fix-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--color-info);
+      margin-bottom: 6px;
+    }
+
+    .rule-fix-text {
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      line-height: 1.5;
+    }
+
+    /* ========================================
+       Collapsible Pages List
+       ======================================== */
+    .pages-toggle {
+      margin-top: 8px;
+    }
+
+    .pages-toggle summary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--color-accent);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      transition: background 0.15s;
+      list-style: none;
+    }
+
+    .pages-toggle summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .pages-toggle summary::before {
+      content: '▶';
+      font-size: 8px;
+      transition: transform 0.2s;
+    }
+
+    .pages-toggle[open] summary::before {
+      transform: rotate(90deg);
+    }
+
+    .pages-toggle summary:hover {
+      background: var(--color-accent-light);
+    }
+
+    .pages-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: var(--color-bg);
+      border-radius: var(--radius-md);
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .pages-list a {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-accent);
+      text-decoration: none;
+      padding: 2px 4px;
+      border-radius: var(--radius-sm);
+      transition: background 0.15s;
+    }
+
+    .pages-list a:hover {
+      background: var(--color-accent-light);
+      text-decoration: underline;
+    }
+
+    .pages-inline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .pages-inline a {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-accent);
+      background: var(--color-accent-light);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+    }
+
+    .pages-inline a:hover {
+      text-decoration: underline;
     }
 
     .rule-details {
@@ -1075,24 +1358,25 @@ function generateScript(): string {
 
       // Apply filters
       function applyFilters() {
-        // Filter rule cards
+        // Filter rule cards - supports multiple URLs in data-urls attribute
         ruleCards.forEach(card => {
           const status = card.dataset.status;
-          const url = card.dataset.url || '';
+          // Support both single url and multiple urls (comma-separated)
+          const urls = (card.dataset.urls || card.dataset.url || '').split(',').filter(Boolean);
 
           const statusMatch = currentStatusFilter === 'all' || status === currentStatusFilter;
-          const urlMatch = currentUrlFilter === 'all' || url.includes(currentUrlFilter);
+          const urlMatch = currentUrlFilter === 'all' || urls.length === 0 || urls.some(u => u.includes(currentUrlFilter));
 
           card.classList.toggle('hidden', !(statusMatch && urlMatch));
         });
 
-        // Filter issue rows in summary table
+        // Filter issue rows in summary table - supports multiple URLs
         issueRows.forEach(row => {
           const status = row.dataset.status;
-          const url = row.dataset.url || '';
+          const urls = (row.dataset.urls || row.dataset.url || '').split(',').filter(Boolean);
 
           const statusMatch = currentStatusFilter === 'all' || status === currentStatusFilter;
-          const urlMatch = currentUrlFilter === 'all' || url.includes(currentUrlFilter);
+          const urlMatch = currentUrlFilter === 'all' || urls.length === 0 || urls.some(u => u.includes(currentUrlFilter));
 
           row.classList.toggle('hidden', !(statusMatch && urlMatch));
         });
@@ -1117,8 +1401,8 @@ function generateScript(): string {
 
         ruleCards.forEach(card => {
           const status = card.dataset.status;
-          const url = card.dataset.url || '';
-          const urlMatch = currentUrlFilter === 'all' || url.includes(currentUrlFilter);
+          const urls = (card.dataset.urls || card.dataset.url || '').split(',').filter(Boolean);
+          const urlMatch = currentUrlFilter === 'all' || urls.length === 0 || urls.some(u => u.includes(currentUrlFilter));
 
           if (urlMatch) {
             visible.all++;
@@ -1242,31 +1526,31 @@ export function renderHtmlReport(result: AuditResult): string {
   const timestamp = new Date(result.timestamp).toLocaleString();
   const isPassing = result.overallScore >= 70;
 
-  // Collect all issues with URL info
-  const allIssues: { category: string; categoryId: string; result: RuleResult; url: string | null }[] = [];
+  // Build rule metadata cache for efficient lookups
+  const ruleMetadataCache = buildRuleMetadataCache(result.categoryResults);
+
+  // Build aggregated issues by rule
+  const aggregatedByCategory = aggregateIssuesByRule(result.categoryResults, ruleMetadataCache);
+
+  // Collect all unique URLs
   const allUrls = new Set<string>();
-
   for (const categoryResult of result.categoryResults) {
-    const category = getCategoryById(categoryResult.categoryId);
-    const categoryName = category?.name ?? categoryResult.categoryId;
-
     for (const ruleResult of categoryResult.results) {
       const url = extractUrlFromDetails(ruleResult.details);
       if (url) allUrls.add(url);
-
-      allIssues.push({
-        category: categoryName,
-        categoryId: categoryResult.categoryId,
-        result: ruleResult,
-        url
-      });
     }
   }
 
-  const failures = allIssues.filter(i => i.result.status === 'fail');
-  const warnings = allIssues.filter(i => i.result.status === 'warn');
-  const passes = allIssues.filter(i => i.result.status === 'pass');
-  const totalChecks = allIssues.length;
+  // Flatten all aggregated issues for counting (these are unique rule+status combinations)
+  const allAggregatedIssues: AggregatedIssue[] = [];
+  for (const issues of aggregatedByCategory.values()) {
+    allAggregatedIssues.push(...issues);
+  }
+
+  const failures = allAggregatedIssues.filter(i => i.status === 'fail');
+  const warnings = allAggregatedIssues.filter(i => i.status === 'warn');
+  const passes = allAggregatedIssues.filter(i => i.status === 'pass');
+  const totalChecks = allAggregatedIssues.length;
   const uniqueUrls = Array.from(allUrls).sort();
 
   // Calculate circumference for score circle
@@ -1274,27 +1558,36 @@ export function renderHtmlReport(result: AuditResult): string {
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference - (result.overallScore / 100) * circumference;
 
-  // Generate issues table rows (failures and warnings only)
+  // Generate issues table rows (failures and warnings only) - now using aggregated data
   const issueTableRows = [...failures, ...warnings]
-    .map(({ category, result: r, url }) => `
-      <tr class="issue-row" data-rule-id="${escapeHtml(r.ruleId)}" data-status="${r.status}" data-url="${escapeHtml(url || '')}">
+    .map((issue) => {
+      const urlsCommaSeparated = issue.pages.map(p => p.url).join(',');
+      const pageDisplay = issue.pages.length === 0
+        ? '-'
+        : issue.pages.length === 1
+          ? `<span class="issue-row-url" title="${escapeHtml(issue.pages[0].url)}">${escapeHtml(getShortUrl(issue.pages[0].url))}</span>`
+          : `<span class="issue-row-url">${issue.pages.length} pages</span>`;
+
+      return `
+      <tr class="issue-row" data-rule-id="${escapeHtml(issue.ruleId)}" data-status="${issue.status}" data-urls="${escapeHtml(urlsCommaSeparated)}">
         <td>
           <div class="issue-row-name">
-            <div class="issue-row-icon ${r.status}">${r.status === 'fail' ? '✕' : '!'}</div>
+            <div class="issue-row-icon ${issue.status}">${issue.status === 'fail' ? '✕' : '!'}</div>
             <div>
-              <div class="issue-row-text">${escapeHtml(r.ruleId)}</div>
-              <div class="issue-row-category">${escapeHtml(category)}</div>
+              <div class="issue-row-text">${escapeHtml(issue.ruleName)}</div>
+              <div class="issue-row-category">${escapeHtml(issue.categoryName)}</div>
             </div>
           </div>
         </td>
         <td>
-          ${url ? `<span class="issue-row-url" title="${escapeHtml(url)}">${escapeHtml(getShortUrl(url))}</span>` : '<span class="issue-row-url">-</span>'}
+          ${pageDisplay}
         </td>
         <td>
-          <span class="issue-row-severity ${r.status}">${r.status === 'fail' ? 'Critical' : 'Warning'}</span>
+          <span class="issue-row-severity ${issue.status}">${issue.status === 'fail' ? 'Critical' : 'Warning'}</span>
         </td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
 
   // Generate URL filter options
   const urlFilterOptions = uniqueUrls.length > 1
@@ -1320,57 +1613,82 @@ export function renderHtmlReport(result: AuditResult): string {
     `;
   }).join('');
 
-  // Generate category sections
+  // Helper function to generate pages list HTML
+  const generatePagesListHtml = (pages: Array<{ url: string; details: Record<string, unknown> }>): string => {
+    if (pages.length === 0) return '';
+
+    // For single page, show inline
+    if (pages.length === 1) {
+      return `
+        <div class="pages-inline">
+          <a href="${escapeHtml(pages[0].url)}" target="_blank" rel="noopener">${escapeHtml(getShortUrl(pages[0].url))}</a>
+        </div>
+      `;
+    }
+
+    // For 2-3 pages, show inline
+    if (pages.length <= 3) {
+      return `
+        <div class="pages-inline">
+          ${pages.map(p => `<a href="${escapeHtml(p.url)}" target="_blank" rel="noopener">${escapeHtml(getShortUrl(p.url))}</a>`).join('')}
+        </div>
+      `;
+    }
+
+    // For 4+ pages, use collapsible list
+    return `
+      <details class="pages-toggle">
+        <summary>${pages.length} pages affected</summary>
+        <div class="pages-list">
+          ${pages.map(p => `<a href="${escapeHtml(p.url)}" target="_blank" rel="noopener">${escapeHtml(getShortUrl(p.url))}</a>`).join('')}
+        </div>
+      </details>
+    `;
+  };
+
+  // Generate category sections using aggregated issues
   const categorySectionsHtml = result.categoryResults.map(cat => {
     const category = getCategoryById(cat.categoryId);
     const categoryName = category?.name ?? cat.categoryId;
     const categoryColor = getScoreColor(cat.score);
 
-    const rulesHtml = cat.results.map(r => {
-      const fix = getFixSuggestion(r.ruleId);
-      const statusIcon = r.status === 'pass' ? '✓' : r.status === 'warn' ? '!' : '✕';
-      const ruleUrl = extractUrlFromDetails(r.details);
+    // Get aggregated issues for this category
+    const aggregatedIssues = aggregatedByCategory.get(cat.categoryId) || [];
 
-      // Filter out URL fields from details display since we show the URL separately as a badge
-      const filteredDetails = r.details ? Object.fromEntries(
-        Object.entries(r.details).filter(([k]) => !['url', 'pageUrl', 'htmlCanonical', 'canonical'].includes(k))
-      ) : {};
+    const rulesHtml = aggregatedIssues.map(issue => {
+      const fix = getFixSuggestion(issue.ruleId);
+      const statusIcon = issue.status === 'pass' ? '✓' : issue.status === 'warn' ? '!' : '✕';
+      const urlsCommaSeparated = issue.pages.map(p => p.url).join(',');
 
-      const detailsHtml = filteredDetails && Object.keys(filteredDetails).length > 0
-        ? `<div class="rule-details">
-            ${Object.entries(filteredDetails).map(([k, v]) => {
-              const displayValue = typeof v === 'object'
-                ? JSON.stringify(v)
-                : String(v);
-              const truncated = displayValue.length > 150
-                ? displayValue.substring(0, 147) + '...'
-                : displayValue;
-              return `<div class="rule-detail-item">
-                <span class="rule-detail-key">${escapeHtml(k)}:</span>
-                <span class="rule-detail-value">${escapeHtml(truncated)}</span>
-              </div>`;
-            }).join('')}
-          </div>`
-        : '';
+      // Generate pages list HTML (collapsible for 4+ pages)
+      const pagesHtml = generatePagesListHtml(issue.pages);
 
-      const fixHtml = r.status !== 'pass'
+      // Show description only if we have one and it's not just the message repeated
+      const showDescription = issue.ruleDescription && issue.ruleDescription !== issue.message;
+
+      // For passed rules, use collapsible details to reduce visual clutter
+      const fixHtml = issue.status !== 'pass'
         ? `<div class="rule-fix">
-            <span class="rule-fix-icon">${getIcon('lightbulb')}</span>
-            <span>${escapeHtml(fix)}</span>
+            <div class="rule-fix-header">
+              ${getIcon('lightbulb')}
+              <span>How to Fix</span>
+            </div>
+            <div class="rule-fix-text">${escapeHtml(fix)}</div>
           </div>`
         : '';
 
       return `
-        <div class="rule-card" data-status="${r.status}" data-rule-id="${escapeHtml(r.ruleId)}" data-url="${escapeHtml(ruleUrl || '')}">
+        <div class="rule-card" data-status="${issue.status}" data-rule-id="${escapeHtml(issue.ruleId)}" data-urls="${escapeHtml(urlsCommaSeparated)}">
           <div class="rule-header">
-            <div class="rule-status-icon ${r.status}">${statusIcon}</div>
+            <div class="rule-status-icon ${issue.status}">${statusIcon}</div>
             <div class="rule-content">
               <div class="rule-title-row">
-                <span class="rule-title">${escapeHtml(r.ruleId)}</span>
-                ${ruleUrl ? `<a class="rule-url" href="${escapeHtml(ruleUrl)}" target="_blank" rel="noopener">${escapeHtml(getShortUrl(ruleUrl))}</a>` : ''}
+                <span class="rule-title">${escapeHtml(issue.ruleName)}</span>
+                <span class="rule-id">${escapeHtml(issue.ruleId)}</span>
               </div>
-              <div class="rule-message">${escapeHtml(r.message)}</div>
-              ${detailsHtml}
+              ${showDescription ? `<div class="rule-description">${escapeHtml(issue.ruleDescription)}</div>` : ''}
+              <div class="rule-message">${escapeHtml(issue.message)}</div>
+              ${pagesHtml}
               ${fixHtml}
             </div>
           </div>
@@ -1488,6 +1806,26 @@ export function renderHtmlReport(result: AuditResult): string {
             <div class="score-stat">
               <span class="score-stat-value">${totalChecks}</span>
               <span class="score-stat-label">Total</span>
+            </div>
+          </div>
+          <!-- Category Progress Bars -->
+          <div class="category-progress-section">
+            <div class="category-progress-title">Category Scores</div>
+            <div class="category-progress-list">
+              ${result.categoryResults.map(cat => {
+                const category = getCategoryById(cat.categoryId);
+                const catName = category?.name ?? cat.categoryId;
+                const catColor = getScoreColor(cat.score);
+                return `
+                <a href="#category-${cat.categoryId}" class="category-progress-item">
+                  <span class="category-progress-name">${escapeHtml(catName)}</span>
+                  <div class="category-progress-bar">
+                    <div class="category-progress-fill" style="width: ${cat.score}%; background: ${catColor};"></div>
+                  </div>
+                  <span class="category-progress-value" style="color: ${catColor};">${cat.score}%</span>
+                </a>
+                `;
+              }).join('')}
             </div>
           </div>
         </div>

@@ -147,8 +147,9 @@ export async function measureCoreWebVitals(page: Page): Promise<CoreWebVitals> {
 
       // Use PerformanceObserver for LCP
       let lcpValue: number | undefined;
+      let lcpObserver: PerformanceObserver | undefined;
       try {
-        const lcpObserver = new PerformanceObserver((list) => {
+        lcpObserver = new PerformanceObserver((list) => {
           const entries = list.getEntries();
           const lastEntry = entries[entries.length - 1];
           if (lastEntry) {
@@ -156,19 +157,15 @@ export async function measureCoreWebVitals(page: Page): Promise<CoreWebVitals> {
           }
         });
         lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
-
-        // Give it a moment to collect entries
-        setTimeout(() => {
-          lcpObserver.disconnect();
-        }, 100);
       } catch {
         // LCP observer not supported
       }
 
       // Use PerformanceObserver for CLS
       let clsValue = 0;
+      let clsObserver: PerformanceObserver | undefined;
       try {
-        const clsObserver = new PerformanceObserver((list) => {
+        clsObserver = new PerformanceObserver((list) => {
           for (const entry of list.getEntries()) {
             // @ts-expect-error - LayoutShift type not in standard types
             if (!entry.hadRecentInput) {
@@ -178,24 +175,26 @@ export async function measureCoreWebVitals(page: Page): Promise<CoreWebVitals> {
           }
         });
         clsObserver.observe({ type: 'layout-shift', buffered: true });
-
-        setTimeout(() => {
-          clsObserver.disconnect();
-        }, 100);
       } catch {
         // CLS observer not supported
       }
 
-      // Wait for observers to collect data
+      // Wait longer for metrics to be collected (LCP can take time)
       setTimeout(() => {
+        // Disconnect observers
+        lcpObserver?.disconnect();
+        clsObserver?.disconnect();
+
+        // Set LCP if collected
         if (lcpValue !== undefined) {
           metrics.lcp = lcpValue;
         }
-        if (clsValue > 0) {
-          metrics.cls = Math.round(clsValue * 1000) / 1000; // Round to 3 decimal places
-        }
+
+        // CLS of 0 is valid (no layout shifts is good)
+        metrics.cls = Math.round(clsValue * 1000) / 1000;
+
         resolve(metrics);
-      }, 200);
+      }, 1000); // Wait 1 second for metrics collection
     });
   });
 

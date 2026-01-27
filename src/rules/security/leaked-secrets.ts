@@ -55,14 +55,15 @@ const SECRET_PATTERNS: Array<{ name: string; pattern: RegExp }> = [
   { name: 'SSH Private Key', pattern: /-----BEGIN (?:OPENSSH|EC|DSA|PGP) PRIVATE KEY-----/g },
   { name: 'PEM Private Key', pattern: /-----BEGIN PRIVATE KEY-----/g },
 
-  // Generic patterns (more prone to false positives, but important)
-  { name: 'Basic Auth in URL', pattern: /https?:\/\/[^:]+:[^@]+@[^\s"'<>]+/gi },
+  // Generic patterns (stricter to avoid false positives)
+  // Basic Auth: username must be alphanumeric, password must not contain / or quotes, host must have a dot
+  { name: 'Basic Auth in URL', pattern: /https?:\/\/[a-zA-Z0-9_-]+:[^/@\s"'<>]+@[a-zA-Z0-9][-a-zA-Z0-9]*(?:\.[a-zA-Z0-9][-a-zA-Z0-9]*)+/gi },
   { name: 'Bearer Token (JWT)', pattern: /bearer\s+eyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/gi },
 
-  // Database connection strings
-  { name: 'MongoDB URI', pattern: /mongodb(?:\+srv)?:\/\/[^:]+:[^@]+@[^\s"'<>]+/gi },
-  { name: 'PostgreSQL URI', pattern: /postgres(?:ql)?:\/\/[^:]+:[^@]+@[^\s"'<>]+/gi },
-  { name: 'MySQL URI', pattern: /mysql:\/\/[^:]+:[^@]+@[^\s"'<>]+/gi },
+  // Database connection strings (stricter: username alphanumeric, password no slashes, host must have dot or be localhost)
+  { name: 'MongoDB URI', pattern: /mongodb(?:\+srv)?:\/\/[a-zA-Z0-9_-]+:[^/@\s"'<>]+@(?:localhost|[a-zA-Z0-9][-a-zA-Z0-9]*(?:\.[a-zA-Z0-9][-a-zA-Z0-9]*)+)/gi },
+  { name: 'PostgreSQL URI', pattern: /postgres(?:ql)?:\/\/[a-zA-Z0-9_-]+:[^/@\s"'<>]+@(?:localhost|[a-zA-Z0-9][-a-zA-Z0-9]*(?:\.[a-zA-Z0-9][-a-zA-Z0-9]*)+)/gi },
+  { name: 'MySQL URI', pattern: /mysql:\/\/[a-zA-Z0-9_-]+:[^/@\s"'<>]+@(?:localhost|[a-zA-Z0-9][-a-zA-Z0-9]*(?:\.[a-zA-Z0-9][-a-zA-Z0-9]*)+)/gi },
 
   // Shopify
   { name: 'Shopify Access Token', pattern: /shpat_[a-fA-F0-9]{32}/g },

@@ -123,6 +123,94 @@ export class Auditor {
   }
 
   /**
+   * Fetch robots.txt content for a site
+   */
+  private async fetchRobotsTxt(url: string): Promise<string | undefined> {
+    try {
+      const urlObj = new URL(url);
+      const robotsUrl = `${urlObj.protocol}//${urlObj.host}/robots.txt`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      try {
+        const response = await fetch(robotsUrl, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'SEOmatorBot/2.0 (+https://github.com/seo-skills/seo-audit-skill)',
+          },
+        });
+        clearTimeout(timeoutId);
+        if (response.ok) {
+          return await response.text();
+        }
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    } catch {
+      // Robots.txt fetch failed, continue without it
+    }
+    return undefined;
+  }
+
+  /**
+   * Fetch sitemap content and extract URLs
+   */
+  private async fetchSitemap(url: string, robotsTxtContent?: string): Promise<{ content?: string; urls?: string[] }> {
+    try {
+      const urlObj = new URL(url);
+      // Try to find sitemap URL from robots.txt first
+      let sitemapUrl = `${urlObj.protocol}//${urlObj.host}/sitemap.xml`;
+      if (robotsTxtContent) {
+        const match = robotsTxtContent.match(/^Sitemap:\s*(.+)$/im);
+        if (match) {
+          sitemapUrl = match[1].trim();
+        }
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      try {
+        const response = await fetch(sitemapUrl, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'SEOmatorBot/2.0 (+https://github.com/seo-skills/seo-audit-skill)',
+          },
+        });
+        clearTimeout(timeoutId);
+        if (response.ok) {
+          const content = await response.text();
+          // Extract URLs from sitemap XML
+          const urls: string[] = [];
+          const locRegex = /<loc>\s*(.*?)\s*<\/loc>/gi;
+          let locMatch;
+          while ((locMatch = locRegex.exec(content)) !== null) {
+            urls.push(locMatch[1]);
+          }
+          return { content, urls };
+        }
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    } catch {
+      // Sitemap fetch failed, continue without it
+    }
+    return {};
+  }
+
+  /**
+   * Enrich audit context with robots.txt, sitemap data
+   */
+  private async enrichContext(context: AuditContext, url: string): Promise<void> {
+    // Fetch robots.txt first (needed for sitemap URL discovery)
+    const robotsTxtContent = await this.fetchRobotsTxt(url);
+    context.robotsTxtContent = robotsTxtContent;
+
+    // Fetch sitemap using robots.txt info
+    const sitemapData = await this.fetchSitemap(url, robotsTxtContent);
+    context.sitemapContent = sitemapData.content;
+    context.sitemapUrls = sitemapData.urls;
+  }
+
+  /**
    * Run a single-page audit
    * @param url - URL to audit
    * @returns AuditResult for the page
@@ -133,12 +221,20 @@ export class Auditor {
     // Fetch the page
     const fetchResult = await fetchPage(url, this.options.timeout);
 
-    // Get Core Web Vitals if enabled
+    // Get Core Web Vitals and rendered DOM if enabled
     let cwv: CoreWebVitals = {};
+    let renderedHtml: string | undefined;
+    let rendered$: import('cheerio').CheerioAPI | undefined;
     if (this.options.measureCwv) {
       try {
         const pwResult = await fetchPageWithPlaywright(url, this.options.timeout);
         cwv = pwResult.cwv;
+        // Capture rendered HTML for JS rendering rules
+        if (pwResult.html) {
+          renderedHtml = pwResult.html;
+          const cheerio = await import('cheerio');
+          rendered$ = cheerio.load(renderedHtml);
+        }
       } catch {
         // CWV measurement failed, continue without it
       } finally {
@@ -149,6 +245,13 @@ export class Auditor {
 
     // Create audit context
     const context = createAuditContext(url, fetchResult, cwv);
+
+    // Enrich with robots.txt, sitemap, and rendered DOM
+    await this.enrichContext(context, url);
+    if (renderedHtml) {
+      context.renderedHtml = renderedHtml;
+      context.rendered$ = rendered$;
+    }
 
     // Run all categories
     const categoryResults = await this.runAllCategories(context);
@@ -171,6 +274,10 @@ export class Auditor {
     concurrency = 3
   ): Promise<AuditResult> {
     await this.ensureRulesLoaded();
+
+    // Pre-fetch robots.txt and sitemap once for the entire crawl
+    const robotsTxtContent = await this.fetchRobotsTxt(url);
+    const sitemapData = await this.fetchSitemap(url, robotsTxtContent);
 
     // Create crawler with CWV callback if enabled
     const crawler = new Crawler({
@@ -195,6 +302,15 @@ export class Auditor {
     // Close browser if CWV was measured
     if (this.options.measureCwv) {
       await closeBrowser();
+    }
+
+    // Enrich each crawled page context with shared data
+    for (const crawledPage of crawledPages) {
+      if (crawledPage.context) {
+        crawledPage.context.robotsTxtContent = robotsTxtContent;
+        crawledPage.context.sitemapContent = sitemapData.content;
+        crawledPage.context.sitemapUrls = sitemapData.urls;
+      }
     }
 
     // Aggregate results from all pages

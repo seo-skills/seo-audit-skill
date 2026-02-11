@@ -7,6 +7,7 @@
  * - H1 heading checks
  * - Indexing directives (robots meta, nosnippet)
  * - Canonical header validation
+ * - Canonical conflict, protocol, loop, and homepage checks
  * - Title uniqueness
  */
 
@@ -32,6 +33,13 @@ import { nosnippetRule } from './nosnippet.js';
 import { robotsMetaRule } from './robots-meta.js';
 import { titleUniqueRule, resetTitleRegistry, getTitleRegistryStats } from './title-unique.js';
 
+// Canonical validation rules
+import { canonicalConflictingRule } from './canonical-conflicting.js';
+import { canonicalToHomepageRule } from './canonical-to-homepage.js';
+import { canonicalHttpMismatchRule } from './canonical-http-mismatch.js';
+import { canonicalLoopRule } from './canonical-loop.js';
+import { canonicalToNoindexRule } from './canonical-to-noindex.js';
+
 // Export all rules
 export {
   // Meta tags
@@ -51,6 +59,12 @@ export {
   nosnippetRule,
   robotsMetaRule,
   titleUniqueRule,
+  // Canonical validation
+  canonicalConflictingRule,
+  canonicalToHomepageRule,
+  canonicalHttpMismatchRule,
+  canonicalLoopRule,
+  canonicalToNoindexRule,
 };
 
 // Export utility functions
@@ -71,3 +85,8 @@ registerRule(canonicalHeaderRule);
 registerRule(nosnippetRule);
 registerRule(robotsMetaRule);
 registerRule(titleUniqueRule);
+registerRule(canonicalConflictingRule);
+registerRule(canonicalToHomepageRule);
+registerRule(canonicalHttpMismatchRule);
+registerRule(canonicalLoopRule);
+registerRule(canonicalToNoindexRule);

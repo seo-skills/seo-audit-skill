@@ -1,19 +1,19 @@
 ---
 name: seo-audit
-description: Audit websites for SEO, technical, content, and security issues using SEOmator CLI. Returns LLM-optimized reports with health scores, broken links, meta tag analysis, and actionable recommendations. Use when analyzing websites, debugging SEO issues, or checking site health.
+description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 251 rules and 20 categories. Use when analyzing websites, debugging SEO issues, or checking site health.
 license: MIT
-compatibility: Requires Node.js 18+ and npm. Chrome/Chromium optional for Core Web Vitals.
+compatibility: Requires Node.js 18+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
 metadata:
   author: seomator
-  version: "2.1"
+  version: "3.0"
 allowed-tools: Bash(seomator:*)
 ---
 
 # SEO Audit Skill
 
-Audit websites for SEO, technical, content, performance, and security issues using the SEOmator CLI.
+Audit websites for SEO, technical, content, performance, security, JavaScript rendering, and AI readiness using the SEOmator CLI.
 
-SEOmator provides comprehensive website auditing by analyzing website structure and content against **134 rules** across **18 categories**.
+SEOmator provides comprehensive website auditing by analyzing website structure and content against **251 rules** across **20 categories**.
 
 It provides a list of issues with severity levels, affected URLs, and actionable fix suggestions.
 
@@ -25,26 +25,28 @@ It provides a list of issues with severity levels, affected URLs, and actionable
 
 ## What This Skill Does
 
-This skill enables AI agents to audit websites for **134 rules** in **18 categories**, including:
+This skill enables AI agents to audit websites for **251 rules** in **20 categories**, including:
 
-- **Core SEO**: Canonical URLs, indexing directives, title uniqueness
-- **Meta Tags**: Title, description, viewport, favicon, canonical
-- **Headings**: H1 presence, heading hierarchy, keyword usage
-- **Technical SEO**: robots.txt, sitemap.xml, URL structure, 404 pages
-- **Core Web Vitals**: LCP, CLS, FCP, TTFB, INP measurements
-- **Links**: Broken links, redirect chains, anchor text, orphan pages
-- **Images**: Alt text, dimensions, lazy loading, modern formats
-- **Security**: HTTPS, HSTS, CSP, external link safety, leaked secrets
-- **Structured Data**: Schema.org markup, Article, Organization, FAQ, Product
-- **Social**: Open Graph tags, Twitter cards, share buttons, profile links
-- **Content**: Word count, readability, keyword density, author info
-- **Accessibility**: ARIA labels, color contrast, form labels, landmarks
-- **Performance**: DOM size, CSS optimization, font loading, preconnect
-- **Crawlability**: Sitemap conflicts, indexability signals, canonical chains
-- **URL Structure**: Keyword slugs, stop words
-- **Mobile**: Font sizes, horizontal scroll, intrusive interstitials
-- **Internationalization**: lang attribute, hreflang tags
-- **Legal Compliance**: Cookie consent, privacy policy, terms of service
+- **Core SEO** (19 rules): Canonical URLs, indexing directives, title uniqueness, canonical conflicts/loops
+- **Performance** (22 rules): LCP, CLS, FCP, TTFB, INP, compression, caching, minification, HTTP/2
+- **Links** (19 rules): Broken links, redirect chains, anchor text, orphan pages, localhost/fragment links
+- **Images** (14 rules): Alt text, dimensions, lazy loading, modern formats, alt length, background images
+- **Security** (16 rules): HTTPS, HSTS, CSP, external link safety, leaked secrets, SSL expiry/protocol
+- **Technical SEO** (13 rules): robots.txt, sitemap.xml, URL structure, 404 pages, soft 404s, error codes
+- **Crawlability** (18 rules): Sitemap conflicts, indexability signals, canonical chains, pagination issues
+- **Structured Data** (13 rules): Schema.org markup, Article, Organization, FAQ, Product, Breadcrumb
+- **JavaScript Rendering** (13 rules): Rendered DOM checks, raw vs rendered mismatches, SSR detection
+- **Accessibility** (12 rules): ARIA labels, color contrast, form labels, landmarks, touch targets
+- **Content** (17 rules): Word count, readability, keyword density, duplicate detection, pixel widths
+- **Social** (9 rules): Open Graph tags, Twitter cards, share buttons, profile links
+- **E-E-A-T** (14 rules): Author bylines, citations, trust signals, about/contact pages, YMYL detection
+- **URL Structure** (14 rules): Keyword slugs, stop words, uppercase, underscores, session IDs, tracking params
+- **Redirects** (8 rules): Redirect loops, types (301/302), meta refresh, JavaScript redirects, broken redirects
+- **Mobile** (5 rules): Font sizes, horizontal scroll, intrusive interstitials, viewport issues
+- **Internationalization** (10 rules): lang attribute, hreflang validation (return links, conflicts, mismatches)
+- **HTML Validation** (9 rules): Doctype, charset, head structure, lorem ipsum, multiple titles/descriptions
+- **AI/GEO Readiness** (5 rules): Semantic HTML, AI bot access, llms.txt, schema drift
+- **Legal Compliance** (1 rule): Cookie consent
 
 The audit crawls the website, analyzes each page against audit rules, and returns a comprehensive report with:
 - Overall health score (0-100) with letter grade (A-F)
@@ -57,13 +59,17 @@ The audit crawls the website, analyzes each page against audit rules, and return
 Use this skill when you need to:
 - Analyze a website's SEO health
 - Debug technical SEO issues
-- Check for broken links
-- Validate meta tags and structured data
-- Audit security headers and HTTPS
+- Check for broken links and redirect chains
+- Validate meta tags, canonical URLs, and structured data
+- Audit security headers, SSL, and HTTPS
 - Check accessibility compliance
-- Generate site audit reports
+- Analyze JavaScript rendering and SSR compatibility
+- Evaluate AI/GEO readiness (semantic HTML, llms.txt, bot access)
+- Detect duplicate content across pages
+- Validate hreflang and internationalization setup
+- Check HTML document structure and validation
+- Generate site audit reports in multiple formats
 - Compare site health before/after changes
-- Improve website performance, accessibility, SEO, security and more
 
 ## Prerequisites
 
@@ -86,7 +92,7 @@ seomator self doctor
 This checks:
 - Node.js version (18+ recommended)
 - npm availability
-- Chrome/Chromium for Core Web Vitals
+- Chrome/Chromium for Core Web Vitals and JS rendering
 - Write permissions for ~/.seomator
 - Local config file presence
 
@@ -112,7 +118,7 @@ If there is no `seomator.toml` in the directory, CREATE ONE with `seomator init`
 
 When auditing:
 1. **Prefer live websites** over local dev servers for accurate performance and rendering data
-2. **Use `--no-cwv` for faster audits** when Core Web Vitals aren't needed
+2. **Use `--no-cwv` for faster audits** when Core Web Vitals and JS rendering checks aren't needed
 3. **Scope fixes as concurrent tasks** when implementing multiple fixes
 4. **Run typechecking/formatting** after implementing fixes (tsc, eslint, prettier, etc.)
 
@@ -135,7 +141,7 @@ seomator audit https://example.com --format llm --no-cwv
 # Multi-page crawl (up to 50 pages)
 seomator audit https://example.com --crawl -m 50 --format llm --no-cwv
 
-# Full audit with Core Web Vitals
+# Full audit with Core Web Vitals + JS rendering analysis
 seomator audit https://example.com --crawl -m 20 --format llm
 ```
 
@@ -149,6 +155,11 @@ seomator audit https://example.com --refresh --format llm
 Resume interrupted crawl:
 ```bash
 seomator audit https://example.com --resume --format llm
+```
+
+Audit specific categories only:
+```bash
+seomator audit https://example.com -c core,security,js --format llm --no-cwv
 ```
 
 Save HTML report for sharing:
@@ -170,9 +181,10 @@ seomator audit https://example.com --format llm -v
 | `--format <fmt>` | `-f` | Output format: console, json, html, markdown, llm | console |
 | `--max-pages <n>` | `-m` | Maximum pages to crawl | 10 |
 | `--crawl` | | Enable multi-page crawl | false |
+| `--categories <list>` | `-c` | Comma-separated categories to audit | All |
 | `--refresh` | `-r` | Ignore cache, fetch fresh | false |
 | `--resume` | | Resume interrupted crawl | false |
-| `--no-cwv` | | Skip Core Web Vitals | false |
+| `--no-cwv` | | Skip Core Web Vitals + JS rendering | false |
 | `--verbose` | `-v` | Show progress | false |
 | `--output <path>` | `-o` | Output file path | |
 | `--config <path>` | | Config file path | |
@@ -234,6 +246,13 @@ seomator audit https://example.com --refresh --format llm --no-cwv
 seomator audit https://example.com --crawl -m 20 --format html -o seo-report.html
 ```
 
+### Example 5: Focus on Specific Areas
+
+```bash
+# User asks: "Just check my JavaScript rendering and redirects"
+seomator audit https://example.com -c js,redirect --format llm
+```
+
 ## Evaluating Results
 
 ### Score Ranges
@@ -250,16 +269,26 @@ seomator audit https://example.com --crawl -m 20 --format html -o seo-report.htm
 
 Fix issues in this order for maximum impact:
 
-1. **Core Web Vitals** (11%) - User experience + ranking
-2. **Links** (9%) - Internal linking structure
-3. **Images** (9%) - Performance + accessibility
-4. **Security** (9%) - Trust signals
-5. **Meta Tags** (8%) - Search visibility
-6. **Technical SEO** (8%) - Crawling foundation
-7. **Structured Data** (5%) - Rich snippets
-8. **Accessibility** (5%) - WCAG compliance
-9. **Performance** (5%) - Static optimization
-10. **Content** (5%) - Text quality
+1. **Core** (12%) - Meta tags, canonical, H1, indexing
+2. **Performance** (12%) - Core Web Vitals + optimization
+3. **Links** (8%) - Internal linking structure
+4. **Images** (8%) - Performance + accessibility
+5. **Security** (8%) - Trust signals, SSL
+6. **Technical SEO** (7%) - Crawling foundation
+7. **Crawlability** (5%) - Indexability, pagination
+8. **Structured Data** (5%) - Rich snippets
+9. **JavaScript Rendering** (5%) - Rendered DOM, SSR
+10. **Content** (5%) - Text quality + duplicates
+11. **Accessibility** (4%) - WCAG compliance
+12. **Social** (3%) - Social sharing
+13. **E-E-A-T** (3%) - Trust, expertise
+14. **URL Structure** (3%) - URL hygiene
+15. **Redirects** (3%) - Redirect chains
+16. **Mobile** (2%) - Viewport, fonts
+17. **Internationalization** (2%) - Hreflang
+18. **HTML Validation** (2%) - Document structure
+19. **AI/GEO Readiness** (2%) - Semantic HTML, AI bots
+20. **Legal Compliance** (1%) - Cookie consent
 
 ### Fix by Severity
 
@@ -318,15 +347,17 @@ seomator audit https://example.com
 
 1. **Fetch**: Downloads the page HTML and measures response time
 2. **Parse**: Extracts DOM, meta tags, links, images, structured data
-3. **Crawl** (if enabled): Discovers and fetches linked pages
-4. **Analyze**: Runs 134 audit rules against each page
-5. **Score**: Calculates category and overall scores
-6. **Report**: Generates output in requested format
+3. **Enrich**: Fetches robots.txt and sitemap once per audit
+4. **Render** (if CWV enabled): Captures rendered DOM via Playwright for JS rendering analysis
+5. **Crawl** (if enabled): Discovers and fetches linked pages
+6. **Analyze**: Runs 251 audit rules against each page
+7. **Score**: Calculates category and overall weighted scores
+8. **Report**: Generates output in requested format
 
 Results are stored in `~/.seomator/` for later retrieval with `seomator report`.
 
 ## Resources
 
-- **Full rules reference**: See `docs/SEO-AUDIT-RULES.md` for all 134 rules
+- **Full rules reference**: See `docs/SEO-AUDIT-RULES.md` for all 251 rules
 - **Storage architecture**: See `docs/STORAGE-ARCHITECTURE.md` for database details
 - **CLI help**: `seomator --help` and `seomator <command> --help`

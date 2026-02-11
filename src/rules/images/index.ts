@@ -2,6 +2,9 @@
  * Images Rules
  *
  * This module exports all image-related audit rules and registers them.
+ * Covers alt text, dimensions, formats, lazy loading, broken images,
+ * figure captions, filenames, inline SVGs, picture elements,
+ * alt text length, and background image SEO.
  */
 
 import { registerRule } from '../registry.js';
@@ -19,6 +22,10 @@ import { filenameQualityRule } from './filename-quality.js';
 import { inlineSvgSizeRule } from './inline-svg-size.js';
 import { pictureElementRule } from './picture-element.js';
 
+// New image rules
+import { altLengthRule } from './alt-length.js';
+import { backgroundSeoRule } from './background-seo.js';
+
 // Export all rules
 export {
   altPresentRule,
@@ -33,6 +40,8 @@ export {
   filenameQualityRule,
   inlineSvgSizeRule,
   pictureElementRule,
+  altLengthRule,
+  backgroundSeoRule,
 };
 
 // Register all rules
@@ -48,3 +57,5 @@ registerRule(figureCaptionsRule);
 registerRule(filenameQualityRule);
 registerRule(inlineSvgSizeRule);
 registerRule(pictureElementRule);
+registerRule(altLengthRule);
+registerRule(backgroundSeoRule);

@@ -2,7 +2,8 @@
  * Security Rules
  *
  * This module exports all security audit rules and registers them.
- * Covers HTTPS, security headers, mixed content, leaked secrets, and more.
+ * Covers HTTPS, security headers, mixed content, leaked secrets,
+ * password safety, protocol-relative URLs, and SSL/TLS configuration.
  */
 
 import { registerRule } from '../registry.js';
@@ -20,6 +21,12 @@ import { permissionsPolicyRule } from './permissions-policy.js';
 import { referrerPolicyRule } from './referrer-policy.js';
 import { leakedSecretsRule } from './leaked-secrets.js';
 
+// New security rules
+import { passwordHttpRule } from './password-http.js';
+import { protocolRelativeRule } from './protocol-relative.js';
+import { sslExpiryRule } from './ssl-expiry.js';
+import { sslProtocolRule } from './ssl-protocol.js';
+
 // Export all rules
 export {
   httpsRule,
@@ -34,6 +41,10 @@ export {
   permissionsPolicyRule,
   referrerPolicyRule,
   leakedSecretsRule,
+  passwordHttpRule,
+  protocolRelativeRule,
+  sslExpiryRule,
+  sslProtocolRule,
 };
 
 // Register all rules
@@ -49,3 +60,7 @@ registerRule(mixedContentRule);
 registerRule(permissionsPolicyRule);
 registerRule(referrerPolicyRule);
 registerRule(leakedSecretsRule);
+registerRule(passwordHttpRule);
+registerRule(protocolRelativeRule);
+registerRule(sslExpiryRule);
+registerRule(sslProtocolRule);

@@ -19,6 +19,12 @@ import { invalidLinksRule } from './invalid-links.js';
 import { telMailtoRule } from './tel-mailto.js';
 import { redirectChainsRule } from './redirect-chains.js';
 import { orphanPagesRule } from './orphan-pages.js';
+import { localhostRule } from './localhost.js';
+import { localFileRule } from './local-file.js';
+import { brokenFragmentRule } from './broken-fragment.js';
+import { excessiveRule } from './excessive.js';
+import { onclickRule } from './onclick.js';
+import { whitespaceHrefRule } from './whitespace-href.js';
 
 // Export all rules
 export {
@@ -35,6 +41,12 @@ export {
   telMailtoRule,
   redirectChainsRule,
   orphanPagesRule,
+  localhostRule,
+  localFileRule,
+  brokenFragmentRule,
+  excessiveRule,
+  onclickRule,
+  whitespaceHrefRule,
 };
 
 // Register all rules
@@ -51,3 +63,9 @@ registerRule(invalidLinksRule);
 registerRule(telMailtoRule);
 registerRule(redirectChainsRule);
 registerRule(orphanPagesRule);
+registerRule(localhostRule);
+registerRule(localFileRule);
+registerRule(brokenFragmentRule);
+registerRule(excessiveRule);
+registerRule(onclickRule);
+registerRule(whitespaceHrefRule);

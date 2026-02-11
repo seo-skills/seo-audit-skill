@@ -1,7 +1,7 @@
 {
   "name": "@seomator/seo-audit",
-  "version": "2.2.0",
-  "description": "SEOmator - Comprehensive SEO audit CLI tool with 148 rules across 16 categories",
+  "version": "3.0.0",
+  "description": "SEOmator - Comprehensive SEO audit CLI tool with 251 rules across 20 categories",
   "type": "module",
   "bin": {
     "seomator": "./dist/cli.js"
@@ -35,7 +35,15 @@
     "structured-data",
     "accessibility",
     "crawler",
-    "site-audit"
+    "site-audit",
+    "javascript-rendering",
+    "redirect-checker",
+    "html-validation",
+    "ai-seo",
+    "geo",
+    "hreflang",
+    "eeat",
+    "technical-seo"
   ],
   "author": "",
   "license": "MIT",

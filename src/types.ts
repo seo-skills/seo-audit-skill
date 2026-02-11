@@ -142,6 +142,16 @@ export interface PictureElementInfo {
 }
 
 /**
+ * Redirect chain entry for tracking redirect hops
+ */
+export interface RedirectChainEntry {
+  /** URL at this hop */
+  url: string;
+  /** HTTP status code at this hop */
+  statusCode: number;
+}
+
+/**
  * Context passed to each audit rule's run function
  */
 export interface AuditContext {
@@ -173,6 +183,24 @@ export interface AuditContext {
   inlineSvgs: InlineSvgInfo[];
   /** Picture elements */
   pictureElements: PictureElementInfo[];
+
+  // --- Tier 2: Network-fetched data (optional) ---
+
+  /** robots.txt content for the site (fetched once per audit) */
+  robotsTxtContent?: string;
+  /** Sitemap XML content (fetched once per audit) */
+  sitemapContent?: string;
+  /** URLs extracted from sitemap */
+  sitemapUrls?: string[];
+  /** Redirect chain followed to reach this page */
+  redirectChain?: RedirectChainEntry[];
+
+  // --- Tier 4: Rendered DOM (optional, requires Playwright) ---
+
+  /** HTML after JavaScript rendering */
+  renderedHtml?: string;
+  /** Cheerio instance of rendered DOM */
+  rendered$?: CheerioAPI;
 }
 
 /**

@@ -14,6 +14,11 @@ import { urlStructureRule } from './url-structure.js';
 import { trailingSlashRule } from './trailing-slash.js';
 import { wwwRedirectRule } from './www-redirect.js';
 import { fourOhFourPageRule } from './404-page.js';
+import { soft404Rule } from './soft-404.js';
+import { serverErrorRule } from './server-error.js';
+import { fourXxNon404Rule } from './4xx-non-404.js';
+import { timeoutRule } from './timeout.js';
+import { badContentTypeRule } from './bad-content-type.js';
 
 // Export all rules
 export {
@@ -25,6 +30,11 @@ export {
   trailingSlashRule,
   wwwRedirectRule,
   fourOhFourPageRule,
+  soft404Rule,
+  serverErrorRule,
+  fourXxNon404Rule,
+  timeoutRule,
+  badContentTypeRule,
 };
 
 // Register all rules
@@ -36,3 +46,8 @@ registerRule(urlStructureRule);
 registerRule(trailingSlashRule);
 registerRule(wwwRedirectRule);
 registerRule(fourOhFourPageRule);
+registerRule(soft404Rule);
+registerRule(serverErrorRule);
+registerRule(fourXxNon404Rule);
+registerRule(timeoutRule);
+registerRule(badContentTypeRule);

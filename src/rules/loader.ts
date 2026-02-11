@@ -16,6 +16,10 @@ import '../rules/url/index.js';
 import '../rules/mobile/index.js';
 import '../rules/legal/index.js';
 import '../rules/eeat/index.js';
+import '../rules/redirect/index.js';
+import '../rules/geo/index.js';
+import '../rules/htmlval/index.js';
+import '../rules/js/index.js';
 
 let rulesLoaded = false;
 
@@ -55,4 +59,8 @@ export const CATEGORY_MODULES = [
   'mobile',
   'legal',
   'eeat',
+  'redirect',
+  'geo',
+  'htmlval',
+  'js',
 ] as const;

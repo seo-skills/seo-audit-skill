@@ -21,6 +21,10 @@
     "dev": "tsup --watch",
     "test": "vitest",
     "test:run": "vitest run",
+    "electron:dev": "electron-vite dev -c electron/electron-vite.config.ts",
+    "electron:build": "electron-vite build -c electron/electron-vite.config.ts",
+    "electron:pack": "npm run electron:build && electron-builder",
+    "postinstall": "electron-builder install-app-deps",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -68,13 +72,26 @@
     "commander": "^12.1.0",
     "log-update": "^6.1.0",
     "ora": "^8.1.1",
-    "playwright": "^1.49.1"
+    "playwright": "^1.49.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.0",
+    "recharts": "^3.7.0",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
     "@types/better-sqlite3": "^7.6.13",
     "@types/cli-progress": "^3.11.6",
     "@types/node": "^22.10.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "electron": "^40.4.0",
+    "electron-builder": "^26.7.0",
+    "electron-vite": "^5.0.0",
     "shadcn": "^3.7.0",
+    "tailwindcss": "^4.1.18",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

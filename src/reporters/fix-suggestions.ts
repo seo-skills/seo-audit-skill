@@ -2,51 +2,56 @@
  * Fix suggestions for SEO audit rules
  *
  * Provides actionable, concise fix recommendations for each rule.
- * Used by the LLM reporter to include fixes in the output.
+ * Used by the HTML and LLM reporters to include fixes in the output.
  */
 
 export const FIX_SUGGESTIONS: Record<string, string> = {
-  // ============ Core SEO ============
-  'core-seo-canonical-header': 'Use HTML canonical only; reserve Link header for PDFs and non-HTML resources',
-  'core-seo-nosnippet': 'Remove nosnippet directive unless intentionally blocking search snippets',
-  'core-seo-robots-meta': 'Remove noindex/nofollow unless intentionally blocking search engines',
-  'core-seo-title-unique': 'Create unique titles for each page: "Page Topic | Brand Name"',
+  // ============ Core SEO (19 rules) ============
+  'core-title-present': 'Add <title> tag inside the <head> section',
+  'core-title-length': 'Keep title between 30-60 characters for optimal search display',
+  'core-description-present': 'Add <meta name="description" content="..."> with 120-160 characters',
+  'core-description-length': 'Keep meta description between 120-160 characters',
+  'core-canonical-present': 'Add <link rel="canonical" href="..."> to specify preferred URL',
+  'core-canonical-valid': 'Ensure canonical URL is absolute, accessible, and returns 200 status',
+  'core-viewport-present': 'Add <meta name="viewport" content="width=device-width, initial-scale=1">',
+  'core-favicon-present': 'Add <link rel="icon" href="/favicon.ico"> or PNG/SVG favicon',
+  'core-h1-present': 'Add a single H1 tag that describes the page main topic',
+  'core-h1-single': 'Use only one H1 per page; use H2-H6 for subsections',
+  'core-canonical-header': 'Use HTML canonical only; reserve Link header for PDFs and non-HTML resources',
+  'core-nosnippet': 'Remove nosnippet directive unless intentionally blocking search snippets',
+  'core-robots-meta': 'Remove noindex/nofollow unless intentionally blocking search engines',
+  'core-title-unique': 'Create unique titles for each page: "Page Topic | Brand Name"',
+  'core-canonical-conflicting': 'Resolve conflicting canonical signals; ensure HTML canonical, Link header, and sitemap agree on the preferred URL',
+  'core-canonical-to-homepage': 'Update canonical to point to the actual page URL, not the homepage; each page should self-reference',
+  'core-canonical-http-mismatch': 'Ensure canonical URL uses the same protocol (HTTP/HTTPS) as the page; prefer HTTPS',
+  'core-canonical-loop': 'Break the canonical loop by pointing canonical to a single, self-referencing final URL',
+  'core-canonical-to-noindex': 'Either remove noindex from the canonical target or change canonical to point to an indexable page',
 
-  // ============ Meta Tags ============
-  'meta-tags-title-present': 'Add <title> tag inside the <head> section',
-  'meta-tags-title-length': 'Keep title between 30-60 characters for optimal search display',
-  'meta-tags-description-present': 'Add <meta name="description" content="..."> with 120-160 characters',
-  'meta-tags-description-length': 'Keep meta description between 120-160 characters',
-  'meta-tags-canonical-present': 'Add <link rel="canonical" href="..."> to specify preferred URL',
-  'meta-tags-canonical-valid': 'Ensure canonical URL is absolute, accessible, and returns 200 status',
-  'meta-tags-viewport-present': 'Add <meta name="viewport" content="width=device-width, initial-scale=1">',
-  'meta-tags-favicon-present': 'Add <link rel="icon" href="/favicon.ico"> or PNG/SVG favicon',
-
-  // ============ Headings ============
-  'headings-h1-present': 'Add a single H1 tag that describes the page main topic',
-  'headings-h1-single': 'Use only one H1 per page; use H2-H6 for subsections',
-  'headings-hierarchy': 'Maintain proper heading order (H1 → H2 → H3, no skipping levels)',
-  'headings-content-length': 'Keep headings concise (under 70 characters) and descriptive',
-  'headings-content-unique': 'Use unique headings that differ from page title and each other',
-
-  // ============ Technical SEO ============
-  'technical-robots-txt-exists': 'Create robots.txt at site root with User-agent and sitemap directives',
-  'technical-robots-txt-valid': 'Fix syntax errors in robots.txt; use standard directives only',
-  'technical-sitemap-exists': 'Create XML sitemap at /sitemap.xml and reference in robots.txt',
-  'technical-sitemap-valid': 'Fix sitemap XML errors; ensure all URLs are accessible',
-  'technical-url-structure': 'Use clean URLs with hyphens, lowercase, and descriptive slugs',
-  'technical-trailing-slash': 'Be consistent with trailing slashes; redirect duplicates',
-  'technical-www-redirect': 'Choose www or non-www and redirect the other version',
-  'technical-404-page': 'Create custom 404 page with navigation links and search',
-
-  // ============ Core Web Vitals ============
+  // ============ Performance (22 rules) ============
   'cwv-lcp': 'Optimize LCP: preload hero images, use CDN, reduce server response time',
   'cwv-cls': 'Prevent CLS: set width/height on images and embeds, avoid dynamic content injection',
   'cwv-inp': 'Reduce INP: optimize JavaScript, break long tasks, use web workers',
   'cwv-fcp': 'Improve FCP: inline critical CSS, defer non-critical scripts, preload fonts',
   'cwv-ttfb': 'Lower TTFB: use CDN, enable caching, optimize database queries',
+  'perf-dom-size': 'Reduce DOM size: remove unused elements, use virtualization for long lists',
+  'perf-css-file-size': 'Bundle and minify CSS; use critical CSS inline, defer non-critical',
+  'perf-font-loading': 'Add font-display: swap to @font-face; preload critical fonts',
+  'perf-preconnect': 'Add <link rel="preconnect" href="..."> for third-party origins',
+  'perf-render-blocking': 'Add async/defer to scripts; use media queries for non-critical CSS',
+  'perf-lazy-above-fold': 'Remove loading="lazy" from above-fold images; add fetchpriority="high"',
+  'perf-lcp-hints': 'Preload LCP image with <link rel="preload" as="image">; add fetchpriority="high"',
+  'perf-text-compression': 'Enable gzip or Brotli compression on the server for text-based responses (HTML, CSS, JS)',
+  'perf-brotli': 'Enable Brotli compression for 15-25% better compression than gzip; configure server or CDN',
+  'perf-cache-policy': 'Set Cache-Control headers with appropriate max-age; use immutable for versioned assets',
+  'perf-minify-css': 'Minify CSS files to remove whitespace and comments; use cssnano or lightningcss',
+  'perf-minify-js': 'Minify JavaScript files to reduce payload; use terser or esbuild',
+  'perf-response-time': 'Reduce server response time below 200ms; use CDN, optimize backend, enable caching',
+  'perf-http2': 'Enable HTTP/2 on your server or CDN for multiplexed requests and header compression',
+  'perf-page-weight': 'Reduce total page weight below 3MB; compress images, minify code, lazy-load resources',
+  'perf-js-file-size': 'Split large JavaScript bundles; use code splitting and tree shaking to reduce individual file sizes',
+  'perf-video-for-animations': 'Replace large animated GIFs with MP4/WebM video for 80-90% smaller file sizes',
 
-  // ============ Links ============
+  // ============ Links (19 rules) ============
   'links-broken-internal': 'Fix or remove broken internal links (404 errors)',
   'links-external-valid': 'Remove or update broken external links',
   'links-internal-present': 'Add internal links to relevant pages for better navigation',
@@ -60,8 +65,14 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'links-tel-mailto': 'Use E.164 format for phone (+1234567890), valid email for mailto',
   'links-redirect-chains': 'Update links to point directly to final destination URLs',
   'links-orphan-pages': 'Add internal links from other pages to improve discoverability',
+  'links-localhost': 'Remove localhost and 127.0.0.1 links before deploying to production',
+  'links-local-file': 'Remove file:// protocol links; use relative or absolute HTTP URLs instead',
+  'links-broken-fragment': 'Fix or remove fragment links (#anchor) pointing to non-existent IDs on the page',
+  'links-excessive': 'Reduce total number of links on the page; too many links dilute PageRank and confuse crawlers',
+  'links-onclick': 'Replace onclick navigation with proper <a href="..."> links for crawlability and accessibility',
+  'links-whitespace-href': 'Trim whitespace from href attributes; ensure URLs are clean and properly formatted',
 
-  // ============ Images ============
+  // ============ Images (14 rules) ============
   'images-alt-present': 'Add descriptive alt text to all images for accessibility and SEO',
   'images-alt-quality': 'Write meaningful alt text describing image content, not just keywords',
   'images-dimensions': 'Add width and height attributes to prevent layout shifts',
@@ -74,8 +85,10 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'images-filename-quality': 'Use descriptive filenames like "red-running-shoes.jpg" instead of "IMG_001.jpg"',
   'images-inline-svg-size': 'Move large SVGs (>5KB) to external files for better caching',
   'images-picture-element': 'Ensure every <picture> element contains an <img> fallback element',
+  'images-alt-length': 'Keep alt text between 5-125 characters; be descriptive but concise',
+  'images-background-seo': 'Use <img> tags instead of CSS background-image for meaningful content images so search engines can index them',
 
-  // ============ Security ============
+  // ============ Security (16 rules) ============
   'security-https': 'Install SSL certificate and redirect all HTTP traffic to HTTPS',
   'security-https-redirect': 'Ensure HTTP to HTTPS redirect is in place',
   'security-hsts': 'Add Strict-Transport-Security header with max-age of at least 1 year',
@@ -88,46 +101,96 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'security-permissions-policy': 'Add Permissions-Policy header to control browser features',
   'security-referrer-policy': 'Add Referrer-Policy header (recommended: strict-origin-when-cross-origin)',
   'security-leaked-secrets': 'Remove exposed secrets immediately and rotate compromised credentials',
+  'security-password-http': 'Never submit passwords over HTTP; ensure all login forms use HTTPS action URLs',
+  'security-protocol-relative': 'Replace protocol-relative URLs (//example.com) with explicit https:// URLs',
+  'security-ssl-expiry': 'Renew SSL certificate before expiry; set up auto-renewal with Let\'s Encrypt or your CA',
+  'security-ssl-protocol': 'Disable TLS 1.0/1.1; require TLS 1.2+ for secure connections',
 
-  // ============ Structured Data ============
-  'structured-data-present': 'Add JSON-LD structured data for rich search results',
-  'structured-data-valid': 'Fix JSON-LD syntax errors using Google Rich Results Test',
-  'structured-data-type': 'Use appropriate schema type (Article, Product, LocalBusiness, etc.)',
-  'structured-data-required-fields': 'Add required schema fields for the chosen type',
-  'structured-data-article': 'Add Article schema with headline, author (Person/Organization), datePublished, and image',
-  'structured-data-breadcrumb': 'Add BreadcrumbList schema with itemListElement array for navigation hierarchy',
-  'structured-data-faq': 'Add FAQPage schema with mainEntity array of Question items with acceptedAnswer',
-  'structured-data-local-business': 'Add LocalBusiness schema with name, address (PostalAddress), telephone, and geo coordinates',
-  'structured-data-organization': 'Add Organization schema with name, logo, url, and sameAs for social profiles',
-  'structured-data-product': 'Add Product schema with name, image, offers (price, priceCurrency, availability)',
-  'structured-data-review': 'Add Review schema with itemReviewed, author, reviewRating; or AggregateRating with ratingValue, reviewCount',
-  'structured-data-video': 'Add VideoObject schema with name, thumbnailUrl, uploadDate, and description',
-  'structured-data-website-search': 'Add WebSite schema with potentialAction SearchAction for sitelinks searchbox',
+  // ============ Technical SEO (13 rules) ============
+  'technical-robots-txt-exists': 'Create robots.txt at site root with User-agent and sitemap directives',
+  'technical-robots-txt-valid': 'Fix syntax errors in robots.txt; use standard directives only',
+  'technical-sitemap-exists': 'Create XML sitemap at /sitemap.xml and reference in robots.txt',
+  'technical-sitemap-valid': 'Fix sitemap XML errors; ensure all URLs are accessible',
+  'technical-url-structure': 'Use clean URLs with hyphens, lowercase, and descriptive slugs',
+  'technical-trailing-slash': 'Be consistent with trailing slashes; redirect duplicates',
+  'technical-www-redirect': 'Choose www or non-www and redirect the other version',
+  'technical-404-page': 'Create custom 404 page with navigation links and search',
+  'technical-soft-404': 'Return proper 404 status code for missing pages instead of 200; avoid soft 404s that waste crawl budget',
+  'technical-server-error': 'Fix 5xx server errors; check server logs, increase resources, or fix application bugs',
+  'technical-4xx-non-404': 'Fix 4xx errors (403 Forbidden, 410 Gone, etc.); check permissions, authentication, and removed content',
+  'technical-timeout': 'Reduce page response time; optimize server, enable caching, or increase timeout thresholds',
+  'technical-bad-content-type': 'Set correct Content-Type header matching actual content (text/html for pages, application/json for APIs)',
 
-  // ============ Social ============
-  'social-og-title': 'Add <meta property="og:title" content="..."> for social sharing',
-  'social-og-description': 'Add <meta property="og:description" content="..."> for social sharing',
-  'social-og-image': 'Add <meta property="og:image" content="..."> with 1200x630px image',
-  'social-og-image-size': 'Add og:image:width (1200) and og:image:height (630) meta tags for optimal display',
-  'social-og-url': 'Add <meta property="og:url" content="..."> matching canonical URL',
-  'social-og-url-canonical': 'Ensure og:url matches canonical URL exactly for consistent SEO signals',
-  'social-twitter-card': 'Add <meta name="twitter:card" content="summary_large_image">',
-  'social-share-buttons': 'Add social share buttons for Facebook, Twitter/X, and LinkedIn',
-  'social-profiles': 'Add social profile links in header/footer; include sameAs in Organization schema',
+  // ============ Crawlability (18 rules) ============
+  'crawl-schema-noindex-conflict': 'Remove noindex to allow rich results, or remove schema markup if page should stay hidden',
+  'crawl-pagination-canonical': 'Each paginated page should have self-referencing canonical; do not canonicalize all pages to page 1',
+  'crawl-sitemap-domain': 'Remove cross-domain URLs from sitemap; all URLs must match sitemap host domain',
+  'crawl-noindex-in-sitemap': 'Either remove noindexed page from sitemap or remove the noindex directive',
+  'crawl-indexability-conflict': 'Choose one blocking method: either robots.txt disallow OR noindex meta, not both',
+  'crawl-canonical-redirect': 'Update canonical to point directly to final destination URL; avoid redirect chains',
+  'crawl-sitemap-url-limit': 'Split sitemaps with >50,000 URLs into multiple files using a sitemap index',
+  'crawl-sitemap-size-limit': 'Split sitemaps larger than 50MB into smaller files using a sitemap index',
+  'crawl-sitemap-duplicate-urls': 'Remove duplicate URLs from sitemap; each URL should appear only once',
+  'crawl-sitemap-orphan-urls': 'Add internal links to sitemap-only pages or remove them from the sitemap if they are unimportant',
+  'crawl-blocked-resources': 'Unblock CSS and JS files in robots.txt so search engines can render pages correctly',
+  'crawl-crawl-delay': 'Remove or reduce crawl-delay in robots.txt; excessive delays slow indexing',
+  'crawl-sitemap-in-robotstxt': 'Add Sitemap: https://example.com/sitemap.xml directive to robots.txt',
+  'crawl-pagination-broken': 'Fix broken rel=prev/next links; ensure paginated URLs are accessible and return 200',
+  'crawl-pagination-loop': 'Fix pagination loop where pages link back to earlier pages in the sequence',
+  'crawl-pagination-sequence': 'Ensure pagination follows correct sequential order (page 1 → 2 → 3); fix gaps or misordering',
+  'crawl-pagination-noindex': 'Remove noindex from paginated pages; use self-referencing canonicals instead to preserve link equity',
+  'crawl-pagination-orphaned': 'Link paginated pages from the main listing page or navigation; orphaned pagination pages may not be crawled',
 
-  // ============ Content ============
+  // ============ Structured Data (13 rules) ============
+  'schema-present': 'Add JSON-LD structured data for rich search results',
+  'schema-valid': 'Fix JSON-LD syntax errors using Google Rich Results Test',
+  'schema-type': 'Use appropriate schema type (Article, Product, LocalBusiness, etc.)',
+  'schema-required-fields': 'Add required schema fields for the chosen type',
+  'schema-article': 'Add Article schema with headline, author (Person/Organization), datePublished, and image',
+  'schema-breadcrumb': 'Add BreadcrumbList schema with itemListElement array for navigation hierarchy',
+  'schema-faq': 'Add FAQPage schema with mainEntity array of Question items with acceptedAnswer',
+  'schema-local-business': 'Add LocalBusiness schema with name, address (PostalAddress), telephone, and geo coordinates',
+  'schema-organization': 'Add Organization schema with name, logo, url, and sameAs for social profiles',
+  'schema-product': 'Add Product schema with name, image, offers (price, priceCurrency, availability)',
+  'schema-review': 'Add Review schema with itemReviewed, author, reviewRating; or AggregateRating with ratingValue, reviewCount',
+  'schema-video': 'Add VideoObject schema with name, thumbnailUrl, uploadDate, and description',
+  'schema-website-search': 'Add WebSite schema with potentialAction SearchAction for sitelinks searchbox',
+
+  // ============ Content (17 rules) ============
   'content-word-count': 'Expand thin content to at least 300 words for informational pages',
   'content-reading-level': 'Simplify text for broader audience; aim for 8th grade reading level',
   'content-keyword-stuffing': 'Write naturally; avoid repeating keywords excessively',
-  'content-author-info': 'Add author byline with link to author bio page',
-  'content-freshness': 'Update content regularly and display last modified date',
+  'content-article-links': 'Add relevant internal and external links within article content',
+  'content-broken-html': 'Fix HTML validation errors using W3C validator',
   'content-meta-in-body': 'Move all <meta> tags from <body> to <head> section',
   'content-mime-type': 'Ensure correct Content-Type header matches actual content',
-  'content-broken-html': 'Fix HTML validation errors using W3C validator',
-  'content-article-links': 'Add relevant internal and external links within article content',
   'content-duplicate-description': 'Use unique meta descriptions for each page',
+  'content-heading-hierarchy': 'Maintain proper heading order (H1 → H2 → H3, no skipping levels)',
+  'content-heading-length': 'Keep headings concise (under 70 characters) and descriptive',
+  'content-heading-unique': 'Use unique headings that differ from page title and each other',
+  'content-text-html-ratio': 'Increase text-to-HTML ratio; reduce unnecessary markup, inline styles, and scripts',
+  'content-title-same-as-h1': 'Differentiate title tag from H1; use the title for search display and H1 for on-page context',
+  'content-title-pixel-width': 'Keep title under ~580px pixel width to avoid truncation in Google search results',
+  'content-description-pixel-width': 'Keep meta description under ~920px pixel width to avoid truncation in search results',
+  'content-duplicate-exact': 'Remove or consolidate pages with identical content; use canonical tags for intentional duplicates',
+  'content-duplicate-near': 'Differentiate pages with near-duplicate content; add unique value or consolidate with canonical tags',
 
-  // ============ Accessibility ============
+  // ============ JavaScript Rendering (13 rules) ============
+  'js-rendered-title': 'Ensure the page title is present in raw HTML, not only injected by JavaScript',
+  'js-rendered-description': 'Include meta description in server-rendered HTML; don\'t rely solely on JavaScript to inject it',
+  'js-rendered-h1': 'Include H1 heading in server-rendered HTML for faster indexing; don\'t rely solely on client-side rendering',
+  'js-rendered-canonical': 'Include canonical tag in server-rendered HTML; JavaScript-injected canonicals may be missed by crawlers',
+  'js-canonical-mismatch': 'Fix canonical URL mismatch between raw HTML and rendered DOM; ensure they agree on the preferred URL',
+  'js-noindex-mismatch': 'Fix noindex mismatch between raw and rendered HTML; JavaScript should not add or remove noindex directives',
+  'js-title-modified': 'Avoid JavaScript that modifies the title tag after page load; search engines may use the original title',
+  'js-description-modified': 'Avoid JavaScript that modifies meta description after page load; include final description in server HTML',
+  'js-h1-modified': 'Avoid JavaScript that modifies H1 after page load; include final H1 in server-rendered HTML',
+  'js-rendered-content': 'Ensure main content is in server-rendered HTML; JavaScript-only content may not be indexed reliably',
+  'js-rendered-links': 'Include navigation links in server-rendered HTML; JavaScript-only links may not be discovered by crawlers',
+  'js-blocked-resources': 'Unblock JavaScript and CSS files in robots.txt so search engines can render your pages correctly',
+  'js-ssr-check': 'Implement server-side rendering (SSR) or static generation for important content pages',
+
+  // ============ Accessibility (12 rules) ============
   'a11y-aria-labels': 'Add aria-label or visible text to interactive elements for screen readers',
   'a11y-color-contrast': 'Ensure text has minimum 4.5:1 contrast ratio against background',
   'a11y-focus-visible': 'Keep visible focus indicators; use :focus-visible for keyboard users',
@@ -141,40 +204,98 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'a11y-video-captions': 'Add <track kind="captions"> or link to transcript for videos',
   'a11y-zoom-disabled': 'Remove user-scalable=no and maximum-scale=1 from viewport',
 
-  // ============ Internationalization (i18n) ============
-  'i18n-lang-attribute': 'Add lang attribute to <html> tag: <html lang="en">',
-  'i18n-hreflang': 'Add <link rel="alternate" hreflang="xx"> for each language version with self-reference',
+  // ============ Social (9 rules) ============
+  'social-og-title': 'Add <meta property="og:title" content="..."> for social sharing',
+  'social-og-description': 'Add <meta property="og:description" content="..."> for social sharing',
+  'social-og-image': 'Add <meta property="og:image" content="..."> with 1200x630px image',
+  'social-og-image-size': 'Add og:image:width (1200) and og:image:height (630) meta tags for optimal display',
+  'social-og-url': 'Add <meta property="og:url" content="..."> matching canonical URL',
+  'social-og-url-canonical': 'Ensure og:url matches canonical URL exactly for consistent SEO signals',
+  'social-twitter-card': 'Add <meta name="twitter:card" content="summary_large_image">',
+  'social-share-buttons': 'Add social share buttons for Facebook, Twitter/X, and LinkedIn',
+  'social-profiles': 'Add social profile links in header/footer; include sameAs in Organization schema',
 
-  // ============ Performance ============
-  'perf-dom-size': 'Reduce DOM size: remove unused elements, use virtualization for long lists',
-  'perf-css-file-size': 'Bundle and minify CSS; use critical CSS inline, defer non-critical',
-  'perf-font-loading': 'Add font-display: swap to @font-face; preload critical fonts',
-  'perf-preconnect': 'Add <link rel="preconnect" href="..."> for third-party origins',
-  'perf-render-blocking': 'Add async/defer to scripts; use media queries for non-critical CSS',
-  'perf-lazy-above-fold': 'Remove loading="lazy" from above-fold images; add fetchpriority="high"',
-  'perf-lcp-hints': 'Preload LCP image with <link rel="preload" as="image">; add fetchpriority="high"',
+  // ============ E-E-A-T (14 rules) ============
+  'eeat-about-page': 'Add an "About" or "About Us" page explaining who you are and your expertise',
+  'eeat-affiliate-disclosure': 'Add FTC-compliant disclosure near affiliate content and links',
+  'eeat-author-byline': 'Add author attribution with name, bio, and link to author page',
+  'eeat-author-expertise': 'Add author credentials, professional social links, and relevant experience',
+  'eeat-citations': 'Link to authoritative sources (.gov, .edu, research papers) to support claims',
+  'eeat-contact-page': 'Add contact page with email, phone, form, and/or physical address',
+  'eeat-content-dates': 'Add datePublished and dateModified to Article schema or use <time> elements',
+  'eeat-disclaimers': 'Add appropriate disclaimers for medical, financial, or legal content (YMYL)',
+  'eeat-editorial-policy': 'Add editorial policy page documenting content standards and review process',
+  'eeat-physical-address': 'Add business address using Schema.org PostalAddress for local trust signals',
+  'eeat-privacy-policy': 'Add privacy policy link in footer of every page; document data collection practices',
+  'eeat-terms-of-service': 'Add ToS link in footer (especially for e-commerce, SaaS, and UGC platforms)',
+  'eeat-trust-signals': 'Add customer reviews, certifications, security badges, or media mentions',
+  'eeat-ymyl-detection': 'Strengthen E-E-A-T signals on YMYL pages (health, finance, legal) with expert authors and citations',
 
-  // ============ Crawlability ============
-  'crawl-schema-noindex-conflict': 'Remove noindex to allow rich results, or remove schema markup if page should stay hidden',
-  'crawl-pagination-canonical': 'Each paginated page should have self-referencing canonical; do not canonicalize all pages to page 1',
-  'crawl-sitemap-domain': 'Remove cross-domain URLs from sitemap; all URLs must match sitemap host domain',
-  'crawl-noindex-in-sitemap': 'Either remove noindexed page from sitemap or remove the noindex directive',
-  'crawl-indexability-conflict': 'Choose one blocking method: either robots.txt disallow OR noindex meta, not both',
-  'crawl-canonical-redirect': 'Update canonical to point directly to final destination URL; avoid redirect chains',
-
-  // ============ URL Structure ============
+  // ============ URL Structure (14 rules) ============
   'url-slug-keywords': 'Use descriptive keywords in URL slugs (e.g., /blue-running-shoes instead of /product-12345)',
   'url-stop-words': 'Remove stop words (a, the, of) from URLs; prefer /best-running-shoes over /the-best-running-shoes-for-you',
+  'url-uppercase': 'Convert uppercase characters in URLs to lowercase; set up 301 redirects from uppercase versions',
+  'url-underscores': 'Replace underscores with hyphens in URLs; search engines treat hyphens as word separators',
+  'url-double-slash': 'Remove double slashes from URL paths; configure server to normalize or redirect',
+  'url-spaces': 'Remove spaces from URLs (encoded as %20 or +); use hyphens instead',
+  'url-non-ascii': 'Replace non-ASCII characters in URLs with ASCII equivalents or transliterate',
+  'url-length': 'Keep URLs under 2048 characters; shorter URLs (under 75 chars) are easier to share and remember',
+  'url-repetitive-path': 'Remove repetitive path segments (e.g., /blog/blog/post); simplify URL structure',
+  'url-parameters': 'Minimize URL parameters; use clean URL paths instead of query strings for important pages',
+  'url-session-ids': 'Remove session IDs from URLs; use cookies instead to prevent duplicate content issues',
+  'url-tracking-params': 'Strip tracking parameters (utm_*, gclid, fbclid) from canonical URLs; use canonical tags or parameter handling in GSC',
+  'url-internal-search': 'Block internal search result pages from indexing with noindex or robots.txt; they create thin content',
+  'url-http-https-duplicate': 'Redirect HTTP version to HTTPS and set canonical to HTTPS to prevent duplicate content',
 
-  // ============ Mobile ============
+  // ============ Redirects (8 rules) ============
+  'redirect-meta-refresh': 'Replace <meta http-equiv="refresh"> redirects with server-side 301 redirects',
+  'redirect-javascript': 'Replace JavaScript redirects (window.location) with server-side 301 redirects for crawlability',
+  'redirect-http-refresh': 'Replace HTTP Refresh headers with proper 301/302 redirect status codes',
+  'redirect-loop': 'Fix redirect loop by ensuring the redirect chain terminates at a final, non-redirecting URL',
+  'redirect-type': 'Use 301 (permanent) for moved pages and 302 (temporary) only for truly temporary redirects',
+  'redirect-broken': 'Fix broken redirects that lead to 4xx/5xx errors; update to valid destination URLs',
+  'redirect-resource': 'Fix redirecting resources (CSS, JS, images); serve them directly without redirects for better performance',
+  'redirect-case-normalization': 'Ensure URLs are case-normalized; redirect mixed-case URLs to lowercase canonical versions',
+
+  // ============ Mobile (5 rules) ============
   'mobile-font-size': 'Use minimum 16px for body text, 12px absolute minimum; prefer relative units (rem, em)',
   'mobile-horizontal-scroll': 'Use max-width: 100% on images, overflow-x: auto on tables, responsive iframes',
   'mobile-interstitials': 'Remove popups that cover main content on mobile; use compact banners instead of full-screen overlays',
+  'mobile-viewport-width': 'Remove fixed width values from viewport meta tag; use width=device-width for responsive design',
+  'mobile-multiple-viewports': 'Remove duplicate viewport meta tags; keep only one with width=device-width, initial-scale=1',
 
-  // ============ Legal Compliance ============
+  // ============ Internationalization (10 rules) ============
+  'i18n-lang-attribute': 'Add lang attribute to <html> tag: <html lang="en">',
+  'i18n-hreflang': 'Add <link rel="alternate" hreflang="xx"> for each language version with self-reference',
+  'i18n-hreflang-return-links': 'Add reciprocal hreflang links; page A linking to page B must have page B linking back to page A',
+  'i18n-hreflang-to-noindex': 'Remove noindex from hreflang target pages or remove them from hreflang annotations',
+  'i18n-hreflang-to-non-canonical': 'Point hreflang annotations to canonical URLs only; avoid linking to non-canonical versions',
+  'i18n-hreflang-to-broken': 'Fix broken hreflang target URLs (4xx/5xx); ensure all hreflang targets are accessible',
+  'i18n-hreflang-to-redirect': 'Update hreflang annotations to point to final URLs, not redirecting URLs',
+  'i18n-hreflang-conflicting': 'Resolve conflicting hreflang annotations where multiple pages target the same language-region',
+  'i18n-hreflang-lang-mismatch': 'Ensure the hreflang language code matches the actual content language of the target page',
+  'i18n-hreflang-multiple-methods': 'Use a single hreflang implementation method (HTML tags, HTTP headers, or sitemap); avoid mixing methods',
+
+  // ============ HTML Validation (9 rules) ============
+  'htmlval-missing-doctype': 'Add <!DOCTYPE html> as the first line of HTML documents for standards mode rendering',
+  'htmlval-missing-charset': 'Add <meta charset="utf-8"> as the first element in <head> for proper character encoding',
+  'htmlval-invalid-head': 'Move non-metadata elements out of <head>; only meta, link, title, style, script, and base belong there',
+  'htmlval-noscript-in-head': 'Move <noscript> content from <head> to <body>; <noscript> in <head> can cause parsing issues',
+  'htmlval-multiple-heads': 'Remove duplicate <head> elements; HTML documents must have exactly one <head>',
+  'htmlval-size-limit': 'Reduce HTML document size below 5MB; large HTML slows parsing and may not be fully indexed',
+  'htmlval-lorem-ipsum': 'Replace placeholder "Lorem ipsum" text with actual content before publishing',
+  'htmlval-multiple-titles': 'Remove duplicate <title> tags; HTML documents must have exactly one <title> in <head>',
+  'htmlval-multiple-descriptions': 'Remove duplicate meta description tags; use only one <meta name="description"> per page',
+
+  // ============ AI/GEO Readiness (5 rules) ============
+  'geo-semantic-html': 'Use semantic HTML elements (<article>, <section>, <nav>, <aside>) instead of generic <div> tags',
+  'geo-content-structure': 'Structure content with clear headings, lists, and paragraphs for AI comprehension and featured snippets',
+  'geo-ai-bot-access': 'Allow AI crawlers (GPTBot, Claude, Perplexity) in robots.txt for AI search visibility',
+  'geo-llms-txt': 'Add /llms.txt file to provide AI-friendly site information and content guidance',
+  'geo-schema-drift': 'Ensure JSON-LD structured data accurately reflects visible page content; fix mismatches between schema and text',
+
+  // ============ Legal Compliance (1 rule) ============
   'legal-cookie-consent': 'Add a cookie consent banner using CookieYes, OneTrust, or Cookiebot; allow users to accept/reject non-essential cookies',
-  'legal-privacy-policy': 'Add a link to your privacy policy in the footer; document what data is collected and how it is used',
-  'legal-terms-of-service': 'Add a link to your terms of service in the footer; define usage rules, liability, and dispute resolution',
 };
 
 /**

@@ -1,0 +1,21 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import 'tailwindcss';
+@import './globals.css';
+
+/* ─── Tailwind v4 theme extension via CSS ──────────────────────────────── */
+@theme {
+  --color-pass: var(--color-pass);
+  --color-pass-bg: var(--color-pass-bg);
+  --color-warn: var(--color-warn);
+  --color-warn-bg: var(--color-warn-bg);
+  --color-fail: var(--color-fail);
+  --color-fail-bg: var(--color-fail-bg);
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-light: var(--color-accent-light);
+  --color-surface: var(--color-bg-elevated);
+  --color-muted: var(--color-text-muted);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}

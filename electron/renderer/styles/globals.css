@@ -1,0 +1,115 @@
+/*
+ * Design tokens extracted from src/reporters/html-reporter.ts
+ * Keeps the desktop app visually consistent with the HTML report output.
+ */
+
+/* ─── Light Theme (default) ─────────────────────────────────────────────── */
+:root {
+  --color-bg: #f8fafc;
+  --color-bg-elevated: #ffffff;
+  --color-bg-hover: #f1f5f9;
+  --color-bg-active: #e2e8f0;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #f1f5f9;
+
+  --color-text: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+
+  --color-pass: #10b981;
+  --color-pass-bg: #d1fae5;
+  --color-warn: #f59e0b;
+  --color-warn-bg: #fef3c7;
+  --color-orange: #f97316;
+  --color-fail: #ef4444;
+  --color-fail-bg: #fee2e2;
+  --color-info: #3b82f6;
+  --color-info-bg: #dbeafe;
+
+  --color-accent: #064ada;
+  --color-accent-hover: #0540b8;
+  --color-accent-light: rgba(6, 74, 218, 0.1);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+
+  --header-height: 64px;
+  --sidebar-width: 260px;
+  --content-max-width: 1200px;
+  --traffic-light-width: 78px;
+
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+}
+
+/* ─── Dark Theme ────────────────────────────────────────────────────────── */
+[data-theme='dark'] {
+  --color-bg: #09090b;
+  --color-bg-elevated: #18181b;
+  --color-bg-hover: #27272a;
+  --color-bg-active: #3f3f46;
+  --color-border: #27272a;
+  --color-border-subtle: #1e1e22;
+
+  --color-text: #fafafa;
+  --color-text-secondary: #a1a1aa;
+  --color-text-muted: #71717a;
+
+  --color-pass-bg: rgba(16, 185, 129, 0.12);
+  --color-warn-bg: rgba(245, 158, 11, 0.12);
+  --color-fail-bg: rgba(239, 68, 68, 0.12);
+  --color-info-bg: rgba(59, 130, 246, 0.12);
+  --color-accent-light: rgba(6, 74, 218, 0.2);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.7);
+}
+
+/* ─── Base Resets (layered so Tailwind utilities can override) ──────────── */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: calc(var(--header-height) + 20px);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--color-bg);
+    color: var(--color-text);
+    line-height: 1.6;
+    font-size: 14px;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Electron: make the header draggable */
+.drag-region {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* ─── Scrollbar Styling ────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}

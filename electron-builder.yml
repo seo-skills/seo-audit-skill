@@ -1,0 +1,76 @@
+# electron-builder configuration
+# Docs: https://www.electron.build/configuration
+
+appId: com.seomator.desktop
+productName: SEOmator
+copyright: Copyright © 2026 SEOmator
+
+directories:
+  buildResources: electron/resources
+  output: release
+
+# Include compiled Electron code + package.json (for main entry resolution).
+# Production node_modules are included automatically by electron-builder.
+files:
+  - dist-electron/**/*
+  - package.json
+  - "!src/**"
+  - "!electron/**"
+  - "!scripts/**"
+  - "!docs/**"
+  - "!dist/**"
+  - "!*.md"
+  - "!tsconfig*"
+  - "!tsup.config*"
+  - "!vitest*"
+  - "!.git*"
+
+# Pack everything into asar, but unpack native .node addons
+# (they can't be loaded from inside an asar archive)
+asar: true
+asarUnpack:
+  - "**/*.node"
+
+# ──────────────── macOS ────────────────
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch: [universal]
+    - target: zip
+      arch: [universal]
+  darkModeSupport: true
+  icon: electron/resources/icon.png
+
+dmg:
+  artifactName: SEOmator-${version}-mac.${ext}
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+# ──────────────── Windows ────────────────
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: electron/resources/icon.png
+  artifactName: SEOmator-${version}-win-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
+# ──────────────── Linux ────────────────
+linux:
+  target:
+    - AppImage
+  category: Development
+  icon: electron/resources/icon.png
+  artifactName: SEOmator-${version}-linux-${arch}.${ext}

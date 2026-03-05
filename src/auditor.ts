@@ -16,6 +16,7 @@ import {
   closeBrowser,
   Crawler,
   type CrawledPage,
+  type PlaywrightFetchResult,
 } from './crawler/index.js';
 import {
   buildCategoryResult,
@@ -64,6 +65,8 @@ export interface AuditorOptions {
   timeout?: number;
   /** Whether to measure Core Web Vitals with Playwright */
   measureCwv?: boolean;
+  /** Optional browser-based page fetcher (replaces Playwright when provided) */
+  browserFetcher?: (url: string, timeout: number) => Promise<PlaywrightFetchResult>;
   /** Callback when category audit starts */
   onCategoryStart?: OnCategoryStartCallback;
   /** Callback when category audit completes */
@@ -75,10 +78,17 @@ export interface AuditorOptions {
 }
 
 /**
+ * Resolved options with defaults applied.
+ * browserFetcher stays optional because it has no default.
+ */
+type ResolvedAuditorOptions = Required<Omit<AuditorOptions, 'browserFetcher'>> &
+  Pick<AuditorOptions, 'browserFetcher'>;
+
+/**
  * Main Auditor class for running SEO audits
  */
 export class Auditor {
-  private options: Required<AuditorOptions>;
+  private options: ResolvedAuditorOptions;
   private rulesLoaded = false;
   private categoriesToAudit: CategoryDefinition[] = [];
 
@@ -87,6 +97,7 @@ export class Auditor {
       categories: options.categories ?? [],
       timeout: options.timeout ?? 30000,
       measureCwv: options.measureCwv ?? false,
+      browserFetcher: options.browserFetcher,
       onCategoryStart: options.onCategoryStart ?? (() => {}),
       onCategoryComplete: options.onCategoryComplete ?? (() => {}),
       onRuleComplete: options.onRuleComplete ?? (() => {}),
@@ -226,8 +237,9 @@ export class Auditor {
     let renderedHtml: string | undefined;
     let rendered$: import('cheerio').CheerioAPI | undefined;
     if (this.options.measureCwv) {
+      const fetcher = this.options.browserFetcher ?? fetchPageWithPlaywright;
       try {
-        const pwResult = await fetchPageWithPlaywright(url, this.options.timeout);
+        const pwResult = await fetcher(url, this.options.timeout);
         cwv = pwResult.cwv;
         // Capture rendered HTML for JS rendering rules
         if (pwResult.html) {
@@ -238,8 +250,10 @@ export class Auditor {
       } catch {
         // CWV measurement failed, continue without it
       } finally {
-        // Clean up browser
-        await closeBrowser();
+        // Clean up Playwright browser (only when not using an injected fetcher)
+        if (!this.options.browserFetcher) {
+          await closeBrowser();
+        }
       }
     }
 
@@ -280,6 +294,7 @@ export class Auditor {
     const sitemapData = await this.fetchSitemap(url, robotsTxtContent);
 
     // Create crawler with CWV callback if enabled
+    const fetcher = this.options.browserFetcher ?? fetchPageWithPlaywright;
     const crawler = new Crawler({
       maxPages,
       concurrency,
@@ -287,7 +302,7 @@ export class Auditor {
       getCwv: this.options.measureCwv
         ? async (pageUrl: string) => {
             try {
-              const result = await fetchPageWithPlaywright(pageUrl, this.options.timeout);
+              const result = await fetcher(pageUrl, this.options.timeout);
               return result.cwv;
             } catch {
               return {};
@@ -299,8 +314,8 @@ export class Auditor {
     // Crawl the site
     const crawledPages = await crawler.crawl(url, maxPages, concurrency);
 
-    // Close browser if CWV was measured
-    if (this.options.measureCwv) {
+    // Close Playwright browser if CWV was measured (only when not using an injected fetcher)
+    if (this.options.measureCwv && !this.options.browserFetcher) {
       await closeBrowser();
     }
 

@@ -4,9 +4,58 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SEOmator is a comprehensive SEO audit CLI tool (`@seomator/seo-audit`) with 251 rules across 20 categories. It fetches web pages, parses HTML with Cheerio, optionally measures Core Web Vitals via Playwright, and scores pages against SEO best practices.
+SEOmator is a comprehensive SEO audit tool (`@seomator/seo-audit`) with 251 rules across 20 categories. It ships as both a **CLI tool** (published to npm) and an **Electron desktop app** (local only). It fetches web pages, parses HTML with Cheerio, optionally measures Core Web Vitals via Playwright, and scores pages against SEO best practices.
+
+## Critical Rules (read before making changes)
+
+### package.json Dual-Purpose Constraints
+
+The `package.json` serves **both** the npm CLI package and the Electron desktop app. These fields have strict requirements:
+
+| Field | Value | Why |
+|-------|-------|-----|
+| `main` | `./dist-electron/main/index.js` | **Electron reads this** to find the main process entry. DO NOT change to `./dist/cli.js` or Electron will execute Commander CLI instead of launching the app window. |
+| `exports` | `./dist/cli.js` | **npm/Node.js consumers use this** for programmatic imports. Takes priority over `main` in modern Node.js. |
+| `bin` | `./dist/cli.js` | **npm CLI users use this** (`seomator` command). |
+| `files` | `["dist"]` | **Only `dist/` ships to npm.** This is the firewall — `electron/`, `dist-electron/`, `scripts/` never reach npm users. |
+
+**If you change `main` to anything other than the Electron entry, `npm run electron:dev` will break** — Electron will print Commander help text and exit instead of opening the app window.
+
+### Dependency Split: CLI vs Electron
+
+- **`dependencies`**: Only CLI packages (cheerio, commander, playwright, better-sqlite3, etc.). These are what npm users install.
+- **`devDependencies`**: Electron-only packages (react, react-dom, react-router-dom, recharts, zustand, electron, electron-vite, tailwindcss, etc.).
+- **Never move react/zustand/recharts/electron packages into `dependencies`** — npm users would download ~15MB of unused Electron UI code.
+
+### npm Publishing Checklist
+
+1. Verify `dependencies` contains only CLI packages (no react, zustand, recharts, electron)
+2. Verify `files: ["dist"]` — only CLI build ships
+3. `npm run build` → builds CLI via tsup
+4. `npm pack --dry-run` → confirm only `dist/` files + README + package.json
+5. `npm publish --access public`
+6. The `prepublishOnly` script auto-runs `npm run build` before publish
+
+Published as `@seomator/seo-audit` on npm. Current version: **3.0.0**.
+
+### better-sqlite3 Native Module ABI
+
+`better-sqlite3` is a C++ addon compiled against a specific Node.js ABI. Electron and CLI/Node.js use different ABIs:
+
+```bash
+npx electron-rebuild -f -w better-sqlite3   # Before running Electron
+npm rebuild better-sqlite3                    # Before running CLI tests
+```
+
+**You must recompile when switching between Electron and CLI.** Failure produces a cryptic `NODE_MODULE_VERSION mismatch` error.
+
+### Zero Modifications to `src/`
+
+The Electron app is **purely additive** — all Electron code lives in `electron/`. The `src/` directory is shared by both CLI and Electron through direct imports (via the `@core` alias in electron-vite config). Never put Electron-specific code in `src/`.
 
 ## Build & Development Commands
+
+### CLI
 
 ```bash
 npm run build          # Build with tsup (ESM, single entry: src/cli.ts)
@@ -23,6 +72,15 @@ Run locally after building:
 Run a single test file:
 ```bash
 npx vitest run src/rules/core/core.test.ts
+```
+
+### Electron Desktop App
+
+```bash
+npx electron-rebuild -f -w better-sqlite3   # Required before first run
+npm run electron:dev   # Dev mode with Vite HMR + Electron hot reload
+npm run electron:build # Production build (main + preload + renderer)
+npm run electron:pack  # Build + package into distributable
 ```
 
 ## Architecture
@@ -85,6 +143,25 @@ core(12%), perf(12%), links(8%), images(8%), security(8%), technical(7%), crawl(
 - `src/reporters/` - Output formatters (console, json, html, markdown, llm)
 - `src/storage/` - SQLite persistence (project-db, audits-db, link-cache)
 - `src/config/` - TOML config loading, validation, presets
+- `electron/` - Electron desktop app (does NOT modify `src/`)
+  - `electron/main/` - Main process: BrowserWindow, IPC handlers, audit/db bridges
+  - `electron/preload/` - contextBridge exposing typed `electronAPI`
+  - `electron/renderer/` - React UI: pages, components, hooks, stores
+  - `electron/shared/` - IPC type definitions shared between main and renderer
+
+### Electron Desktop App Architecture
+
+The desktop app wraps the existing audit engine without modifying `src/`:
+
+- **IPC Bridge pattern**: `audit-bridge.ts` wraps `Auditor` callbacks → `webContents.send()` for streaming progress. `db-bridge.ts` wraps `AuditsDatabase` → `ipcMain.handle()` for queries.
+- **Preload security**: `contextIsolation: true`, `nodeIntegration: false`. The preload script exposes a typed `ElectronAPI` via `contextBridge.exposeInMainWorld()`.
+- **State management**: Zustand store (`audit-store.ts`) with state machine: `idle → running → complete | error`. IPC events drive state transitions.
+- **Rule metadata**: The rule registry only exists in the main process. After an audit completes, `audit-bridge.ts` builds a `ruleId → { name, description }` map via `getRuleById()` and sends it alongside the `AuditResult` so the renderer can display rule names and descriptions.
+- **Design tokens**: CSS variables in `globals.css` extracted from `src/reporters/html-reporter.ts` for visual consistency. Light/dark theme support via `[data-theme="dark"]`.
+- **Build**: electron-vite handles the triple build (main → CJS, preload → ESM, renderer → Vite/React). Config: `electron/electron-vite.config.ts`.
+- **Path aliases**: `@core` → `../src` (access CLI engine from Electron main), `@renderer` → `./renderer`.
+- **CSS**: Tailwind v4 uses `@theme {}` block for custom properties. `@layer base` is critical — unlayered CSS overrides Tailwind v4 utilities.
+- **`getAPI()`** returns `null` outside Electron — all renderer hooks must null-guard.
 
 ## Testing Conventions
 
@@ -92,9 +169,11 @@ core(12%), perf(12%), links(8%), images(8%), security(8%), technical(7%), crawl(
 - Tests create a minimal `AuditContext` using `cheerio.load(html)` for `$`, with stub values for other fields
 - Use `null as any` for context fields not relevant to the rule under test
 - Import rules directly from their individual files, not via the category index
+- Run `npm rebuild better-sqlite3` before running CLI tests if you were previously running Electron
 
 ## Tech Stack
 
+### CLI (`src/`)
 - **TypeScript** (ES2022 target, ESM modules, bundler resolution)
 - **tsup** for building (single ESM entry, `#!/usr/bin/env node` banner)
 - **vitest** for testing
@@ -103,3 +182,10 @@ core(12%), perf(12%), links(8%), images(8%), security(8%), technical(7%), crawl(
 - **better-sqlite3** for storage
 - **Commander** for CLI parsing
 - **chalk/ora/cli-table3/log-update** for terminal UI
+
+### Desktop App (`electron/`)
+- **Electron** + **electron-vite** (triple build: main/preload/renderer)
+- **React** with **Tailwind CSS v4** (uses `@theme {}` block for custom properties)
+- **Zustand** for state management
+- **Recharts** for score trend charts
+- **electron-builder** for packaging

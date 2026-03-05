@@ -1,13 +1,14 @@
-# SEOmator Audit CLI
+# SEOmator Audit
 
-A comprehensive SEO audit command-line tool with **251 audit rules** across **20 categories**. Analyze any website for SEO best practices, Core Web Vitals, security headers, structured data, accessibility, JavaScript rendering, redirect chains, and more.
+A comprehensive SEO audit tool with **251 audit rules** across **20 categories**. Available as both a **command-line tool** and an **Electron desktop app**. Analyze any website for SEO best practices, Core Web Vitals, security headers, structured data, accessibility, JavaScript rendering, redirect chains, and more.
 
 > **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
 
 ## Features
 
 - **251 SEO Audit Rules** across 20 categories
-- **Single Page & Crawl Mode** - Audit one page or crawl entire sites
+- **Desktop App** - Visual audit dashboard with real-time progress, interactive results, score history, and light/dark theme
+- **CLI Tool** - Single page & crawl mode with 5 output formats
 - **Core Web Vitals** - LCP, CLS, FCP, TTFB, INP measurement via Playwright
 - **JavaScript Rendering Analysis** - Compare raw vs rendered DOM for SPA/CSR sites
 - **5 Output Formats** - Console, JSON, HTML, Markdown, and LLM-optimized XML
@@ -50,7 +51,38 @@ npm link
 seomator audit https://example.com
 ```
 
-## Quick Start
+## Desktop App
+
+The desktop app provides a visual audit dashboard with real-time progress streaming, interactive results, score history, and light/dark theme support.
+
+### Running
+
+```bash
+# From source
+git clone https://github.com/seo-skills/seo-audit-skill.git
+cd seo-audit-skill
+npm install
+npx electron-rebuild -f -w better-sqlite3   # Compile native module for Electron
+npm run electron:dev                          # Launch with hot reload
+```
+
+### Building
+
+```bash
+npm run electron:build    # Production build
+npm run electron:pack     # Build + package distributable
+```
+
+### Desktop App Features
+
+- **Real-time progress** - Live category-by-category progress as the audit runs
+- **Score dashboard** - Overall score circle, category grid, and issues summary table
+- **Interactive results** - Expandable rule cards with rule descriptions, affected items, page URL badges, and inline fix suggestions
+- **Filter & navigate** - Filter by status (All/Failures/Warnings/Passed), click issues to jump to details
+- **Score history** - Track audit scores over time per domain with trend charts
+- **Light/dark theme** - Follows your system preference or toggle manually
+
+## Quick Start (CLI)
 
 ```bash
 # Basic audit
@@ -712,6 +744,11 @@ npx skills add seo-skills/seo-audit-skill
 - **Playwright** (for Core Web Vitals and JS rendering analysis)
 
 After installing, run `npx playwright install chromium` to install the browser for CWV measurement.
+
+For the desktop app, `better-sqlite3` must be compiled for Electron's Node version:
+```bash
+npx electron-rebuild -f -w better-sqlite3
+```
 
 ## License
 

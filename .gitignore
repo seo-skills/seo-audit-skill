@@ -3,6 +3,10 @@ node_modules/
 
 # Build output
 dist/
+dist-electron/
+
+# Electron packaged app
+release/
 
 # IDE
 .idea/
@@ -33,3 +37,10 @@ coverage/
 
 # SEOmator local data
 .seomator/
+
+# Generated reports & screenshots
+seo-report-*.html
+*.png
+
+# Playwright MCP data
+.playwright-mcp/

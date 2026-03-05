@@ -341,6 +341,11 @@ export class Crawler {
       cwv: {},
       links: [],
       images: [],
+      invalidLinks: [],
+      specialLinks: [],
+      figures: [],
+      inlineSvgs: [],
+      pictureElements: [],
     };
   }
 

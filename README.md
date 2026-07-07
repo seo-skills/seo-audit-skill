@@ -1,8 +1,29 @@
-# SEOmator Audit
+# SEOmator SEO Audit Tool & Skill
 
-A comprehensive SEO audit tool with **251 audit rules** across **20 categories**. Available as both a **command-line tool** and an **Electron desktop app**. Analyze any website for SEO best practices, Core Web Vitals, security headers, structured data, accessibility, JavaScript rendering, redirect chains, and more.
+[![npm version](https://img.shields.io/npm/v/@seomator/seo-audit.svg)](https://www.npmjs.com/package/@seomator/seo-audit)
+[![npm downloads](https://img.shields.io/npm/dm/@seomator/seo-audit.svg)](https://www.npmjs.com/package/@seomator/seo-audit)
+[![node](https://img.shields.io/node/v/@seomator/seo-audit.svg)](https://www.npmjs.com/package/@seomator/seo-audit)
+[![license: MIT](https://img.shields.io/npm/l/@seomator/seo-audit.svg)](./LICENSE)
+
+**SEOmator is a comprehensive SEO audit tool that scans any website against 251 rules across 20 categories** — technical SEO, Core Web Vitals, structured data, accessibility, security headers, and AI/GEO search readiness — and returns a prioritized, actionable report. It ships as a **command-line tool**, an **Electron desktop app**, and a **Claude Code skill**, so you can run an SEO audit from a terminal, a visual dashboard, or directly inside an AI coding agent.
 
 > **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
+
+## Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Desktop App](#desktop-app)
+- [Quick Start (CLI)](#quick-start-cli)
+- [Commands](#commands)
+- [Categories & Rules](#categories--rules-251-total)
+- [Configuration](#configuration)
+- [Output Formats](#output-formats)
+- [CI/CD Integration](#cicd-integration)
+- [Programmatic Usage](#programmatic-usage)
+- [Claude Code Skill](#claude-code-skill)
+- [FAQ](#faq)
+- [Requirements](#requirements)
 
 ## Features
 
@@ -737,6 +758,32 @@ npx skills add seo-skills/seo-audit-skill
 "Audit https://mysite.com and tell me what to fix first"
 "Check SEO health of https://example.com with 20-page crawl"
 ```
+
+## FAQ
+
+### What is SEOmator?
+
+SEOmator is an SEO audit tool that checks a website against 251 rules across 20 categories — covering technical SEO, Core Web Vitals, structured data, accessibility, security headers, content quality, and AI/GEO search readiness — and returns a scored, prioritized report of what to fix first. It's available as an open-source CLI, an Electron desktop app, and a Claude Code skill.
+
+### How is SEOmator different from Lighthouse or PageSpeed Insights?
+
+Lighthouse and PageSpeed Insights focus on performance and Core Web Vitals for a single page. SEOmator includes CWV measurement but covers far more ground: crawlability, indexability, structured data validation, redirect chains, hreflang, E-E-A-T signals, and AI/GEO readiness (AI crawler access, llms.txt, semantic HTML) — across a full multi-page crawl, not just one URL.
+
+### Does SEOmator check AI search / GEO readiness?
+
+Yes. The AI/GEO Readiness category checks whether AI crawlers like GPTBot and ClaudeBot are allowed in robots.txt, whether an `/llms.txt` file exists, whether heading structure and semantic HTML are AI-extractable, and whether JSON-LD schema matches the page's visible content.
+
+### Is SEOmator free to use?
+
+The CLI (`@seomator/seo-audit`) is MIT-licensed and free to install and run locally or in CI/CD — see [Installation](#installation). A hosted, no-install version is also available at [seomator.com/free-seo-audit-tool](https://seomator.com/free-seo-audit-tool).
+
+### Can I run SEOmator in CI/CD?
+
+Yes. It returns exit code `0` for a passing score (≥70), `1` for a failing score, and `2` on error, plus JSON output for parsing. See the [GitHub Actions and GitLab CI examples](#cicd-integration).
+
+### Can I use SEOmator with Claude or other AI agents?
+
+Yes. The `--format llm` flag outputs token-efficient, injection-hardened XML designed for AI agents, and the [Claude Code skill](#claude-code-skill) lets you run audits directly from a prompt like "Audit https://example.com and tell me what to fix first."
 
 ## Requirements
 

@@ -35,6 +35,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "Trust Model" section in `SKILL.md` documenting the layered defense applied
   to LLM-format output.
 
+### Changed
+
+- `references/rules.md` (and `skill/references/rules.md`) rewritten from the
+  stale v1.2.2 rule set (55 rules / 9 categories, `meta-tags-*`/`headings-*`
+  IDs) to the current v3.0.0 reference: all 20 categories with weights and
+  rule counts, `<category>-<name>` ID convention, score grades, and CWV
+  thresholds.
+
 ## [3.0.1] - 2026-05-06
 
 ### Fixed

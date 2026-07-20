@@ -21,6 +21,28 @@ export function extractMainContent($: CheerioAPI): string {
 }
 
 /**
+ * Matches URLs, bare domains and email addresses.
+ *
+ * Tokenizing these produces meaningless fragments: "dailyadvent.com" becomes
+ * ["dailyadvent", "com"], which inflates "com" into a top keyword on any page
+ * that prints its own domain a few times.
+ */
+const URL_PATTERN =
+  /\bhttps?:\/\/\S+|\bwww\.\S+|\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|co|ai|app|dev|tv|me|info|biz|edu|gov|mil|int|eu|uk|de|fr|es|it|nl|ru|jp|cn|br|in|au|ca|ch|se|no|fi|dk|pl|tr)\b(?:\/\S*)?/gi;
+
+const EMAIL_PATTERN = /\b[^\s@]+@[^\s@]+\.[a-z]{2,}\b/gi;
+
+/**
+ * Remove URLs, bare domains and emails from text.
+ *
+ * Only used for keyword frequency analysis — word counts and readability
+ * scores still count URLs as text, which is the correct behaviour there.
+ */
+export function stripUrls(text: string): string {
+  return text.replace(EMAIL_PATTERN, ' ').replace(URL_PATTERN, ' ');
+}
+
+/**
  * Tokenize text into words
  * Removes punctuation and splits on whitespace
  */

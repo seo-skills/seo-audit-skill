@@ -165,10 +165,50 @@ export const STOPWORDS = new Set([
 ]);
 
 /**
+ * Interface chrome and technical tokens that leak into extracted body text.
+ *
+ * These are not prose and must never count as keywords. Sources include icon
+ * font ligatures (`<i class="material-icons">settings</i>` renders its glyph
+ * name as a text node), navigation labels, and file extensions.
+ *
+ * Deliberately excludes ambiguous words that are genuine topics for some sites
+ * ("image", "search", "content", "video") — those are handled by the topical
+ * term allowance in the keyword stuffing rule, not by filtering.
+ */
+export const WEB_BOILERPLATE = new Set([
+  // URL and file fragments
+  'com', 'www', 'http', 'https', 'html', 'htm', 'php', 'aspx',
+  'svg', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'pdf',
+  // Icon font ligatures and markup leftovers
+  'icon', 'icons', 'logo', 'img', 'div', 'span', 'href', 'src',
+  // Navigation and control chrome
+  'menu', 'nav', 'navbar', 'navigation', 'sidebar', 'breadcrumb',
+  'toggle', 'dropdown', 'modal', 'popup', 'overlay', 'widget',
+  'login', 'logout', 'signin', 'signup', 'register', 'submit',
+  'button', 'close', 'expand', 'collapse', 'skip',
+  // Boilerplate footer and consent text
+  'cookie', 'cookies', 'copyright', 'reserved', 'disclaimer',
+  'newsletter', 'subscribe', 'unsubscribe',
+]);
+
+/**
  * Check if a word is a stopword
  */
 export function isStopword(word: string): boolean {
   return STOPWORDS.has(word.toLowerCase());
+}
+
+/**
+ * Filter words down to those eligible for keyword frequency analysis.
+ *
+ * Stricter than getContentWords: also drops interface chrome and enforces a
+ * minimum length, since 1-2 character tokens are almost always markup noise.
+ */
+export function getKeywordWords(words: string[], minLength = 3): string[] {
+  return words.filter((word) => {
+    const w = word.toLowerCase();
+    return w.length >= minLength && !STOPWORDS.has(w) && !WEB_BOILERPLATE.has(w);
+  });
 }
 
 /**

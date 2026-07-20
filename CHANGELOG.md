@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `content-keyword-stuffing` produced false positives on a majority of real
+  pages. Root cause was a denominator mismatch: the minimum-length guard tested
+  the raw token count (`>= 100`) while density divided by the post-stopword
+  content-word count. Since roughly half of English prose is stopwords, a page
+  clearing the guard was scored against a sample of ~50 words, where a term used
+  3 times is 5.6% by arithmetic alone. The guard now measures the same
+  population as the metric and requires 200 content words. Specifically:
+  - Added an absolute floor of 5 occurrences before density is considered, so
+    incidental repetition on short pages can no longer trip the rule.
+  - The page's most frequent content word is now treated as its topic and
+    allowed 8% density before flagging, so a video platform is no longer
+    flagged for the word "video".
+  - URLs, bare domains and emails are stripped before tokenizing, so
+    `example.com` no longer contributes "com" as a keyword.
+  - Added a `WEB_BOILERPLATE` stopword set covering interface chrome, file
+    extensions and icon-font ligatures (`icon`, `menu`, `svg`, …), which leak
+    into body text as literal text nodes.
+  - Raised warn density 2% → 4% and severe 5% → 10%, and removed the branch
+    that warned when a single term crossed the threshold.
+  - The rule no longer returns `fail`. Term density cannot distinguish
+    manipulation from a page that is simply about its topic, so its strongest
+    verdict is now `warn`.
+
 ### Security
 
 - LLM reporter now wraps all site-derived content (rule messages and details)

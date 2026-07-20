@@ -161,12 +161,12 @@ describe('Content Rules', () => {
     });
 
     it('should warn when keyword density is high', async () => {
-      // Repeat "keyword" many times
-      const stuffedContent = 'keyword '.repeat(30) + generateText(100);
+      // Repeat "keyword" many times, on a page long enough to be analysed
+      const stuffedContent = 'keyword '.repeat(60) + generateText(400);
       const html = `<html><body><article>${stuffedContent}</article></body></html>`;
       const context = createContext(html);
       const result = await keywordStuffingRule.run(context);
-      expect(['warn', 'fail']).toContain(result.status);
+      expect(result.status).toBe('warn');
     });
 
     it('should skip check for very short content', async () => {
@@ -180,12 +180,78 @@ describe('Content Rules', () => {
     it('should ignore stopwords in calculation', async () => {
       // "the" and other stopwords appear many times but should be ignored
       const stopwords = 'the and is are was were be been being have has had do does did will would could should may might must can shall ';
-      const content = stopwords.repeat(10) + generateText(150);
+      const content = stopwords.repeat(10) + generateText(400);
       const html = `<html><body><article>${content}</article></body></html>`;
       const context = createContext(html);
       const result = await keywordStuffingRule.run(context);
       // Should pass because stopwords are filtered out
       expect(result.status).toBe('pass');
+      expect(result.details?.skipped).toBeUndefined();
+    });
+
+    // Regression tests: each of these fixtures reproduces a false positive
+    // reported from a live crawl where the rule fired on 66% of the sample.
+    describe('false positive regressions', () => {
+      // `details` is loosely typed on RuleResult, so narrow it here.
+      const flaggedWords = (details: unknown): string[] => {
+        const d = (details ?? {}) as Record<string, Array<{ word: string }>>;
+        return [...(d.overusedWords ?? []), ...(d.severelyOverusedWords ?? [])].map(
+          (w) => w.word
+        );
+      };
+
+      it('should not flag a topical term on a page about that topic', async () => {
+        // bluebillywig.com: a video platform flagged for saying "video"
+        const content = 'video '.repeat(30) + generateText(500);
+        const html = `<html><body><article>${content}</article></body></html>`;
+        const result = await keywordStuffingRule.run(createContext(html));
+        expect(result.status).toBe('pass');
+        expect(result.details?.topicTerm).toBe('video');
+      });
+
+      it('should not treat domain fragments as keywords', async () => {
+        // dailyadvent.com: flagged for "com" at 7.6% density
+        const content =
+          'Read it at dailyadvent.com or news.dailyadvent.com today. '.repeat(20) +
+          generateText(400);
+        const html = `<html><body><article>${content}</article></body></html>`;
+        const result = await keywordStuffingRule.run(createContext(html));
+        expect(flaggedWords(result.details)).not.toContain('com');
+      });
+
+      it('should not treat icon font ligatures as keywords', async () => {
+        // expediapartnercentral.com: flagged for "icon"
+        const icons = '<i class="material-icons">icon</i> '.repeat(20);
+        const html = `<html><body><article>${icons}${generateText(400)}</article></body></html>`;
+        const result = await keywordStuffingRule.run(createContext(html));
+        expect(flaggedWords(result.details)).not.toContain('icon');
+      });
+
+      it('should not analyse short pages where density is meaningless', async () => {
+        // goodgamestudios.com: "choose" used 3x on a 124-word homepage
+        const content = `Welcome to our studio. Choose your adventure and start
+          playing today. We have been making games for fifteen years. Choose a
+          title from our catalogue of strategy worlds. Choose to join us if you
+          want to help shape what comes next. ${generateText(60)}`;
+        const html = `<html><body><article>${content}</article></body></html>`;
+        const result = await keywordStuffingRule.run(createContext(html));
+        expect(result.status).toBe('pass');
+        expect(result.details?.skipped).toBe(true);
+      });
+
+      it('should still catch genuine stuffing above the topic allowance', async () => {
+        const content = 'cheap seo services '.repeat(45) + generateText(300);
+        const html = `<html><body><article>${content}</article></body></html>`;
+        const result = await keywordStuffingRule.run(createContext(html));
+        expect(result.status).toBe('warn');
+      });
+
+      it('should never return fail', async () => {
+        const content = 'spam '.repeat(400) + generateText(200);
+        const html = `<html><body><article>${content}</article></body></html>`;
+        const result = await keywordStuffingRule.run(createContext(html));
+        expect(result.status).not.toBe('fail');
+      });
     });
   });
 

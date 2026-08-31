@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { Crawler } from '../crawler/index.js';
 import { loadConfig } from '../config/index.js';
+import { setUserAgent } from '../crawler/user-agent.js';
 import { saveCrawl, createCrawl, type StoredPage } from '../storage/index.js';
 
 export interface CrawlOptions {
@@ -14,6 +15,8 @@ export interface CrawlOptions {
 export async function runCrawl(url: string, options: CrawlOptions): Promise<void> {
   // Load config
   const { config } = loadConfig(process.cwd());
+
+  setUserAgent(config.crawler.user_agent);
 
   const maxPages = options.maxPages ?? config.crawler.max_pages;
   const baseDir = options.output ?? process.cwd();

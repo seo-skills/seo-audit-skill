@@ -33,3 +33,11 @@ export {
   globToRegex,
   type UrlFilterOptions,
 } from './url-filter.js';
+
+// User-Agent exports
+export {
+  getUserAgent,
+  setUserAgent,
+  resetUserAgent,
+  DEFAULT_USER_AGENT,
+} from './user-agent.js';

@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import { getUserAgent } from './user-agent.js';
 import type { CheerioAPI } from 'cheerio';
 import type {
   AuditContext,
@@ -45,7 +46,7 @@ export async function fetchPage(url: string, timeout = 30000): Promise<FetchResu
       method: 'GET',
       signal: controller.signal,
       headers: {
-        'User-Agent': 'SEOmatorBot/1.0 (+https://github.com/seo-skills/seo-audit-skill)',
+        'User-Agent': getUserAgent(),
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
       },
@@ -89,7 +90,7 @@ export async function fetchUrl(url: string, timeout = 10000): Promise<number> {
       method: 'HEAD',
       signal: controller.signal,
       headers: {
-        'User-Agent': 'SEOmatorBot/1.0 (+https://github.com/seo-skills/seo-audit-skill)',
+        'User-Agent': getUserAgent(),
       },
       redirect: 'follow',
     });
@@ -420,7 +421,7 @@ export async function fetchUrlWithRedirects(
         method: 'HEAD',
         signal: controller.signal,
         headers: {
-          'User-Agent': 'SEOmatorBot/1.0 (+https://github.com/seo-skills/seo-audit-skill)',
+          'User-Agent': getUserAgent(),
         },
         redirect: 'manual', // Don't auto-follow redirects
       });

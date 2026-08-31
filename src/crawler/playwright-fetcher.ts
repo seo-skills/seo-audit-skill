@@ -1,5 +1,6 @@
 import { chromium, type Browser, type Page } from 'playwright';
 import type { CoreWebVitals } from '../types.js';
+import { getUserAgent } from './user-agent.js';
 
 let browserPromise: Promise<Browser> | null = null;
 
@@ -88,7 +89,10 @@ export async function fetchPageWithPlaywright(
   timeout = 30000
 ): Promise<PlaywrightFetchResult> {
   const browser = await initBrowser();
-  const page = await browser.newPage();
+  // A context, not a bare page, so the render identifies itself with the same
+  // User-Agent as the HTTP crawler instead of the default headless Chrome one.
+  const context = await browser.newContext({ userAgent: getUserAgent() });
+  const page = await context.newPage();
 
   try {
     const startTime = performance.now();
@@ -118,6 +122,7 @@ export async function fetchPageWithPlaywright(
     };
   } finally {
     await page.close();
+    await context.close();
   }
 }
 

@@ -8,6 +8,7 @@
  * - Content and link JS-dependency analysis
  * - Blocked JS resources detection
  * - Server-side rendering check
+ * - Render-time diagnostics (console errors, failed resource requests)
  */
 
 import { registerRule } from '../registry.js';
@@ -33,6 +34,10 @@ import { renderedLinksRule } from './rendered-links.js';
 import { blockedResourcesRule } from './blocked-resources.js';
 import { ssrCheckRule } from './ssr-check.js';
 
+// Render-time diagnostics (require a browser render)
+import { consoleErrorsRule } from './console-errors.js';
+import { failedRequestsRule } from './failed-requests.js';
+
 // Export all rules
 export {
   // Rendered presence
@@ -52,6 +57,9 @@ export {
   // Resources and rendering
   blockedResourcesRule,
   ssrCheckRule,
+  // Render-time diagnostics
+  consoleErrorsRule,
+  failedRequestsRule,
 };
 
 // Register all rules
@@ -68,3 +76,5 @@ registerRule(renderedContentRule);
 registerRule(renderedLinksRule);
 registerRule(blockedResourcesRule);
 registerRule(ssrCheckRule);
+registerRule(consoleErrorsRule);
+registerRule(failedRequestsRule);

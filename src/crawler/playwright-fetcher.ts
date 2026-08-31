@@ -1,5 +1,5 @@
 import { chromium, type Browser, type Page } from 'playwright';
-import type { CoreWebVitals } from '../types.js';
+import type { CoreWebVitals, FailedRequestInfo, RenderDiagnostics } from '../types.js';
 import { getUserAgent } from './user-agent.js';
 
 let browserPromise: Promise<Browser> | null = null;
@@ -76,6 +76,106 @@ export interface PlaywrightFetchResult {
   responseTime: number;
   /** Core Web Vitals metrics */
   cwv: CoreWebVitals;
+  /** Errors and failed requests observed during the render */
+  diagnostics: RenderDiagnostics;
+}
+
+/**
+ * Caps on collected diagnostics.
+ *
+ * A page stuck in an error loop can emit thousands of identical console
+ * messages; the rules only need enough to characterise the problem, and the
+ * arrays travel into stored audits and reports.
+ */
+const MAX_PAGE_ERRORS = 25;
+const MAX_CONSOLE_MESSAGES = 50;
+const MAX_FAILED_REQUESTS = 50;
+
+/**
+ * Attach diagnostic listeners to a page before navigation.
+ *
+ * Must run before `page.goto`, since errors thrown during initial parse and
+ * requests issued during load are only observable from that point on.
+ *
+ * @param page - The page about to be navigated
+ * @returns The collector that fills as the page loads
+ */
+function collectDiagnostics(page: Page): RenderDiagnostics {
+  const diagnostics: RenderDiagnostics = {
+    pageErrors: [],
+    consoleMessages: [],
+    failedRequests: [],
+  };
+
+  /**
+   * One broken resource surfaces on both listeners: a 404 script arrives as a
+   * `response` with status 404 and then as a `requestfailed` with
+   * `net::ERR_ABORTED`. Keyed by URL so it is reported once, and the HTTP
+   * status wins because it says what actually happened.
+   */
+  const failuresByUrl = new Map<string, FailedRequestInfo>();
+  const recordFailure = (info: FailedRequestInfo, authoritative: boolean): void => {
+    const existing = failuresByUrl.get(info.url);
+    if (existing && !authoritative) return;
+    if (!existing && failuresByUrl.size >= MAX_FAILED_REQUESTS) return;
+    failuresByUrl.set(info.url, existing && authoritative ? { ...existing, ...info } : info);
+    diagnostics.failedRequests = Array.from(failuresByUrl.values());
+  };
+
+  page.on('pageerror', (error) => {
+    if (diagnostics.pageErrors.length >= MAX_PAGE_ERRORS) return;
+    diagnostics.pageErrors.push(error.message);
+  });
+
+  page.on('console', (message) => {
+    const type = message.type();
+    if (type !== 'error' && type !== 'warning') return;
+    if (diagnostics.consoleMessages.length >= MAX_CONSOLE_MESSAGES) return;
+
+    const location = message.location();
+    diagnostics.consoleMessages.push({
+      level: type,
+      text: message.text().slice(0, 500),
+      ...(location.url && { sourceUrl: location.url }),
+      ...(location.lineNumber !== undefined && { line: location.lineNumber }),
+    });
+  });
+
+  // Network-level failures: DNS, connection refused, blocked by the client.
+  page.on('requestfailed', (request) => {
+    recordFailure(
+      {
+        url: request.url(),
+        resourceType: request.resourceType(),
+        method: request.method(),
+        failure: request.failure()?.errorText ?? 'Request failed',
+      },
+      false
+    );
+  });
+
+  // Requests that completed with an error status. A 404 script is not a
+  // `requestfailed` as far as the browser is concerned, but it is just as
+  // broken for the page.
+  page.on('response', (response) => {
+    const status = response.status();
+    if (status < 400) return;
+    // The main document's own status is reported separately as statusCode.
+    if (response.request().resourceType() === 'document') return;
+
+    recordFailure(
+      {
+        url: response.url(),
+        resourceType: response.request().resourceType(),
+        method: response.request().method(),
+        failure: `HTTP ${status}`,
+        statusCode: status,
+      },
+      true
+    );
+  });
+
+  return diagnostics;
 }
 
 /**
@@ -93,6 +193,8 @@ export async function fetchPageWithPlaywright(
   // User-Agent as the HTTP crawler instead of the default headless Chrome one.
   const context = await browser.newContext({ userAgent: getUserAgent() });
   const page = await context.newPage();
+  // Listeners must be attached before goto to see load-time errors.
+  const diagnostics = collectDiagnostics(page);
 
   try {
     const startTime = performance.now();
@@ -119,6 +221,7 @@ export async function fetchPageWithPlaywright(
       statusCode: response?.status() ?? 0,
       responseTime: Math.round(loadTime),
       cwv,
+      diagnostics,
     };
   } finally {
     await page.close();

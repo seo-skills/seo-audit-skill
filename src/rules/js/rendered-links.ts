@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn } from '../define-rule.js';
+import { defineRule, pass, warn, notMeasured } from '../define-rule.js';
 
 /**
  * Rule: Rendered Links Check
@@ -18,9 +18,9 @@ export const renderedLinksRule = defineRule({
     const rendered$ = (context as any).rendered$;
 
     if (!rendered$) {
-      return pass(
+      return notMeasured(
         'js-rendered-links',
-        'Rendered DOM not available (CWV/rendering not enabled), skipping check'
+        'Rendered DOM not available - run without --no-cwv to enable JavaScript rendering checks'
       );
     }
 

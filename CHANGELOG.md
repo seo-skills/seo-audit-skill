@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Render diagnostics.** The Playwright renderer now captures uncaught page
+  errors, console output and failed subresource requests, exposed to rules as
+  `AuditContext.renderDiagnostics`. Previously it kept only html, statusCode,
+  responseTime and cwv and discarded everything else the browser observed.
+- **5 new rules (251 → 256).**
+  - `js-console-errors` — distinguishes uncaught exceptions (fail; the script
+    that threw stops, so anything it would have rendered never appears) from
+    console errors (warn), filtering extension and browser-intervention noise.
+  - `js-failed-requests` — separates failures that can change what gets indexed
+    (script, stylesheet, xhr) from ones that cannot (a tracking pixel). A 404
+    on a script is invisible to a static parse: the tag is well-formed and only
+    a real fetch reveals nothing came back.
+  - `security-cookie-flags` — fails a session cookie missing `HttpOnly` and
+    `SameSite=None` without `Secure`; warns on missing `Secure` over HTTPS or an
+    absent `SameSite`.
+  - `security-cookie-lifetime` — warns past the 400-day cap Chrome enforces.
+  - `crawl-sitemap-lastmod` — invalid dates, future dates, and a single date
+    shared by effectively every URL. Google discounts `lastmod` on sites where
+    it does not track real changes, so a build-time timestamp forfeits the
+    signal rather than merely wasting it.
+- `src/crawler/sitemap.ts` — sitemap discovery that follows index nesting,
+  gunzips by magic bytes, and reads every `Sitemap:` line in robots.txt.
+- `src/crawler/cookies.ts` — `Set-Cookie` parsing that never retains cookie
+  values, only their length, since audit output is shareable and reaches LLMs.
+
+### Fixed
+
+- Sitemap indexes were parsed as if they were page lists. `fetchSitemap`
+  regex-scraped every `<loc>`, so a `<sitemapindex>` yielded child *sitemap*
+  URLs posing as page URLs and every sitemap rule judged the wrong list. Gzipped
+  sitemaps arrived as binary (`fetch` decompresses `Content-Encoding`, not a
+  gzip payload served as `application/gzip`), and only the first `Sitemap:`
+  line in robots.txt was read, truncating sites that split sitemaps by section.
+- Multiple `Set-Cookie` headers were unrecoverable. `fetcher.ts` flattened
+  headers into `Record<string,string>`, comma-joining them into something that
+  cannot be split again because `Expires` dates contain a comma of their own.
+  Now read via `getSetCookie()`.
+- The mirror image of the Core Web Vitals scoring bug: 11 of 13 `js` rules
+  returned `pass` when the rendered DOM was absent, so `--no-cwv` awarded the
+  `js` category a perfect 100 having measured nothing. Where the CWV rules
+  penalised an unmeasured metric, these rewarded one. Both now use
+  `notMeasured()`. **Behaviour change:** `js` scores drop under `--no-cwv`.
+
 ### Changed
 
 - **Scores will move, in some cases substantially.** Category scoring now

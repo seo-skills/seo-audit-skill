@@ -5,6 +5,8 @@ import type {
   RuleResult,
   CategoryDefinition,
   CoreWebVitals,
+  RenderDiagnostics,
+  SitemapFetchResult,
 } from './types.js';
 import { categories, getCategoryById } from './categories/index.js';
 import { getRulesByCategory, resetCrossPageState } from './rules/registry.js';
@@ -19,6 +21,7 @@ import {
   type PlaywrightFetchResult,
 } from './crawler/index.js';
 import { getUserAgent } from './crawler/user-agent.js';
+import { fetchSitemap } from './crawler/sitemap.js';
 import {
   buildCategoryResult,
   buildAuditResult,
@@ -164,48 +167,17 @@ export class Auditor {
   }
 
   /**
-   * Fetch sitemap content and extract URLs
+   * Discover and fetch the site's sitemap(s).
+   *
+   * Delegates to the sitemap module, which follows sitemap indexes,
+   * decompresses gzipped sitemaps and reads every `Sitemap:` line in
+   * robots.txt rather than only the first.
    */
-  private async fetchSitemap(url: string, robotsTxtContent?: string): Promise<{ content?: string; urls?: string[] }> {
-    try {
-      const urlObj = new URL(url);
-      // Try to find sitemap URL from robots.txt first
-      let sitemapUrl = `${urlObj.protocol}//${urlObj.host}/sitemap.xml`;
-      if (robotsTxtContent) {
-        const match = robotsTxtContent.match(/^Sitemap:\s*(.+)$/im);
-        if (match) {
-          sitemapUrl = match[1].trim();
-        }
-      }
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      try {
-        const response = await fetch(sitemapUrl, {
-          signal: controller.signal,
-          headers: {
-            'User-Agent': getUserAgent(),
-          },
-        });
-        clearTimeout(timeoutId);
-        if (response.ok) {
-          const content = await response.text();
-          // Extract URLs from sitemap XML
-          const urls: string[] = [];
-          const locRegex = /<loc>\s*(.*?)\s*<\/loc>/gi;
-          let locMatch;
-          while ((locMatch = locRegex.exec(content)) !== null) {
-            urls.push(locMatch[1]);
-          }
-          return { content, urls };
-        }
-      } finally {
-        clearTimeout(timeoutId);
-      }
-    } catch {
-      // Sitemap fetch failed, continue without it
-    }
-    return {};
+  private async fetchSitemap(
+    url: string,
+    robotsTxtContent?: string
+  ): Promise<SitemapFetchResult> {
+    return fetchSitemap(url, robotsTxtContent);
   }
 
   /**
@@ -218,8 +190,17 @@ export class Auditor {
 
     // Fetch sitemap using robots.txt info
     const sitemapData = await this.fetchSitemap(url, robotsTxtContent);
-    context.sitemapContent = sitemapData.content;
-    context.sitemapUrls = sitemapData.urls;
+    this.applySitemapData(context, sitemapData);
+  }
+
+  /**
+   * Copy shared sitemap data onto a page context
+   */
+  private applySitemapData(context: AuditContext, sitemap: SitemapFetchResult): void {
+    context.sitemapContent = sitemap.content;
+    context.sitemapUrls = sitemap.urls;
+    context.sitemapEntries = sitemap.entries;
+    context.sitemapIsIndex = sitemap.isIndex;
   }
 
   /**
@@ -238,11 +219,13 @@ export class Auditor {
     let cwv: CoreWebVitals = {};
     let renderedHtml: string | undefined;
     let rendered$: import('cheerio').CheerioAPI | undefined;
+    let renderDiagnostics: RenderDiagnostics | undefined;
     if (this.options.measureCwv) {
       const fetcher = this.options.browserFetcher ?? fetchPageWithPlaywright;
       try {
         const pwResult = await fetcher(url, this.options.timeout);
         cwv = pwResult.cwv;
+        renderDiagnostics = pwResult.diagnostics;
         // Capture rendered HTML for JS rendering rules
         if (pwResult.html) {
           renderedHtml = pwResult.html;
@@ -267,6 +250,9 @@ export class Auditor {
     if (renderedHtml) {
       context.renderedHtml = renderedHtml;
       context.rendered$ = rendered$;
+    }
+    if (renderDiagnostics) {
+      context.renderDiagnostics = renderDiagnostics;
     }
 
     // Run all categories
@@ -296,19 +282,19 @@ export class Auditor {
     const robotsTxtContent = await this.fetchRobotsTxt(url);
     const sitemapData = await this.fetchSitemap(url, robotsTxtContent);
 
-    // Create crawler with CWV callback if enabled
+    // Create crawler with browser rendering if enabled
     const fetcher = this.options.browserFetcher ?? fetchPageWithPlaywright;
     const crawler = new Crawler({
       maxPages,
       concurrency,
       timeout: this.options.timeout,
-      getCwv: this.options.measureCwv
+      renderPage: this.options.measureCwv
         ? async (pageUrl: string) => {
             try {
               const result = await fetcher(pageUrl, this.options.timeout);
-              return result.cwv;
+              return { cwv: result.cwv, diagnostics: result.diagnostics };
             } catch {
-              return {};
+              return { cwv: {} };
             }
           }
         : undefined,
@@ -326,8 +312,7 @@ export class Auditor {
     for (const crawledPage of crawledPages) {
       if (crawledPage.context) {
         crawledPage.context.robotsTxtContent = robotsTxtContent;
-        crawledPage.context.sitemapContent = sitemapData.content;
-        crawledPage.context.sitemapUrls = sitemapData.urls;
+        this.applySitemapData(crawledPage.context, sitemapData);
       }
     }
 

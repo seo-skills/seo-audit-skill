@@ -90,6 +90,34 @@ export function warn(
 }
 
 /**
+ * Creates a RuleResult for a check whose input could not be measured.
+ *
+ * Distinct from `warn`: the site may be perfectly fine, we simply have no
+ * reading. The result is reported so the gap is visible, but carries weight 0
+ * so it contributes to neither side of the category average — you cannot score
+ * what you did not measure.
+ *
+ * @param ruleId - The rule identifier
+ * @param message - Human-readable explanation of why there is no reading
+ * @param details - Optional additional details
+ * @returns RuleResult with status 'warn' and weight 0 (excluded from scoring)
+ */
+export function notMeasured(
+  ruleId: string,
+  message: string,
+  details?: Record<string, unknown>
+): RuleResult {
+  return {
+    ruleId,
+    status: 'warn',
+    message,
+    score: 50,
+    weight: 0,
+    ...(details && { details }),
+  };
+}
+
+/**
  * Creates a failing RuleResult
  * @param ruleId - The rule identifier
  * @param message - Human-readable result message

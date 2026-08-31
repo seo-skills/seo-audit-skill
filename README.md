@@ -5,7 +5,7 @@
 [![node](https://img.shields.io/node/v/@seomator/seo-audit.svg)](https://www.npmjs.com/package/@seomator/seo-audit)
 [![license: MIT](https://img.shields.io/npm/l/@seomator/seo-audit.svg)](./LICENSE)
 
-**SEOmator is a comprehensive SEO audit tool that scans any website against 251 rules across 20 categories** — technical SEO, Core Web Vitals, structured data, accessibility, security headers, and AI/GEO search readiness — and returns a prioritized, actionable report. It ships as a **command-line tool**, an **Electron desktop app**, and a **Claude Code skill**, so you can run an SEO audit from a terminal, a visual dashboard, or directly inside an AI coding agent.
+**SEOmator is a comprehensive SEO audit tool that scans any website against 256 rules across 20 categories** — technical SEO, Core Web Vitals, structured data, accessibility, security headers, and AI/GEO search readiness — and returns a prioritized, actionable report. It ships as a **command-line tool**, an **Electron desktop app**, and a **Claude Code skill**, so you can run an SEO audit from a terminal, a visual dashboard, or directly inside an AI coding agent.
 
 > **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
 
@@ -16,7 +16,7 @@
 - [Desktop App](#desktop-app)
 - [Quick Start (CLI)](#quick-start-cli)
 - [Commands](#commands)
-- [Categories & Rules](#categories--rules-251-total)
+- [Categories & Rules](#categories--rules-256-total)
 - [Configuration](#configuration)
 - [Output Formats](#output-formats)
 - [CI/CD Integration](#cicd-integration)
@@ -27,7 +27,7 @@
 
 ## Features
 
-- **251 SEO Audit Rules** across 20 categories
+- **256 SEO Audit Rules** across 20 categories
 - **Desktop App** - Visual audit dashboard with real-time progress, interactive results, score history, and light/dark theme
 - **CLI Tool** - Single page & crawl mode with 5 output formats
 - **Core Web Vitals** - LCP, CLS, FCP, TTFB, INP measurement via Playwright
@@ -232,7 +232,7 @@ seomator self doctor -v          # Verbose diagnostics
 | 1 | Audit failed (score < 70) |
 | 2 | Error occurred |
 
-## Categories & Rules (251 total)
+## Categories & Rules (256 total)
 
 ### Core (19 rules) - 12% weight
 
@@ -328,7 +328,7 @@ seomator self doctor -v          # Verbose diagnostics
 | `images-alt-length` | Alt text should be under 125 characters |
 | `images-background-seo` | Content images should use `<img>`, not CSS background |
 
-### Security (16 rules) - 8% weight
+### Security (18 rules) - 8% weight
 
 | Rule | Description |
 |------|-------------|
@@ -348,6 +348,8 @@ seomator self doctor -v          # Verbose diagnostics
 | `security-protocol-relative` | No protocol-relative URLs (//example.com) |
 | `security-ssl-expiry` | SSL certificate not near expiration |
 | `security-ssl-protocol` | TLS 1.2+ required; no TLS 1.0/1.1 |
+| `security-cookie-flags` | Session cookies set Secure, HttpOnly and SameSite |
+| `security-cookie-lifetime` | Cookies stay within the 400-day browser cap |
 
 ### Technical SEO (13 rules) - 7% weight
 
@@ -367,7 +369,7 @@ seomator self doctor -v          # Verbose diagnostics
 | `technical-timeout` | Pages should respond within timeout |
 | `technical-bad-content-type` | Content-Type header matches actual content |
 
-### Crawlability (18 rules) - 5% weight
+### Crawlability (19 rules) - 5% weight
 
 | Rule | Description |
 |------|-------------|
@@ -389,6 +391,7 @@ seomator self doctor -v          # Verbose diagnostics
 | `crawl-pagination-sequence` | No gaps in pagination sequence |
 | `crawl-pagination-noindex` | Paginated pages should not be noindexed |
 | `crawl-pagination-orphaned` | Paginated pages should be linked from content |
+| `crawl-sitemap-lastmod` | Sitemap lastmod values are valid, not future-dated, and not bulk-identical |
 
 ### Structured Data (13 rules) - 5% weight
 
@@ -408,7 +411,7 @@ seomator self doctor -v          # Verbose diagnostics
 | `schema-video` | Validates VideoObject schema |
 | `schema-website-search` | Checks WebSite sitelinks searchbox |
 
-### JavaScript Rendering (13 rules) - 5% weight
+### JavaScript Rendering (15 rules) - 5% weight
 
 | Rule | Description |
 |------|-------------|
@@ -425,6 +428,8 @@ seomator self doctor -v          # Verbose diagnostics
 | `js-rendered-links` | Navigation links present without JavaScript |
 | `js-blocked-resources` | Critical JS not blocked by robots.txt |
 | `js-ssr-check` | Server-side rendering detected |
+| `js-console-errors` | No uncaught JavaScript exceptions or console errors while rendering |
+| `js-failed-requests` | Scripts, stylesheets and other subresources load successfully |
 
 ### Accessibility (12 rules) - 4% weight
 
@@ -763,7 +768,7 @@ npx skills add seo-skills/seo-audit-skill
 
 ### What is SEOmator?
 
-SEOmator is an SEO audit tool that checks a website against 251 rules across 20 categories — covering technical SEO, Core Web Vitals, structured data, accessibility, security headers, content quality, and AI/GEO search readiness — and returns a scored, prioritized report of what to fix first. It's available as an open-source CLI, an Electron desktop app, and a Claude Code skill.
+SEOmator is an SEO audit tool that checks a website against 256 rules across 20 categories — covering technical SEO, Core Web Vitals, structured data, accessibility, security headers, content quality, and AI/GEO search readiness — and returns a scored, prioritized report of what to fix first. It's available as an open-source CLI, an Electron desktop app, and a Claude Code skill.
 
 ### How is SEOmator different from Lighthouse or PageSpeed Insights?
 

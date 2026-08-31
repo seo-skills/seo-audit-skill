@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SEOmator is a comprehensive SEO audit tool (`@seomator/seo-audit`) with 251 rules across 20 categories. It ships as both a **CLI tool** (published to npm) and an **Electron desktop app** (local only). It fetches web pages, parses HTML with Cheerio, optionally measures Core Web Vitals via Playwright, and scores pages against SEO best practices.
+SEOmator is a comprehensive SEO audit tool (`@seomator/seo-audit`) with 256 rules across 20 categories. It ships as both a **CLI tool** (published to npm) and an **Electron desktop app** (local only). It fetches web pages, parses HTML with Cheerio, optionally measures Core Web Vitals via Playwright, and scores pages against SEO best practices.
 
 ## Critical Rules (read before making changes)
 
@@ -136,7 +136,7 @@ core(12%), perf(12%), links(8%), images(8%), security(8%), technical(7%), crawl(
 
 ### Key Directories
 
-- `src/rules/` - 251 audit rules in 20 category subdirectories
+- `src/rules/` - 256 audit rules in 20 category subdirectories
 - `src/categories/` - Category definitions with weights
 - `src/commands/` - CLI command handlers (audit, crawl, init, config, db, etc.)
 - `src/crawler/` - HTTP fetcher, queue-based crawler, URL normalization

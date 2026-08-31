@@ -13,6 +13,7 @@ import {
   renderBanner,
 } from '../reporters/index.js';
 import { loadConfig } from '../config/index.js';
+import { setUserAgent } from '../crawler/user-agent.js';
 import { saveReport, createReport, generateId } from '../storage/index.js';
 
 export interface AuditOptions {
@@ -53,6 +54,9 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       timeout_ms: options.timeout,
     },
   });
+
+  // Apply the configured identity to every request this run makes
+  setUserAgent(config.crawler.user_agent);
 
   // Create progress reporter
   const progress = new ProgressReporter({

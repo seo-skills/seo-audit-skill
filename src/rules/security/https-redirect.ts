@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { getUserAgent } from '../../crawler/user-agent.js';
 
 /**
  * Makes a fetch request without following redirects to check redirect behavior
@@ -16,7 +17,7 @@ async function checkRedirect(
       method: 'HEAD',
       signal: controller.signal,
       headers: {
-        'User-Agent': 'SEOmatorBot/1.0 (+https://github.com/seo-skills/seo-audit-skill)',
+        'User-Agent': getUserAgent(),
       },
       redirect: 'manual', // Don't follow redirects
     });

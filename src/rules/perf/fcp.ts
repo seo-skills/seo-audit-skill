@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { defineRule, pass, warn, fail, notMeasured } from '../define-rule.js';
 
 /**
  * FCP thresholds in milliseconds
@@ -27,7 +27,7 @@ export const fcpRule = defineRule({
     const fcp = cwv.fcp;
 
     if (fcp === undefined) {
-      return warn('cwv-fcp', 'Could not measure First Contentful Paint', {
+      return notMeasured('cwv-fcp', 'Could not measure First Contentful Paint', {
         metric: 'FCP',
         reason: 'Metric not available',
       });

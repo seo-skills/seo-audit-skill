@@ -215,8 +215,14 @@ export interface RuleResult {
   message: string;
   /** Additional details about the result */
   details?: Record<string, unknown>;
-  /** Score from 0-100 */
+  /** Status score: 100 for pass, 50 for warn, 0 for fail */
   score: number;
+  /**
+   * The declared weight of the rule that produced this result, used to weight
+   * the category average. Injected by the Auditor from `AuditRule.weight`;
+   * results built by hand fall back to weight 1.
+   */
+  weight?: number;
 }
 
 /**

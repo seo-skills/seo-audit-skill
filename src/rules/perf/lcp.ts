@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { defineRule, pass, warn, fail, notMeasured } from '../define-rule.js';
 
 /**
  * LCP thresholds in milliseconds
@@ -27,7 +27,7 @@ export const lcpRule = defineRule({
     const lcp = cwv.lcp;
 
     if (lcp === undefined) {
-      return warn('cwv-lcp', 'Could not measure Largest Contentful Paint', {
+      return notMeasured('cwv-lcp', 'Could not measure Largest Contentful Paint', {
         metric: 'LCP',
         reason: 'Metric not available',
       });

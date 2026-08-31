@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { defineRule, pass, warn, fail, notMeasured } from '../define-rule.js';
 
 /**
  * CLS thresholds (unitless score)
@@ -27,7 +27,7 @@ export const clsRule = defineRule({
     const cls = cwv.cls;
 
     if (cls === undefined) {
-      return warn('cwv-cls', 'Could not measure Cumulative Layout Shift', {
+      return notMeasured('cwv-cls', 'Could not measure Cumulative Layout Shift', {
         metric: 'CLS',
         reason: 'Metric not available',
       });

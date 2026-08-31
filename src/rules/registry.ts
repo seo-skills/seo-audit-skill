@@ -56,6 +56,46 @@ export function clearRegistry(): void {
 }
 
 /**
+ * Reset callbacks for rules that accumulate state across pages.
+ *
+ * Deliberately not cleared by clearRegistry(): ESM caches modules after first
+ * import, so a cleared set would never repopulate and the resets would silently
+ * stop running for the rest of the process.
+ */
+const resettables: Set<() => void> = new Set();
+
+/**
+ * Registers a reset callback for a rule that holds cross-page state.
+ *
+ * Rules that answer cross-page questions (duplicate titles, near-duplicate
+ * content) accumulate a module-level registry as pages stream through. That
+ * state must be discarded between audits or the next audit compares its pages
+ * against the previous one's.
+ *
+ * @param reset - Callback that clears the rule's accumulated state
+ */
+export function registerResettable(reset: () => void): void {
+  resettables.add(reset);
+}
+
+/**
+ * Clears accumulated cross-page state for every stateful rule.
+ * Called at the start of each audit run.
+ */
+export function resetCrossPageState(): void {
+  for (const reset of resettables) {
+    reset();
+  }
+}
+
+/**
+ * Gets the number of registered reset callbacks (for testing)
+ */
+export function getResettableCount(): number {
+  return resettables.size;
+}
+
+/**
  * Gets the total count of registered rules
  * @returns Number of rules in the registry
  */

@@ -1,41 +1,37 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass } from '../define-rule.js';
+import { defineRule, notMeasured } from '../define-rule.js';
 
 /**
  * Rule: Check for orphan pages (no incoming internal links)
  *
  * Orphan pages have no internal links pointing to them, making them
- * difficult for users and search engines to discover. This reduces
- * their SEO value and crawlability.
+ * difficult for users and search engines to discover.
  *
- * NOTE: Full orphan page detection requires building a site-wide link graph
- * across all crawled pages. This is a placeholder that passes with info
- * about requiring crawl mode for full detection.
+ * Answering this needs a site-wide link graph: every page's inbound links,
+ * collected across the whole crawl. Rules receive one page at a time and there
+ * is no site-level context yet, so this check cannot run and reports as
+ * unmeasured rather than passing every page unconditionally.
  *
- * Future enhancement: In crawl mode, maintain a link graph and check
- * which pages have zero incoming internal links.
+ * `crawl-sitemap-orphan-urls` covers the partial case that is answerable
+ * today: sitemap URLs that the crawl never reached.
  */
 export const orphanPagesRule = defineRule({
   id: 'links-orphan-pages',
   name: 'No Orphan Pages',
-  description: 'Checks that pages have incoming internal links (requires crawl mode for full detection)',
+  description:
+    'Checks that pages have incoming internal links. Requires a site-wide link graph, which is not yet built.',
   category: 'links',
   weight: 1,
   run: (context: AuditContext) => {
-    const { links } = context;
+    const outgoingInternalLinks = context.links.filter((link) => link.isInternal);
 
-    // Count incoming internal links this page would provide to other pages
-    const outgoingInternalLinks = links.filter((link) => link.isInternal);
-
-    // In single-page mode, we can only report what this page links to
-    // Full orphan detection requires crawl-wide analysis
-    return pass(
+    return notMeasured(
       'links-orphan-pages',
-      `Page provides ${outgoingInternalLinks.length} internal link(s) to other pages. Full orphan detection requires crawl mode.`,
+      'Orphan page detection not available - it requires a site-wide inbound link graph, which SEOmator does not build yet',
       {
         outgoingInternalLinkCount: outgoingInternalLinks.length,
-        note: 'Orphan page detection requires analyzing all pages in crawl mode to build a complete link graph',
-        recommendation: 'Use --crawl flag to enable full orphan page detection across the site',
+        note: 'A page is orphaned when no other page links to it, which can only be determined by inspecting every page in the site.',
+        relatedRule: 'crawl-sitemap-orphan-urls',
       }
     );
   },

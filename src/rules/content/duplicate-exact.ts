@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail } from '../define-rule.js';
+import { registerResettable } from '../registry.js';
 
 /**
  * Module-level registry storing content hashes mapped to their first-seen URL.
@@ -13,6 +14,8 @@ const contentHashRegistry = new Map<string, string>();
 export function resetDuplicateContentRegistry(): void {
   contentHashRegistry.clear();
 }
+
+registerResettable(resetDuplicateContentRegistry);
 
 /**
  * Get duplicate content registry stats (for testing/debugging)

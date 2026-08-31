@@ -118,6 +118,53 @@ describe('Programmatic API (createAuditor / Auditor)', () => {
     }
   });
 
+  it('does not carry cross-page state between audits in the same process', async () => {
+    // Two different sites that happen to share a title. Rules like
+    // core-title-unique accumulate module-level state as pages stream through;
+    // without a reset between runs the second audit compares its pages against
+    // the first one's and reports a phantom duplicate.
+    const SITE_A = 'https://site-a.test/';
+    const SITE_B = 'https://site-b.test/';
+    const sharedTitleHtml = (url: string) => `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Shared Title</title>
+  <meta name="description" content="Two unrelated sites that happen to share a title tag.">
+  <link rel="canonical" href="${url}">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body><h1>Shared Title</h1><p>Body content.</p></body>
+</html>`;
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url === SITE_A || url === SITE_B) {
+          return new Response(sharedTitleHtml(url), {
+            status: 200,
+            headers: { 'content-type': 'text/html; charset=utf-8' },
+          });
+        }
+        return new Response('', { status: 404 });
+      })
+    );
+
+    const titleUniqueOf = (result: Awaited<ReturnType<Auditor['audit']>>) =>
+      result.categoryResults[0].results.find((r) => r.ruleId === 'core-title-unique');
+
+    const auditorA = createAuditor({ categories: ['core'], measureCwv: false });
+    const first = titleUniqueOf(await auditorA.audit(SITE_A));
+    expect(first?.status).toBe('pass');
+
+    // A fresh Auditor instance is not enough — the registries are module-level.
+    const auditorB = createAuditor({ categories: ['core'], measureCwv: false });
+    const second = titleUniqueOf(await auditorB.audit(SITE_B));
+    expect(second?.status).toBe('pass');
+    expect(second?.message).not.toMatch(/duplicate/i);
+  });
+
   it('issues exactly one HTTP fetch for the audited URL', async () => {
     const auditor = createAuditor({ categories: ['core'], measureCwv: false });
     await auditor.audit(PAGE_URL);

@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { registerResettable } from '../registry.js';
 
 /**
  * Similarity thresholds for near-duplicate detection
@@ -34,6 +35,8 @@ const nearDuplicateRegistry: StoredPage[] = [];
 export function resetNearDuplicateRegistry(): void {
   nearDuplicateRegistry.length = 0;
 }
+
+registerResettable(resetNearDuplicateRegistry);
 
 /**
  * Get near-duplicate registry stats (for testing/debugging)

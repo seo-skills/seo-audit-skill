@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { defineRule, pass, warn, fail, notMeasured } from '../define-rule.js';
 
 /**
  * TTFB thresholds in milliseconds
@@ -27,7 +27,7 @@ export const ttfbRule = defineRule({
     const ttfb = cwv.ttfb;
 
     if (ttfb === undefined) {
-      return warn('cwv-ttfb', 'Could not measure Time to First Byte', {
+      return notMeasured('cwv-ttfb', 'Could not measure Time to First Byte', {
         metric: 'TTFB',
         reason: 'Metric not available',
       });

@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { defineRule, pass, warn, fail, notMeasured } from '../define-rule.js';
 
 /**
  * INP thresholds in milliseconds
@@ -27,12 +27,12 @@ export const inpRule = defineRule({
     const inp = cwv.inp;
 
     if (inp === undefined) {
-      return warn(
+      return notMeasured(
         'cwv-inp',
-        'Could not measure Interaction to Next Paint (no user interaction detected or metric not available)',
+        'INP not measured - it requires real user interaction, which an automated crawl does not perform. Use field data (CrUX or RUM) for INP.',
         {
           metric: 'INP',
-          reason: 'No interaction or metric not available',
+          reason: 'INP requires user interaction and cannot be measured in a lab crawl',
         }
       );
     }

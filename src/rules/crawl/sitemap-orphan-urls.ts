@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn } from '../define-rule.js';
+import { registerResettable } from '../registry.js';
 
 /**
  * Module-level registry for tracking crawled URLs across pages.
@@ -36,6 +37,8 @@ export function resetOrphanRegistry(): void {
   crawledUrls.clear();
   sitemapCheckUrls.clear();
 }
+
+registerResettable(resetOrphanRegistry);
 
 /**
  * Get statistics from the orphan URL registries

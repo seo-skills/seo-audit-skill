@@ -6,7 +6,9 @@ import { loadCrawl, getLatestCrawl, saveReport, createReport, type StoredCrawl, 
 import { ProgressReporter, renderTerminalReport, outputJsonReport } from '../reporters/index.js';
 import { buildAuditResult } from '../scoring.js';
 import { loadAllRules } from '../rules/loader.js';
-import type { AuditContext, LinkInfo, ImageInfo } from '../types.js';
+import { createAuditContext } from '../crawler/index.js';
+import { resetCrossPageState } from '../rules/registry.js';
+import type { AuditContext } from '../types.js';
 
 export interface AnalyzeOptions {
   categories?: string[];
@@ -17,59 +19,27 @@ export interface AnalyzeOptions {
 }
 
 /**
- * Create an AuditContext from a stored page
- * Reconstructs the context needed for running audit rules
+ * Create an AuditContext from a stored page.
+ *
+ * Delegates to the crawler's own `createAuditContext` so replayed pages get
+ * exactly the same extraction as a live fetch — including `invalidLinks`,
+ * `specialLinks`, `figures`, `inlineSvgs` and `pictureElements`, which rules
+ * dereference without guarding.
  */
 function createContextFromStoredPage(page: StoredPage): AuditContext {
   const $ = cheerio.load(page.html);
 
-  // Extract links
-  const links: LinkInfo[] = [];
-  const baseUrl = new URL(page.url);
-
-  $('a[href]').each((_, el) => {
-    const href = $(el).attr('href') || '';
-    const text = $(el).text().trim();
-
-    try {
-      const linkUrl = new URL(href, page.url);
-      const isInternal = linkUrl.hostname === baseUrl.hostname;
-      const rel = $(el).attr('rel') || '';
-      const isNoFollow = rel.includes('nofollow');
-
-      links.push({ href: linkUrl.href, text, isInternal, isNoFollow });
-    } catch {
-      // Invalid URL, skip
-    }
-  });
-
-  // Extract images
-  const images: ImageInfo[] = [];
-  $('img').each((_, el) => {
-    const src = $(el).attr('src') || '';
-    const alt = $(el).attr('alt') || '';
-
-    images.push({
-      src,
-      alt,
-      hasAlt: $(el).attr('alt') !== undefined,
-      width: $(el).attr('width'),
-      height: $(el).attr('height'),
-      isLazyLoaded: $(el).attr('loading') === 'lazy',
-    });
-  });
-
-  return {
-    url: page.url,
-    html: page.html,
-    $,
-    headers: page.headers,
-    statusCode: page.status,
-    responseTime: page.loadTime,
-    cwv: page.cwv || {},
-    links,
-    images,
-  };
+  return createAuditContext(
+    page.url,
+    {
+      html: page.html,
+      $,
+      headers: page.headers,
+      statusCode: page.status,
+      responseTime: page.loadTime,
+    },
+    page.cwv || {}
+  );
 }
 
 /**
@@ -117,22 +87,35 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
     onCategoryStart: (id, name) => progress.onCategoryStart(id, name),
     onCategoryComplete: (id, name, result) => progress.onCategoryComplete(id, name, result),
     onRuleComplete: (id, name, result) => progress.onRuleComplete(id, name, result),
+    onPageComplete: (url, pageNumber, totalPages) =>
+      progress.onPageComplete(url, pageNumber, totalPages),
   });
 
   try {
     progress.start(crawl.url);
 
-    // Analyze first page for now (multi-page analysis would need aggregation)
-    const firstPage = crawl.pages[0];
-    if (!firstPage) {
+    if (crawl.pages.length === 0) {
       console.error(chalk.red('No pages in crawl data.'));
       process.exit(1);
     }
 
-    const context = createContextFromStoredPage(firstPage);
+    // Rules that compare pages against each other hold state across the run
+    resetCrossPageState();
 
-    // Run all categories on the context
-    const categoryResults = await auditor.runAllCategories(context);
+    const pages = crawl.pages.map((page) => {
+      try {
+        return { url: page.url, context: createContextFromStoredPage(page) };
+      } catch (error) {
+        return {
+          url: page.url,
+          context: null as unknown as AuditContext,
+          error: error instanceof Error ? error.message : 'Failed to rebuild page context',
+        };
+      }
+    });
+
+    // Score every stored page, not just the first
+    const categoryResults = await auditor.auditPages(pages);
 
     // Build final result
     const timestamp = new Date().toISOString();

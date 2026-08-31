@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { registerResettable } from '../registry.js';
 
 // Global store for tracking titles across pages during a crawl
 // This is reset at the start of each audit run
@@ -11,6 +12,8 @@ const titleRegistry = new Map<string, string[]>();
 export function resetTitleRegistry(): void {
   titleRegistry.clear();
 }
+
+registerResettable(resetTitleRegistry);
 
 /**
  * Get title registry stats (for testing/debugging)

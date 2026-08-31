@@ -7,7 +7,7 @@ import type {
   CoreWebVitals,
 } from './types.js';
 import { categories, getCategoryById } from './categories/index.js';
-import { getRulesByCategory } from './rules/registry.js';
+import { getRulesByCategory, resetCrossPageState } from './rules/registry.js';
 import { loadAllRules } from './rules/loader.js';
 import {
   fetchPage,
@@ -18,6 +18,7 @@ import {
   type CrawledPage,
   type PlaywrightFetchResult,
 } from './crawler/index.js';
+import { getUserAgent } from './crawler/user-agent.js';
 import {
   buildCategoryResult,
   buildAuditResult,
@@ -146,7 +147,7 @@ export class Auditor {
         const response = await fetch(robotsUrl, {
           signal: controller.signal,
           headers: {
-            'User-Agent': 'SEOmatorBot/2.0 (+https://github.com/seo-skills/seo-audit-skill)',
+            'User-Agent': getUserAgent(),
           },
         });
         clearTimeout(timeoutId);
@@ -183,7 +184,7 @@ export class Auditor {
         const response = await fetch(sitemapUrl, {
           signal: controller.signal,
           headers: {
-            'User-Agent': 'SEOmatorBot/2.0 (+https://github.com/seo-skills/seo-audit-skill)',
+            'User-Agent': getUserAgent(),
           },
         });
         clearTimeout(timeoutId);
@@ -228,6 +229,7 @@ export class Auditor {
    */
   async audit(url: string): Promise<AuditResult> {
     await this.ensureRulesLoaded();
+    resetCrossPageState();
 
     // Fetch the page
     const fetchResult = await fetchPage(url, this.options.timeout);
@@ -288,6 +290,7 @@ export class Auditor {
     concurrency = 3
   ): Promise<AuditResult> {
     await this.ensureRulesLoaded();
+    resetCrossPageState();
 
     // Pre-fetch robots.txt and sitemap once for the entire crawl
     const robotsTxtContent = await this.fetchRobotsTxt(url);
@@ -329,7 +332,7 @@ export class Auditor {
     }
 
     // Aggregate results from all pages
-    const allCategoryResults = await this.aggregateCrawlResults(crawledPages);
+    const allCategoryResults = await this.auditPages(crawledPages);
 
     // Build final result
     const timestamp = new Date().toISOString();
@@ -343,11 +346,20 @@ export class Auditor {
   }
 
   /**
-   * Aggregate results from multiple crawled pages
+   * Run every category across multiple pages and aggregate the rule results.
+   *
+   * Each category's score is the weighted average over every rule result from
+   * every page, so a rule that fails on 3 of 50 pages drags the category down
+   * proportionally rather than deciding it outright.
+   *
+   * Used by both the live crawl path and `seomator analyze`, which replays
+   * pages from a stored crawl.
+   *
+   * @param pages - Pages to audit; entries with an `error` are skipped
+   * @returns One CategoryResult per audited category
    */
-  private async aggregateCrawlResults(
-    crawledPages: CrawledPage[]
-  ): Promise<CategoryResult[]> {
+  async auditPages(pages: CrawledPage[]): Promise<CategoryResult[]> {
+    const crawledPages = pages;
     // Collect all rule results per category across all pages
     const categoryRuleResults = new Map<string, RuleResult[]>();
 
@@ -410,10 +422,13 @@ export class Auditor {
       for (const rule of rules) {
         try {
           const result = await rule.run(context);
-          // Inject ruleId and page URL for consistent tracking
+          // Inject ruleId, weight and page URL for consistent tracking.
+          // A result that set its own weight keeps it — that is how
+          // notMeasured() opts a result out of scoring with weight 0.
           const resultWithMeta: RuleResult = {
             ...result,
             ruleId: rule.id,
+            weight: result.weight ?? rule.weight,
             details: {
               ...result.details,
               pageUrl: context.url,
@@ -428,6 +443,7 @@ export class Auditor {
             status: 'fail',
             message: `Rule execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
             score: 0,
+            weight: rule.weight,
             details: {
               pageUrl: context.url,
             },

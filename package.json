@@ -64,7 +64,7 @@
   },
   "homepage": "https://github.com/seo-skills/seo-audit-skill#readme",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",

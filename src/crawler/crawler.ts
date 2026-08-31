@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import { fetchPage, createAuditContext, type FetchResult } from './fetcher.js';
-import type { AuditContext, CoreWebVitals, RenderDiagnostics } from '../types.js';
+import type { AuditContext, CoreWebVitals, RenderDiagnostics, SiteContext } from '../types.js';
 import { UrlFilter, type UrlFilterOptions } from './url-filter.js';
 
 /**
@@ -71,6 +71,10 @@ export interface CrawledPage {
 export class Crawler {
   private visited: Set<string> = new Set();
   private queue: string[] = [];
+  /** Click distance from the entry URL, set when a URL is first discovered */
+  private depthByUrl: Map<string, number> = new Map();
+  /** Normalised entry URL, the root of the depth measurement */
+  private entryUrl = '';
   private hostname: string = '';
   private options: CrawlerOptions;
   private results: CrawledPage[] = [];
@@ -106,6 +110,7 @@ export class Crawler {
     // Reset state
     this.visited.clear();
     this.queue = [];
+    this.depthByUrl.clear();
     this.results = [];
     this.activeCount = 0;
 
@@ -127,6 +132,8 @@ export class Crawler {
 
     // Normalize and add start URL to queue
     const normalizedStart = this.normalizeUrl(startUrl);
+    this.entryUrl = normalizedStart;
+    this.depthByUrl.set(normalizedStart, 0);
     this.visited.add(normalizedStart);
     this.queue.push(normalizedStart);
 
@@ -250,9 +257,62 @@ export class Crawler {
   }
 
   /**
+   * Build the site-wide link graph from the pages just crawled.
+   *
+   * Call after `crawl()`. Unlike discovery, this includes nofollow links and
+   * links the URL filter excluded from crawling: a page that is linked is not
+   * orphaned regardless of whether we chose to follow the link. Self-links are
+   * ignored so a page cannot be its own inbound reference.
+   *
+   * @returns The graph, shared by reference across every page's context
+   */
+  buildSiteContext(): SiteContext {
+    const inboundLinksByUrl = new Map<string, Set<string>>();
+    const outboundLinksByUrl = new Map<string, Set<string>>();
+    let pageCount = 0;
+
+    for (const page of this.results) {
+      if (page.error) continue;
+      pageCount++;
+
+      const from = this.normalizeUrl(page.url);
+      const targets = new Set<string>();
+
+      for (const link of page.context.links) {
+        if (!link.isInternal) continue;
+
+        const to = this.normalizeUrl(link.href);
+        if (to === from) continue;
+        if (!this.isSameDomain(to)) continue;
+
+        targets.add(to);
+        let inbound = inboundLinksByUrl.get(to);
+        if (!inbound) {
+          inbound = new Set<string>();
+          inboundLinksByUrl.set(to, inbound);
+        }
+        inbound.add(from);
+      }
+
+      outboundLinksByUrl.set(from, targets);
+    }
+
+    return {
+      entryUrl: this.entryUrl,
+      pageCount,
+      depthByUrl: this.depthByUrl,
+      inboundLinksByUrl,
+      outboundLinksByUrl,
+      normalize: (url: string) => this.normalizeUrl(url),
+    };
+  }
+
+  /**
    * Discover and queue new URLs from page links
    */
   private discoverUrls(context: AuditContext): void {
+    const parentDepth = this.depthByUrl.get(this.normalizeUrl(context.url)) ?? 0;
+
     for (const link of context.links) {
       // Only follow internal links
       if (!link.isInternal) {
@@ -286,8 +346,11 @@ export class Crawler {
         continue;
       }
 
-      // Add to queue
+      // Add to queue. Depth is recorded on first discovery only: the queue is
+      // FIFO and a URL is queued at most once, so this is its shortest path
+      // from the entry point.
       this.visited.add(normalizedUrl);
+      this.depthByUrl.set(normalizedUrl, parentDepth + 1);
       this.queue.push(normalizedUrl);
     }
   }

@@ -327,10 +327,14 @@ async function performSyntheticInteraction(page: Page): Promise<void> {
   const target = page
     .locator('a[href], button, [role="button"], input:not([type="hidden"]), select, textarea')
     .first();
-  try {
-    await target.click({ timeout: 2000 });
-  } catch {
-    // Nothing clickable, or it was obscured — a bare keypress still counts.
+  // Check for a match before clicking: on a page with nothing interactive,
+  // waiting out the click timeout costs seconds per page for nothing.
+  if ((await target.count()) > 0) {
+    try {
+      await target.click({ timeout: 1500 });
+    } catch {
+      // Present but obscured or detached — the keypress below still counts.
+    }
   }
   await page.keyboard.press('Tab');
 

@@ -271,6 +271,33 @@ export interface RenderDiagnostics {
 }
 
 /**
+ * A site-wide view of the crawl, available to rules in crawl mode.
+ *
+ * Rules receive one page at a time, so questions that span pages — is anything
+ * linking to this page, how many clicks from the entry point is it — cannot be
+ * answered from AuditContext alone. This is the shared graph built once per
+ * crawl and attached to every page's context.
+ *
+ * All keys are normalised through `normalize`, the same normalisation the
+ * crawler used to dedupe URLs, so lookups line up with what was actually
+ * crawled. Look a URL up with `normalize(url)` rather than the raw string.
+ */
+export interface SiteContext {
+  /** The URL the crawl started from, normalised */
+  entryUrl: string;
+  /** Number of pages successfully crawled */
+  pageCount: number;
+  /** Click distance from the entry URL, by normalised URL */
+  depthByUrl: Map<string, number>;
+  /** Normalised URLs that link TO each normalised URL */
+  inboundLinksByUrl: Map<string, Set<string>>;
+  /** Internal normalised URLs each normalised URL links OUT to */
+  outboundLinksByUrl: Map<string, Set<string>>;
+  /** Normalise a URL into the key form used by the maps above */
+  normalize: (url: string) => string;
+}
+
+/**
  * Context passed to each audit rule's run function
  */
 export interface AuditContext {
@@ -341,6 +368,15 @@ export interface AuditContext {
   mobileHtml?: string;
   /** Cheerio instance of the mobile-rendered DOM */
   mobile$?: CheerioAPI;
+
+  // --- Site graph (present in crawl mode only) ---
+
+  /**
+   * Site-wide link graph and click depths, shared across every page of a
+   * crawl. Absent for single-page audits, where cross-page questions cannot
+   * be answered.
+   */
+  site?: SiteContext;
 }
 
 /**

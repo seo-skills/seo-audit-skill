@@ -24,7 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Core Web Vitals are now collected with the `web-vitals` library** injected into the page
   before navigation, replacing hand-rolled `PerformanceObserver` code. Metrics are now
-  spec-compliant — the same values Lighthouse, PSI and CrUX report — at no added audit time.
+  spec-compliant — the same values Lighthouse, PSI and CrUX report.
+- **Rendered audits are ~30% faster per page** (3258ms → 2284ms median on a local benchmark,
+  warm browser). The previous collector blocked a further second inside `page.evaluate`
+  waiting for metrics the injected collectors already hold; that wait is gone.
 
 ### Fixed
 

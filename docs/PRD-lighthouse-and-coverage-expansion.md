@@ -48,7 +48,8 @@ third-party URL from the outside and has no script to install. The observers, ho
 port directly into Playwright.
 
 **Why this is "instant":** the metrics are collected *during the page load we already
-perform* for rendered-DOM capture. Added wall time: zero.
+perform* for rendered-DOM capture. Measured effect is not zero but **negative** — the audit
+gets faster; see §5 Phase 1.
 
 ### 1.3 Reference finding — how geo-audit-free gets Lighthouse "instantly"
 
@@ -91,8 +92,9 @@ Chrome binary. One `fetch`.
 
 ## 3. Goals
 
-- **G1** — Report accurate, spec-compliant Core Web Vitals with **zero added wall time**,
-  measured during the Playwright load we already perform.
+- **G1** — Report accurate, spec-compliant Core Web Vitals **without slowing the audit**,
+  measured during the Playwright load we already perform. *(Achieved: 29.9% faster per
+  page — the replaced code contained a redundant 1s wait.)*
 - **G1b** — Offer Lighthouse's four category scores as an opt-in extra for public URLs.
 - **G2** — Close the accessibility gap: 12 → ~31 rules, all statically checkable.
 - **G3** — Add Best-Practices-class security and runtime checks currently absent.
@@ -157,6 +159,22 @@ deferred as unjustified for the value.
 **Implementation note:** the package's `exports` map blocks deep subpath resolution, so
 `require.resolve('web-vitals/dist/...')` throws `ERR_PACKAGE_PATH_NOT_EXPORTED`. The IIFE is
 located relative to the resolved main entry instead (both live in `dist/`).
+
+**Verified result — audit speed (median of 5 alternating runs, local server, warm browser):**
+
+| | per page |
+|---|---|
+| Before | 3258ms |
+| After | **2284ms** |
+| **Delta** | **−973ms (−29.9%)** |
+
+The old `measureCoreWebVitals` blocked a further 1000ms *inside* `page.evaluate` on top of
+the existing settle, waiting for metrics the injected collectors already hold. Removing that
+wait is where the time comes from. Metric parity was checked on the same page: the new path
+returns everything the old one did, plus `lcpElement` and `tbt`.
+
+`--simulate-interaction` adds roughly 600–1100ms depending on whether the page has anything
+clickable — opt-in, so the default path is unaffected.
 
 **Verified result — TTFB on `example.com`:**
 
@@ -351,7 +369,7 @@ data)` at weight 0.
 
 | # | Criterion |
 |---|---|
-| S1 | Core Web Vitals are collected via injected `web-vitals`; audit wall time increases by **0s** versus 3.1.1 |
+| S1 | Core Web Vitals are collected via injected `web-vitals`; audit wall time does not increase versus 3.1.1 — **met: 973ms faster per page (−29.9%)** |
 | S1b | TTFB matches PSI/CrUX for the same URL within tolerance (today it is systematically low by DNS + TCP + TLS) |
 | S1c | LCP on a deliberately slow test page is no longer truncated by the removed 1s window |
 | S1d | `--psi` prints 4 Lighthouse scores; the on-page report is not blocked waiting for it |

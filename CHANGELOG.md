@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-08-31
+
+> ### ⚠️ Scores change in this release — re-baseline before upgrading
+>
+> A scoring bug meant failing rules were weighted 100× less than passing ones,
+> so previous scores were inflated. Fixing it moves real numbers: a sample audit
+> of example.com went **93 → 85**, with `geo` 89 → 43, `social` 48 → 17 and
+> `htmlval` 100 → 83 (a category that contained a failing rule yet scored a
+> perfect 100). Two further corrections move scores in *both* directions: the
+> `js` category no longer awards a free 100 under `--no-cwv`, and `perf` no
+> longer penalises Core Web Vitals it never measured.
+>
+> Nothing in the public API breaks and no code needs changing. But if you gate
+> CI on a score threshold, or hold a client-facing baseline, **the same site will
+> score differently on 3.1.0 than on 3.0.1**. Re-run your baseline before
+> treating a drop as a regression.
+
 ### Added
 
 - **`seomator compare <domain>`** — diffs the latest audit of a site against the

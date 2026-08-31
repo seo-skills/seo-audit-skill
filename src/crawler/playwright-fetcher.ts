@@ -76,8 +76,14 @@ export interface PlaywrightFetchResult {
   responseTime: number;
   /** Core Web Vitals metrics */
   cwv: CoreWebVitals;
-  /** Errors and failed requests observed during the render */
-  diagnostics: RenderDiagnostics;
+  /**
+   * Errors and failed requests observed during the render.
+   *
+   * Optional so a custom `browserFetcher` need not synthesise diagnostics it
+   * cannot produce; absent means "not captured", which rules report as
+   * unmeasured rather than as a clean result.
+   */
+  diagnostics?: RenderDiagnostics;
 }
 
 /**

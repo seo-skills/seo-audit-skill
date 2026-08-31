@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Synthetic INP (`--simulate-interaction`).** INP cannot be measured without a real
+  interaction, so an untouched crawl never reports one. This flag makes the crawler scroll,
+  click and keypress the page so INP has something to measure. Navigation and form
+  submission are suppressed with capture-phase `preventDefault`, so the click measures the
+  site's own handlers without tearing down the document. The value reflects one arbitrary
+  element rather than real usage, so it is labelled synthetic and carries **weight 0** — it
+  is reported, never scored.
+- **LCP element and largest layout-shift target** are now captured via `web-vitals`
+  attribution (`cwv.lcpElement`, `cwv.clsLargestShiftTarget`).
+- **Total Blocking Time** (`cwv.tbt`), collected from a `longtask` observer.
+
+### Changed
+
+- **Core Web Vitals are now collected with the `web-vitals` library** injected into the page
+  before navigation, replacing hand-rolled `PerformanceObserver` code. Metrics are now
+  spec-compliant — the same values Lighthouse, PSI and CrUX report — at no added audit time.
+
+### Fixed
+
+- **TTFB was substantially understated.** It was computed as
+  `responseStart - requestStart`, which excludes redirect, DNS, TCP and TLS time.
+  `web-vitals` measures from navigation start. On `example.com` the old formula reported
+  61ms against an actual 265ms — a 4.3× understatement, and worse on hosts with slow DNS or
+  TLS. `cwv-ttfb` was effectively grading a narrower metric than the one it names.
+- **LCP and CLS were truncated, not finalized.** Collection resolved on a fixed 1s timer, so
+  an LCP landing later than that was missed and any layout shift after it was dropped.
+  `reportAllChanges` now keeps the latest value available without waiting for page-hide.
+
 - **Mobile-first parity (`--mobile`).** An opt-in second render at a mobile
   viewport (393×852, mobile UA), with five rules comparing the desktop-rendered
   DOM against the mobile one — the checks that catch a mobile-first indexing

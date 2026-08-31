@@ -4,20 +4,11 @@ import { horizontalScrollRule } from './horizontal-scroll.js';
 import { interstitialsRule } from './interstitials.js';
 import type { AuditContext } from '../../types.js';
 import * as cheerio from 'cheerio';
+import { createTestContext } from '../test-context.js';
 
 // Helper to create AuditContext
 function createContext(html: string, url = 'https://example.com/'): AuditContext {
-  return {
-    url,
-    html,
-    $: cheerio.load(html),
-    headers: {},
-    links: [],
-    images: [],
-    statusCode: 200,
-    responseTime: 100,
-    redirectChain: [],
-  };
+  return createTestContext(html, { url });
 }
 
 describe('fontSizeRule', () => {
@@ -171,7 +162,7 @@ describe('horizontalScrollRule', () => {
     const context = createContext(html);
     const result = await horizontalScrollRule.run(context);
     expect(result.status).toBe('warn');
-    expect(result.details?.issues[0].issue).toContain('100vw');
+    expect((result.details?.issues as { issue: string }[])[0].issue).toContain('100vw');
   });
 
   it('should fail for multiple critical issues', async () => {
@@ -221,7 +212,7 @@ describe('interstitialsRule', () => {
     const context = createContext(html);
     const result = await interstitialsRule.run(context);
     expect(result.status).toBe('warn');
-    expect(result.details?.issues[0].type).toContain('Popup');
+    expect((result.details?.issues as { type: string }[])[0].type).toContain('Popup');
   });
 
   it('should detect newsletter popup forms', async () => {
@@ -293,7 +284,7 @@ describe('interstitialsRule', () => {
     const context = createContext(html);
     const result = await interstitialsRule.run(context);
     expect(result.status).toBe('fail');
-    expect(result.details?.issues[0].type).toContain('Exit-intent');
+    expect((result.details?.issues as { type: string }[])[0].type).toContain('Exit-intent');
   });
 
   it('should detect splash screens', async () => {

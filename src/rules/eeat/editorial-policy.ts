@@ -147,6 +147,7 @@ export const editorialPolicyRule = defineRule({
 
     if (foundLinks.length > 0) {
       return {
+        ruleId: 'eeat-editorial-policy',
         status: 'pass',
         score: 100,
         message: `Editorial policy page found${foundSignals.length > 0 ? ` with ${foundSignals.length} editorial signal${foundSignals.length > 1 ? 's' : ''}` : ''}`,
@@ -160,8 +161,9 @@ export const editorialPolicyRule = defineRule({
 
     if (foundSignals.length >= 2) {
       return {
+        ruleId: 'eeat-editorial-policy',
         status: 'pass',
-        score: 80,
+        score: 100,
         message: `Editorial signals found (${foundSignals.join(', ')}) but no dedicated policy page`,
         details: {
           hasEditorialPolicy: false,
@@ -173,8 +175,9 @@ export const editorialPolicyRule = defineRule({
 
     if (foundSignals.length === 1) {
       return {
+        ruleId: 'eeat-editorial-policy',
         status: 'pass',
-        score: 90,
+        score: 100,
         message: `Editorial signal found (${foundSignals[0]}) - consider adding editorial policy page`,
         details: {
           hasEditorialPolicy: false,
@@ -187,6 +190,7 @@ export const editorialPolicyRule = defineRule({
     // No editorial policy - warn for content sites
     if (isContentSite) {
       return {
+        ruleId: 'eeat-editorial-policy',
         status: 'warn',
         score: 50,
         message: 'No editorial policy found - recommended for content-focused sites',
@@ -200,6 +204,7 @@ export const editorialPolicyRule = defineRule({
     }
 
     return {
+      ruleId: 'eeat-editorial-policy',
       status: 'pass',
       score: 100,
       message: 'No editorial policy (may not be applicable for this site type)',

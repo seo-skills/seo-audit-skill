@@ -1,5 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import type { Cheerio, CheerioAPI } from 'cheerio';
+import type { Element } from 'domhandler';
 
 interface UnlabeledInput {
   /** Input type */
@@ -115,7 +117,7 @@ export const formLabelsRule = defineRule({
   },
 });
 
-function hasLabel($: cheerio.CheerioAPI, $el: cheerio.Cheerio<cheerio.Element>): boolean {
+function hasLabel($: CheerioAPI, $el: Cheerio<Element>): boolean {
   // Check for aria-label
   if ($el.attr('aria-label')?.trim()) {
     return true;

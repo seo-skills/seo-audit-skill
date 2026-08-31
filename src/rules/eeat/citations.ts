@@ -149,6 +149,7 @@ export const citationsRule = defineRule({
 
     if (citations.length >= 3) {
       return {
+        ruleId: 'eeat-citations',
         status: 'pass',
         score: 100,
         message: `Strong citation profile: ${citations.length} authoritative sources cited`,
@@ -168,8 +169,9 @@ export const citationsRule = defineRule({
 
     if (citations.length >= 1) {
       return {
+        ruleId: 'eeat-citations',
         status: 'pass',
-        score: 80,
+        score: 100,
         message: `${citations.length} authoritative source${citations.length > 1 ? 's' : ''} cited`,
         details: {
           citationCount: citations.length,
@@ -195,8 +197,9 @@ export const citationsRule = defineRule({
 
     if (externalLinkCount > 0) {
       return {
+        ruleId: 'eeat-citations',
         status: 'warn',
-        score: 60,
+        score: 50,
         message: `${externalLinkCount} external links found, but none to recognized authoritative sources`,
         details: {
           citationCount: 0,
@@ -209,6 +212,7 @@ export const citationsRule = defineRule({
     }
 
     return {
+      ruleId: 'eeat-citations',
       status: 'pass',
       score: 100,
       message: 'No external citations found (may not be needed for this content type)',

@@ -217,6 +217,7 @@ export const trustSignalsRule = defineRule({
 
     if (uniqueTypes.length >= 3) {
       return {
+        ruleId: 'eeat-trust-signals',
         status: 'pass',
         score: 100,
         message: `Strong trust signals: ${uniqueTypes.length} types of social proof found`,
@@ -230,8 +231,9 @@ export const trustSignalsRule = defineRule({
 
     if (uniqueTypes.length >= 2) {
       return {
+        ruleId: 'eeat-trust-signals',
         status: 'pass',
-        score: 90,
+        score: 100,
         message: `Trust signals found: ${uniqueTypes.join(', ')}`,
         details: {
           signalCount: foundSignals.length,
@@ -244,8 +246,9 @@ export const trustSignalsRule = defineRule({
 
     if (uniqueTypes.length === 1) {
       return {
+        ruleId: 'eeat-trust-signals',
         status: 'pass',
-        score: 80,
+        score: 100,
         message: `Trust signal found: ${uniqueTypes[0]}`,
         details: {
           signalCount: foundSignals.length,
@@ -257,6 +260,7 @@ export const trustSignalsRule = defineRule({
     }
 
     return {
+      ruleId: 'eeat-trust-signals',
       status: 'pass',
       score: 100,
       message: 'No trust signals detected (may not be required for this site type)',

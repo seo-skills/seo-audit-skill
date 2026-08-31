@@ -180,6 +180,7 @@ export const physicalAddressRule = defineRule({
       const hasSchemaAddress = uniqueAddresses.some((a) => a.source === 'Schema.org');
 
       return {
+        ruleId: 'eeat-physical-address',
         status: 'pass',
         score: 100,
         message: `Physical address found${hasSchemaAddress ? ' with structured data' : ''}`,
@@ -195,6 +196,7 @@ export const physicalAddressRule = defineRule({
     // No address found
     if (isLocalBusiness || isBusinessSite) {
       return {
+        ruleId: 'eeat-physical-address',
         status: 'warn',
         score: 50,
         message: 'No physical address found - important for business trust signals',
@@ -207,6 +209,7 @@ export const physicalAddressRule = defineRule({
     }
 
     return {
+      ruleId: 'eeat-physical-address',
       status: 'pass',
       score: 100,
       message: 'No physical address found (may not be required for this site type)',

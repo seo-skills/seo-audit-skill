@@ -78,4 +78,25 @@ describe('Core Web Vitals rules with measurements', () => {
     expect(result.status).toBe('fail');
     expect(result.weight).toBeUndefined();
   });
+
+  it('reports a synthetic INP as unweighted, however fast it is', async () => {
+    // 8ms would be a great INP, but the crawler produced it by clicking an
+    // arbitrary element. Scoring it would give a manufactured number the same
+    // authority as field data.
+    const result = await inpRule.run(createContext({ inp: 8, inpSynthetic: true }));
+
+    expect(result.weight).toBe(0);
+    expect(result.message).toContain('synthetic');
+    expect(result.details?.synthetic).toBe(true);
+  });
+
+  it('scores a non-synthetic INP normally', async () => {
+    const result = await inpRule.run(createContext({ inp: 8 }));
+
+    expect(result.status).toBe('pass');
+    // Unset, so the runner applies the rule's declared weight — unlike the
+    // synthetic case, which pins it to 0.
+    expect(result.weight).toBeUndefined();
+    expect(result.details?.synthetic).toBeUndefined();
+  });
 });

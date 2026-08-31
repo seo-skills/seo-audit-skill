@@ -43,7 +43,7 @@ describe('Crawlability Rules', () => {
       `);
       const result = await schemaNoindexConflictRule.run(context);
       expect(result.status).toBe('pass');
-      expect(result.details.isNoindexed).toBe(false);
+      expect(result.details?.isNoindexed).toBe(false);
     });
 
     it('should pass when page is noindexed but has no rich schema', async () => {
@@ -67,7 +67,7 @@ describe('Crawlability Rules', () => {
       `);
       const result = await schemaNoindexConflictRule.run(context);
       expect(result.status).toBe('fail');
-      expect(result.details.richResultTypes).toContain('Article');
+      expect(result.details?.richResultTypes).toContain('Article');
     });
 
     it('should fail when page has Product schema but is noindexed via X-Robots-Tag', async () => {
@@ -82,7 +82,7 @@ describe('Crawlability Rules', () => {
       );
       const result = await schemaNoindexConflictRule.run(context);
       expect(result.status).toBe('fail');
-      expect(result.details.richResultTypes).toContain('Product');
+      expect(result.details?.richResultTypes).toContain('Product');
     });
 
     it('should detect FAQPage schema conflict', async () => {
@@ -96,7 +96,7 @@ describe('Crawlability Rules', () => {
       `);
       const result = await schemaNoindexConflictRule.run(context);
       expect(result.status).toBe('fail');
-      expect(result.details.richResultTypes).toContain('FAQPage');
+      expect(result.details?.richResultTypes).toContain('FAQPage');
     });
 
     it('should handle @graph format schema', async () => {
@@ -116,7 +116,7 @@ describe('Crawlability Rules', () => {
       `);
       const result = await schemaNoindexConflictRule.run(context);
       expect(result.status).toBe('fail');
-      expect(result.details.richResultTypes).toContain('Recipe');
+      expect(result.details?.richResultTypes).toContain('Recipe');
     });
   });
 
@@ -128,7 +128,7 @@ describe('Crawlability Rules', () => {
       );
       const result = await paginationCanonicalRule.run(context);
       expect(result.status).toBe('pass');
-      expect(result.details.isPaginated).toBe(false);
+      expect(result.details?.isPaginated).toBe(false);
     });
 
     it('should pass when paginated page has self-referencing canonical', async () => {
@@ -138,7 +138,7 @@ describe('Crawlability Rules', () => {
       );
       const result = await paginationCanonicalRule.run(context);
       expect(result.status).toBe('pass');
-      expect(result.details.isPaginated).toBe(true);
+      expect(result.details?.isPaginated).toBe(true);
     });
 
     it('should fail when paginated page canonicalizes to page 1', async () => {
@@ -158,7 +158,7 @@ describe('Crawlability Rules', () => {
       );
       const result = await paginationCanonicalRule.run(context);
       expect(result.status).toBe('pass');
-      expect(result.details.isPaginated).toBe(true);
+      expect(result.details?.isPaginated).toBe(true);
     });
 
     it('should warn when paginated page is missing canonical', async () => {
@@ -181,8 +181,8 @@ describe('Crawlability Rules', () => {
         'https://example.com/articles'
       );
       const result = await paginationCanonicalRule.run(context);
-      expect(result.details.hasPrevLink).toBe(true);
-      expect(result.details.hasNextLink).toBe(true);
+      expect(result.details?.hasPrevLink).toBe(true);
+      expect(result.details?.hasNextLink).toBe(true);
     });
 
     it('should handle various pagination query params', async () => {
@@ -192,7 +192,7 @@ describe('Crawlability Rules', () => {
         'https://example.com/list?p=5'
       );
       const result1 = await paginationCanonicalRule.run(context1);
-      expect(result1.details.isPaginated).toBe(true);
+      expect(result1.details?.isPaginated).toBe(true);
 
       // Test ?offset= param
       const context2 = createContext(
@@ -200,7 +200,7 @@ describe('Crawlability Rules', () => {
         'https://example.com/list?offset=20'
       );
       const result2 = await paginationCanonicalRule.run(context2);
-      expect(result2.details.isPaginated).toBe(true);
+      expect(result2.details?.isPaginated).toBe(true);
     });
   });
 });

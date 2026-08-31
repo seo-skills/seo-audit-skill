@@ -1,5 +1,6 @@
 import type { AuditContext, RuleResult } from '../../types.js';
 import { defineRule } from '../define-rule.js';
+import type { CheerioAPI } from 'cheerio';
 
 /**
  * YMYL (Your Money Your Life) content categories and detection patterns
@@ -59,7 +60,7 @@ export interface YMYLDetectionResult {
  * Detect YMYL content in a page
  * Exported for use by other rules (disclaimers, etc.)
  */
-export function detectYMYL($: cheerio.CheerioAPI): YMYLDetectionResult {
+export function detectYMYL($: CheerioAPI): YMYLDetectionResult {
   // Get main content text (exclude nav, footer, sidebar)
   const mainContent = $('main, article, [role="main"], .content, .post-content, .entry-content')
     .first()
@@ -133,6 +134,7 @@ export const ymylDetectionRule = defineRule({
 
     if (result.isYMYL) {
       return {
+        ruleId: 'eeat-ymyl-detection',
         status: 'pass',
         score: 100, // YMYL detection is informational, not a problem
         message: `YMYL content detected: ${result.categories.join(', ')} (${result.confidence} confidence)`,
@@ -147,6 +149,7 @@ export const ymylDetectionRule = defineRule({
     }
 
     return {
+      ruleId: 'eeat-ymyl-detection',
       status: 'pass',
       score: 100,
       message: 'No YMYL content detected',

@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Product** | `@seomator/seo-audit` (audit-cli) |
-| **Current version** | 3.1.1 — 256 rules / 20 categories |
+| **Current version** | 3.1.1 — 261 rules / 20 categories |
 | **Target version** | 3.2.0 |
-| **Status** | Draft |
+| **Status** | Phase 1 implemented; Phases 1b–4 open |
 | **Date** | 2026-08-31 |
 
 ---
@@ -103,8 +103,10 @@ Chrome binary. One `fetch`.
 
 - **Bundling the `lighthouse` npm package.** ~30MB dependency, requires a Chrome binary,
   15–30s per page, and ~60% of its audits duplicate rules we already own. Rejected.
-- Replacing local Playwright CWV. PSI cannot reach `localhost`, staging behind auth, or
-  intranet hosts — a large share of CLI usage. PSI supplements; it never replaces.
+- Replacing local Playwright CWV with PSI. PSI cannot reach `localhost`, staging behind
+  auth, or intranet hosts — a large share of CLI usage — and its 10–30s latency is
+  unacceptable as a default. Local measurement is primary; PSI supplements.
+- Shipping a synthetic-interaction INP by default (see Open Decision D3).
 - Folding Lighthouse scores into the weighted 256-rule score (see Open Decision D1).
 - Any change to `electron/` beyond consuming new fields.
 
@@ -112,7 +114,7 @@ Chrome binary. One `fetch`.
 
 ## 5. Scope
 
-### Phase 1 — Instant Web Vitals via injected `web-vitals`
+### Phase 1 — Instant Web Vitals via injected `web-vitals` ✅ IMPLEMENTED
 
 Replaces the hand-rolled collector in `measureCoreWebVitals`
 (`src/crawler/playwright-fetcher.ts:268`). Default-on; no flag, no network call.
@@ -141,10 +143,30 @@ Replaces the hand-rolled collector in `measureCoreWebVitals`
 context are unaffected:
 
 ```ts
-tbt?: number;                      // Total Blocking Time (ms)
-lcpElement?: string;               // CSS selector of the LCP element
-clsCulprits?: { selector: string; value: number }[];
+tbt?: number;                   // Total Blocking Time (ms)
+inpSynthetic?: boolean;         // INP came from a crawler-driven interaction
+lcpElement?: string;            // CSS selector of the LCP element
+clsLargestShiftTarget?: string; // CSS selector behind the largest single shift
 ```
+
+**Correction to the original spec:** this listed `clsCulprits` as an array. `web-vitals`
+attribution exposes only `largestShiftTarget` — the single worst shift, not a ranked list.
+Building a full culprit list would mean parsing raw `layout-shift` entries ourselves;
+deferred as unjustified for the value.
+
+**Implementation note:** the package's `exports` map blocks deep subpath resolution, so
+`require.resolve('web-vitals/dist/...')` throws `ERR_PACKAGE_PATH_NOT_EXPORTED`. The IIFE is
+located relative to the resolved main entry instead (both live in `dist/`).
+
+**Verified result — TTFB on `example.com`:**
+
+| | value |
+|---|---|
+| Old formula (`responseStart - requestStart`) | 61ms |
+| Spec TTFB (now reported) | 265ms |
+| Previously hidden DNS + TCP + TLS | 204ms |
+
+A 4.3× understatement on a fast, well-connected host. Live audit now reports 259ms.
 
 ### Phase 1b — PSI / Lighthouse (opt-in, secondary)
 
@@ -265,7 +287,7 @@ All data already exists in `AuditContext`; only `src/reporters/html-reporter.ts`
 
 ## 6. Open decisions
 
-### D1 — How do Lighthouse scores relate to our score? *(blocking Phase 1)*
+### D1 — How do Lighthouse scores relate to our score? *(blocking Phase 1b)*
 
 Three options:
 
@@ -302,11 +324,37 @@ not a technical one.
 
 ---
 
+### D3 — Should we synthesize interactions to produce INP? — **DECIDED: (c)**
+
+INP requires a real interaction. With none, `web-vitals` never fires it and `perf/inp.ts`
+returns `notMeasured()` — honest, but a permanent hole in a Core Web Vital.
+
+- **(a) Leave as `notMeasured`.** Honest; INP stays absent from every CLI report.
+- **(b) Synthesize** a scroll plus a click on the first interactive element, then report INP.
+  Produces a number, but a synthetic click on an arbitrary element is not representative of
+  real user interaction and could be actively misleading.
+- **(c) Synthesize behind `--simulate-interaction`**, clearly labelled as synthetic in output.
+
+**Decided: (c)** — implemented as `--simulate-interaction`.
+
+The crawler suppresses navigation and form submission with capture-phase `preventDefault`
+before clicking, so the click measures the site's own handlers without tearing down the
+document being measured. The resulting INP is returned with `inpSynthetic: true`, and
+`perf/inp.ts` reports it through `notMeasured()` — **weight 0**, so a manufactured number
+never moves the score, however good it looks.
+
+Verified on `example.com`: without the flag, INP is absent and the message points at the
+flag; with it, `INP is 8ms from a synthetic interaction (indicative only - not real user
+data)` at weight 0.
+
 ## 7. Success criteria
 
 | # | Criterion |
 |---|---|
-| S1 | `seomator audit <url> --psi` prints 4 Lighthouse scores; total wall time increases by **0s** for the on-page portion (parallel dispatch verified) |
+| S1 | Core Web Vitals are collected via injected `web-vitals`; audit wall time increases by **0s** versus 3.1.1 |
+| S1b | TTFB matches PSI/CrUX for the same URL within tolerance (today it is systematically low by DNS + TCP + TLS) |
+| S1c | LCP on a deliberately slow test page is no longer truncated by the removed 1s window |
+| S1d | `--psi` prints 4 Lighthouse scores; the on-page report is not blocked waiting for it |
 | S2 | PSI failure, timeout, missing key, or unreachable host → audit completes, exits 0, section omitted |
 | S3 | `--psi` against `http://localhost:3000` fails with an actionable message, not a stack trace |
 | S4 | Rule count 256 → ~286; a11y 12 → 31 |
@@ -326,6 +374,10 @@ not a technical one.
 
 ## 9. Sequencing
 
-Phase 2 (static rules) ships first — it has no dependencies, no network cost, and no new
-plumbing. Phase 1 (PSI) follows once D1 is decided. Phase 4 (reporter) can run in parallel
-with either. Phase 3 is the largest engineering lift and should follow the others.
+**Phase 1 ships first.** It is a contained change to one function, needs no product
+decision, fixes measurement defects that are wrong in shipped output today, and adds no
+latency.
+
+Phase 2 (static rules) follows — no dependencies, no network cost, no new plumbing — but
+2a is gated on D2. Phase 1b (PSI) follows once D1 is decided. Phase 4 (reporter) can run in
+parallel with any of them. Phase 3 is the largest lift and should come last.

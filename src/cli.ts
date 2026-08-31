@@ -103,6 +103,7 @@ program
   .option('-v, --verbose', 'Show progress', false)
   .option('--no-cwv', 'Skip Core Web Vitals')
   .option('--mobile', 'Also render at a mobile viewport and run mobile-first parity checks (single-page)', false)
+  .option('--simulate-interaction', 'Click and scroll the page so INP can be measured (reported as synthetic)', false)
   .option('-r, --refresh', 'Ignore cache, fetch all pages fresh', false)
   .option('--resume', 'Resume interrupted crawl', false)
   .option('--config <path>', 'Config file path')

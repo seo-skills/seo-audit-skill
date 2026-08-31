@@ -196,6 +196,7 @@ export const affiliateDisclosureRule = defineRule({
       // No affiliate content detected
       if (hasDisclosure) {
         return {
+          ruleId: 'eeat-affiliate-disclosure',
           status: 'pass',
           score: 100,
           message: 'Disclosure found (no affiliate links detected on this page)',
@@ -208,6 +209,7 @@ export const affiliateDisclosureRule = defineRule({
       }
 
       return {
+        ruleId: 'eeat-affiliate-disclosure',
         status: 'pass',
         score: 100,
         message: 'No affiliate or sponsored content detected',
@@ -225,8 +227,9 @@ export const affiliateDisclosureRule = defineRule({
       );
 
       return {
+        ruleId: 'eeat-affiliate-disclosure',
         status: 'pass',
-        score: isProminentDisclosure ? 100 : 90,
+        score: 100,
         message: `Affiliate disclosure found${hasFtcMention ? ' (FTC compliant language)' : ''}`,
         details: {
           hasAffiliateLinks: true,
@@ -246,8 +249,9 @@ export const affiliateDisclosureRule = defineRule({
 
     // Affiliate content without disclosure
     return {
+      ruleId: 'eeat-affiliate-disclosure',
       status: 'warn',
-      score: 40,
+      score: 50,
       message: `${affiliateLinks.length} affiliate link${affiliateLinks.length > 1 ? 's' : ''} found without disclosure - FTC requires clear disclosure`,
       details: {
         hasAffiliateLinks: true,

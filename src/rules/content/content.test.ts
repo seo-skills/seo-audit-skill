@@ -15,6 +15,7 @@ import {
   resetDescriptionRegistry,
   getDescriptionRegistryStats,
 } from './duplicate-description.js';
+import { createTestContext } from '../test-context.js';
 
 /**
  * Create a mock AuditContext for testing
@@ -36,9 +37,8 @@ function createContext(
     links.push({ href, text, isInternal, isNoFollow });
   });
 
-  return {
+  return createTestContext(html, {
     url,
-    html,
     $,
     headers,
     statusCode: 200,
@@ -46,7 +46,7 @@ function createContext(
     cwv: {},
     links,
     images: [],
-  };
+  });
 }
 
 /**
@@ -367,7 +367,7 @@ describe('Content Rules', () => {
       const context = createContext(html);
       const result = await brokenHtmlRule.run(context);
       expect(result.status).toBe('warn');
-      expect(result.details?.categories?.['duplicate-id']).toBe(1);
+      expect((result.details?.categories as Record<string, number>)['duplicate-id']).toBe(1);
     });
 
     it('should warn for empty headings', async () => {

@@ -1,5 +1,7 @@
 import type { AuditContext, RuleResult } from '../../types.js';
 import { defineRule } from '../define-rule.js';
+import type { CheerioAPI } from 'cheerio';
+import type { Element } from 'domhandler';
 
 /**
  * About page detection patterns
@@ -98,6 +100,7 @@ export const aboutPageRule = defineRule({
       );
 
       return {
+        ruleId: 'eeat-about-page',
         status: 'pass',
         score: 100,
         message: `About page link found${inNav ? ' in navigation' : ''}`,
@@ -110,6 +113,7 @@ export const aboutPageRule = defineRule({
     }
 
     return {
+      ruleId: 'eeat-about-page',
       status: 'warn',
       score: 50,
       message: 'No about page link found - important for trust and E-E-A-T',
@@ -124,7 +128,7 @@ export const aboutPageRule = defineRule({
 /**
  * Detect element location (header, footer, navigation, body)
  */
-function detectLocation($: cheerio.CheerioAPI, el: cheerio.Element): string {
+function detectLocation($: CheerioAPI, el: Element): string {
   const parents = $(el).parents();
 
   for (let i = 0; i < parents.length; i++) {

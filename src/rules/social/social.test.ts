@@ -5,22 +5,13 @@ import { ogImageSizeRule } from './og-image-size.js';
 import { ogUrlCanonicalRule } from './og-url-canonical.js';
 import { shareButtonsRule } from './share-buttons.js';
 import { socialProfilesRule } from './social-profiles.js';
+import { createTestContext } from '../test-context.js';
 
 /**
  * Helper to create an audit context from HTML
  */
 function createContext(html: string, url = 'https://example.com'): AuditContext {
-  const $ = cheerio.load(html);
-  return {
-    url,
-    html,
-    $,
-    headers: {},
-    statusCode: 200,
-    links: [],
-    images: [],
-    externalLinkResults: new Map(),
-  };
+  return createTestContext(html, { url });
 }
 
 describe('Social Rules', () => {
@@ -29,7 +20,7 @@ describe('Social Rules', () => {
       const context = createContext('<html><head></head></html>');
       const result = await ogImageSizeRule.run(context);
       expect(result.status).toBe('fail');
-      expect(result.details.hasImage).toBe(false);
+      expect(result.details?.hasImage).toBe(false);
     });
 
     it('should warn when og:image exists but no dimensions', async () => {
@@ -40,7 +31,7 @@ describe('Social Rules', () => {
       `);
       const result = await ogImageSizeRule.run(context);
       expect(result.status).toBe('warn');
-      expect(result.details.hasDimensions).toBe(false);
+      expect(result.details?.hasDimensions).toBe(false);
     });
 
     it('should pass when dimensions are optimal (1200x630)', async () => {
@@ -53,7 +44,7 @@ describe('Social Rules', () => {
       `);
       const result = await ogImageSizeRule.run(context);
       expect(result.status).toBe('pass');
-      expect(result.details.optimal).toBe(true);
+      expect(result.details?.optimal).toBe(true);
     });
 
     it('should warn when dimensions are below recommended', async () => {
@@ -66,7 +57,7 @@ describe('Social Rules', () => {
       `);
       const result = await ogImageSizeRule.run(context);
       expect(result.status).toBe('warn');
-      expect(result.details.belowRecommended).toBe(true);
+      expect(result.details?.belowRecommended).toBe(true);
     });
 
     it('should fail when dimensions are too small', async () => {
@@ -79,7 +70,7 @@ describe('Social Rules', () => {
       `);
       const result = await ogImageSizeRule.run(context);
       expect(result.status).toBe('fail');
-      expect(result.details.tooSmall).toBe(true);
+      expect(result.details?.tooSmall).toBe(true);
     });
   });
 
@@ -93,7 +84,7 @@ describe('Social Rules', () => {
       `);
       const result = await ogUrlCanonicalRule.run(context);
       expect(result.status).toBe('pass');
-      expect(result.details.match).toBe(true);
+      expect(result.details?.match).toBe(true);
     });
 
     it('should pass when URLs match with trailing slash normalization', async () => {
@@ -116,7 +107,7 @@ describe('Social Rules', () => {
       `);
       const result = await ogUrlCanonicalRule.run(context);
       expect(result.status).toBe('fail');
-      expect(result.details.match).toBe(false);
+      expect(result.details?.match).toBe(false);
     });
 
     it('should fail when og:url is missing but canonical exists', async () => {
@@ -127,7 +118,7 @@ describe('Social Rules', () => {
       `);
       const result = await ogUrlCanonicalRule.run(context);
       expect(result.status).toBe('fail');
-      expect(result.details.hasOgUrl).toBe(false);
+      expect(result.details?.hasOgUrl).toBe(false);
     });
 
     it('should warn when neither og:url nor canonical exists', async () => {
@@ -148,7 +139,7 @@ describe('Social Rules', () => {
       `);
       const result = await shareButtonsRule.run(context);
       expect(result.status).toBe('pass');
-      expect(result.details.platformCount).toBeGreaterThanOrEqual(2);
+      expect(result.details?.platformCount).toBeGreaterThanOrEqual(2);
     });
 
     it('should pass when share widget is detected', async () => {
@@ -159,7 +150,7 @@ describe('Social Rules', () => {
       `);
       const result = await shareButtonsRule.run(context);
       expect(result.status).toBe('pass');
-      expect(result.details.hasShareContainer).toBe(true);
+      expect(result.details?.hasShareContainer).toBe(true);
     });
 
     it('should warn when only one platform detected', async () => {
@@ -170,14 +161,14 @@ describe('Social Rules', () => {
       `);
       const result = await shareButtonsRule.run(context);
       expect(result.status).toBe('warn');
-      expect(result.details.limitedPlatforms).toBe(true);
+      expect(result.details?.limitedPlatforms).toBe(true);
     });
 
     it('should warn when no share buttons found', async () => {
       const context = createContext('<html><body><p>No share buttons here</p></body></html>');
       const result = await shareButtonsRule.run(context);
       expect(result.status).toBe('warn');
-      expect(result.details.hasShareButtons).toBe(false);
+      expect(result.details?.hasShareButtons).toBe(false);
     });
 
     it('should detect WhatsApp share links', async () => {
@@ -189,7 +180,7 @@ describe('Social Rules', () => {
       `);
       const result = await shareButtonsRule.run(context);
       expect(result.status).toBe('pass');
-      expect(result.details.platforms).toContain('WhatsApp');
+      expect(result.details?.platforms).toContain('WhatsApp');
     });
   });
 
@@ -207,7 +198,7 @@ describe('Social Rules', () => {
       `);
       const result = await socialProfilesRule.run(context);
       expect(result.status).toBe('pass');
-      expect(result.details.profileCount).toBeGreaterThanOrEqual(3);
+      expect(result.details?.profileCount).toBeGreaterThanOrEqual(3);
     });
 
     it('should detect sameAs in structured data', async () => {
@@ -229,7 +220,7 @@ describe('Social Rules', () => {
       `);
       const result = await socialProfilesRule.run(context);
       expect(result.status).toBe('pass');
-      expect(result.details.profileCount).toBeGreaterThanOrEqual(3);
+      expect(result.details?.profileCount).toBeGreaterThanOrEqual(3);
     });
 
     it('should warn when only 1-2 profiles found', async () => {
@@ -242,14 +233,14 @@ describe('Social Rules', () => {
       `);
       const result = await socialProfilesRule.run(context);
       expect(result.status).toBe('warn');
-      expect(result.details.profileCount).toBe(1);
+      expect(result.details?.profileCount).toBe(1);
     });
 
     it('should warn when no profiles found', async () => {
       const context = createContext('<html><body><p>No social links</p></body></html>');
       const result = await socialProfilesRule.run(context);
       expect(result.status).toBe('warn');
-      expect(result.details.hasProfiles).toBe(false);
+      expect(result.details?.hasProfiles).toBe(false);
     });
 
     it('should not count share links as profiles', async () => {
@@ -261,7 +252,7 @@ describe('Social Rules', () => {
       `);
       const result = await socialProfilesRule.run(context);
       expect(result.status).toBe('warn');
-      expect(result.details.hasProfiles).toBe(false);
+      expect(result.details?.hasProfiles).toBe(false);
     });
 
     it('should detect GitHub profiles', async () => {
@@ -276,7 +267,7 @@ describe('Social Rules', () => {
       `);
       const result = await socialProfilesRule.run(context);
       expect(result.status).toBe('pass');
-      const platforms = result.details.profiles.map((p: { platform: string }) => p.platform);
+      const platforms = (result.details?.profiles as { platform: string }[]).map((p) => p.platform);
       expect(platforms).toContain('GitHub');
     });
   });

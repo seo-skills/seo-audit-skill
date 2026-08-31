@@ -138,6 +138,7 @@ export const disclaimersRule = defineRule({
       // Non-YMYL content doesn't require disclaimers
       if (foundDisclaimers.length > 0) {
         return {
+          ruleId: 'eeat-disclaimers',
           status: 'pass',
           score: 100,
           message: `Disclaimer found (not required for non-YMYL content)`,
@@ -150,6 +151,7 @@ export const disclaimersRule = defineRule({
       }
 
       return {
+        ruleId: 'eeat-disclaimers',
         status: 'pass',
         score: 100,
         message: 'Non-YMYL content - disclaimers not required',
@@ -166,6 +168,7 @@ export const disclaimersRule = defineRule({
 
     if (foundDisclaimers.length > 0 && foundCategories.length >= requiredCategories.length) {
       return {
+        ruleId: 'eeat-disclaimers',
         status: 'pass',
         score: 100,
         message: `Appropriate disclaimers found for YMYL content (${ymylResult.categories.join(', ')})`,
@@ -180,8 +183,9 @@ export const disclaimersRule = defineRule({
 
     if (foundDisclaimers.length > 0) {
       return {
+        ruleId: 'eeat-disclaimers',
         status: 'pass',
-        score: 80,
+        score: 100,
         message: `Disclaimer found, but may need category-specific disclaimer for ${ymylResult.categories.join(', ')} content`,
         details: {
           isYMYL: true,
@@ -195,6 +199,7 @@ export const disclaimersRule = defineRule({
 
     // YMYL content without disclaimers
     return {
+      ruleId: 'eeat-disclaimers',
       status: 'warn',
       score: 50,
       message: `YMYL content (${ymylResult.categories.join(', ')}) without appropriate disclaimers`,

@@ -14,6 +14,7 @@ export {
   measureCoreWebVitals,
   getBrowser,
   type PlaywrightFetchResult,
+  type RenderOptions,
 } from './playwright-fetcher.js';
 
 // Crawler exports

@@ -9,7 +9,7 @@ import { getGlobalSettingsPath, getProjectSettingsPath } from '../storage/paths.
 /**
  * Deep merge two objects
  */
-function deepMerge<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {
+function deepMerge<T extends object>(target: T, source: Partial<T>): T {
   const result = { ...target };
 
   for (const key in source) {

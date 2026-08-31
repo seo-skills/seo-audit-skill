@@ -19,6 +19,7 @@ import {
   Crawler,
   type CrawledPage,
   type PlaywrightFetchResult,
+  type RenderOptions,
 } from './crawler/index.js';
 import { getUserAgent } from './crawler/user-agent.js';
 import { fetchSitemap } from './crawler/sitemap.js';
@@ -75,8 +76,17 @@ export interface AuditorOptions {
    * is off by default.
    */
   mobileParity?: boolean;
+  /**
+   * Perform a synthetic interaction during the render so INP can be measured.
+   * Requires measureCwv. The resulting INP is flagged as synthetic.
+   */
+  simulateInteraction?: boolean;
   /** Optional browser-based page fetcher (replaces Playwright when provided) */
-  browserFetcher?: (url: string, timeout: number) => Promise<PlaywrightFetchResult>;
+  browserFetcher?: (
+    url: string,
+    timeout: number,
+    options?: RenderOptions
+  ) => Promise<PlaywrightFetchResult>;
   /** Callback when category audit starts */
   onCategoryStart?: OnCategoryStartCallback;
   /** Callback when category audit completes */
@@ -108,6 +118,7 @@ export class Auditor {
       timeout: options.timeout ?? 30000,
       measureCwv: options.measureCwv ?? false,
       mobileParity: options.mobileParity ?? false,
+      simulateInteraction: options.simulateInteraction ?? false,
       browserFetcher: options.browserFetcher,
       onCategoryStart: options.onCategoryStart ?? (() => {}),
       onCategoryComplete: options.onCategoryComplete ?? (() => {}),
@@ -232,7 +243,9 @@ export class Auditor {
     if (this.options.measureCwv) {
       const fetcher = this.options.browserFetcher ?? fetchPageWithPlaywright;
       try {
-        const pwResult = await fetcher(url, this.options.timeout);
+        const pwResult = await fetcher(url, this.options.timeout, {
+          simulateInteraction: this.options.simulateInteraction,
+        });
         cwv = pwResult.cwv;
         renderDiagnostics = pwResult.diagnostics;
         // Capture rendered HTML for JS rendering rules

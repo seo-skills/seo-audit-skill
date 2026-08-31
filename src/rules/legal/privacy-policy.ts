@@ -1,5 +1,7 @@
 import type { AuditContext, RuleResult } from '../../types.js';
 import { defineRule } from '../define-rule.js';
+import type { CheerioAPI } from 'cheerio';
+import type { Element } from 'domhandler';
 
 /**
  * Privacy policy link detection patterns
@@ -105,6 +107,7 @@ export const privacyPolicyRule = defineRule({
       const inFooter = foundLinks.some((link) => link.location === 'footer');
 
       return {
+        ruleId: 'legal-privacy-policy',
         status: 'pass',
         score: 100,
         message: `Privacy policy link found${inFooter ? ' in footer' : ''} (${foundLinks.length} link${foundLinks.length > 1 ? 's' : ''})`,
@@ -119,6 +122,7 @@ export const privacyPolicyRule = defineRule({
 
     // No privacy policy link found
     return {
+      ruleId: 'legal-privacy-policy',
       status: 'warn',
       score: 50,
       message: 'No privacy policy link found - legally required in many jurisdictions (GDPR, CCPA)',
@@ -133,7 +137,7 @@ export const privacyPolicyRule = defineRule({
 /**
  * Detect if element is in header, footer, or main content
  */
-function detectLocation($: cheerio.CheerioAPI, el: cheerio.Element): string {
+function detectLocation($: CheerioAPI, el: Element): string {
   const parents = $(el).parents();
 
   for (let i = 0; i < parents.length; i++) {

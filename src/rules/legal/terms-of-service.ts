@@ -1,5 +1,7 @@
 import type { AuditContext, RuleResult } from '../../types.js';
 import { defineRule } from '../define-rule.js';
+import type { CheerioAPI } from 'cheerio';
+import type { Element } from 'domhandler';
 
 /**
  * Terms of service link detection patterns
@@ -106,6 +108,7 @@ export const termsOfServiceRule = defineRule({
       const inFooter = foundLinks.some((link) => link.location === 'footer');
 
       return {
+        ruleId: 'legal-terms-of-service',
         status: 'pass',
         score: 100,
         message: `Terms of service link found${inFooter ? ' in footer' : ''} (${foundLinks.length} link${foundLinks.length > 1 ? 's' : ''})`,
@@ -122,6 +125,7 @@ export const termsOfServiceRule = defineRule({
 
     if (likelyNeedsToS) {
       return {
+        ruleId: 'legal-terms-of-service',
         status: 'warn',
         score: 50,
         message: 'No terms of service link found - recommended for this site type',
@@ -135,6 +139,7 @@ export const termsOfServiceRule = defineRule({
 
     // No ToS link found, but may not be critical
     return {
+      ruleId: 'legal-terms-of-service',
       status: 'pass',
       score: 100,
       message: 'No terms of service link found (may not be required for this site type)',
@@ -148,7 +153,7 @@ export const termsOfServiceRule = defineRule({
 /**
  * Detect if element is in header, footer, or main content
  */
-function detectLocation($: cheerio.CheerioAPI, el: cheerio.Element): string {
+function detectLocation($: CheerioAPI, el: Element): string {
   const parents = $(el).parents();
 
   for (let i = 0; i < parents.length; i++) {
@@ -191,7 +196,7 @@ function detectLocation($: cheerio.CheerioAPI, el: cheerio.Element): string {
 /**
  * Detect if the site likely needs a ToS based on content indicators
  */
-function detectSiteType($: cheerio.CheerioAPI): string | null {
+function detectSiteType($: CheerioAPI): string | null {
   // E-commerce indicators
   const hasEcommerce = $(
     '[class*="cart"], [class*="checkout"], [class*="add-to-cart"], [class*="buy-now"], [class*="product-price"], form[action*="checkout"], button:contains("Add to Cart"), button:contains("Buy Now")'

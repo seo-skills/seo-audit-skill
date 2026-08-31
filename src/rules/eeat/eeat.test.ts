@@ -18,16 +18,11 @@ import { privacyPolicyRule } from './privacy-policy.js';
 import { termsOfServiceRule } from './terms-of-service.js';
 import { trustSignalsRule } from './trust-signals.js';
 import { ymylDetectionRule, detectYMYL } from './ymyl-detection.js';
+import { createTestContext } from '../test-context.js';
 
 // Helper to create test context
 function createContext(html: string, url = 'https://example.com'): AuditContext {
-  return {
-    url,
-    html,
-    $: cheerio.load(html),
-    headers: {},
-    statusCode: 200,
-  };
+  return createTestContext(html, { url });
 }
 
 describe('E-E-A-T Rules', () => {
@@ -159,7 +154,7 @@ describe('E-E-A-T Rules', () => {
       `;
       const result = await authorExpertiseRule.run(createContext(html));
       expect(result.status).toBe('pass');
-      expect(result.details?.credentials?.length).toBeGreaterThan(0);
+      expect((result.details?.credentials as unknown[]).length).toBeGreaterThan(0);
     });
 
     it('should pass when social profiles found', async () => {
@@ -174,7 +169,7 @@ describe('E-E-A-T Rules', () => {
       `;
       const result = await authorExpertiseRule.run(createContext(html));
       expect(result.status).toBe('pass');
-      expect(result.details?.socialLinks?.length).toBeGreaterThanOrEqual(2);
+      expect((result.details?.socialLinks as unknown[]).length).toBeGreaterThanOrEqual(2);
     });
 
     it('should warn when author exists but no expertise signals', async () => {
@@ -459,7 +454,7 @@ describe('E-E-A-T Rules', () => {
       `;
       const result = await trustSignalsRule.run(createContext(html));
       expect(result.status).toBe('pass');
-      expect(result.details?.signalTypes?.length).toBeGreaterThanOrEqual(2);
+      expect((result.details?.signalTypes as unknown[]).length).toBeGreaterThanOrEqual(2);
     });
 
     it('should pass when no trust signals found (may not be required)', async () => {

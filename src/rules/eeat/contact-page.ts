@@ -1,5 +1,7 @@
 import type { AuditContext, RuleResult } from '../../types.js';
 import { defineRule } from '../define-rule.js';
+import type { CheerioAPI } from 'cheerio';
+import type { Element } from 'domhandler';
 
 /**
  * Contact page detection patterns
@@ -146,6 +148,7 @@ export const contactPageRule = defineRule({
 
     if (hasContactPage && methodCount >= 2) {
       return {
+        ruleId: 'eeat-contact-page',
         status: 'pass',
         score: 100,
         message: `Contact page found with ${methodCount} contact methods`,
@@ -159,6 +162,7 @@ export const contactPageRule = defineRule({
 
     if (hasContactPage || methodCount >= 2) {
       return {
+        ruleId: 'eeat-contact-page',
         status: 'pass',
         score: 100,
         message: hasContactPage
@@ -174,8 +178,9 @@ export const contactPageRule = defineRule({
 
     if (methodCount === 1) {
       return {
+        ruleId: 'eeat-contact-page',
         status: 'warn',
-        score: 70,
+        score: 50,
         message: `Only 1 contact method found (${foundMethods[0]}) - add more for better trust signals`,
         details: {
           hasContactPage: false,
@@ -186,6 +191,7 @@ export const contactPageRule = defineRule({
     }
 
     return {
+      ruleId: 'eeat-contact-page',
       status: 'warn',
       score: 50,
       message: 'No contact page or contact methods found - important for trust',
@@ -201,7 +207,7 @@ export const contactPageRule = defineRule({
 /**
  * Detect element location
  */
-function detectLocation($: cheerio.CheerioAPI, el: cheerio.Element): string {
+function detectLocation($: CheerioAPI, el: Element): string {
   const parents = $(el).parents();
 
   for (let i = 0; i < parents.length; i++) {

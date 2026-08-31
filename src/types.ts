@@ -152,6 +152,38 @@ export interface RedirectChainEntry {
 }
 
 /**
+ * One `<url>` entry from a sitemap
+ */
+export interface SitemapEntry {
+  /** The URL itself */
+  loc: string;
+  /** Declared last modification date, as sent */
+  lastmod?: string;
+  /** Declared change frequency */
+  changefreq?: string;
+  /** Declared priority, 0.0-1.0 */
+  priority?: number;
+}
+
+/**
+ * Result of discovering and fetching a site's sitemap(s)
+ */
+export interface SitemapFetchResult {
+  /** Raw XML of the first sitemap fetched */
+  content?: string;
+  /** Every page URL found, across nested sitemaps */
+  urls: string[];
+  /** Entries with their metadata */
+  entries: SitemapEntry[];
+  /** Sitemap documents actually fetched */
+  sources: string[];
+  /** Whether the entry point was a sitemap index */
+  isIndex: boolean;
+  /** Child sitemaps discovered but not fetched, because a limit was reached */
+  skippedSitemaps: number;
+}
+
+/**
  * A cookie set by the server via a `Set-Cookie` response header.
  *
  * The value is never retained — only its length — because audit results are
@@ -273,8 +305,12 @@ export interface AuditContext {
   robotsTxtContent?: string;
   /** Sitemap XML content (fetched once per audit) */
   sitemapContent?: string;
-  /** URLs extracted from sitemap */
+  /** URLs extracted from sitemap, including nested sitemaps under an index */
   sitemapUrls?: string[];
+  /** Sitemap entries with lastmod / changefreq / priority metadata */
+  sitemapEntries?: SitemapEntry[];
+  /** Whether the site's entry-point sitemap is an index of other sitemaps */
+  sitemapIsIndex?: boolean;
   /** Redirect chain followed to reach this page */
   redirectChain?: RedirectChainEntry[];
 

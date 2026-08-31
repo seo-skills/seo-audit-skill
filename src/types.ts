@@ -35,6 +35,18 @@ export interface CoreWebVitals {
   fcp?: number;
   /** Interaction to Next Paint in milliseconds */
   inp?: number;
+  /**
+   * True when `inp` came from a synthetic interaction the crawler performed
+   * rather than a real user. A synthetic INP reflects whichever element the
+   * crawler happened to click, so it is indicative only — never field data.
+   */
+  inpSynthetic?: boolean;
+  /** Total Blocking Time in milliseconds (long-task time beyond 50ms, after FCP) */
+  tbt?: number;
+  /** CSS selector of the element that produced the Largest Contentful Paint */
+  lcpElement?: string;
+  /** CSS selector of the element behind the single largest layout shift */
+  clsLargestShiftTarget?: string;
 }
 
 /**

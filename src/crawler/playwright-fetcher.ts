@@ -1,6 +1,26 @@
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import type { CoreWebVitals, FailedRequestInfo, RenderDiagnostics } from '../types.js';
 import { getUserAgent, MOBILE_USER_AGENT } from './user-agent.js';
+
+/**
+ * Shape of a `web-vitals` report, narrowed to the fields we read.
+ *
+ * Declared here rather than imported: the library runs inside the page, so its
+ * types are not otherwise in scope for the `page.evaluate` callbacks.
+ */
+interface WebVitalsMetric {
+  name: string;
+  value: number;
+  attribution?: {
+    /** LCP: selector of the element that produced the largest paint */
+    element?: string;
+    /** CLS: selector of the element behind the single largest shift */
+    largestShiftTarget?: string;
+  };
+}
 
 let browserPromise: Promise<Browser> | null = null;
 
@@ -191,6 +211,12 @@ export interface RenderOptions {
    * Used for mobile-first parity: comparing what a phone sees against desktop.
    */
   mobile?: boolean;
+  /**
+   * Perform a synthetic scroll/click/keypress after load so INP can be
+   * measured. Off by default: the value reflects an arbitrary element rather
+   * than real usage, so it is reported only when explicitly requested.
+   */
+  simulateInteraction?: boolean;
 }
 
 /**
@@ -203,6 +229,114 @@ const MOBILE_CONTEXT = {
   isMobile: true,
   hasTouch: true,
 } as const;
+
+/**
+ * Source of the `web-vitals` IIFE build, read once per process.
+ *
+ * The package's `exports` map blocks deep subpath resolution, so the file is
+ * located relative to the resolved main entry (both live in `dist/`) rather
+ * than by requiring the path directly.
+ */
+let webVitalsSource: string | null = null;
+
+function getWebVitalsSource(): string {
+  if (webVitalsSource === null) {
+    const require = createRequire(import.meta.url);
+    const distDir = dirname(require.resolve('web-vitals'));
+    webVitalsSource = readFileSync(join(distDir, 'web-vitals.attribution.iife.js'), 'utf8');
+  }
+  return webVitalsSource;
+}
+
+/**
+ * Install the `web-vitals` collectors before any page script runs.
+ *
+ * Must be called before `page.goto`: LCP, FCP and layout-shift entries are
+ * emitted during the initial load, and a subscriber attached afterwards sees
+ * only what the buffer still holds.
+ *
+ * `reportAllChanges` makes every candidate value arrive as it happens, so the
+ * latest reading is always available without waiting for the page-hide that
+ * normally finalises LCP, CLS and INP.
+ *
+ * @param page - The page about to be navigated
+ */
+async function injectWebVitals(page: Page): Promise<void> {
+  // The IIFE declares `webVitals` with `var`; re-exporting it explicitly keeps
+  // it reachable regardless of how the runner scopes an init script.
+  await page.addInitScript({
+    content: `${getWebVitalsSource()}\n;globalThis.__webVitals = webVitals;`,
+  });
+
+  await page.addInitScript(() => {
+    const wv = (globalThis as unknown as { __webVitals?: Record<string, unknown> }).__webVitals;
+    if (!wv) return;
+
+    const collected: Record<string, WebVitalsMetric> = {};
+    (window as unknown as { __cwv: Record<string, WebVitalsMetric> }).__cwv = collected;
+
+    const record = (metric: WebVitalsMetric): void => {
+      collected[metric.name.toLowerCase()] = metric;
+    };
+    const options = { reportAllChanges: true };
+    const subscribe = wv as Record<string, (cb: (m: WebVitalsMetric) => void, o: unknown) => void>;
+    for (const name of ['onLCP', 'onCLS', 'onINP', 'onFCP', 'onTTFB']) {
+      try {
+        subscribe[name]?.(record, options);
+      } catch {
+        // A metric unsupported by this browser simply goes unreported.
+      }
+    }
+
+    // Long tasks feed TBT, which web-vitals does not cover.
+    const longTasks: { start: number; duration: number }[] = [];
+    (window as unknown as { __longTasks: typeof longTasks }).__longTasks = longTasks;
+    try {
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          longTasks.push({ start: entry.startTime, duration: entry.duration });
+        }
+      }).observe({ type: 'longtask', buffered: true });
+    } catch {
+      // No longtask support; TBT goes unreported.
+    }
+  });
+}
+
+/**
+ * Drive one synthetic interaction so INP has something to measure.
+ *
+ * INP only exists once a real interaction has happened, so an untouched crawl
+ * never produces one. The resulting number reflects whichever element the
+ * crawler happened to hit, not real usage, which is why it is opt-in and
+ * flagged as synthetic in the result.
+ *
+ * @param page - The loaded page to interact with
+ */
+async function performSyntheticInteraction(page: Page): Promise<void> {
+  // Suppress navigation and form submission before clicking: following a link
+  // would tear down the very document being measured. Capture-phase
+  // preventDefault leaves the site's own handlers running, so their cost is
+  // still what INP records.
+  await page.evaluate(() => {
+    document.addEventListener('click', (event) => event.preventDefault(), true);
+    document.addEventListener('submit', (event) => event.preventDefault(), true);
+    window.scrollBy(0, 600);
+  });
+
+  const target = page
+    .locator('a[href], button, [role="button"], input:not([type="hidden"]), select, textarea')
+    .first();
+  try {
+    await target.click({ timeout: 2000 });
+  } catch {
+    // Nothing clickable, or it was obscured — a bare keypress still counts.
+  }
+  await page.keyboard.press('Tab');
+
+  // INP is only reported once the interaction reaches the next paint.
+  await page.waitForTimeout(500);
+}
 
 /**
  * Fetch a page with full browser rendering and JavaScript execution
@@ -227,6 +361,8 @@ export async function fetchPageWithPlaywright(
   const page = await context.newPage();
   // Listeners must be attached before goto to see load-time errors.
   const diagnostics = collectDiagnostics(page);
+  // Likewise the metric collectors: LCP and layout shifts happen during load.
+  await injectWebVitals(page);
 
   try {
     const startTime = performance.now();
@@ -245,8 +381,16 @@ export async function fetchPageWithPlaywright(
     // Get HTML content after JS execution
     const html = await page.content();
 
+    // INP has no value without an interaction, so produce one on request.
+    if (options.simulateInteraction) {
+      await performSyntheticInteraction(page);
+    }
+
     // Measure Core Web Vitals
     const cwv = await measureCoreWebVitals(page);
+    if (options.simulateInteraction && cwv.inp !== undefined) {
+      cwv.inpSynthetic = true;
+    }
 
     return {
       html,
@@ -262,84 +406,55 @@ export async function fetchPageWithPlaywright(
 }
 
 /**
- * Measure Core Web Vitals using PerformanceObserver injection
- * @param page - Playwright Page instance
+ * Read the metrics collected by the injected `web-vitals` subscribers.
+ *
+ * Requires {@link injectWebVitals} to have run before navigation; without it
+ * there is nothing to read and this returns an empty result, which rules report
+ * as unmeasured rather than as a clean score.
+ *
+ * @param page - Playwright Page instance, already navigated and settled
  * @returns CoreWebVitals metrics
  */
 export async function measureCoreWebVitals(page: Page): Promise<CoreWebVitals> {
-  const cwv = await page.evaluate(() => {
-    return new Promise<CoreWebVitals>((resolve) => {
-      const metrics: CoreWebVitals = {};
+  return page.evaluate(() => {
+    const collected = (window as unknown as { __cwv?: Record<string, WebVitalsMetric> }).__cwv;
+    if (!collected) return {};
 
-      // Get TTFB from Navigation Timing API
-      const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
-      if (navEntry) {
-        metrics.ttfb = Math.round(navEntry.responseStart - navEntry.requestStart);
-      }
+    const metrics: CoreWebVitals = {};
+    const round = (value: number): number => Math.round(value);
 
-      // Get FCP from Paint Timing API
-      const paintEntries = performance.getEntriesByType('paint');
-      for (const entry of paintEntries) {
-        if (entry.name === 'first-contentful-paint') {
-          metrics.fcp = Math.round(entry.startTime);
-        }
-      }
+    if (collected.lcp) {
+      metrics.lcp = round(collected.lcp.value);
+      const element = collected.lcp.attribution?.element;
+      if (element) metrics.lcpElement = element;
+    }
+    if (collected.fcp) metrics.fcp = round(collected.fcp.value);
+    if (collected.ttfb) metrics.ttfb = round(collected.ttfb.value);
+    if (collected.cls) {
+      // A CLS of 0 is a real, good result — do not treat it as missing.
+      metrics.cls = Math.round(collected.cls.value * 1000) / 1000;
+      const target = collected.cls.attribution?.largestShiftTarget;
+      if (target) metrics.clsLargestShiftTarget = target;
+    }
+    if (collected.inp) metrics.inp = round(collected.inp.value);
 
-      // Use PerformanceObserver for LCP
-      let lcpValue: number | undefined;
-      let lcpObserver: PerformanceObserver | undefined;
-      try {
-        lcpObserver = new PerformanceObserver((list) => {
-          const entries = list.getEntries();
-          const lastEntry = entries[entries.length - 1];
-          if (lastEntry) {
-            lcpValue = Math.round(lastEntry.startTime);
-          }
-        });
-        lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
-      } catch {
-        // LCP observer not supported
-      }
+    // TBT: long-task time beyond the 50ms budget, counted after FCP. Lighthouse
+    // bounds the window at TTI; we have no TTI, so this is the FCP-onward sum —
+    // close on typical pages, an overestimate on ones busy long after load.
+    const longTasks =
+      (window as unknown as { __longTasks?: { start: number; duration: number }[] }).__longTasks;
+    if (longTasks && metrics.fcp !== undefined) {
+      const fcp = metrics.fcp;
+      const blocking = longTasks
+        .filter((task) => task.start + task.duration > fcp)
+        .reduce((total, task) => total + Math.max(0, task.duration - 50), 0);
+      metrics.tbt = round(blocking);
+    }
 
-      // Use PerformanceObserver for CLS
-      let clsValue = 0;
-      let clsObserver: PerformanceObserver | undefined;
-      try {
-        clsObserver = new PerformanceObserver((list) => {
-          for (const entry of list.getEntries()) {
-            // @ts-expect-error - LayoutShift type not in standard types
-            if (!entry.hadRecentInput) {
-              // @ts-expect-error - LayoutShift type not in standard types
-              clsValue += entry.value;
-            }
-          }
-        });
-        clsObserver.observe({ type: 'layout-shift', buffered: true });
-      } catch {
-        // CLS observer not supported
-      }
-
-      // Wait longer for metrics to be collected (LCP can take time)
-      setTimeout(() => {
-        // Disconnect observers
-        lcpObserver?.disconnect();
-        clsObserver?.disconnect();
-
-        // Set LCP if collected
-        if (lcpValue !== undefined) {
-          metrics.lcp = lcpValue;
-        }
-
-        // CLS of 0 is valid (no layout shifts is good)
-        metrics.cls = Math.round(clsValue * 1000) / 1000;
-
-        resolve(metrics);
-      }, 1000); // Wait 1 second for metrics collection
-    });
+    return metrics;
   });
-
-  return cwv;
 }
+
 
 /**
  * Get the current browser instance (for advanced usage)

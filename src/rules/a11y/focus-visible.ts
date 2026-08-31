@@ -1,5 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import type { Cheerio } from 'cheerio';
+import type { Element } from 'domhandler';
 
 /**
  * Rule: Focus Visible
@@ -126,7 +128,7 @@ export const focusVisibleRule = defineRule({
   },
 });
 
-function isInteractive($el: cheerio.Cheerio<cheerio.Element>): boolean {
+function isInteractive($el: Cheerio<Element>): boolean {
   const tag = $el.prop('tagName')?.toLowerCase();
   const role = $el.attr('role');
 

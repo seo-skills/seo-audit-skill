@@ -1,5 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import type { CheerioAPI } from 'cheerio';
+import type { Element } from 'domhandler';
 
 interface MissingAriaLabel {
   /** Element tag name */
@@ -35,7 +37,7 @@ const INTERACTIVE_SELECTORS = [
 /**
  * Check if element has accessible name via text content, title, or associated label
  */
-function hasAccessibleName($: cheerio.CheerioAPI, el: cheerio.Element): boolean {
+function hasAccessibleName($: CheerioAPI, el: Element): boolean {
   const $el = $(el);
 
   // Check for visible text content

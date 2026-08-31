@@ -199,6 +199,7 @@ export const authorExpertiseRule = defineRule({
 
     if (signals.length >= 3 || (hasExpertise && signals.length >= 2)) {
       return {
+        ruleId: 'eeat-author-expertise',
         status: 'pass',
         score: 100,
         message: `Strong author expertise signals found (${signals.length} indicators)`,
@@ -214,8 +215,9 @@ export const authorExpertiseRule = defineRule({
 
     if (signals.length > 0) {
       return {
+        ruleId: 'eeat-author-expertise',
         status: 'pass',
-        score: 80,
+        score: 100,
         message: `Author expertise signals found (${signals.length} indicator${signals.length > 1 ? 's' : ''})`,
         details: {
           signals,
@@ -234,6 +236,7 @@ export const authorExpertiseRule = defineRule({
 
     if (hasAnyAuthor) {
       return {
+        ruleId: 'eeat-author-expertise',
         status: 'warn',
         score: 50,
         message: 'Author found but no expertise indicators detected',
@@ -247,6 +250,7 @@ export const authorExpertiseRule = defineRule({
     }
 
     return {
+      ruleId: 'eeat-author-expertise',
       status: 'warn',
       score: 50,
       message: 'No author present - expertise check not applicable',

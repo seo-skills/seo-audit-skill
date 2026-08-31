@@ -1,5 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import type { Cheerio, CheerioAPI } from 'cheerio';
+import type { Element } from 'domhandler';
 
 interface GenericLink {
   /** Link text */
@@ -179,8 +181,8 @@ export const linkTextRule = defineRule({
  * Get accessible text for a link, including aria-label and image alts
  */
 function getAccessibleText(
-  $: cheerio.CheerioAPI,
-  $el: cheerio.Cheerio<cheerio.Element>
+  $: CheerioAPI,
+  $el: Cheerio<Element>
 ): string {
   // aria-label takes precedence
   const ariaLabel = $el.attr('aria-label');

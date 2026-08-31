@@ -157,6 +157,7 @@ export const cookieConsentRule = defineRule({
 
     if (uniqueDetected.length > 0) {
       return {
+        ruleId: 'legal-cookie-consent',
         status: 'pass',
         score: 100,
         message: `Cookie consent mechanism detected (${uniqueDetected.length} indicator${uniqueDetected.length > 1 ? 's' : ''})`,
@@ -173,6 +174,7 @@ export const cookieConsentRule = defineRule({
     if (hasTracking) {
       issues.push('Tracking scripts detected but no cookie consent mechanism found');
       return {
+        ruleId: 'legal-cookie-consent',
         status: 'warn',
         score: 50,
         message: 'No cookie consent mechanism detected (tracking scripts present)',
@@ -186,6 +188,7 @@ export const cookieConsentRule = defineRule({
 
     // No consent mechanism found, but may not be required
     return {
+      ruleId: 'legal-cookie-consent',
       status: 'pass',
       score: 100,
       message: 'No cookie consent mechanism detected (may not be required if no tracking cookies used)',

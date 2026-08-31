@@ -103,8 +103,10 @@ Chrome binary. One `fetch`.
 
 - **Bundling the `lighthouse` npm package.** ~30MB dependency, requires a Chrome binary,
   15–30s per page, and ~60% of its audits duplicate rules we already own. Rejected.
-- Replacing local Playwright CWV. PSI cannot reach `localhost`, staging behind auth, or
-  intranet hosts — a large share of CLI usage. PSI supplements; it never replaces.
+- Replacing local Playwright CWV with PSI. PSI cannot reach `localhost`, staging behind
+  auth, or intranet hosts — a large share of CLI usage — and its 10–30s latency is
+  unacceptable as a default. Local measurement is primary; PSI supplements.
+- Shipping a synthetic-interaction INP by default (see Open Decision D3).
 - Folding Lighthouse scores into the weighted 256-rule score (see Open Decision D1).
 - Any change to `electron/` beyond consuming new fields.
 
@@ -265,7 +267,7 @@ All data already exists in `AuditContext`; only `src/reporters/html-reporter.ts`
 
 ## 6. Open decisions
 
-### D1 — How do Lighthouse scores relate to our score? *(blocking Phase 1)*
+### D1 — How do Lighthouse scores relate to our score? *(blocking Phase 1b)*
 
 Three options:
 
@@ -302,11 +304,27 @@ not a technical one.
 
 ---
 
+### D3 — Should we synthesize interactions to produce INP? *(blocking nothing; affects Phase 1 scope)*
+
+INP requires a real interaction. With none, `web-vitals` never fires it and `perf/inp.ts`
+returns `notMeasured()` — honest, but a permanent hole in a Core Web Vital.
+
+- **(a) Leave as `notMeasured`.** Honest; INP stays absent from every CLI report.
+- **(b) Synthesize** a scroll plus a click on the first interactive element, then report INP.
+  Produces a number, but a synthetic click on an arbitrary element is not representative of
+  real user interaction and could be actively misleading.
+- **(c) Synthesize behind `--simulate-interaction`**, clearly labelled as synthetic in output.
+
+**Recommendation: (c).** A number this easy to misread should not appear unless asked for.
+
 ## 7. Success criteria
 
 | # | Criterion |
 |---|---|
-| S1 | `seomator audit <url> --psi` prints 4 Lighthouse scores; total wall time increases by **0s** for the on-page portion (parallel dispatch verified) |
+| S1 | Core Web Vitals are collected via injected `web-vitals`; audit wall time increases by **0s** versus 3.1.1 |
+| S1b | TTFB matches PSI/CrUX for the same URL within tolerance (today it is systematically low by DNS + TCP + TLS) |
+| S1c | LCP on a deliberately slow test page is no longer truncated by the removed 1s window |
+| S1d | `--psi` prints 4 Lighthouse scores; the on-page report is not blocked waiting for it |
 | S2 | PSI failure, timeout, missing key, or unreachable host → audit completes, exits 0, section omitted |
 | S3 | `--psi` against `http://localhost:3000` fails with an actionable message, not a stack trace |
 | S4 | Rule count 256 → ~286; a11y 12 → 31 |
@@ -326,6 +344,10 @@ not a technical one.
 
 ## 9. Sequencing
 
-Phase 2 (static rules) ships first — it has no dependencies, no network cost, and no new
-plumbing. Phase 1 (PSI) follows once D1 is decided. Phase 4 (reporter) can run in parallel
-with either. Phase 3 is the largest engineering lift and should follow the others.
+**Phase 1 ships first.** It is a contained change to one function, needs no product
+decision, fixes measurement defects that are wrong in shipped output today, and adds no
+latency.
+
+Phase 2 (static rules) follows — no dependencies, no network cost, no new plumbing — but
+2a is gated on D2. Phase 1b (PSI) follows once D1 is decided. Phase 4 (reporter) can run in
+parallel with any of them. Phase 3 is the largest lift and should come last.

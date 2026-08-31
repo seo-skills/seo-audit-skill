@@ -15,8 +15,15 @@ const STATUS_SCORES = {
 } as const;
 
 /**
- * Calculate the weighted average score for a category based on rule results
- * Uses weighted average: pass=100, warn=50, fail=0
+ * Calculate the weighted average score for a category based on rule results.
+ *
+ * Each result contributes its status score (pass=100, warn=50, fail=0) weighted
+ * by the declared weight of the rule that produced it, so a weight-25 rule like
+ * `security-https` moves the category 25x more than a weight-1 rule.
+ *
+ * Results without a weight (hand-built, or from an older stored audit) count as
+ * weight 1 rather than being dropped.
+ *
  * @param results - Array of rule results
  * @returns Score from 0-100
  */
@@ -25,14 +32,12 @@ export function calculateCategoryScore(results: RuleResult[]): number {
     return 0;
   }
 
-  // Sum up scores weighted by their rule's score (which represents weight)
   let totalScore = 0;
   let totalWeight = 0;
 
   for (const result of results) {
     const statusScore = STATUS_SCORES[result.status];
-    // Use the rule's score as its weight (rules define their own weights)
-    const weight = result.score > 0 ? result.score : 1;
+    const weight = result.weight ?? 1;
     totalScore += statusScore * weight;
     totalWeight += weight;
   }

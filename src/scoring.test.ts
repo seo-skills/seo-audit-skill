@@ -6,82 +6,64 @@ import {
 } from './scoring.js';
 import type { RuleResult, CategoryResult, CategoryDefinition } from './types.js';
 
+/**
+ * Build a result the way the pass()/warn()/fail() helpers actually do:
+ * status score is always 100/50/0, and the rule's weight is a separate field.
+ */
+function res(status: RuleResult['status'], weight?: number): RuleResult {
+  const score = status === 'pass' ? 100 : status === 'warn' ? 50 : 0;
+  return { ruleId: `rule-${status}-${weight ?? 'x'}`, status, message: status, score, weight };
+}
+
 describe('calculateCategoryScore', () => {
   it('returns 0 for empty results array', () => {
     expect(calculateCategoryScore([])).toBe(0);
   });
 
   it('returns 100 for all passing rules', () => {
-    const results: RuleResult[] = [
-      { ruleId: 'rule-1', status: 'pass', message: 'Passed', score: 10 },
-      { ruleId: 'rule-2', status: 'pass', message: 'Passed', score: 10 },
-      { ruleId: 'rule-3', status: 'pass', message: 'Passed', score: 10 },
-    ];
-    expect(calculateCategoryScore(results)).toBe(100);
+    expect(calculateCategoryScore([res('pass', 5), res('pass', 10), res('pass', 1)])).toBe(100);
   });
 
   it('returns 0 for all failing rules', () => {
-    const results: RuleResult[] = [
-      { ruleId: 'rule-1', status: 'fail', message: 'Failed', score: 10 },
-      { ruleId: 'rule-2', status: 'fail', message: 'Failed', score: 10 },
-      { ruleId: 'rule-3', status: 'fail', message: 'Failed', score: 10 },
-    ];
-    expect(calculateCategoryScore(results)).toBe(0);
+    expect(calculateCategoryScore([res('fail', 5), res('fail', 10), res('fail', 1)])).toBe(0);
   });
 
   it('returns 50 for all warning rules', () => {
-    const results: RuleResult[] = [
-      { ruleId: 'rule-1', status: 'warn', message: 'Warning', score: 10 },
-      { ruleId: 'rule-2', status: 'warn', message: 'Warning', score: 10 },
-    ];
-    expect(calculateCategoryScore(results)).toBe(50);
+    expect(calculateCategoryScore([res('warn', 5), res('warn', 10)])).toBe(50);
   });
 
-  it('calculates weighted average for mixed pass/warn/fail', () => {
-    // 1 pass (100), 1 warn (50), 1 fail (0) with equal weights
-    // Average = (100 + 50 + 0) / 3 = 50
-    const results: RuleResult[] = [
-      { ruleId: 'rule-1', status: 'pass', message: 'Passed', score: 10 },
-      { ruleId: 'rule-2', status: 'warn', message: 'Warning', score: 10 },
-      { ruleId: 'rule-3', status: 'fail', message: 'Failed', score: 10 },
-    ];
-    expect(calculateCategoryScore(results)).toBe(50);
+  it('averages equally-weighted mixed results', () => {
+    // (100 + 50 + 0) / 3 = 50
+    expect(calculateCategoryScore([res('pass', 5), res('warn', 5), res('fail', 5)])).toBe(50);
   });
 
-  it('uses score as weight for weighted calculation', () => {
-    // pass (weight 30) = 100 * 30 = 3000
-    // fail (weight 10) = 0 * 10 = 0
-    // Total weight = 40, Total score = 3000
-    // Weighted average = 3000 / 40 = 75
-    const results: RuleResult[] = [
-      { ruleId: 'rule-1', status: 'pass', message: 'Passed', score: 30 },
-      { ruleId: 'rule-2', status: 'fail', message: 'Failed', score: 10 },
-    ];
-    expect(calculateCategoryScore(results)).toBe(75);
+  it('weights each result by its rule weight, not its status score', () => {
+    // pass w30 = 3000, fail w10 = 0 -> 3000 / 40 = 75
+    expect(calculateCategoryScore([res('pass', 30), res('fail', 10)])).toBe(75);
   });
 
-  it('handles rules with zero score by treating as weight 1', () => {
-    // When score is 0, it uses 1 as weight
-    const results: RuleResult[] = [
-      { ruleId: 'rule-1', status: 'pass', message: 'Passed', score: 0 },
-      { ruleId: 'rule-2', status: 'fail', message: 'Failed', score: 0 },
-    ];
-    // (100 * 1 + 0 * 1) / 2 = 50
-    expect(calculateCategoryScore(results)).toBe(50);
+  it('treats a missing weight as 1', () => {
+    // Older stored results carry no weight; they must still count.
+    expect(calculateCategoryScore([res('pass'), res('fail')])).toBe(50);
   });
 
-  it('calculates complex weighted scenario correctly', () => {
-    // pass (weight 20) = 100 * 20 = 2000
-    // warn (weight 30) = 50 * 30 = 1500
-    // fail (weight 50) = 0 * 50 = 0
-    // Total weight = 100, Total score = 3500
-    // Weighted average = 3500 / 100 = 35
-    const results: RuleResult[] = [
-      { ruleId: 'rule-1', status: 'pass', message: 'Passed', score: 20 },
-      { ruleId: 'rule-2', status: 'warn', message: 'Warning', score: 30 },
-      { ruleId: 'rule-3', status: 'fail', message: 'Failed', score: 50 },
-    ];
-    expect(calculateCategoryScore(results)).toBe(35);
+  it('lets a heavy failing rule outweigh several light passes', () => {
+    // fail w25 = 0; three passes w1 = 300 -> 300 / 28 = 11
+    expect(
+      calculateCategoryScore([res('fail', 25), res('pass', 1), res('pass', 1), res('pass', 1)])
+    ).toBe(11);
+  });
+
+  it('does not let a single pass mask many failures', () => {
+    // Regression: the old formula weighted passes 100 and failures 1, so
+    // 1 pass + 9 fails scored 92 instead of 10.
+    const results = [res('pass', 10), ...Array.from({ length: 9 }, () => res('fail', 10))];
+    expect(calculateCategoryScore(results)).toBe(10);
+  });
+
+  it('calculates a complex weighted scenario correctly', () => {
+    // pass w20 = 2000, warn w30 = 1500, fail w50 = 0 -> 3500 / 100 = 35
+    expect(calculateCategoryScore([res('pass', 20), res('warn', 30), res('fail', 50)])).toBe(35);
   });
 });
 

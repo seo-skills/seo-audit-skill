@@ -8,6 +8,7 @@ export * from './link-cache.js';
 
 // =============================================================================
 // New SQLite storage exports
+export { saveAuditToDatabase, domainOf, type SavedAudit } from './save-audit.js';
 // =============================================================================
 
 // Types for database records

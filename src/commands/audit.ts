@@ -14,7 +14,7 @@ import {
 } from '../reporters/index.js';
 import { loadConfig } from '../config/index.js';
 import { setUserAgent } from '../crawler/user-agent.js';
-import { saveReport, createReport, generateId } from '../storage/index.js';
+import { saveReport, createReport, generateId, saveAuditToDatabase } from '../storage/index.js';
 
 export interface AuditOptions {
   categories?: string[];
@@ -135,6 +135,26 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
         result.categoryResults
       );
       saveReport(process.cwd(), report);
+
+      // Also record in the audits database, which is what `seomator compare`
+      // and score trends read. Never let a storage failure lose the report the
+      // user is waiting on.
+      try {
+        const saved = saveAuditToDatabase(result, {
+          projectName: config.project.name || 'default',
+          config,
+        });
+        if (outputFormat === 'console') {
+          console.log(chalk.dim(`  Saved as ${saved.auditId} — compare with: seomator compare ${saved.domain}`));
+        }
+      } catch (error) {
+        if (isVerbose) {
+          console.error(
+            chalk.yellow('  Could not write to the audits database:'),
+            error instanceof Error ? error.message : 'unknown error'
+          );
+        }
+      }
     }
 
     // Output results based on format

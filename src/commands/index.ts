@@ -3,6 +3,7 @@ export { runInit, type InitOptions } from './init.js';
 export { runCrawl, type CrawlOptions } from './crawl.js';
 export { runAnalyze, type AnalyzeOptions } from './analyze.js';
 export { runReport, type ReportOptions } from './report.js';
+export { runCompare, type CompareOptions } from './compare.js';
 export { runConfig, type ConfigOptions } from './config.js';
 export {
   runDbMigrate,

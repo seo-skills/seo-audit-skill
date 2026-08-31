@@ -6,6 +6,7 @@ import {
   runCrawl,
   runAnalyze,
   runReport,
+  runCompare,
   runConfig,
   runDbMigrate,
   runDbStats,
@@ -127,6 +128,16 @@ program
   .option('--since <date>', 'Filter by date (ISO format)')
   .option('--format <type>', 'Output format (table, json)', 'table')
   .action(runReport);
+
+// Compare command
+program
+  .command('compare [domain]')
+  .description('Compare the latest audit of a site against a previous one')
+  .option('--against <auditId>', 'Compare against a specific audit id instead of the previous run')
+  .option('--trend', 'Show the score history for the domain instead of a two-run diff', false)
+  .option('-j, --json', 'Output as JSON', false)
+  .option('--fail-on-regression', 'Exit 1 when the score dropped or new failures appeared', false)
+  .action(runCompare);
 
 // Config command
 program

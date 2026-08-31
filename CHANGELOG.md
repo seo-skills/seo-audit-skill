@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.1] - 2026-08-31
+
+### Fixed
+
+- `seomator --version` reported a hardcoded `3.0.0`, and `--help` a hardcoded
+  `251 rules` — neither was updated with the version bumps, so the published
+  3.1.0 package identified itself as 3.0.0 with 251 rules despite shipping the
+  new command surface and rules. The version now reads from `package.json` and
+  the rule count from `getRuleCount()`, so both are derived and cannot drift
+  again. (Functionality was unaffected; only the self-reported version was wrong.)
+- `package.json` declared `engines: node >=18.0.0`, but `better-sqlite3` has
+  required Node 20+ for several releases, so npm would not warn a Node 18 user
+  whose native build is guaranteed to fail. Corrected to `>=20.0.0`.
+
+### Changed
+
+- Bumped `better-sqlite3` to `^12.11.1`, which publishes prebuilt binaries for
+  Node 26 and adds `26.x` to its engines range. Cloning the repo and running
+  `npm install` now works on Node 26; npm consumers were already unaffected
+  because the `^12.6.2` range already resolved a working build. (Thanks to
+  @slima4 — #4.)
+
 ## [3.1.0] - 2026-08-31
 
 > ### ⚠️ Scores change in this release — re-baseline before upgrading

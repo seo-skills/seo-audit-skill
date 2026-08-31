@@ -29,8 +29,15 @@ export interface FetchResult {
   statusCode: number;
   /** Response time in milliseconds */
   responseTime: number;
-  /** Cookies set by the server on this response */
-  cookies: CookieInfo[];
+  /**
+   * Cookies set by the server on this response.
+   *
+   * Optional because not every FetchResult comes from a live fetch: pages
+   * replayed from a stored crawl have no recoverable Set-Cookie headers, and
+   * an empty array there would read as "this page sets no cookies" rather
+   * than "we do not know".
+   */
+  cookies?: CookieInfo[];
 }
 
 /**
@@ -505,6 +512,7 @@ export function createAuditContext(
     figures: extractFigures($),
     inlineSvgs: extractInlineSvgs($),
     pictureElements: extractPictureElements($),
-    cookies: cookies ?? [],
+    // Passed through as-is: undefined means unknown, [] means none were set.
+    ...(cookies !== undefined && { cookies }),
   };
 }

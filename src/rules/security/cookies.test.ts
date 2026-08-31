@@ -143,3 +143,17 @@ describe('cookieLifetimeRule', () => {
     );
   });
 });
+
+describe('cookie availability semantics', () => {
+  it('distinguishes "no cookies set" from "cookies unknown"', async () => {
+    // A live fetch of a page that sets none gives [], which is a genuine pass.
+    const measured = await cookieFlagsRule.run(createContext([]));
+    expect(measured.status).toBe('pass');
+    expect(measured.weight).toBeUndefined();
+
+    // A page replayed from a stored crawl has no recoverable Set-Cookie
+    // headers, which must not be reported as a clean bill of health.
+    const unmeasured = await cookieFlagsRule.run(createContext(undefined));
+    expect(unmeasured.weight).toBe(0);
+  });
+});

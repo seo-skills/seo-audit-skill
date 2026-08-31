@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Mobile-first parity (`--mobile`).** An opt-in second render at a mobile
+  viewport (393×852, mobile UA), with five rules comparing the desktop-rendered
+  DOM against the mobile one — the checks that catch a mobile-first indexing
+  loss, which a desktop-only audit cannot see (256 → 261 rules):
+  - `mobile-parity-content` — mobile body word count vs desktop. Google indexes
+    the mobile version, so content hidden from mobile is effectively unindexed.
+  - `mobile-parity-title` — title (fail) and meta description (warn) match.
+  - `mobile-parity-canonical` — canonical matches; Google uses the mobile one.
+  - `mobile-parity-structured-data` — JSON-LD present on mobile as on desktop,
+    since rich results are built from the mobile page.
+  - `mobile-parity-links` — comparable internal link count.
+
+  Parity runs on the single-page `audit` path (where the rendered DOM is
+  available) and roughly doubles render time, so it is off by default. Without
+  `--mobile` the rules report as unmeasured (weight 0) and do not affect the
+  score. The mobile render uses a real Android Chrome UA so dynamic-serving
+  sites return their mobile markup.
+
 ## [3.1.1] - 2026-08-31
 
 ### Fixed

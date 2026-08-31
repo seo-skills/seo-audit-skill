@@ -102,6 +102,7 @@ program
   .option('--timeout <ms>', 'Request timeout', (v) => parseIntValue(v, 'timeout', 1000, 120000), 30000)
   .option('-v, --verbose', 'Show progress', false)
   .option('--no-cwv', 'Skip Core Web Vitals')
+  .option('--mobile', 'Also render at a mobile viewport and run mobile-first parity checks (single-page)', false)
   .option('-r, --refresh', 'Ignore cache, fetch all pages fresh', false)
   .option('--resume', 'Resume interrupted crawl', false)
   .option('--config <path>', 'Config file path')

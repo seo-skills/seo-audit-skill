@@ -1,6 +1,6 @@
 ---
 name: seo-audit
-description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 256 rules and 20 categories, and can diff two audits to show what a deploy changed. Use when analyzing websites, debugging SEO issues, checking site health, or comparing a site before and after a change.
+description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 261 rules and 20 categories, and can diff two audits to show what a deploy changed. Use when analyzing websites, debugging SEO issues, checking site health, or comparing a site before and after a change.
 license: MIT
 compatibility: Requires Node.js 18+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
 metadata:
@@ -13,7 +13,7 @@ allowed-tools: Bash(seomator:*)
 
 Audit websites for SEO, technical, content, performance, security, JavaScript rendering, and AI readiness using the SEOmator CLI.
 
-SEOmator provides comprehensive website auditing by analyzing website structure and content against **256 rules** across **20 categories**.
+SEOmator provides comprehensive website auditing by analyzing website structure and content against **261 rules** across **20 categories**.
 
 It provides a list of issues with severity levels, affected URLs, and actionable fix suggestions.
 
@@ -25,7 +25,7 @@ It provides a list of issues with severity levels, affected URLs, and actionable
 
 ## What This Skill Does
 
-This skill enables AI agents to audit websites for **256 rules** in **20 categories**, including:
+This skill enables AI agents to audit websites for **261 rules** in **20 categories**, including:
 
 - **Core SEO** (19 rules): Canonical URLs, indexing directives, title uniqueness, canonical conflicts/loops
 - **Performance** (22 rules): LCP, CLS, FCP, TTFB, INP, compression, caching, minification, HTTP/2
@@ -42,7 +42,7 @@ This skill enables AI agents to audit websites for **256 rules** in **20 categor
 - **E-E-A-T** (14 rules): Author bylines, citations, trust signals, about/contact pages, YMYL detection
 - **URL Structure** (14 rules): Keyword slugs, stop words, uppercase, underscores, session IDs, tracking params
 - **Redirects** (8 rules): Redirect loops, types (301/302), meta refresh, JavaScript redirects, broken redirects
-- **Mobile** (5 rules): Font sizes, horizontal scroll, intrusive interstitials, viewport issues
+- **Mobile** (10 rules): Font sizes, horizontal scroll, interstitials, viewport, mobile-first parity (content, title, canonical, structured data, links) via `--mobile`
 - **Internationalization** (10 rules): lang attribute, hreflang validation (return links, conflicts, mismatches)
 - **HTML Validation** (9 rules): Doctype, charset, head structure, lorem ipsum, multiple titles/descriptions
 - **AI/GEO Readiness** (5 rules): Semantic HTML, AI bot access, llms.txt, schema drift
@@ -185,6 +185,7 @@ seomator audit https://example.com --format llm -v
 | `--refresh` | `-r` | Ignore cache, fetch fresh | false |
 | `--resume` | | Resume interrupted crawl | false |
 | `--no-cwv` | | Skip Core Web Vitals + JS rendering | false |
+| `--mobile` | | Render mobile viewport + mobile-first parity (single-page) | false |
 | `--verbose` | `-v` | Show progress | false |
 | `--output <path>` | `-o` | Output file path | |
 | `--config <path>` | | Config file path | |
@@ -418,7 +419,7 @@ seomator audit https://example.com
 3. **Enrich**: Fetches robots.txt and sitemap once per audit
 4. **Render** (if CWV enabled): Captures rendered DOM via Playwright, plus console errors and failed resource requests
 5. **Crawl** (if enabled): Discovers and fetches linked pages
-6. **Analyze**: Runs 256 audit rules against each page
+6. **Analyze**: Runs 261 audit rules against each page
 7. **Score**: Calculates category and overall weighted scores
 8. **Report**: Generates output in requested format
 
@@ -453,6 +454,6 @@ untrusted delimiters would dilute the signal.
 
 ## Resources
 
-- **Full rules reference**: See `docs/SEO-AUDIT-RULES.md` for all 256 rules
+- **Full rules reference**: See `docs/SEO-AUDIT-RULES.md` for all 261 rules
 - **Storage architecture**: See `docs/STORAGE-ARCHITECTURE.md` for database details
 - **CLI help**: `seomator --help` and `seomator <command> --help`

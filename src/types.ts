@@ -322,6 +322,13 @@ export interface AuditContext {
   rendered$?: CheerioAPI;
   /** Errors and failed requests observed while rendering the page */
   renderDiagnostics?: RenderDiagnostics;
+
+  // --- Mobile parity (optional, requires a second render at a mobile viewport) ---
+
+  /** HTML after JavaScript rendering at a mobile viewport */
+  mobileHtml?: string;
+  /** Cheerio instance of the mobile-rendered DOM */
+  mobile$?: CheerioAPI;
 }
 
 /**

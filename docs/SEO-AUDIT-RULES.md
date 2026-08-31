@@ -1,10 +1,10 @@
 # SEO Audit Rules Reference
 
-> Complete reference of all 256 SEO audit rules across 20 categories (v3.1.0)
+> Complete reference of all 261 SEO audit rules across 20 categories (v3.1.1)
 
 ## Overview
 
-SEOmator audits websites using 256 rules organized into 20 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 261 rules organized into 20 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -30,13 +30,13 @@ SEOmator audits websites using 256 rules organized into 20 categories. Each rule
 | [E-E-A-T](#e-e-a-t) | 3% | 14 | Experience, Expertise, Authority, Trust signals |
 | [URL Structure](#url-structure) | 3% | 14 | Slug keywords, formatting, parameters |
 | [Redirects](#redirects) | 3% | 8 | Redirect types, chains, loops |
-| [Mobile](#mobile) | 2% | 5 | Font size, viewport, responsive layout |
+| [Mobile](#mobile) | 2% | 10 | Font size, viewport, responsive layout |
 | [Internationalization](#internationalization) | 2% | 10 | Language declarations, hreflang validation |
 | [HTML Validation](#html-validation) | 2% | 9 | DOCTYPE, charset, head structure |
 | [AI/GEO Readiness](#aigeo-readiness) | 2% | 5 | Semantic HTML, AI bot access, llms.txt |
 | [Legal Compliance](#legal-compliance) | 1% | 1 | Cookie consent |
 
-**Total: 100% weight, 256 rules**
+**Total: 100% weight, 261 rules**
 
 ---
 
@@ -1003,6 +1003,11 @@ Mobile-friendliness checks for font size, viewport, and responsive layout.
 | `mobile-interstitials` | Interstitials | fail/warn | Detects popups and overlays covering content |
 | `mobile-viewport-width` | Viewport Width | warn | Checks viewport uses device-width |
 | `mobile-multiple-viewports` | Multiple Viewports | fail | Detects multiple viewport meta tags |
+| `mobile-parity-content` | Mobile Content Parity | warn/fail | Mobile body content vs desktop render (requires --mobile) |
+| `mobile-parity-title` | Mobile Title & Description Parity | warn/fail | Title/description match between renders (requires --mobile) |
+| `mobile-parity-canonical` | Mobile Canonical Parity | fail | Canonical matches between renders (requires --mobile) |
+| `mobile-parity-structured-data` | Mobile Structured Data Parity | fail | JSON-LD present on mobile as on desktop (requires --mobile) |
+| `mobile-parity-links` | Mobile Internal Link Parity | warn | Comparable internal link count (requires --mobile) |
 
 ### Rule Details
 

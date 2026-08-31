@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import { getUserAgent } from './user-agent.js';
+import { parseSetCookieHeaders } from './cookies.js';
 import type { CheerioAPI } from 'cheerio';
 import type {
   AuditContext,
@@ -11,6 +12,7 @@ import type {
   FigureInfo,
   InlineSvgInfo,
   PictureElementInfo,
+  CookieInfo,
 } from '../types.js';
 
 /**
@@ -27,6 +29,8 @@ export interface FetchResult {
   statusCode: number;
   /** Response time in milliseconds */
   responseTime: number;
+  /** Cookies set by the server on this response */
+  cookies: CookieInfo[];
 }
 
 /**
@@ -69,6 +73,7 @@ export async function fetchPage(url: string, timeout = 30000): Promise<FetchResu
       headers,
       statusCode: response.status,
       responseTime: Math.round(responseTime),
+      cookies: parseSetCookieHeaders(response.headers),
     };
   } finally {
     clearTimeout(timeoutId);
@@ -481,7 +486,7 @@ export function createAuditContext(
   fetchResult: FetchResult,
   cwv: CoreWebVitals = {}
 ): AuditContext {
-  const { html, $, headers, statusCode, responseTime } = fetchResult;
+  const { html, $, headers, statusCode, responseTime, cookies } = fetchResult;
   const { links, invalidLinks } = extractLinks($, url);
   const specialLinks = extractSpecialLinks($);
 
@@ -500,5 +505,6 @@ export function createAuditContext(
     figures: extractFigures($),
     inlineSvgs: extractInlineSvgs($),
     pictureElements: extractPictureElements($),
+    cookies: cookies ?? [],
   };
 }

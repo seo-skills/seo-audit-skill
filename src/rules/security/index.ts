@@ -25,6 +25,7 @@ import { leakedSecretsRule } from './leaked-secrets.js';
 import { passwordHttpRule } from './password-http.js';
 import { protocolRelativeRule } from './protocol-relative.js';
 import { sslExpiryRule } from './ssl-expiry.js';
+import { cookieFlagsRule, cookieLifetimeRule } from './cookie-flags.js';
 import { sslProtocolRule } from './ssl-protocol.js';
 
 // Export all rules
@@ -45,6 +46,8 @@ export {
   protocolRelativeRule,
   sslExpiryRule,
   sslProtocolRule,
+  cookieFlagsRule,
+  cookieLifetimeRule,
 };
 
 // Register all rules
@@ -64,3 +67,5 @@ registerRule(passwordHttpRule);
 registerRule(protocolRelativeRule);
 registerRule(sslExpiryRule);
 registerRule(sslProtocolRule);
+registerRule(cookieFlagsRule);
+registerRule(cookieLifetimeRule);

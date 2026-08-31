@@ -152,6 +152,33 @@ export interface RedirectChainEntry {
 }
 
 /**
+ * A cookie set by the server via a `Set-Cookie` response header.
+ *
+ * The value is never retained — only its length — because audit results are
+ * written into shareable reports and passed to LLMs.
+ */
+export interface CookieInfo {
+  /** Cookie name */
+  name: string;
+  /** Length of the value, kept instead of the value itself */
+  valueLength: number;
+  /** Secure attribute present */
+  secure: boolean;
+  /** HttpOnly attribute present */
+  httpOnly: boolean;
+  /** SameSite attribute, when set to a recognised value */
+  sameSite?: 'Strict' | 'Lax' | 'None';
+  /** Domain attribute */
+  domain?: string;
+  /** Path attribute */
+  path?: string;
+  /** Expires attribute, as sent */
+  expires?: string;
+  /** Max-Age attribute in seconds */
+  maxAge?: number;
+}
+
+/**
  * A console message emitted by the page while rendering
  */
 export interface ConsoleMessageInfo {
@@ -231,6 +258,14 @@ export interface AuditContext {
   inlineSvgs: InlineSvgInfo[];
   /** Picture elements */
   pictureElements: PictureElementInfo[];
+  /**
+   * Cookies set by the server on this response.
+   *
+   * Optional because it is only recoverable from a live fetch: stored crawls
+   * flatten headers into a string map, which comma-joins multiple Set-Cookie
+   * headers into something that cannot be reliably split again.
+   */
+  cookies?: CookieInfo[];
 
   // --- Tier 2: Network-fetched data (optional) ---
 

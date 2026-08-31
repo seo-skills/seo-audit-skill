@@ -12,6 +12,18 @@
 export const DEFAULT_USER_AGENT =
   'SEOmatorBot/3.0 (+https://github.com/seo-skills/seo-audit-skill)';
 
+/**
+ * User-Agent for the mobile-parity render.
+ *
+ * Carries a real Android Chrome token so sites that serve different markup to
+ * mobile (dynamic serving, UA sniffing) respond with their mobile version —
+ * which is the version Google indexes mobile-first. The SEOmatorBot suffix
+ * keeps it identifiable without hiding the mobile tokens sites look for.
+ */
+export const MOBILE_USER_AGENT =
+  'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) ' +
+  'Chrome/120.0.0.0 Mobile Safari/537.36 SEOmatorBot/3.0 (+https://github.com/seo-skills/seo-audit-skill)';
+
 let currentUserAgent = DEFAULT_USER_AGENT;
 
 /**

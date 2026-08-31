@@ -69,6 +69,12 @@ export interface AuditorOptions {
   timeout?: number;
   /** Whether to measure Core Web Vitals with Playwright */
   measureCwv?: boolean;
+  /**
+   * Also render the page at a mobile viewport and run mobile-first parity rules.
+   * Requires measureCwv (a browser render). Roughly doubles render time, so it
+   * is off by default.
+   */
+  mobileParity?: boolean;
   /** Optional browser-based page fetcher (replaces Playwright when provided) */
   browserFetcher?: (url: string, timeout: number) => Promise<PlaywrightFetchResult>;
   /** Callback when category audit starts */
@@ -101,6 +107,7 @@ export class Auditor {
       categories: options.categories ?? [],
       timeout: options.timeout ?? 30000,
       measureCwv: options.measureCwv ?? false,
+      mobileParity: options.mobileParity ?? false,
       browserFetcher: options.browserFetcher,
       onCategoryStart: options.onCategoryStart ?? (() => {}),
       onCategoryComplete: options.onCategoryComplete ?? (() => {}),
@@ -220,6 +227,8 @@ export class Auditor {
     let renderedHtml: string | undefined;
     let rendered$: import('cheerio').CheerioAPI | undefined;
     let renderDiagnostics: RenderDiagnostics | undefined;
+    let mobileHtml: string | undefined;
+    let mobile$: import('cheerio').CheerioAPI | undefined;
     if (this.options.measureCwv) {
       const fetcher = this.options.browserFetcher ?? fetchPageWithPlaywright;
       try {
@@ -231,6 +240,24 @@ export class Auditor {
           renderedHtml = pwResult.html;
           const cheerio = await import('cheerio');
           rendered$ = cheerio.load(renderedHtml);
+        }
+
+        // Mobile-first parity: a second render at a mobile viewport, while the
+        // shared browser is still open. Uses the real Playwright renderer
+        // directly because a custom browserFetcher has no mobile mode.
+        if (this.options.mobileParity) {
+          try {
+            const mobileResult = await fetchPageWithPlaywright(url, this.options.timeout, {
+              mobile: true,
+            });
+            if (mobileResult.html) {
+              mobileHtml = mobileResult.html;
+              const cheerio = await import('cheerio');
+              mobile$ = cheerio.load(mobileHtml);
+            }
+          } catch {
+            // Mobile render failed; parity rules report unmeasured
+          }
         }
       } catch {
         // CWV measurement failed, continue without it
@@ -253,6 +280,10 @@ export class Auditor {
     }
     if (renderDiagnostics) {
       context.renderDiagnostics = renderDiagnostics;
+    }
+    if (mobileHtml) {
+      context.mobileHtml = mobileHtml;
+      context.mobile$ = mobile$;
     }
 
     // Run all categories

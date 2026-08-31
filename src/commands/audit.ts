@@ -25,6 +25,7 @@ export interface AuditOptions {
   timeout: number;
   verbose: boolean;
   cwv: boolean;
+  mobile?: boolean;
   refresh: boolean;
   resume: boolean;
   config?: string;
@@ -40,6 +41,8 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   const isCrawlMode = options.crawl;
   const isVerbose = options.verbose;
   const measureCwv = options.cwv !== false;
+  // Mobile parity needs a browser render, so --mobile implies CWV rendering.
+  const mobileParity = options.mobile === true && measureCwv;
   const selectedCategories: string[] = options.categories ?? [];
   const maxPages: number = options.maxPages;
   const concurrency: number = options.concurrency;
@@ -87,6 +90,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       categories: selectedCategories,
       timeout: config.crawler.timeout_ms,
       measureCwv,
+      mobileParity,
       onCategoryStart: (categoryId, categoryName) => {
         progress.onCategoryStart(categoryId, categoryName);
       },

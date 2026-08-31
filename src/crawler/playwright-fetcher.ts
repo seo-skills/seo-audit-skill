@@ -1,6 +1,6 @@
 import { chromium, type Browser, type Page } from 'playwright';
 import type { CoreWebVitals, FailedRequestInfo, RenderDiagnostics } from '../types.js';
-import { getUserAgent } from './user-agent.js';
+import { getUserAgent, MOBILE_USER_AGENT } from './user-agent.js';
 
 let browserPromise: Promise<Browser> | null = null;
 
@@ -184,20 +184,46 @@ function collectDiagnostics(page: Page): RenderDiagnostics {
   return diagnostics;
 }
 
+/** Options controlling how a page is rendered */
+export interface RenderOptions {
+  /**
+   * Render at a mobile viewport with a mobile User-Agent instead of desktop.
+   * Used for mobile-first parity: comparing what a phone sees against desktop.
+   */
+  mobile?: boolean;
+}
+
+/**
+ * A representative modern phone. Chosen over playwright's device registry so
+ * the emulation profile is explicit and does not shift with Playwright updates.
+ */
+const MOBILE_CONTEXT = {
+  viewport: { width: 393, height: 852 },
+  deviceScaleFactor: 3,
+  isMobile: true,
+  hasTouch: true,
+} as const;
+
 /**
  * Fetch a page with full browser rendering and JavaScript execution
  * @param url - URL to fetch
  * @param timeout - Navigation timeout in milliseconds (default: 30000)
+ * @param options - Render options (e.g. mobile viewport)
  * @returns PlaywrightFetchResult with html, statusCode, responseTime, cwv
  */
 export async function fetchPageWithPlaywright(
   url: string,
-  timeout = 30000
+  timeout = 30000,
+  options: RenderOptions = {}
 ): Promise<PlaywrightFetchResult> {
   const browser = await initBrowser();
   // A context, not a bare page, so the render identifies itself with the same
   // User-Agent as the HTTP crawler instead of the default headless Chrome one.
-  const context = await browser.newContext({ userAgent: getUserAgent() });
+  const context = await browser.newContext(
+    options.mobile
+      ? { userAgent: MOBILE_USER_AGENT, ...MOBILE_CONTEXT }
+      : { userAgent: getUserAgent() }
+  );
   const page = await context.newPage();
   // Listeners must be attached before goto to see load-time errors.
   const diagnostics = collectDiagnostics(page);

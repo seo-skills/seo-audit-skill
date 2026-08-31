@@ -44,3 +44,6 @@ seo-report-*.html
 
 # Playwright MCP data
 .playwright-mcp/
+
+# Local scratch and research folders (never published)
+*-poc/

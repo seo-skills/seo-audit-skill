@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Site-wide link graph.** The crawler now records click depth as it discovers
+  URLs and builds an inbound/outbound internal link graph, shared with every
+  page as `AuditContext.site`. This is the first cross-page data available to
+  rules, which previously received one page at a time and had to fake it.
+  - `links-depth` measured URL path segments, which is nesting rather than
+    reach — a page at `/a/b/c/d` linked from the homepage is one click away,
+    not four. It now measures true click distance from the crawl entry point.
+    Verified on a 6-page chain where every URL is a single segment: the old
+    heuristic reported depth 1 for all of them, the graph reports 0 through 5.
+  - `links-orphan-pages` always returned `pass` and advised running `--crawl`
+    for detection that was never implemented. It now measures inbound internal
+    link count, and is renamed in reporting to "Inbound Internal Links" to
+    match what it can actually determine: a crawl reaches a page only by
+    following a link to it, so every page it finds has at least one inbound
+    link by construction, and true zero-inbound orphans require a URL
+    inventory from outside the graph — which `crawl-sitemap-orphan-urls`
+    provides by diffing the sitemap against what the crawl reached.
+  - Both report as unmeasured (weight 0) outside crawl mode rather than
+    guessing, so a single-page audit is not penalised.
+
 ### Added
 
 - **Synthetic INP (`--simulate-interaction`).** INP cannot be measured without a real

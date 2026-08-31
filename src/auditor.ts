@@ -5,6 +5,7 @@ import type {
   RuleResult,
   CategoryDefinition,
   CoreWebVitals,
+  RenderDiagnostics,
 } from './types.js';
 import { categories, getCategoryById } from './categories/index.js';
 import { getRulesByCategory, resetCrossPageState } from './rules/registry.js';
@@ -238,11 +239,13 @@ export class Auditor {
     let cwv: CoreWebVitals = {};
     let renderedHtml: string | undefined;
     let rendered$: import('cheerio').CheerioAPI | undefined;
+    let renderDiagnostics: RenderDiagnostics | undefined;
     if (this.options.measureCwv) {
       const fetcher = this.options.browserFetcher ?? fetchPageWithPlaywright;
       try {
         const pwResult = await fetcher(url, this.options.timeout);
         cwv = pwResult.cwv;
+        renderDiagnostics = pwResult.diagnostics;
         // Capture rendered HTML for JS rendering rules
         if (pwResult.html) {
           renderedHtml = pwResult.html;
@@ -267,6 +270,9 @@ export class Auditor {
     if (renderedHtml) {
       context.renderedHtml = renderedHtml;
       context.rendered$ = rendered$;
+    }
+    if (renderDiagnostics) {
+      context.renderDiagnostics = renderDiagnostics;
     }
 
     // Run all categories
@@ -296,19 +302,19 @@ export class Auditor {
     const robotsTxtContent = await this.fetchRobotsTxt(url);
     const sitemapData = await this.fetchSitemap(url, robotsTxtContent);
 
-    // Create crawler with CWV callback if enabled
+    // Create crawler with browser rendering if enabled
     const fetcher = this.options.browserFetcher ?? fetchPageWithPlaywright;
     const crawler = new Crawler({
       maxPages,
       concurrency,
       timeout: this.options.timeout,
-      getCwv: this.options.measureCwv
+      renderPage: this.options.measureCwv
         ? async (pageUrl: string) => {
             try {
               const result = await fetcher(pageUrl, this.options.timeout);
-              return result.cwv;
+              return { cwv: result.cwv, diagnostics: result.diagnostics };
             } catch {
-              return {};
+              return { cwv: {} };
             }
           }
         : undefined,

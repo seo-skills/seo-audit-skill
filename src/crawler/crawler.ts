@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import { fetchPage, createAuditContext, type FetchResult } from './fetcher.js';
-import type { AuditContext, CoreWebVitals } from '../types.js';
+import type { AuditContext, CoreWebVitals, RenderDiagnostics } from '../types.js';
 import { UrlFilter, type UrlFilterOptions } from './url-filter.js';
 
 /**
@@ -23,6 +23,16 @@ export interface CrawlProgress {
 }
 
 /**
+ * What a browser render contributes beyond the HTTP response.
+ */
+export interface PageRenderResult {
+  /** Core Web Vitals measured during the render */
+  cwv: CoreWebVitals;
+  /** Errors and failed requests observed during the render */
+  diagnostics?: RenderDiagnostics;
+}
+
+/**
  * Options for the Crawler
  */
 export interface CrawlerOptions {
@@ -34,8 +44,11 @@ export interface CrawlerOptions {
   timeout: number;
   /** Progress callback */
   onProgress?: CrawlProgressCallback;
-  /** Function to get Core Web Vitals for a URL (optional) */
-  getCwv?: (url: string) => Promise<CoreWebVitals>;
+  /**
+   * Renders a URL in a browser, returning what only a real render can observe.
+   * Optional: when absent, pages are audited from their HTTP response alone.
+   */
+  renderPage?: (url: string) => Promise<PageRenderResult>;
   /** URL filter options for include/exclude patterns and query param handling */
   urlFilter?: Partial<UrlFilterOptions>;
 }
@@ -70,7 +83,7 @@ export class Crawler {
       concurrency: options.concurrency ?? 3,
       timeout: options.timeout ?? 30000,
       onProgress: options.onProgress,
-      getCwv: options.getCwv,
+      renderPage: options.renderPage,
       urlFilter: options.urlFilter,
     };
 
@@ -207,18 +220,24 @@ export class Crawler {
         return;
       }
 
-      // Get Core Web Vitals if callback provided
+      // Render in a browser if a renderer was provided
       let cwv: CoreWebVitals = {};
-      if (this.options.getCwv) {
+      let diagnostics: RenderDiagnostics | undefined;
+      if (this.options.renderPage) {
         try {
-          cwv = await this.options.getCwv(url);
+          const rendered = await this.options.renderPage(url);
+          cwv = rendered.cwv;
+          diagnostics = rendered.diagnostics;
         } catch {
-          // CWV measurement failed, continue without it
+          // Rendering failed, continue with the HTTP response alone
         }
       }
 
       // Create audit context
       const context = createAuditContext(url, fetchResult, cwv);
+      if (diagnostics) {
+        context.renderDiagnostics = diagnostics;
+      }
 
       // Add to results
       this.results.push({ url, context });

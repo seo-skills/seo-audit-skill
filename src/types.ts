@@ -152,6 +152,54 @@ export interface RedirectChainEntry {
 }
 
 /**
+ * A console message emitted by the page while rendering
+ */
+export interface ConsoleMessageInfo {
+  /** Console level, narrowed to the levels worth reporting */
+  level: 'error' | 'warning';
+  /** The message text */
+  text: string;
+  /** Script URL the message originated from, when known */
+  sourceUrl?: string;
+  /** Line number within the source, when known */
+  line?: number;
+}
+
+/**
+ * A subresource request that failed while rendering the page
+ */
+export interface FailedRequestInfo {
+  /** URL that failed to load */
+  url: string;
+  /** What the page wanted it for: script, stylesheet, image, font, xhr, … */
+  resourceType: string;
+  /** HTTP method */
+  method: string;
+  /**
+   * Why it failed. Either a browser-level error (`net::ERR_NAME_NOT_RESOLVED`)
+   * or an HTTP error status rendered as `HTTP 404`.
+   */
+  failure: string;
+  /** HTTP status, when the request completed with an error status */
+  statusCode?: number;
+}
+
+/**
+ * Errors and failed requests observed during a Playwright render.
+ *
+ * These are facts only a real browser can report — a static HTML parse cannot
+ * tell you that a script 404'd or threw. Present only when rendering ran.
+ */
+export interface RenderDiagnostics {
+  /** Uncaught exceptions thrown by page scripts */
+  pageErrors: string[];
+  /** console.error / console.warn output from the page */
+  consoleMessages: ConsoleMessageInfo[];
+  /** Subresources that failed to load */
+  failedRequests: FailedRequestInfo[];
+}
+
+/**
  * Context passed to each audit rule's run function
  */
 export interface AuditContext {
@@ -201,6 +249,8 @@ export interface AuditContext {
   renderedHtml?: string;
   /** Cheerio instance of rendered DOM */
   rendered$?: CheerioAPI;
+  /** Errors and failed requests observed while rendering the page */
+  renderDiagnostics?: RenderDiagnostics;
 }
 
 /**

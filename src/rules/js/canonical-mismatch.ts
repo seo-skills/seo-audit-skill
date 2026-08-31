@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, fail } from '../define-rule.js';
+import { defineRule, pass, fail, notMeasured } from '../define-rule.js';
 import { compareAttribute } from './utils/compare-dom.js';
 
 /**
@@ -20,9 +20,9 @@ export const canonicalMismatchRule = defineRule({
     const rendered$ = (context as any).rendered$;
 
     if (!rendered$) {
-      return pass(
+      return notMeasured(
         'js-canonical-mismatch',
-        'Rendered DOM not available (CWV/rendering not enabled), skipping check'
+        'Rendered DOM not available - run without --no-cwv to enable JavaScript rendering checks'
       );
     }
 

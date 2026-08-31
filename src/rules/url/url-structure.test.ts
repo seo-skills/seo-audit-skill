@@ -2,20 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { slugKeywordsRule } from './slug-keywords.js';
 import { stopWordsRule } from './stop-words.js';
 import type { AuditContext } from '../../types.js';
+import { createTestContext } from '../test-context.js';
 
 // Helper to create minimal AuditContext
 function createContext(url: string): AuditContext {
-  return {
-    url,
-    html: '<html><body></body></html>',
-    $: null as any,
-    headers: {},
-    links: [],
-    images: [],
-    statusCode: 200,
-    responseTime: 100,
-    redirectChain: [],
-  };
+  return createTestContext('<html><body></body></html>', { url });
 }
 
 describe('slugKeywordsRule', () => {

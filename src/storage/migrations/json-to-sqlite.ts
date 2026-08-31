@@ -6,6 +6,7 @@ import { getAuditsDatabase } from '../audits-db/index.js';
 import type { StoredCrawl, StoredPage } from '../crawl-store.js';
 import type { StoredReport } from '../report-store.js';
 import type { InsertPageInput, InsertCategoryInput, InsertResultInput } from '../types.js';
+import type { AuditsDatabase } from '../audits-db/index.js';
 
 /**
  * Migration result

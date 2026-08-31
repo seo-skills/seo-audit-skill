@@ -4,20 +4,11 @@ import { privacyPolicyRule } from './privacy-policy.js';
 import { termsOfServiceRule } from './terms-of-service.js';
 import type { AuditContext } from '../../types.js';
 import * as cheerio from 'cheerio';
+import { createTestContext } from '../test-context.js';
 
 // Helper to create AuditContext
 function createContext(html: string, url = 'https://example.com/'): AuditContext {
-  return {
-    url,
-    html,
-    $: cheerio.load(html),
-    headers: {},
-    links: [],
-    images: [],
-    statusCode: 200,
-    responseTime: 100,
-    redirectChain: [],
-  };
+  return createTestContext(html, { url });
 }
 
 describe('cookieConsentRule', () => {

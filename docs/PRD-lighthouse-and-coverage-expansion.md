@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Product** | `@seomator/seo-audit` (audit-cli) |
-| **Current version** | 3.1.1 — 256 rules / 20 categories |
+| **Current version** | 3.1.1 — 261 rules / 20 categories |
 | **Target version** | 3.2.0 |
-| **Status** | Draft |
+| **Status** | Phase 1 implemented; Phases 1b–4 open |
 | **Date** | 2026-08-31 |
 
 ---
@@ -114,7 +114,7 @@ Chrome binary. One `fetch`.
 
 ## 5. Scope
 
-### Phase 1 — Instant Web Vitals via injected `web-vitals`
+### Phase 1 — Instant Web Vitals via injected `web-vitals` ✅ IMPLEMENTED
 
 Replaces the hand-rolled collector in `measureCoreWebVitals`
 (`src/crawler/playwright-fetcher.ts:268`). Default-on; no flag, no network call.
@@ -143,10 +143,30 @@ Replaces the hand-rolled collector in `measureCoreWebVitals`
 context are unaffected:
 
 ```ts
-tbt?: number;                      // Total Blocking Time (ms)
-lcpElement?: string;               // CSS selector of the LCP element
-clsCulprits?: { selector: string; value: number }[];
+tbt?: number;                   // Total Blocking Time (ms)
+inpSynthetic?: boolean;         // INP came from a crawler-driven interaction
+lcpElement?: string;            // CSS selector of the LCP element
+clsLargestShiftTarget?: string; // CSS selector behind the largest single shift
 ```
+
+**Correction to the original spec:** this listed `clsCulprits` as an array. `web-vitals`
+attribution exposes only `largestShiftTarget` — the single worst shift, not a ranked list.
+Building a full culprit list would mean parsing raw `layout-shift` entries ourselves;
+deferred as unjustified for the value.
+
+**Implementation note:** the package's `exports` map blocks deep subpath resolution, so
+`require.resolve('web-vitals/dist/...')` throws `ERR_PACKAGE_PATH_NOT_EXPORTED`. The IIFE is
+located relative to the resolved main entry instead (both live in `dist/`).
+
+**Verified result — TTFB on `example.com`:**
+
+| | value |
+|---|---|
+| Old formula (`responseStart - requestStart`) | 61ms |
+| Spec TTFB (now reported) | 265ms |
+| Previously hidden DNS + TCP + TLS | 204ms |
+
+A 4.3× understatement on a fast, well-connected host. Live audit now reports 259ms.
 
 ### Phase 1b — PSI / Lighthouse (opt-in, secondary)
 
@@ -304,7 +324,7 @@ not a technical one.
 
 ---
 
-### D3 — Should we synthesize interactions to produce INP? *(blocking nothing; affects Phase 1 scope)*
+### D3 — Should we synthesize interactions to produce INP? — **DECIDED: (c)**
 
 INP requires a real interaction. With none, `web-vitals` never fires it and `perf/inp.ts`
 returns `notMeasured()` — honest, but a permanent hole in a Core Web Vital.
@@ -315,7 +335,17 @@ returns `notMeasured()` — honest, but a permanent hole in a Core Web Vital.
   real user interaction and could be actively misleading.
 - **(c) Synthesize behind `--simulate-interaction`**, clearly labelled as synthetic in output.
 
-**Recommendation: (c).** A number this easy to misread should not appear unless asked for.
+**Decided: (c)** — implemented as `--simulate-interaction`.
+
+The crawler suppresses navigation and form submission with capture-phase `preventDefault`
+before clicking, so the click measures the site's own handlers without tearing down the
+document being measured. The resulting INP is returned with `inpSynthetic: true`, and
+`perf/inp.ts` reports it through `notMeasured()` — **weight 0**, so a manufactured number
+never moves the score, however good it looks.
+
+Verified on `example.com`: without the flag, INP is absent and the message points at the
+flag; with it, `INP is 8ms from a synthetic interaction (indicative only - not real user
+data)` at weight 0.
 
 ## 7. Success criteria
 

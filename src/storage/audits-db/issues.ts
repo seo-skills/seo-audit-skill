@@ -306,7 +306,6 @@ export function generateIssuesFromResults(
       title: rule.rule_name,
       description: rule.message,
       affectedPages,
-      fixSuggestion: null,
     };
   });
 
@@ -342,7 +341,6 @@ export function generateIssuesFromResults(
       title: rule.rule_name,
       description: rule.message,
       affectedPages,
-      fixSuggestion: null,
     };
   });
 

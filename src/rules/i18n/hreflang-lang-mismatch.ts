@@ -53,14 +53,18 @@ export const hreflangLangMismatchRule = defineRule({
       });
     }
 
+    // Iterated with a plain loop rather than .each() so the assignment below is
+    // visible to control-flow analysis. Assigning inside a callback leaves the
+    // variable narrowed to its initialiser, which made the later guard look
+    // like it always returned and the code after it unreachable.
     let selfReferenceHreflang: string | null = null;
 
-    hreflangElements.each((_, el) => {
+    for (const el of hreflangElements.toArray()) {
       const $el = $(el);
       const hreflang = ($el.attr('hreflang') || '').trim().toLowerCase();
       const href = ($el.attr('href') || '').trim();
 
-      if (!href || !hreflang || hreflang === 'x-default') return;
+      if (!href || !hreflang || hreflang === 'x-default') continue;
 
       try {
         const hrefUrl = new URL(href, url);
@@ -73,7 +77,7 @@ export const hreflangLangMismatchRule = defineRule({
       } catch {
         // Invalid URL, skip
       }
-    });
+    }
 
     if (!selfReferenceHreflang) {
       return pass(

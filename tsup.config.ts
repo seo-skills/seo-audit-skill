@@ -2,10 +2,8 @@ import { defineConfig } from "tsup";
 
 export default defineConfig([
   // CLI entry — gets the shebang for `npx seomator`.
-  // No dts: an executable has no importable API, and dist/cli.d.ts is
-  // referenced by nothing. Generating it would type-check the whole rule graph
-  // (cli.ts imports the rule loader for its --version rule count), which trips
-  // pre-existing declaration-only type errors in the rule files.
+  // No dts: an executable has no importable API and nothing references
+  // dist/cli.d.ts, so generating it only costs build time.
   {
     entry: ["src/cli.ts"],
     format: ["esm"],

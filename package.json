@@ -29,7 +29,7 @@
     "electron:dist": "electron-builder install-app-deps && npm run electron:build && electron-builder",
     "electron:dist:mac": "electron-builder install-app-deps && npm run electron:build && electron-builder --mac",
     "electron:dist:win": "electron-builder install-app-deps && npm run electron:build && electron-builder --win",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run typecheck && npm run build"
   },
   "keywords": [
     "seo",

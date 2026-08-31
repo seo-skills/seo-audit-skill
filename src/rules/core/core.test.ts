@@ -5,22 +5,13 @@ import { canonicalHeaderRule } from './canonical-header.js';
 import { nosnippetRule } from './nosnippet.js';
 import { robotsMetaRule } from './robots-meta.js';
 import { titleUniqueRule, resetTitleRegistry, getTitleRegistryStats } from './title-unique.js';
+import { createTestContext } from '../test-context.js';
 
 /**
  * Create a mock AuditContext for testing
  */
 function createContext(html: string, headers: Record<string, string> = {}, url = 'https://example.com'): AuditContext {
-  return {
-    url,
-    html,
-    $: load(html),
-    headers,
-    statusCode: 200,
-    responseTime: 100,
-    cwv: {},
-    links: [],
-    images: [],
-  };
+  return createTestContext(html, { url, headers });
 }
 
 describe('Core SEO Rules', () => {

@@ -6,17 +6,55 @@ import { fetchPage } from '../../crawler/fetcher.js';
  * Known AI crawler user-agent identifiers.
  * These are the primary bots used by generative AI platforms to index web content.
  */
+/**
+ * Known AI crawlers, split by what blocking them actually costs you.
+ *
+ * `citation` bots fetch pages to answer a user's question right now, and the
+ * answer can cite you. Blocking one removes you from that surface outright.
+ *
+ * `training` bots collect corpora for model training. Blocking those is a
+ * legitimate, common editorial choice with no direct effect on AI-search
+ * visibility, so it should not be reported the same way.
+ */
+const AI_BOTS_BY_PURPOSE = {
+  citation: [
+    'OAI-SearchBot', // ChatGPT search index
+    'ChatGPT-User', // ChatGPT user-triggered browsing
+    'PerplexityBot',
+    'Perplexity-User',
+    'ClaudeBot',
+    'Claude-User',
+    'Claude-SearchBot',
+    'Google-Extended', // gates Gemini and AI Overviews grounding
+    'DuckAssistBot',
+    'MistralAI-User',
+    'Amazonbot',
+    'Applebot',
+    'YouBot',
+  ],
+  training: [
+    'GPTBot',
+    'Google-CloudVertexBot',
+    'Applebot-Extended',
+    'meta-externalagent',
+    'FacebookBot',
+    'CCBot',
+    'Bytespider',
+    'cohere-ai',
+    'Diffbot',
+    'Timpibot',
+    'omgili',
+    'anthropic-ai', // retired, still seen in robots.txt
+    'Claude-Web', // retired, still seen in robots.txt
+  ],
+} as const;
+
 const AI_BOTS = [
-  'GPTBot',
-  'ChatGPT-User',
-  'Google-Extended',
-  'CCBot',
-  'anthropic-ai',
-  'Claude-Web',
-  'Bytespider',
-  'PerplexityBot',
-  'Amazonbot',
+  ...AI_BOTS_BY_PURPOSE.citation,
+  ...AI_BOTS_BY_PURPOSE.training,
 ] as const;
+
+const CITATION_BOTS: readonly string[] = AI_BOTS_BY_PURPOSE.citation;
 
 /**
  * Extracts the base URL (origin) from a full URL
@@ -149,16 +187,16 @@ function findBlockedAiBots(content: string): string[] {
  * This rule fetches /robots.txt and looks for User-agent sections that
  * target known AI bots with a blanket Disallow: /.
  *
- * Scoring:
- * - No AI bots blocked: pass
- * - Some AI bots blocked: warn
- * - All major AI bots blocked: fail
+ * Scoring is based on answer-engine crawlers, not training crawlers:
+ * - No answer engine blocked: pass (even if training crawlers are blocked)
+ * - Some answer engines blocked: warn
+ * - Every answer engine blocked: fail
  */
 export const aiBotAccessRule = defineRule({
   id: 'geo-ai-bot-access',
   name: 'AI Bot Access',
   description:
-    'Checks if robots.txt blocks AI crawlers (GPTBot, ChatGPT-User, Google-Extended, Claude-Web, etc.)',
+    'Checks whether robots.txt blocks AI answer engines (OAI-SearchBot, PerplexityBot, ClaudeBot, Google-Extended). Training-only crawlers such as GPTBot are reported but not penalised.',
   category: 'geo',
   weight: 20,
   run: async (context: AuditContext) => {
@@ -191,43 +229,57 @@ export const aiBotAccessRule = defineRule({
 
     const blockedBots = findBlockedAiBots(robotsContent);
     const allowedBots = AI_BOTS.filter((bot) => !blockedBots.includes(bot));
+    const blockedCitationBots = blockedBots.filter((bot) => CITATION_BOTS.includes(bot));
+    const blockedTrainingBots = blockedBots.filter((bot) => !CITATION_BOTS.includes(bot));
 
     const details: Record<string, unknown> = {
       robotsTxtUrl,
       robotsTxtAccessible: true,
       blockedBots,
       allowedBots,
+      blockedCitationBots,
+      blockedTrainingBots,
       totalBotsChecked: AI_BOTS.length,
+      citationBotsChecked: CITATION_BOTS.length,
       blockedCount: blockedBots.length,
     };
 
     if (blockedBots.length === 0) {
-      return pass(
-        'geo-ai-bot-access',
-        'AI bots are not blocked in robots.txt',
-        details
-      );
+      return pass('geo-ai-bot-access', 'AI bots are not blocked in robots.txt', details);
     }
 
-    if (blockedBots.length >= AI_BOTS.length) {
+    // Every citation-capable bot blocked: the site cannot appear in AI answers.
+    if (blockedCitationBots.length >= CITATION_BOTS.length) {
       return fail(
         'geo-ai-bot-access',
-        `All ${AI_BOTS.length} major AI bots are blocked in robots.txt`,
+        `All ${CITATION_BOTS.length} AI answer engines are blocked in robots.txt - this site cannot be cited in AI-generated answers`,
         {
           ...details,
           recommendation:
-            'Remove or relax AI bot restrictions to allow your content to appear in AI-generated answers',
+            'Allow the answer-engine crawlers (OAI-SearchBot, PerplexityBot, ClaudeBot, Google-Extended) to appear in AI answers. Training crawlers such as GPTBot can stay blocked if that is your policy.',
         }
       );
     }
 
-    return warn(
+    if (blockedCitationBots.length > 0) {
+      return warn(
+        'geo-ai-bot-access',
+        `${blockedCitationBots.length} AI answer engine(s) blocked in robots.txt: ${blockedCitationBots.join(', ')}`,
+        {
+          ...details,
+          recommendation:
+            'These crawlers fetch pages to answer user questions and can cite you. Blocking them removes this site from those answers.',
+        }
+      );
+    }
+
+    // Only training crawlers blocked - a deliberate policy, not an SEO defect.
+    return pass(
       'geo-ai-bot-access',
-      `${blockedBots.length}/${AI_BOTS.length} AI bots blocked in robots.txt: ${blockedBots.join(', ')}`,
+      `Answer-engine crawlers are allowed; ${blockedTrainingBots.length} training-only crawler(s) blocked: ${blockedTrainingBots.join(', ')}`,
       {
         ...details,
-        recommendation:
-          'Consider allowing AI bots to crawl your content for better visibility in AI-generated answers',
+        note: 'Blocking training-only crawlers does not affect visibility in AI answers.',
       }
     );
   },

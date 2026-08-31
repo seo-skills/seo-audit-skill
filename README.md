@@ -314,14 +314,14 @@ seomator self doctor -v          # Verbose diagnostics
 | `links-internal-present` | Page should have internal links |
 | `links-nofollow-appropriate` | nofollow used appropriately |
 | `links-anchor-text` | Anchor text should be descriptive |
-| `links-depth` | Page depth should be ≤3 from homepage |
+| `links-depth` | Click distance from the entry point ≤3 (requires `--crawl`) |
 | `links-dead-end-pages` | Pages should have outgoing internal links |
 | `links-https-downgrade` | HTTPS pages should not link to HTTP |
 | `links-external-count` | Warn if >100 external links |
 | `links-invalid-links` | No empty, javascript:, or malformed hrefs |
 | `links-tel-mailto` | Valid tel: and mailto: link formats |
 | `links-redirect-chains` | Links should not go through redirects |
-| `links-orphan-pages` | Pages should have incoming links |
+| `links-orphan-pages` | Pages have enough inbound internal links (requires `--crawl`) |
 | `links-localhost` | No localhost/127.0.0.1 URLs in production |
 | `links-local-file` | No file:// protocol links |
 | `links-broken-fragment` | Fragment links should match element IDs |

@@ -239,14 +239,14 @@ Analyzes internal and external links, anchor text, broken links, and link qualit
 | `links-internal-present` | Internal Links | warn | Checks page has internal links |
 | `links-nofollow-appropriate` | Nofollow Usage | warn | Validates nofollow is used appropriately |
 | `links-anchor-text` | Anchor Text | warn | Checks for descriptive anchor text |
-| `links-depth` | Link Depth | warn | Validates pages reachable in 3 clicks or fewer |
+| `links-depth` | Page Depth | warn/fail | True click distance from the crawl entry point (requires --crawl) |
 | `links-dead-end-pages` | Dead-End Pages | warn | Checks page has outgoing internal links |
 | `links-https-downgrade` | HTTPS Downgrade | warn | Checks HTTPS pages don't link to HTTP |
 | `links-external-count` | External Count | warn | Warns if >100 external links |
 | `links-invalid` | Invalid Links | warn | Detects empty, javascript:, or malformed hrefs |
 | `links-tel-mailto` | Tel & Mailto | warn | Validates tel: and mailto: link formats |
 | `links-redirect-chains` | Redirect Chains | warn/fail | Detects links through multiple redirects |
-| `links-orphan-pages` | Orphan Pages | info | Pages with no incoming links (crawl mode) |
+| `links-orphan-pages` | Inbound Internal Links | warn/fail | Inbound internal link count (requires --crawl); true orphans via crawl-sitemap-orphan-urls |
 | `links-localhost` | Localhost Links | fail | Detects links to localhost or 127.0.0.1 |
 | `links-local-file` | Local File Links | fail | Detects file:// protocol links |
 | `links-broken-fragment` | Broken Fragments | warn | Detects #anchor links with no matching ID |

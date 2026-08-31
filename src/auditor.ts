@@ -352,10 +352,15 @@ export class Auditor {
       await closeBrowser();
     }
 
+    // Build the site graph once, then share it by reference with every page so
+    // rules can answer cross-page questions (inbound links, click depth).
+    const site = crawler.buildSiteContext();
+
     // Enrich each crawled page context with shared data
     for (const crawledPage of crawledPages) {
       if (crawledPage.context) {
         crawledPage.context.robotsTxtContent = robotsTxtContent;
+        crawledPage.context.site = site;
         this.applySitemapData(crawledPage.context, sitemapData);
       }
     }

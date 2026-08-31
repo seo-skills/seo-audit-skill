@@ -1,11 +1,11 @@
 ---
 name: seo-audit
-description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 251 rules and 20 categories. Use when analyzing websites, debugging SEO issues, or checking site health.
+description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 256 rules and 20 categories, and can diff two audits to show what a deploy changed. Use when analyzing websites, debugging SEO issues, checking site health, or comparing a site before and after a change.
 license: MIT
 compatibility: Requires Node.js 18+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
 metadata:
   author: seomator
-  version: "3.0"
+  version: "3.1"
 allowed-tools: Bash(seomator:*)
 ---
 
@@ -13,7 +13,7 @@ allowed-tools: Bash(seomator:*)
 
 Audit websites for SEO, technical, content, performance, security, JavaScript rendering, and AI readiness using the SEOmator CLI.
 
-SEOmator provides comprehensive website auditing by analyzing website structure and content against **251 rules** across **20 categories**.
+SEOmator provides comprehensive website auditing by analyzing website structure and content against **256 rules** across **20 categories**.
 
 It provides a list of issues with severity levels, affected URLs, and actionable fix suggestions.
 
@@ -25,17 +25,17 @@ It provides a list of issues with severity levels, affected URLs, and actionable
 
 ## What This Skill Does
 
-This skill enables AI agents to audit websites for **251 rules** in **20 categories**, including:
+This skill enables AI agents to audit websites for **256 rules** in **20 categories**, including:
 
 - **Core SEO** (19 rules): Canonical URLs, indexing directives, title uniqueness, canonical conflicts/loops
 - **Performance** (22 rules): LCP, CLS, FCP, TTFB, INP, compression, caching, minification, HTTP/2
 - **Links** (19 rules): Broken links, redirect chains, anchor text, orphan pages, localhost/fragment links
 - **Images** (14 rules): Alt text, dimensions, lazy loading, modern formats, alt length, background images
-- **Security** (16 rules): HTTPS, HSTS, CSP, external link safety, leaked secrets, SSL expiry/protocol
+- **Security** (18 rules): HTTPS, HSTS, CSP, external link safety, leaked secrets, SSL expiry/protocol, cookie flags and lifetime
 - **Technical SEO** (13 rules): robots.txt, sitemap.xml, URL structure, 404 pages, soft 404s, error codes
-- **Crawlability** (18 rules): Sitemap conflicts, indexability signals, canonical chains, pagination issues
+- **Crawlability** (19 rules): Sitemap conflicts, indexability signals, canonical chains, pagination issues, sitemap lastmod quality
 - **Structured Data** (13 rules): Schema.org markup, Article, Organization, FAQ, Product, Breadcrumb
-- **JavaScript Rendering** (13 rules): Rendered DOM checks, raw vs rendered mismatches, SSR detection
+- **JavaScript Rendering** (15 rules): Rendered DOM checks, raw vs rendered mismatches, SSR detection, console errors, failed resource requests
 - **Accessibility** (12 rules): ARIA labels, color contrast, form labels, landmarks, touch targets
 - **Content** (17 rules): Word count, readability, keyword density, duplicate detection, pixel widths
 - **Social** (9 rules): Open Graph tags, Twitter cards, share buttons, profile links
@@ -190,6 +190,21 @@ seomator audit https://example.com --format llm -v
 | `--config <path>` | | Config file path | |
 | `--save` | | Save to ~/.seomator | false |
 
+### Compare Command Options
+
+`seomator compare <domain>` diffs two saved audits of the same site. Both runs
+must have been saved with `audit --save`.
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--against <auditId>` | Compare against a specific audit instead of the previous run | latest-but-one |
+| `--trend` | Show score history for the domain instead of a two-run diff | false |
+| `--json` / `-j` | Machine-readable diff | false |
+| `--fail-on-regression` | Exit 1 when the score dropped or new failures appeared | false |
+
+Rules are diffed by ID, so a rule that broke and a different one that was fixed
+are reported separately rather than cancelling out in a count.
+
 ### Other Commands
 
 ```bash
@@ -197,6 +212,7 @@ seomator init              # Create config file
 seomator self doctor       # Check system setup
 seomator config --list     # Show all config values
 seomator report --list     # List past reports
+seomator compare <domain>  # Diff the two most recent saved audits
 seomator db stats          # Show database statistics
 ```
 
@@ -253,6 +269,35 @@ seomator audit https://example.com --crawl -m 20 --format html -o seo-report.htm
 seomator audit https://example.com -c js,redirect --format llm
 ```
 
+### Example 6: Did This Deploy Make Anything Worse?
+
+```bash
+# Save a baseline before the change
+seomator audit https://example.com --save
+
+# ... deploy ...
+
+seomator audit https://example.com --save
+seomator compare example.com --json
+```
+
+`compare` reports which specific rules changed status, which is more useful than
+a score delta on its own: a score can hold steady while one thing broke and
+another was fixed. Use `--fail-on-regression` to make this a CI gate.
+
+### Example 7: Diagnosing a Page That Renders Empty
+
+```bash
+# js-console-errors and js-failed-requests need a real browser render,
+# so do NOT pass --no-cwv here.
+seomator audit https://example.com -c js --format llm
+```
+
+An uncaught exception halts the script that threw it, so content, structured
+data or canonical tags that script would have written never appear to a
+rendering crawler. A 404 on a script is invisible to static HTML analysis: the
+tag is present and well-formed, and only a real fetch reveals nothing came back.
+
 ## Evaluating Results
 
 ### Score Ranges
@@ -295,6 +340,29 @@ Fix issues in this order for maximum impact:
 1. **Failures (status: "fail")** - Must fix immediately
 2. **Warnings (status: "warn")** - Should fix soon
 3. **Passes (status: "pass")** - No action needed
+
+### How Scoring Works
+
+A category score is the average of its rule results — `pass` 100, `warn` 50,
+`fail` 0 — weighted by each rule's declared weight, so a heavy rule such as
+`security-https` moves the category far more than a minor one. The overall score
+is the weighted average of category scores using the weights above.
+
+**Unmeasured checks carry weight 0 and do not affect the score.** A check whose
+input was unavailable is reported so the gap is visible, but scores neither for
+nor against the site — you cannot score what you did not measure. This is why:
+
+- `cwv-inp` always reports unmeasured. INP requires real user interaction, which
+  an automated crawl does not perform. For real INP use field data (CrUX or RUM).
+- Running `--no-cwv` reports the Core Web Vitals rules and most JavaScript
+  rendering rules as unmeasured rather than passing or failing them. **A site
+  audited with `--no-cwv` is not directly comparable to one audited without it**,
+  because a different set of rules contributed to the score.
+
+> **Scores changed in v3.1.0.** Earlier versions weighted failing rules 100×
+> less than passing ones, which inflated scores. If comparing against a report
+> generated before 3.1.0, re-run the baseline rather than treating the drop as a
+> regression.
 
 ## Output Summary
 
@@ -348,9 +416,9 @@ seomator audit https://example.com
 1. **Fetch**: Downloads the page HTML and measures response time
 2. **Parse**: Extracts DOM, meta tags, links, images, structured data
 3. **Enrich**: Fetches robots.txt and sitemap once per audit
-4. **Render** (if CWV enabled): Captures rendered DOM via Playwright for JS rendering analysis
+4. **Render** (if CWV enabled): Captures rendered DOM via Playwright, plus console errors and failed resource requests
 5. **Crawl** (if enabled): Discovers and fetches linked pages
-6. **Analyze**: Runs 251 audit rules against each page
+6. **Analyze**: Runs 256 audit rules against each page
 7. **Score**: Calculates category and overall weighted scores
 8. **Report**: Generates output in requested format
 
@@ -385,6 +453,6 @@ untrusted delimiters would dilute the signal.
 
 ## Resources
 
-- **Full rules reference**: See `docs/SEO-AUDIT-RULES.md` for all 251 rules
+- **Full rules reference**: See `docs/SEO-AUDIT-RULES.md` for all 256 rules
 - **Storage architecture**: See `docs/STORAGE-ARCHITECTURE.md` for database details
 - **CLI help**: `seomator --help` and `seomator <command> --help`

@@ -1,11 +1,16 @@
-# SEOmator Audit Rules Reference (v3.0.0)
+# SEOmator Audit Rules Reference
 
-<!-- Updated: 2026-07-07 — matches @seomator/seo-audit v3.0.0 -->
+<!-- Updated: 2026-08-31 -->
 
-SEOmator v3.0.0 ships **251 rules across 20 weighted categories**. Category weights
+SEOmator ships **256 rules across 20 weighted categories**. Category weights
 sum to exactly 100. Each rule returns `pass` (100), `warn` (50), or `fail` (0);
-category score is the weighted average of its rules, and the overall score is the
-weighted average of category scores.
+the category score is the average of its rule results weighted by each rule's
+declared `weight`, and the overall score is the weighted average of category
+scores.
+
+A check whose input could not be measured (for example Core Web Vitals under
+`--no-cwv`) is reported with weight 0, so it appears in the report but affects
+neither side of the average.
 
 ## Categories & Weights
 
@@ -15,12 +20,12 @@ weighted average of category scores.
 | `perf` | Performance | 12% | 22 | LCP, INP, CLS, TTFB, FCP, render-blocking resources, compression |
 | `links` | Links | 8% | 19 | Broken links, anchor text, internal linking, nofollow, page depth |
 | `images` | Images | 8% | 14 | Alt text, dimensions, lazy loading, WebP/AVIF, srcset, file size |
-| `security` | Security | 8% | 16 | HTTPS, HSTS, CSP, X-Frame-Options, mixed content, cookies |
+| `security` | Security | 8% | 18 | HTTPS, HSTS, CSP, X-Frame-Options, mixed content, SSL, leaked secrets, cookie flags |
 | `technical` | Technical SEO | 7% | 13 | robots.txt, sitemap, URL hygiene, www redirect, custom 404 |
-| `crawl` | Crawlability | 5% | 18 | noindex, robots directives, sitemap coverage, redirect chains |
+| `crawl` | Crawlability | 5% | 19 | noindex, robots directives, sitemap coverage, lastmod quality, redirect chains |
 | `schema` | Structured Data | 5% | 13 | JSON-LD presence/validity, required fields, deprecated types |
 | `content` | Content | 5% | 17 | Word count, thin content, readability, duplicate content |
-| `js` | JavaScript Rendering | 5% | 13 | CSR vs SSR, rendered-DOM diff, JS-dependent content |
+| `js` | JavaScript Rendering | 5% | 15 | CSR vs SSR, rendered-DOM diff, JS-dependent content, console errors, failed requests |
 | `a11y` | Accessibility | 4% | 12 | ARIA, contrast, form labels, skip links, focus management |
 | `social` | Social | 3% | 9 | Open Graph, Twitter Card, og:image validity |
 | `eeat` | E-E-A-T | 3% | 14 | Author bylines, dates, about/contact pages, external citations |
@@ -67,3 +72,8 @@ category, read the category's `index.ts` in the SEOmator source
 
 INP is the sole interactivity metric (FID removed from all Chrome tooling
 September 2024). Never reference FID.
+
+**INP is never measured by SEOmator.** It requires real user interaction, which
+an automated crawl does not perform, so `cwv-inp` always reports as unmeasured
+(weight 0, excluded from scoring). The thresholds above apply only if an INP
+value is supplied from field data. For real INP, use CrUX or your own RUM.

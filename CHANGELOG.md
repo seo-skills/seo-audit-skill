@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`seomator compare <domain>`** — diffs the latest audit of a site against the
+  previous one, with `--trend` for score history, `--against` to pin a specific
+  audit, `--json`, and `--fail-on-regression` for CI. Rules are diffed by ID, so
+  one rule breaking and another being fixed are reported separately rather than
+  cancelling out; in crawl mode each rule is reduced to its worst status so the
+  diff reports the rule, not every page it touched.
+  The comparison engine (`compareAudits`, `getScoreTrend`, category deltas, the
+  `audit_comparisons` table) already existed with no caller, and the tables it
+  reads were always empty because commands persisted only to the JSON report
+  store. `audit --save` now also writes to the audits database.
 - **Render diagnostics.** The Playwright renderer now captures uncaught page
   errors, console output and failed subresource requests, exposed to rules as
   `AuditContext.renderDiagnostics`. Previously it kept only html, statusCode,

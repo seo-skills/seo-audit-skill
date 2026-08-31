@@ -195,6 +195,25 @@ seomator report --list                     # List all reports
 seomator report --project mysite           # Filter by project
 ```
 
+### `seomator compare [domain]`
+
+Compare the latest audit of a site against a previous one, so you can see what
+a deploy changed. Requires at least two audits saved with `--save`.
+
+```bash
+seomator audit https://example.com --save    # run before the deploy
+seomator audit https://example.com --save    # run after
+
+seomator compare example.com                 # diff the two most recent runs
+seomator compare example.com --trend         # score history for the domain
+seomator compare example.com --against 2026-08-31-a1b2c3
+seomator compare example.com --json          # machine-readable diff
+seomator compare example.com --fail-on-regression   # exit 1 if worse (for CI)
+```
+
+Rules are diffed by ID, so a rule that broke and a different one that got fixed
+are reported separately rather than cancelling out in a count.
+
 ### `seomator config [key] [value]`
 
 View or modify configuration.

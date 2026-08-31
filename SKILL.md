@@ -2,7 +2,7 @@
 name: seo-audit
 description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 261 rules and 20 categories, and can diff two audits to show what a deploy changed. Use when analyzing websites, debugging SEO issues, checking site health, or comparing a site before and after a change.
 license: MIT
-compatibility: Requires Node.js 18+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
+compatibility: Requires Node.js 20+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
 metadata:
   author: seomator
   version: "3.1"
@@ -29,7 +29,7 @@ This skill enables AI agents to audit websites for **261 rules** in **20 categor
 
 - **Core SEO** (19 rules): Canonical URLs, indexing directives, title uniqueness, canonical conflicts/loops
 - **Performance** (22 rules): LCP, CLS, FCP, TTFB, INP, compression, caching, minification, HTTP/2
-- **Links** (19 rules): Broken links, redirect chains, anchor text, orphan pages, localhost/fragment links
+- **Links** (19 rules): Broken links, redirect chains, anchor text, localhost/fragment links, plus click depth and inbound internal links from the site graph (`--crawl`)
 - **Images** (14 rules): Alt text, dimensions, lazy loading, modern formats, alt length, background images
 - **Security** (18 rules): HTTPS, HSTS, CSP, external link safety, leaked secrets, SSL expiry/protocol, cookie flags and lifetime
 - **Technical SEO** (13 rules): robots.txt, sitemap.xml, URL structure, 404 pages, soft 404s, error codes
@@ -118,9 +118,22 @@ If there is no `seomator.toml` in the directory, CREATE ONE with `seomator init`
 
 When auditing:
 1. **Prefer live websites** over local dev servers for accurate performance and rendering data
-2. **Use `--no-cwv` for faster audits** when Core Web Vitals and JS rendering checks aren't needed
-3. **Scope fixes as concurrent tasks** when implementing multiple fixes
-4. **Run typechecking/formatting** after implementing fixes (tsc, eslint, prettier, etc.)
+2. **Use `--no-cwv` for faster audits**, but know what it costs: it skips the
+   browser render, so Core Web Vitals, the JavaScript rendering rules,
+   `js-console-errors`, `js-failed-requests` and all `mobile-parity-*` rules
+   report unmeasured rather than passing or failing
+3. **Match the flags to the question.** Rules that need more than one page or
+   more than one render are unmeasured without the right flag:
+
+   | To check | Run with |
+   |----------|----------|
+   | Click depth, inbound internal links | `--crawl` (builds the site graph) |
+   | Mobile-first indexing parity | `--mobile` (second render at a phone viewport) |
+   | JS errors, failed subresources, Core Web Vitals | default (omit `--no-cwv`) |
+   | What a deploy changed | `--save` on both runs, then `seomator compare <domain>` |
+
+4. **Scope fixes as concurrent tasks** when implementing multiple fixes
+5. **Run typechecking/formatting** after implementing fixes (tsc, eslint, prettier, etc.)
 
 ### Website Discovery
 
@@ -359,6 +372,12 @@ nor against the site — you cannot score what you did not measure. This is why:
   rendering rules as unmeasured rather than passing or failing them. **A site
   audited with `--no-cwv` is not directly comparable to one audited without it**,
   because a different set of rules contributed to the score.
+- `links-depth` and `links-orphan-pages` need the site-wide link graph, which
+  only exists in crawl mode. **Run with `--crawl` to measure them**; a
+  single-page audit reports them unmeasured because click distance and inbound
+  links cannot be known from one page.
+- The `mobile-parity-*` rules need a second render at a mobile viewport. **Run
+  with `--mobile`** (and without `--no-cwv`) to measure them.
 
 > **Scores changed in v3.1.0.** Earlier versions weighted failing rules 100×
 > less than passing ones, which inflated scores. If comparing against a report

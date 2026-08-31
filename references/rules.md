@@ -18,7 +18,7 @@ neither side of the average.
 |-------------|------|--------|-------|--------|
 | `core` | Core | 12% | 19 | Title, meta description, canonical, viewport, favicon, H1, lang |
 | `perf` | Performance | 12% | 22 | LCP, INP, CLS, TTFB, FCP, render-blocking resources, compression |
-| `links` | Links | 8% | 19 | Broken links, anchor text, internal linking, nofollow, page depth |
+| `links` | Links | 8% | 19 | Broken links, anchor text, internal linking, nofollow; click depth and inbound links need `--crawl` |
 | `images` | Images | 8% | 14 | Alt text, dimensions, lazy loading, WebP/AVIF, srcset, file size |
 | `security` | Security | 8% | 18 | HTTPS, HSTS, CSP, X-Frame-Options, mixed content, SSL, leaked secrets, cookie flags |
 | `technical` | Technical SEO | 7% | 13 | robots.txt, sitemap, URL hygiene, www redirect, custom 404 |

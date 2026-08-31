@@ -2,7 +2,7 @@
 
 <!-- Updated: 2026-08-31 -->
 
-SEOmator ships **256 rules across 20 weighted categories**. Category weights
+SEOmator ships **261 rules across 20 weighted categories**. Category weights
 sum to exactly 100. Each rule returns `pass` (100), `warn` (50), or `fail` (0);
 the category score is the average of its rule results weighted by each rule's
 declared `weight`, and the overall score is the weighted average of category
@@ -31,7 +31,7 @@ neither side of the average.
 | `eeat` | E-E-A-T | 3% | 14 | Author bylines, dates, about/contact pages, external citations |
 | `url` | URL Structure | 3% | 14 | Lowercase, hyphens, length, parameters, trailing slash |
 | `redirect` | Redirects | 3% | 8 | Chains, loops, 302-vs-301, meta refresh |
-| `mobile` | Mobile | 2% | 5 | Viewport, touch targets, font sizes, tap spacing |
+| `mobile` | Mobile | 2% | 10 | Viewport, font sizes, tap spacing, mobile-first parity (content, title, canonical, structured data, links) |
 | `i18n` | Internationalization | 2% | 10 | hreflang validity, x-default, lang attributes |
 | `htmlval` | HTML Validation | 2% | 9 | Duplicate IDs, deprecated tags, DOCTYPE, encoding |
 | `geo` | AI/GEO Readiness | 2% | 5 | AI crawler access, llms.txt, citability structure |

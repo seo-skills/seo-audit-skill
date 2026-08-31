@@ -5,7 +5,7 @@
 [![node](https://img.shields.io/node/v/@seomator/seo-audit.svg)](https://www.npmjs.com/package/@seomator/seo-audit)
 [![license: MIT](https://img.shields.io/npm/l/@seomator/seo-audit.svg)](./LICENSE)
 
-**SEOmator is a comprehensive SEO audit tool that scans any website against 256 rules across 20 categories** — technical SEO, Core Web Vitals, structured data, accessibility, security headers, and AI/GEO search readiness — and returns a prioritized, actionable report. It ships as a **command-line tool**, an **Electron desktop app**, and a **Claude Code skill**, so you can run an SEO audit from a terminal, a visual dashboard, or directly inside an AI coding agent.
+**SEOmator is a comprehensive SEO audit tool that scans any website against 261 rules across 20 categories** — technical SEO, Core Web Vitals, structured data, accessibility, security headers, and AI/GEO search readiness — and returns a prioritized, actionable report. It ships as a **command-line tool**, an **Electron desktop app**, and a **Claude Code skill**, so you can run an SEO audit from a terminal, a visual dashboard, or directly inside an AI coding agent.
 
 > **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
 
@@ -16,7 +16,7 @@
 - [Desktop App](#desktop-app)
 - [Quick Start (CLI)](#quick-start-cli)
 - [Commands](#commands)
-- [Categories & Rules](#categories--rules-256-total)
+- [Categories & Rules](#categories--rules-261-total)
 - [Configuration](#configuration)
 - [Output Formats](#output-formats)
 - [CI/CD Integration](#cicd-integration)
@@ -27,7 +27,7 @@
 
 ## Features
 
-- **256 SEO Audit Rules** across 20 categories
+- **261 SEO Audit Rules** across 20 categories
 - **Desktop App** - Visual audit dashboard with real-time progress, interactive results, score history, and light/dark theme
 - **CLI Tool** - Single page & crawl mode with 5 output formats
 - **Core Web Vitals** - LCP, CLS, FCP, TTFB, INP measurement via Playwright
@@ -148,6 +148,7 @@ Run SEO audit on a URL.
 | `--concurrency <n>` | - | Concurrent requests | 3 |
 | `--timeout <ms>` | - | Request timeout in milliseconds | 30000 |
 | `--no-cwv` | - | Skip Core Web Vitals measurement | false |
+| `--mobile` | - | Second render at a mobile viewport + mobile-first parity checks (single-page) | false |
 | `--verbose` | `-v` | Show progress | false |
 | `--refresh` | `-r` | Ignore cache, fetch fresh | false |
 | `--resume` | - | Resume interrupted crawl | false |
@@ -251,7 +252,7 @@ seomator self doctor -v          # Verbose diagnostics
 | 1 | Audit failed (score < 70) |
 | 2 | Error occurred |
 
-## Categories & Rules (256 total)
+## Categories & Rules (261 total)
 
 ### Core (19 rules) - 12% weight
 
@@ -554,7 +555,7 @@ seomator self doctor -v          # Verbose diagnostics
 | `redirect-resource` | No redirects on CSS/JS/image resources |
 | `redirect-case-normalization` | Redirect uppercase URLs to lowercase |
 
-### Mobile (5 rules) - 2% weight
+### Mobile (10 rules) - 2% weight
 
 | Rule | Description |
 |------|-------------|
@@ -563,6 +564,11 @@ seomator self doctor -v          # Verbose diagnostics
 | `mobile-interstitials` | No intrusive interstitials |
 | `mobile-viewport-width` | No fixed viewport width |
 | `mobile-multiple-viewports` | Single viewport meta tag |
+| `mobile-parity-content` | Mobile render carries as much content as desktop (`--mobile`) |
+| `mobile-parity-title` | Title and meta description match mobile vs desktop (`--mobile`) |
+| `mobile-parity-canonical` | Canonical matches mobile vs desktop (`--mobile`) |
+| `mobile-parity-structured-data` | JSON-LD present on mobile as on desktop (`--mobile`) |
+| `mobile-parity-links` | Comparable internal link count mobile vs desktop (`--mobile`) |
 
 ### Internationalization (10 rules) - 2% weight
 
@@ -787,7 +793,7 @@ npx skills add seo-skills/seo-audit-skill
 
 ### What is SEOmator?
 
-SEOmator is an SEO audit tool that checks a website against 256 rules across 20 categories — covering technical SEO, Core Web Vitals, structured data, accessibility, security headers, content quality, and AI/GEO search readiness — and returns a scored, prioritized report of what to fix first. It's available as an open-source CLI, an Electron desktop app, and a Claude Code skill.
+SEOmator is an SEO audit tool that checks a website against 261 rules across 20 categories — covering technical SEO, Core Web Vitals, structured data, accessibility, security headers, content quality, and AI/GEO search readiness — and returns a scored, prioritized report of what to fix first. It's available as an open-source CLI, an Electron desktop app, and a Claude Code skill.
 
 ### How is SEOmator different from Lighthouse or PageSpeed Insights?
 

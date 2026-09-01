@@ -6,6 +6,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
+### Fixed
+
+- **Checks that took no reading were counted as warnings.** `notMeasured()`
+  results carry weight 0 so they are excluded from the score, but every
+  reporter still counted them as warnings — producing rows like
+  `JavaScript Rendering 100 — 13 warnings` and `Mobile 100 — 5 warnings`, a
+  score that deliberately excluded the very rules the count advertised. A
+  `--no-cwv` run reported 61 warnings, 27 of which were checks that never ran.
+  `CategoryResult` gains `notMeasuredCount`, and console, HTML, markdown and
+  LLM output now label them distinctly.
+- **Stored timestamps came back shifted by the machine's UTC offset.** Every
+  `_at` column defaults to SQLite's `datetime('now')`, which writes UTC with no
+  timezone designator; `new Date()` parsed that as local time. An audit written
+  at 12:43 UTC was reported as 09:43 UTC on a UTC+3 machine. Affected `compare`,
+  `compare --json` and the desktop app's audit history. The same mismatch broke
+  `since`/`until` range filters, where an ISO bound compared lexically against
+  the stored format excluded same-day rows. Storage was always correct, so
+  existing databases need no migration.
+- **Crawl mode printed a full category breakdown per page.** An 8-page crawl
+  emitted 160 unlabelled category rows; 100 pages would emit 2000.
+  `ProgressReporter` already carried an `isCrawlMode` flag and a page progress
+  bar for this, but the flag was never read. `analyze` now starts that bar too.
+- **URL validation was written but never wired up.** `seomator audit
+  example.com` printed the whole banner before failing with a parser error, and
+  `ftp://` URLs reached the fetch. Now rejected at parse time, with a suggested
+  `https://` form when the scheme is simply missing.
+- **`--format` and `--preset` accepted any value.** A typo'd `--format josn`
+  silently produced console output and exit 0 — indistinguishable from success
+  in CI. `--preset bogus` silently wrote a default config. Both now validate
+  against the same arrays their types derive from, as does `report --format`.
+- **The banner reported `v2.1.0`** on every audit, four minor versions behind
+  the published package, and the crawl header advertised `251 SEO checks`
+  rather than the current 287. Both now read from the live source.
+- **The issue list titleized rule ids** instead of using registered rule names,
+  showing `Links Depth` for a rule named "Page Depth" and `Eeat About Page`
+  for "About Page".
+
 ## [3.2.0] - 2026-09-01
 
 > ### ⚠️ Scores move again in this release — re-baseline before comparing

@@ -9,6 +9,7 @@ import {
   renderSeparator,
 } from './banner.js';
 import { isNotMeasured } from '../rules/define-rule.js';
+import { getRuleById } from '../rules/registry.js';
 
 /**
  * Grouped issue for display
@@ -35,6 +36,30 @@ interface CategoryIssues {
   /** Checks that took no reading; listed, but not counted as warnings. */
   notMeasuredCount: number;
   issues: GroupedIssue[];
+}
+
+/**
+ * The name to show for a rule.
+ *
+ * Rules declare a `name` when they are defined ("Page Depth", "About Page
+ * Link"); the registry is the place to ask for it. Titleizing the id instead
+ * produced labels like "Links Depth" and "Eeat About Page".
+ *
+ * Falls back to the titleized id for results read back from storage whose rule
+ * is no longer registered.
+ *
+ * @param ruleId - The rule identifier from the result
+ * @returns The registered rule name, or a readable form of the id
+ */
+function displayNameFor(ruleId: string): string {
+  const registered = getRuleById(ruleId);
+  if (registered) {
+    return registered.name;
+  }
+  return ruleId
+    .split('-')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
 }
 
 /**
@@ -113,9 +138,7 @@ function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
       if (!existingIssue) {
         existingIssue = {
           ruleId: ruleResult.ruleId,
-          ruleName: ruleResult.ruleId.split('-').map(w =>
-            w.charAt(0).toUpperCase() + w.slice(1)
-          ).join(' '),
+          ruleName: displayNameFor(ruleResult.ruleId),
           status: ruleResult.status,
           message: ruleResult.message,
           weight: ruleResult.weight,

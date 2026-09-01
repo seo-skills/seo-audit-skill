@@ -4,8 +4,65 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
 ## [Unreleased]
+
+## [3.2.0] - 2026-09-01
+
+> ### ⚠️ Scores move again in this release — re-baseline before comparing
+>
+> Four independent changes shift scores, all of them corrections rather than
+> regressions: category weights were rebalanced (a11y 4 → 7), 26 new rules
+> joined the scored set, Core Web Vitals are now measured with `web-vitals`
+> instead of hand-rolled observers, and TTFB was understated by up to 4×.
+> A site will score differently on 3.2.0 than on 3.1.1 with no change on its
+> side. Re-run your baseline before treating a movement as a regression.
+
+### Added
+
+- **26 Lighthouse-parity rules (261 → 287).** Accessibility gains 19
+  (`a11y-aria-valid`, `a11y-duplicate-id`, `a11y-iframe-title`,
+  `a11y-main-landmark`, `a11y-table-caption`, `a11y-svg-img-alt`,
+  `a11y-tabindex-positive`, `a11y-empty-heading` and others), security 5
+  (`security-csp-xss`, `security-coop`, `security-trusted-types`,
+  `security-info-disclosure`, `security-paste-blocking`), plus
+  `perf-legacy-javascript` and `js-document-write`. Category totals: a11y
+  12 → 31, security 18 → 23, perf 22 → 23, js 15 → 16.
+- **Page snapshot in the HTML report** — the audited page's title,
+  description, canonical, headings and social preview rendered alongside the
+  findings, so a reviewer can see what was audited without opening the site.
+- **Mobile-first parity (`--mobile`).** An opt-in second render at a mobile
+  viewport (393×852, mobile UA), with five rules comparing the desktop-rendered
+  DOM against the mobile one — the checks that catch a mobile-first indexing
+  loss, which a desktop-only audit cannot see :
+  - `mobile-parity-content` — mobile body word count vs desktop. Google indexes
+    the mobile version, so content hidden from mobile is effectively unindexed.
+  - `mobile-parity-title` — title (fail) and meta description (warn) match.
+  - `mobile-parity-canonical` — canonical matches; Google uses the mobile one.
+  - `mobile-parity-structured-data` — JSON-LD present on mobile as on desktop,
+    since rich results are built from the mobile page.
+  - `mobile-parity-links` — comparable internal link count.
+
+  Parity runs on the single-page `audit` path (where the rendered DOM is
+  available) and roughly doubles render time, so it is off by default. Without
+  `--mobile` the rules report as unmeasured (weight 0) and do not affect the
+  score. The mobile render uses a real Android Chrome UA so dynamic-serving
+  sites return their mobile markup.
+- **Synthetic INP (`--simulate-interaction`).** INP cannot be measured without a real
+  interaction, so an untouched crawl never reports one. This flag makes the crawler scroll,
+  click and keypress the page so INP has something to measure. Navigation and form
+  submission are suppressed with capture-phase `preventDefault`, so the click measures the
+  site's own handlers without tearing down the document. The value reflects one arbitrary
+  element rather than real usage, so it is labelled synthetic and carries **weight 0** — it
+  is reported, never scored.
+- **LCP element and largest layout-shift target** are now captured via `web-vitals`
+  attribution (`cwv.lcpElement`, `cwv.clsLargestShiftTarget`).
+- **Total Blocking Time** (`cwv.tbt`), collected from a `longtask` observer.
+- **Complete public type exports.** `AuditContext` and `AuditResult` referenced
+  types consumers could not name, so a custom rule could read `context.site` or
+  `result.page` with no way to type the variable. `FigureInfo`, `InlineSvgInfo`,
+  `PictureElementInfo`, `CookieInfo`, `SitemapEntry`, `SitemapFetchResult`,
+  `RenderDiagnostics`, `ConsoleMessageInfo`, `FailedRequestInfo`, `SiteContext`
+  and `PageSnapshot` are now exported.
 
 ### Changed
 
@@ -13,7 +70,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a11y 4 → 7, funded by perf 12 → 10 (Phase 1b will add a Lighthouse performance score
   alongside it) and core 12 → 11 (18 rules, largely title/description/canonical variants).
   Weights still sum to exactly 100, as `validateCategoryWeights()` requires.
-
 - **Site-wide link graph.** The crawler now records click depth as it discovers
   URLs and builds an inbound/outbound internal link graph, shared with every
   page as `AuditContext.site`. This is the first cross-page data available to
@@ -33,22 +89,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     provides by diffing the sitemap against what the crawl reached.
   - Both report as unmeasured (weight 0) outside crawl mode rather than
     guessing, so a single-page audit is not penalised.
-
-### Added
-
-- **Synthetic INP (`--simulate-interaction`).** INP cannot be measured without a real
-  interaction, so an untouched crawl never reports one. This flag makes the crawler scroll,
-  click and keypress the page so INP has something to measure. Navigation and form
-  submission are suppressed with capture-phase `preventDefault`, so the click measures the
-  site's own handlers without tearing down the document. The value reflects one arbitrary
-  element rather than real usage, so it is labelled synthetic and carries **weight 0** — it
-  is reported, never scored.
-- **LCP element and largest layout-shift target** are now captured via `web-vitals`
-  attribution (`cwv.lcpElement`, `cwv.clsLargestShiftTarget`).
-- **Total Blocking Time** (`cwv.tbt`), collected from a `longtask` observer.
-
-### Changed
-
 - **Core Web Vitals are now collected with the `web-vitals` library** injected into the page
   before navigation, replacing hand-rolled `PerformanceObserver` code. Metrics are now
   spec-compliant — the same values Lighthouse, PSI and CrUX report.
@@ -71,24 +111,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **LCP and CLS were truncated, not finalized.** Collection resolved on a fixed 1s timer, so
   an LCP landing later than that was missed and any layout shift after it was dropped.
   `reportAllChanges` now keeps the latest value available without waiting for page-hide.
-
-- **Mobile-first parity (`--mobile`).** An opt-in second render at a mobile
-  viewport (393×852, mobile UA), with five rules comparing the desktop-rendered
-  DOM against the mobile one — the checks that catch a mobile-first indexing
-  loss, which a desktop-only audit cannot see (256 → 261 rules):
-  - `mobile-parity-content` — mobile body word count vs desktop. Google indexes
-    the mobile version, so content hidden from mobile is effectively unindexed.
-  - `mobile-parity-title` — title (fail) and meta description (warn) match.
-  - `mobile-parity-canonical` — canonical matches; Google uses the mobile one.
-  - `mobile-parity-structured-data` — JSON-LD present on mobile as on desktop,
-    since rich results are built from the mobile page.
-  - `mobile-parity-links` — comparable internal link count.
-
-  Parity runs on the single-page `audit` path (where the rendered DOM is
-  available) and roughly doubles render time, so it is off by default. Without
-  `--mobile` the rules report as unmeasured (weight 0) and do not affect the
-  score. The mobile render uses a real Android Chrome UA so dynamic-serving
-  sites return their mobile markup.
 
 ## [3.1.1] - 2026-08-31
 

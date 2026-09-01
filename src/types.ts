@@ -429,10 +429,16 @@ export interface CategoryResult {
   score: number;
   /** Number of rules that passed */
   passCount: number;
-  /** Number of rules that warned */
+  /** Number of rules that warned. Excludes checks that could not be measured. */
   warnCount: number;
   /** Number of rules that failed */
   failCount: number;
+  /**
+   * Number of checks that could not take a reading (weight 0), and so
+   * contribute to neither the score nor the warning count. Optional because
+   * audits stored before this field existed do not carry it.
+   */
+  notMeasuredCount?: number;
   /** Individual rule results */
   results: RuleResult[];
 }

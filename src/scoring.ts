@@ -5,6 +5,7 @@ import type {
   AuditResult,
   PageSnapshot,
 } from './types.js';
+import { isNotMeasured } from './rules/define-rule.js';
 
 /**
  * Score values for each rule status
@@ -105,8 +106,17 @@ export function buildCategoryResult(
   let passCount = 0;
   let warnCount = 0;
   let failCount = 0;
+  let notMeasuredCount = 0;
 
   for (const result of ruleResults) {
+    // A check that took no reading is neither a pass nor a warning. Counting it
+    // as a warning is what produced category rows reading "score 100, 13
+    // warnings" — a score that excluded the rules the count was advertising.
+    if (isNotMeasured(result)) {
+      notMeasuredCount++;
+      continue;
+    }
+
     switch (result.status) {
       case 'pass':
         passCount++;
@@ -126,6 +136,7 @@ export function buildCategoryResult(
     passCount,
     warnCount,
     failCount,
+    notMeasuredCount,
     results: ruleResults,
   };
 }

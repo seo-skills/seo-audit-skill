@@ -8,6 +8,7 @@ import {
   getScoreColor,
   renderSeparator,
 } from './banner.js';
+import { isNotMeasured } from '../rules/define-rule.js';
 
 /**
  * Grouped issue for display
@@ -17,6 +18,8 @@ interface GroupedIssue {
   ruleName: string;
   status: 'warn' | 'fail';
   message: string;
+  /** Carried through so unmeasured checks can be labelled as such, not as warnings. */
+  weight?: number;
   pages: string[];
   details: Array<{ key: string; value: string }>;
 }
@@ -29,6 +32,8 @@ interface CategoryIssues {
   categoryName: string;
   errorCount: number;
   warningCount: number;
+  /** Checks that took no reading; listed, but not counted as warnings. */
+  notMeasuredCount: number;
   issues: GroupedIssue[];
 }
 
@@ -81,6 +86,7 @@ function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
           categoryName,
           errorCount: 0,
           warningCount: 0,
+          notMeasuredCount: 0,
           issues: [],
         });
       }
@@ -90,6 +96,8 @@ function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
       // Update counts
       if (ruleResult.status === 'fail') {
         categoryIssues.errorCount++;
+      } else if (isNotMeasured(ruleResult)) {
+        categoryIssues.notMeasuredCount++;
       } else {
         categoryIssues.warningCount++;
       }
@@ -110,6 +118,7 @@ function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
           ).join(' '),
           status: ruleResult.status,
           message: ruleResult.message,
+          weight: ruleResult.weight,
           pages: [],
           details: [],
         };
@@ -148,11 +157,11 @@ function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
 
   // Sort issues within each category: errors first, then warnings
   for (const cat of categories) {
-    cat.issues.sort((a, b) => {
-      if (a.status === 'fail' && b.status === 'warn') return -1;
-      if (a.status === 'warn' && b.status === 'fail') return 1;
-      return 0;
-    });
+    // Failures first, then real warnings, then checks that took no reading —
+    // the unmeasured ones are the least actionable, so they sink to the bottom.
+    const rank = (i: GroupedIssue): number =>
+      i.status === 'fail' ? 0 : isNotMeasured(i) ? 2 : 1;
+    cat.issues.sort((a, b) => rank(a) - rank(b));
   }
 
   return categories;
@@ -249,7 +258,11 @@ export function renderTerminalReport(result: AuditResult): void {
     const failStr = categoryResult.failCount > 0
       ? chalk.red(` | Failed: ${categoryResult.failCount}`)
       : '';
-    console.log(`  ${passStr}${warnStr}${failStr}`);
+    const notMeasured = categoryResult.notMeasuredCount ?? 0;
+    const skipStr = notMeasured > 0
+      ? chalk.gray(` | Not measured: ${notMeasured}`)
+      : '';
+    console.log(`  ${passStr}${warnStr}${failStr}${skipStr}`);
   }
 
   console.log();
@@ -258,8 +271,17 @@ export function renderTerminalReport(result: AuditResult): void {
   const totalPassed = result.categoryResults.reduce((sum, cat) => sum + cat.passCount, 0);
   const totalWarnings = result.categoryResults.reduce((sum, cat) => sum + cat.warnCount, 0);
   const totalFailures = result.categoryResults.reduce((sum, cat) => sum + cat.failCount, 0);
+  const totalNotMeasured = result.categoryResults.reduce(
+    (sum, cat) => sum + (cat.notMeasuredCount ?? 0),
+    0
+  );
 
-  console.log(chalk.gray(`Total: ${totalPassed} passed, ${totalWarnings} warnings, ${totalFailures} errors`));
+  const totalSkipStr = totalNotMeasured > 0 ? `, ${totalNotMeasured} not measured` : '';
+  console.log(
+    chalk.gray(
+      `Total: ${totalPassed} passed, ${totalWarnings} warnings, ${totalFailures} errors${totalSkipStr}`
+    )
+  );
   console.log();
 
   // Grouped Issues
@@ -277,15 +299,20 @@ export function renderTerminalReport(result: AuditResult): void {
       const warningPart = categoryIssues.warningCount > 0
         ? chalk.yellow(`${categoryIssues.warningCount} warnings`)
         : '';
-      const separator = errorPart && warningPart ? ', ' : '';
+      const notMeasuredPart = categoryIssues.notMeasuredCount > 0
+        ? chalk.gray(`${categoryIssues.notMeasuredCount} not measured`)
+        : '';
+      const header = [errorPart, warningPart, notMeasuredPart].filter(Boolean).join(', ');
 
-      console.log(chalk.bold(`${categoryIssues.categoryName}`) + chalk.gray(` (${errorPart}${separator}${warningPart})`));
+      console.log(chalk.bold(`${categoryIssues.categoryName}`) + chalk.gray(` (${header})`));
 
       for (const issue of categoryIssues.issues) {
         // Issue type indicator
         const typeLabel = issue.status === 'fail'
           ? chalk.red('(error)')
-          : chalk.yellow('(warning)');
+          : isNotMeasured(issue)
+            ? chalk.gray('(not measured)')
+            : chalk.yellow('(warning)');
 
         // Rule ID and name
         console.log(`  ${chalk.gray(issue.ruleId)} ${issue.ruleName} ${typeLabel}`);

@@ -130,10 +130,14 @@ export class ProgressReporter {
     const passStr = chalk.green(`${result.passCount} passed`);
     const warnStr = result.warnCount > 0 ? chalk.yellow(`, ${result.warnCount} warnings`) : '';
     const failStr = result.failCount > 0 ? chalk.red(`, ${result.failCount} failed`) : '';
+    // Reported separately from warnings so a 100 alongside a list of skipped
+    // checks reads as "nothing measured them" rather than "nothing is wrong".
+    const notMeasured = result.notMeasuredCount ?? 0;
+    const skipStr = notMeasured > 0 ? chalk.gray(`, ${notMeasured} not measured`) : '';
 
     this.log(
       `  ${this.getCategoryIcon(result)} ${categoryName.padEnd(20)} ` +
-      `${scoreColor(scoreStr)} ${passStr}${warnStr}${failStr}`
+      `${scoreColor(scoreStr)} ${passStr}${warnStr}${failStr}${skipStr}`
     );
   }
 

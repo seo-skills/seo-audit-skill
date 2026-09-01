@@ -118,6 +118,24 @@ export function notMeasured(
 }
 
 /**
+ * Whether a result came from a check that could not take a reading.
+ *
+ * Weight 0 is the marker: it is precisely the fact that the result is excluded
+ * from the category average, so "unmeasured" and "unweighted" are one fact
+ * rather than two that could drift apart. `notMeasured()` above is the only
+ * producer of weight 0 — every registered rule declares a positive weight.
+ *
+ * Reporters use this to count and label such results separately, so a category
+ * does not present "score 100, 13 warnings" for checks that never ran.
+ *
+ * @param result - The rule result to classify
+ * @returns True when the result carries no reading
+ */
+export function isNotMeasured(result: Pick<RuleResult, 'weight'>): boolean {
+  return result.weight === 0;
+}
+
+/**
  * Creates a failing RuleResult
  * @param ruleId - The rule identifier
  * @param message - Human-readable result message

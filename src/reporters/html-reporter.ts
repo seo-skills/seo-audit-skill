@@ -2,6 +2,7 @@ import type { PageSnapshot, AuditResult, CategoryResult, RuleResult } from '../t
 import { getCategoryById } from '../categories/index.js';
 import { getFixSuggestion } from './fix-suggestions.js';
 import { getRuleById } from '../rules/registry.js';
+import { isNotMeasured } from '../rules/define-rule.js';
 
 /**
  * Rule metadata cache structure
@@ -13,11 +14,38 @@ interface RuleMetadata {
 }
 
 /**
+ * How a result is presented, which is not the same as the status it carries.
+ *
+ * A check that took no reading is stored as `warn` with weight 0 (see
+ * `notMeasured()`), because there is no fourth `RuleResult` status. Painting it
+ * amber alongside real warnings is what produced a report advertising 52
+ * warnings when 28 were real, and offering "how to fix" advice for a metric
+ * nobody measured. The reporter splits it back out for display only.
+ */
+type DisplayStatus = 'fail' | 'warn' | 'pass' | 'notmeasured';
+
+/** One glyph per display status, so icon and status can never drift apart. */
+const STATUS_ICONS: Record<DisplayStatus, string> = {
+  pass: '✓',
+  warn: '!',
+  fail: '✕',
+  notmeasured: '–',
+};
+
+/**
+ * Resolve the display status for a result. Weight 0 is the marker, exactly as
+ * `scoring.ts` and the terminal reporter read it.
+ */
+function toDisplayStatus(result: RuleResult): DisplayStatus {
+  return isNotMeasured(result) ? 'notmeasured' : result.status;
+}
+
+/**
  * Aggregated issue structure for grouping same-rule occurrences
  */
 interface AggregatedIssue {
   ruleId: string;
-  status: 'fail' | 'warn' | 'pass';
+  status: DisplayStatus;
   categoryId: string;
   categoryName: string;
   message: string;
@@ -77,14 +105,18 @@ function aggregateIssuesByRule(
     const ruleGroups = new Map<string, AggregatedIssue>();
 
     for (const r of cat.results) {
-      const key = `${r.ruleId}:${r.status}`;
+      // Group on the display status, so a rule that warned on one page and
+      // went unmeasured on another lands in two groups rather than one
+      // mislabelled group.
+      const displayStatus = toDisplayStatus(r);
+      const key = `${r.ruleId}:${displayStatus}`;
       const url = extractUrlFromDetails(r.details);
       const metadata = ruleMetadataCache.get(r.ruleId);
 
       if (!ruleGroups.has(key)) {
         ruleGroups.set(key, {
           ruleId: r.ruleId,
-          status: r.status,
+          status: displayStatus,
           categoryId: cat.categoryId,
           categoryName,
           message: r.message,
@@ -160,12 +192,16 @@ function extractUrlFromDetails(details: Record<string, unknown> | undefined): st
 }
 
 /**
- * Get short URL path for display
+ * Get short URL path for display.
+ *
+ * The site root renders as "Homepage" rather than "/". A lone slash is the
+ * shortest possible label and the least readable one: readers scanning a
+ * report could not tell that it meant the page they had just audited.
  */
 function getShortUrl(url: string): string {
   try {
     const parsed = new URL(url);
-    return parsed.pathname === '/' ? '/' : parsed.pathname;
+    return parsed.pathname === '/' ? 'Homepage' : parsed.pathname;
   } catch {
     return url;
   }
@@ -201,6 +237,10 @@ function generateStyles(): string {
       --color-fail-bg: #fee2e2;
       --color-info: #3b82f6;
       --color-info-bg: #dbeafe;
+      /* "No reading taken" is its own state — deliberately colourless so it
+         never competes with the three that mean something about the site. */
+      --color-neutral: #64748b;
+      --color-neutral-bg: #e2e8f0;
 
       /* Brand accent color */
       --color-accent: #064ada;
@@ -244,6 +284,8 @@ function generateStyles(): string {
       --color-warn-bg: rgba(245, 158, 11, 0.12);
       --color-fail-bg: rgba(239, 68, 68, 0.12);
       --color-info-bg: rgba(59, 130, 246, 0.12);
+      --color-neutral: #8b949e;
+      --color-neutral-bg: rgba(139, 148, 158, 0.14);
       --color-accent-light: rgba(6, 74, 218, 0.2);
 
       --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
@@ -296,7 +338,7 @@ function generateStyles(): string {
     .header-brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       font-weight: 600;
       font-size: 16px;
       color: var(--color-text);
@@ -304,10 +346,46 @@ function generateStyles(): string {
       flex-shrink: 0;
     }
 
-    .header-brand svg {
-      width: 28px;
-      height: 28px;
+    /* The wordmark is ~5:1, so it is sized by height and lets width follow.
+       Its lettering inherits colour from here and flips with the theme. */
+    .header-logo {
+      display: block;
+      color: var(--color-text);
+    }
+
+    .header-logo svg {
+      display: block;
+      height: 22px;
+      width: auto;
+    }
+
+    .header-brand-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--color-border);
+      flex-shrink: 0;
+    }
+
+    .header-brand-product {
+      white-space: nowrap;
+    }
+
+    .header-brand-tag {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
       color: var(--color-accent);
+      background: var(--color-accent-light);
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      white-space: nowrap;
+    }
+
+    /* Icons elsewhere in the header keep the original square sizing. */
+    .header-meta-item svg {
+      width: 14px;
+      height: 14px;
     }
 
     .header-url {
@@ -635,6 +713,7 @@ function generateStyles(): string {
 
     .score-stat-value.fail { color: var(--color-fail); }
     .score-stat-value.warn { color: var(--color-warn); }
+    .score-stat-value.not-measured { color: var(--color-neutral); }
     .score-stat-value.pass { color: var(--color-pass); }
 
     .score-stat-label {
@@ -1177,6 +1256,26 @@ function generateStyles(): string {
       color: var(--color-pass);
     }
 
+    .rule-status-icon.notmeasured {
+      background: var(--color-neutral-bg);
+      color: var(--color-neutral);
+    }
+
+    /* Says "we have no reading" once, so the message below does not have to
+       carry that job alone at the same weight as a real finding. */
+    .rule-notmeasured-tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--color-neutral);
+      background: var(--color-neutral-bg);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      margin-bottom: 6px;
+    }
+
     .rule-content {
       flex: 1;
       min-width: 0;
@@ -1216,17 +1315,23 @@ function generateStyles(): string {
       text-decoration: underline;
     }
 
+    /* The finding is the only line on the card that changes per audit, so it
+       outranks both the rule name above it and the definition below it. */
     .rule-message {
-      font-size: 13px;
-      color: var(--color-text-secondary);
-      margin-bottom: 4px;
+      font-size: 14px;
+      line-height: 1.5;
+      font-weight: 500;
+      color: var(--color-text);
+      margin-bottom: 6px;
     }
 
+    /* The rule definition is identical on every audit of every site. It stays
+       for reference, below the finding, at a weight that reads as reference. */
     .rule-description {
       font-size: 12px;
+      line-height: 1.5;
       color: var(--color-text-muted);
       margin-bottom: 8px;
-      font-style: italic;
     }
 
     .rule-fix {
@@ -1379,6 +1484,15 @@ function generateStyles(): string {
       color: var(--color-text-muted);
     }
 
+    .footer-primary {
+      font-weight: 600;
+      color: var(--color-text-secondary);
+    }
+
+    .footer-secondary {
+      margin-top: 6px;
+    }
+
     .footer a {
       color: var(--color-accent);
       text-decoration: none;
@@ -1407,6 +1521,13 @@ function generateStyles(): string {
       .header-url {
         display: none;
       }
+      /* The wordmark already names the product, so the lockup sheds its
+         qualifiers first rather than wrapping the header. */
+      .header-brand-divider,
+      .header-brand-product,
+      .header-brand-tag {
+        display: none;
+      }
       .score-overview {
         grid-template-columns: 1fr;
         gap: 20px;
@@ -1422,6 +1543,15 @@ function generateStyles(): string {
       }
       .issue-row-url {
         display: none;
+      }
+      /* Category title and its four counters do not fit side by side on a
+         phone, and the row was pushing the whole page into a sideways scroll. */
+      .category-header {
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .category-stats {
+        flex-wrap: wrap;
       }
     }
 
@@ -1546,7 +1676,8 @@ function generateScript(): string {
           all: 0,
           fail: 0,
           warn: 0,
-          pass: 0
+          pass: 0,
+          notmeasured: 0
         };
 
         ruleCards.forEach(card => {
@@ -1559,6 +1690,7 @@ function generateScript(): string {
             if (status === 'fail') visible.fail++;
             if (status === 'warn') visible.warn++;
             if (status === 'pass') visible.pass++;
+            if (status === 'notmeasured') visible.notmeasured++;
           }
         });
 
@@ -1646,6 +1778,23 @@ function generateScript(): string {
     })();
   `;
 }
+
+/**
+ * The SEOmator wordmark, inlined so the report stays a single self-contained
+ * file with no network fetch for its own branding.
+ *
+ * The mark keeps its brand blue and white arc; the lettering inherits
+ * `currentColor`. The source file left that path unfilled, which defaults to
+ * black and would have rendered the name invisible against the dark theme.
+ *
+ * Mark plus lettering, roughly 5:1, so it is sized by height and left to find
+ * its own width.
+ */
+/** Where the header lockup and the footer send readers for the hosted tool. */
+const SEOMATOR_TOOL_URL = 'https://seomator.com/free-seo-audit-tool';
+
+const SEOMATOR_WORDMARK =
+  '<svg viewBox="0 0 1047.992 203" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SEOmator"><g transform="translate(0 -2)" fill="currentColor"><circle cx="101.5" cy="101.5" r="101.5" transform="translate(0 2)" fill="#064ada"/><path d="M64.1,75.1a57.1,57.1,0,0,0,57.1-57.1H7A57.1,57.1,0,0,0,64.1,75.1Z" transform="translate(37.409 85.505)" fill="#fff"/><path d="M40.112,2.392q-24.1,0-39.744-16.744L17.112-29.624Q27.6-17.848,39.56-17.848q6.44,0,9.844-2.852a8.882,8.882,0,0,0,3.4-7.084,7.925,7.925,0,0,0-1.2-4.416q-1.2-1.84-4.968-3.5a64.2,64.2,0,0,0-11.316-3.312q-12.88-3.128-19.136-7.728t-8.28-10.3A34.959,34.959,0,0,1,5.888-68.816,26.725,26.725,0,0,1,15.364-89.7q9.476-8.372,26.22-8.372,11.592,0,19.872,3.5T77.1-81.512l-18.032,13.8a22.427,22.427,0,0,0-7.82-7.912,18.546,18.546,0,0,0-9.108-2.392,16.513,16.513,0,0,0-8.556,2.024,6.937,6.937,0,0,0-3.4,6.44,6.813,6.813,0,0,0,2.208,4.692q2.208,2.3,10.672,4.508,13.984,3.5,21.344,8.188t10.12,10.58A30.4,30.4,0,0,1,77.28-28.52,27,27,0,0,1,72.4-12.7,33.591,33.591,0,0,1,59.156-1.656,43.209,43.209,0,0,1,40.112,2.392Zm90.9,0q-14.72,0-25.944-6.808A47.419,47.419,0,0,1,87.676-22.54a51.639,51.639,0,0,1-6.164-25.116,50.9,50.9,0,0,1,6.44-25.3,49.363,49.363,0,0,1,17.572-18.308,47.855,47.855,0,0,1,25.484-6.808,46.911,46.911,0,0,1,25.3,6.808A47.71,47.71,0,0,1,173.42-72.956a52.7,52.7,0,0,1,6.164,25.3q0,2.024-.184,4.232t-.552,4.6H107.272a25.6,25.6,0,0,0,8.188,13.8q6.164,5.336,15.548,5.336a26.318,26.318,0,0,0,14.076-3.68,27.229,27.229,0,0,0,9.292-9.2L173.7-18.032q-5.7,9.016-17.112,14.72A56.393,56.393,0,0,1,131.008,2.392Zm-.368-79.12a22.471,22.471,0,0,0-15.088,5.336,25.436,25.436,0,0,0-8.28,13.984H154.56a27,27,0,0,0-8.372-13.616A22.423,22.423,0,0,0,130.64-76.728ZM234.6,2.392a50.976,50.976,0,0,1-26.312-6.808A49.394,49.394,0,0,1,190.164-22.54a49.332,49.332,0,0,1-6.532-25.116,49.831,49.831,0,0,1,6.532-25.208A49.18,49.18,0,0,1,208.288-91.08,50.976,50.976,0,0,1,234.6-97.888,50.842,50.842,0,0,1,261-91.08a49.389,49.389,0,0,1,18.032,18.216,49.832,49.832,0,0,1,6.532,25.208,49.332,49.332,0,0,1-6.532,25.116A49.6,49.6,0,0,1,261-4.416,50.842,50.842,0,0,1,234.6,2.392Zm0-22.632a25.023,25.023,0,0,0,13.8-3.772,25.629,25.629,0,0,0,9.108-10.028,29.313,29.313,0,0,0,3.22-13.616,29.7,29.7,0,0,0-3.22-13.8A25.629,25.629,0,0,0,248.4-71.484a25.023,25.023,0,0,0-13.8-3.772,25.023,25.023,0,0,0-13.8,3.772,25.629,25.629,0,0,0-9.108,10.028,29.7,29.7,0,0,0-3.22,13.8,29.313,29.313,0,0,0,3.22,13.616A25.629,25.629,0,0,0,220.8-24.012,25.023,25.023,0,0,0,234.6-20.24ZM294.768,0V-95.68H319.24V-81.7q7.544-16.192,29.256-16.192A35.66,35.66,0,0,1,366.712-93.2a34.145,34.145,0,0,1,12.88,13.34A35.856,35.856,0,0,1,391.828-93.2q7.452-4.692,20.148-4.692A36.468,36.468,0,0,1,430.56-93.1a34.092,34.092,0,0,1,13.064,13.616q4.784,8.832,4.784,20.976V0h-24.84V-52.44q0-12.512-5.336-18.124a18.188,18.188,0,0,0-13.8-5.612q-8.648,0-14.076,4.968T384.928-52.44V0h-24.84V-52.44q0-12.512-5.7-18.124t-14.9-5.612a19.676,19.676,0,0,0-13.892,5.612q-5.98,5.612-5.98,18.124V0ZM503.976,2.392a44.116,44.116,0,0,1-23.828-6.716,49.3,49.3,0,0,1-17.112-18.032,50.447,50.447,0,0,1-6.348-25.116,51.323,51.323,0,0,1,3.68-19.412,51.486,51.486,0,0,1,10.12-16.008,47.719,47.719,0,0,1,15-10.856A43.522,43.522,0,0,1,503.976-97.7q12.512,0,19.5,4.692a31.8,31.8,0,0,1,10.856,12.42V-95.68h24.656V0h-24.1V-15.64A33,33,0,0,1,523.94-2.576Q516.856,2.392,503.976,2.392Zm4.048-22.448a26.174,26.174,0,0,0,14.26-3.772,26.092,26.092,0,0,0,9.292-10.028,28.653,28.653,0,0,0,3.312-13.616,29.032,29.032,0,0,0-3.312-13.8,26.788,26.788,0,0,0-9.292-10.12,25.7,25.7,0,0,0-14.26-3.864,25.483,25.483,0,0,0-13.892,3.772,26.092,26.092,0,0,0-9.292,10.028,29.032,29.032,0,0,0-3.312,13.8,28.821,28.821,0,0,0,3.312,13.524,26.6,26.6,0,0,0,9.292,10.212A25.027,25.027,0,0,0,508.024-20.056ZM608.12,0q-14.168,0-21.712-6.992t-7.544-22.632v-44.9H565.432V-95.68h13.432V-115l24.84-2.576v21.9h20.24v21.16H603.7v43.608q0,8.832,7.728,8.832h10.3V0ZM675.1,2.392a50.976,50.976,0,0,1-26.312-6.808A49.4,49.4,0,0,1,630.66-22.54a49.332,49.332,0,0,1-6.532-25.116,49.831,49.831,0,0,1,6.532-25.208A49.181,49.181,0,0,1,648.784-91.08,50.976,50.976,0,0,1,675.1-97.888a50.842,50.842,0,0,1,26.4,6.808,49.389,49.389,0,0,1,18.032,18.216,49.831,49.831,0,0,1,6.532,25.208,49.332,49.332,0,0,1-6.532,25.116A49.6,49.6,0,0,1,701.5-4.416,50.842,50.842,0,0,1,675.1,2.392Zm0-22.632a25.023,25.023,0,0,0,13.8-3.772A25.629,25.629,0,0,0,698-34.04a29.313,29.313,0,0,0,3.22-13.616,29.7,29.7,0,0,0-3.22-13.8A25.629,25.629,0,0,0,688.9-71.484a25.023,25.023,0,0,0-13.8-3.772,25.023,25.023,0,0,0-13.8,3.772,25.629,25.629,0,0,0-9.108,10.028,29.7,29.7,0,0,0-3.22,13.8,29.313,29.313,0,0,0,3.22,13.616A25.629,25.629,0,0,0,661.3-24.012,25.023,25.023,0,0,0,675.1-20.24ZM735.264,0V-95.68h24.1v18.216q2.392-10.3,9.752-15.732t19.872-4.692V-74.52h-3.5a25.574,25.574,0,0,0-18.032,6.808Q760.1-60.9,760.1-48.944V0Z" transform="translate(259 160)"/></g></svg>';
 
 /**
  * Generate SVG icons
@@ -1800,8 +1949,14 @@ export function renderHtmlReport(result: AuditResult): string {
   const failures = allAggregatedIssues.filter(i => i.status === 'fail');
   const warnings = allAggregatedIssues.filter(i => i.status === 'warn');
   const passes = allAggregatedIssues.filter(i => i.status === 'pass');
+  const notMeasured = allAggregatedIssues.filter(i => i.status === 'notmeasured');
   const totalChecks = allAggregatedIssues.length;
   const uniqueUrls = Array.from(allUrls).sort();
+
+  // Drives every per-rule page link. Read from the URLs the rules actually
+  // reported rather than from `crawledPages`, so a crawl that resolved to one
+  // page is treated as the single-page report it is.
+  const isMultiPageReport = uniqueUrls.length > 1;
 
   // Calculate circumference for score circle
   const radius = 58;
@@ -1822,16 +1977,14 @@ export function renderHtmlReport(result: AuditResult): string {
       <tr class="issue-row" data-rule-id="${escapeHtml(issue.ruleId)}" data-status="${issue.status}" data-urls="${escapeHtml(urlsCommaSeparated)}">
         <td>
           <div class="issue-row-name">
-            <div class="issue-row-icon ${issue.status}">${issue.status === 'fail' ? '✕' : '!'}</div>
+            <div class="issue-row-icon ${issue.status}">${STATUS_ICONS[issue.status]}</div>
             <div>
               <div class="issue-row-text">${escapeHtml(issue.ruleName)}</div>
               <div class="issue-row-category">${escapeHtml(issue.categoryName)}</div>
             </div>
           </div>
         </td>
-        <td>
-          ${pageDisplay}
-        </td>
+        ${isMultiPageReport ? `<td>${pageDisplay}</td>` : ''}
         <td>
           <span class="issue-row-severity ${issue.status}">${issue.status === 'fail' ? 'Critical' : 'Warning'}</span>
         </td>
@@ -1866,6 +2019,13 @@ export function renderHtmlReport(result: AuditResult): string {
   // Helper function to generate pages list HTML
   const generatePagesListHtml = (pages: Array<{ url: string; details: Record<string, unknown> }>): string => {
     if (pages.length === 0) return '';
+
+    // A per-rule page link answers "which of the crawled pages is this about".
+    // With one page in the whole report there is nothing to disambiguate, and
+    // the link repeats on every card — hundreds of identical chips that are the
+    // only coloured element on each one. The page is named once in the header
+    // instead.
+    if (!isMultiPageReport) return '';
 
     // For single page, show inline
     if (pages.length === 1) {
@@ -1907,7 +2067,7 @@ export function renderHtmlReport(result: AuditResult): string {
 
     const rulesHtml = aggregatedIssues.map(issue => {
       const fix = getFixSuggestion(issue.ruleId);
-      const statusIcon = issue.status === 'pass' ? '✓' : issue.status === 'warn' ? '!' : '✕';
+      const statusIcon = STATUS_ICONS[issue.status];
       const urlsCommaSeparated = issue.pages.map(p => p.url).join(',');
 
       // Generate pages list HTML (collapsible for 4+ pages)
@@ -1916,8 +2076,10 @@ export function renderHtmlReport(result: AuditResult): string {
       // Show description only if we have one and it's not just the message repeated
       const showDescription = issue.ruleDescription && issue.ruleDescription !== issue.message;
 
-      // For passed rules, use collapsible details to reduce visual clutter
-      const fixHtml = issue.status !== 'pass'
+      // Fix advice belongs to results that found something wrong. Offering it
+      // for a check that took no reading told readers to optimise a metric
+      // nobody had measured.
+      const fixHtml = issue.status === 'fail' || issue.status === 'warn'
         ? `<div class="rule-fix">
             <div class="rule-fix-header">
               ${getIcon('lightbulb')}
@@ -1936,8 +2098,9 @@ export function renderHtmlReport(result: AuditResult): string {
                 <span class="rule-title">${escapeHtml(issue.ruleName)}</span>
                 <span class="rule-id">${escapeHtml(issue.ruleId)}</span>
               </div>
-              ${showDescription ? `<div class="rule-description">${escapeHtml(issue.ruleDescription)}</div>` : ''}
+              ${issue.status === 'notmeasured' ? '<div class="rule-notmeasured-tag">Not measured</div>' : ''}
               <div class="rule-message">${escapeHtml(issue.message)}</div>
+              ${showDescription ? `<div class="rule-description">${escapeHtml(issue.ruleDescription)}</div>` : ''}
               ${pagesHtml}
               ${fixHtml}
             </div>
@@ -1983,9 +2146,11 @@ export function renderHtmlReport(result: AuditResult): string {
 <body>
   <!-- Fixed Header -->
   <header class="header">
-    <a class="header-brand" href="#">
-      ${getIcon('logo')}
-      <span>SEO Audit</span>
+    <a class="header-brand" href="${SEOMATOR_TOOL_URL}" target="_blank" rel="noopener">
+      <span class="header-logo">${SEOMATOR_WORDMARK}</span>
+      <span class="header-brand-divider"></span>
+      <span class="header-brand-product">SEO Audit</span>
+      <span class="header-brand-tag">Open Source</span>
     </a>
     <div class="header-url">
       <a href="${escapeHtml(result.url)}" target="_blank" rel="noopener">${escapeHtml(result.url)}</a>
@@ -1993,7 +2158,11 @@ export function renderHtmlReport(result: AuditResult): string {
     <div class="header-meta">
       <div class="header-meta-item">
         ${getIcon('pages')}
-        <span>${result.crawledPages} page${result.crawledPages !== 1 ? 's' : ''}</span>
+        <span>${
+          isMultiPageReport
+            ? `${result.crawledPages} pages`
+            : escapeHtml(getShortUrl(result.url))
+        }</span>
       </div>
       <div class="header-meta-item">
         <span>${timestamp}</span>
@@ -2058,6 +2227,12 @@ export function renderHtmlReport(result: AuditResult): string {
               <span class="score-stat-value pass">${passes.length}</span>
               <span class="score-stat-label">Passed</span>
             </div>
+            ${notMeasured.length > 0 ? `
+            <div class="score-stat">
+              <span class="score-stat-value not-measured">${notMeasured.length}</span>
+              <span class="score-stat-label">Not measured</span>
+            </div>
+            ` : ''}
             <div class="score-stat">
               <span class="score-stat-value">${totalChecks}</span>
               <span class="score-stat-label">Total</span>
@@ -2104,6 +2279,11 @@ export function renderHtmlReport(result: AuditResult): string {
           <button class="filter-tab" data-filter="pass">
             Passed <span class="filter-tab-count">${passes.length}</span>
           </button>
+          ${notMeasured.length > 0 ? `
+          <button class="filter-tab" data-filter="notmeasured">
+            Not measured <span class="filter-tab-count">${notMeasured.length}</span>
+          </button>
+          ` : ''}
         </div>
       </div>
 
@@ -2117,7 +2297,7 @@ export function renderHtmlReport(result: AuditResult): string {
           <thead>
             <tr>
               <th>Issue</th>
-              <th>Page</th>
+              ${isMultiPageReport ? '<th>Page</th>' : ''}
               <th>Severity</th>
             </tr>
           </thead>
@@ -2133,7 +2313,14 @@ export function renderHtmlReport(result: AuditResult): string {
 
       <!-- Footer -->
       <footer class="footer">
-        Generated by <a href="https://www.npmjs.com/package/@seomator/seo-audit" target="_blank" rel="noopener">SEOmator CLI</a> &bull; ${result.categoryResults.length} categories &bull; ${totalChecks} checks
+        <div class="footer-primary">
+          <a href="https://www.npmjs.com/package/@seomator/seo-audit" target="_blank" rel="noopener">SEO Audit Open Source</a>
+          &bull; ${result.categoryResults.length} categories &bull; ${totalChecks} checks
+        </div>
+        <div class="footer-secondary">
+          For more free SEO tools, visit
+          <a href="${SEOMATOR_TOOL_URL}" target="_blank" rel="noopener">seomator.com/free-seo-audit-tool</a>
+        </div>
       </footer>
     </div>
   </main>

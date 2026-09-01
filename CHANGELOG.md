@@ -45,6 +45,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Every JavaScript-rendering rule was unmeasured in crawl mode.** All eleven
+  rendered-DOM rules (`js-rendered-title`, `-description`, `-h1`, `-canonical`,
+  `-content`, `-links`, `js-canonical-mismatch`, `js-noindex-mismatch`,
+  `js-title-modified`, `-description-modified`, `-h1-modified`) reported
+  "rendered DOM not available — run without `--no-cwv`" on every page of every
+  crawl, on runs that had rendered the page: a 30-page crawl measured Core Web
+  Vitals and caught failed requests from the same render while discarding the
+  DOM those rules read. The renderer always returned the HTML — `auditWithCrawl`
+  rebuilt the result as `{ cwv, diagnostics, assets }` and dropped it, and
+  `PageRenderResult` never modelled an `html` field, so the crawler could not
+  have consumed it either. Single-page audits were unaffected, having wired it
+  up separately. Found because unmeasured checks are now labelled as such;
+  previously these eleven reported as ordinary warnings and the gap was
+  invisible.
 - **The HTML report over-counted warnings.** It re-derived its own counts from
   raw rule results instead of reading `CategoryResult`, so the weight-0 results
   produced by `notMeasured()` were counted as warnings: a report advertising 52

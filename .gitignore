@@ -47,3 +47,4 @@ seo-report-*.html
 
 # Local scratch and research folders (never published)
 *-poc/
+.gstack/

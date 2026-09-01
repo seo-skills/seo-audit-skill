@@ -9,6 +9,7 @@ import type {
   CreateCrawlInput,
 } from '../types.js';
 import type { PartialSeomatorConfig } from '../../config/schema.js';
+import { parseSqliteUtc, toSqliteUtc } from '../sqlite-time.js';
 
 /**
  * Hydrate a crawl record from the database
@@ -20,8 +21,8 @@ function hydrateCrawl(row: DbCrawl): HydratedCrawl {
     projectId: row.project_id,
     startUrl: row.start_url,
     status: row.status,
-    startedAt: new Date(row.started_at),
-    completedAt: row.completed_at ? new Date(row.completed_at) : null,
+    startedAt: parseSqliteUtc(row.started_at),
+    completedAt: row.completed_at ? parseSqliteUtc(row.completed_at) : null,
     config: row.config_json ? JSON.parse(row.config_json) : null,
     stats: row.stats_json ? JSON.parse(row.stats_json) : null,
     errorMessage: row.error_message,
@@ -41,8 +42,8 @@ function toCrawlSummary(row: DbCrawl): CrawlSummary {
     crawlId: row.crawl_id,
     startUrl: row.start_url,
     status: row.status,
-    startedAt: new Date(row.started_at),
-    completedAt: row.completed_at ? new Date(row.completed_at) : null,
+    startedAt: parseSqliteUtc(row.started_at),
+    completedAt: row.completed_at ? parseSqliteUtc(row.completed_at) : null,
     totalPages: stats?.totalPages ?? 0,
     errorCount: stats?.errorCount ?? 0,
   };
@@ -163,12 +164,12 @@ export function listCrawls(
 
   if (options.since) {
     conditions.push('started_at >= ?');
-    params.push(options.since.toISOString());
+    params.push(toSqliteUtc(options.since));
   }
 
   if (options.until) {
     conditions.push('started_at <= ?');
-    params.push(options.until.toISOString());
+    params.push(toSqliteUtc(options.until));
   }
 
   const limit = options.limit ?? 50;

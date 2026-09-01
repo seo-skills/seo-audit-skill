@@ -9,6 +9,7 @@ import type {
 } from '../types.js';
 import { hashUrl } from '../utils/hash.js';
 import { compressHtml, decompressHtml } from '../utils/compression.js';
+import { parseSqliteUtc } from '../sqlite-time.js';
 
 /**
  * Hydrate a page record (without HTML)
@@ -35,7 +36,7 @@ function hydratePage(row: DbPage): HydratedPage {
     ttfbMs: row.ttfb_ms,
     cwv,
     errorMessage: row.error_message,
-    crawledAt: new Date(row.crawled_at),
+    crawledAt: parseSqliteUtc(row.crawled_at),
   };
 }
 

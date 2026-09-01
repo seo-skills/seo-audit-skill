@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import type { DbProject, HydratedProject } from '../types.js';
 import type { PartialSeomatorConfig } from '../../config/schema.js';
+import { parseSqliteUtc } from '../sqlite-time.js';
 
 /**
  * Hydrate a project record from the database
@@ -10,8 +11,8 @@ function hydrateProject(row: DbProject): HydratedProject {
     id: row.id,
     domain: row.domain,
     name: row.name,
-    createdAt: new Date(row.created_at),
-    updatedAt: new Date(row.updated_at),
+    createdAt: parseSqliteUtc(row.created_at),
+    updatedAt: parseSqliteUtc(row.updated_at),
     config: row.config_json ? JSON.parse(row.config_json) : null,
   };
 }

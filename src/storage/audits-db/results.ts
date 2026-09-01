@@ -10,6 +10,7 @@ import type {
   RuleResultStatus,
 } from '../types.js';
 import { hashUrl } from '../utils/hash.js';
+import { parseSqliteUtc } from '../sqlite-time.js';
 
 /**
  * Hydrate a category result record
@@ -44,7 +45,7 @@ function hydrateResult(row: DbAuditResult): HydratedAuditResult {
     score: row.score,
     message: row.message,
     details: row.details_json ? JSON.parse(row.details_json) : null,
-    executedAt: new Date(row.executed_at),
+    executedAt: parseSqliteUtc(row.executed_at),
   };
 }
 

@@ -8,6 +8,7 @@ import type {
 } from '../types.js';
 import { getAuditById } from './audits.js';
 import { getCategories } from './results.js';
+import { parseSqliteUtc } from '../sqlite-time.js';
 
 /**
  * Hydrate a comparison record
@@ -24,7 +25,7 @@ function hydrateComparison(row: DbAuditComparison): HydratedAuditComparison {
       : [],
     newIssuesCount: row.new_issues_count,
     fixedIssuesCount: row.fixed_issues_count,
-    comparedAt: new Date(row.compared_at),
+    comparedAt: parseSqliteUtc(row.compared_at),
   };
 }
 
@@ -235,7 +236,7 @@ export function getScoreTrend(
   return rows.map((r) => ({
     auditId: r.audit_id,
     score: r.overall_score,
-    date: new Date(r.started_at),
+    date: parseSqliteUtc(r.started_at),
   })).reverse(); // Oldest first for trend display
 }
 

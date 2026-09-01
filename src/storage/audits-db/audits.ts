@@ -7,6 +7,7 @@ import type {
   AuditQueryOptions,
   CreateAuditInput,
 } from '../types.js';
+import { parseSqliteUtc, toSqliteUtc } from '../sqlite-time.js';
 
 /**
  * Hydrate an audit record
@@ -26,8 +27,8 @@ function hydrateAudit(row: DbAudit): HydratedAudit {
     failedCount: row.failed_count,
     pagesAudited: row.pages_audited,
     config: row.config_json ? JSON.parse(row.config_json) : null,
-    startedAt: new Date(row.started_at),
-    completedAt: row.completed_at ? new Date(row.completed_at) : null,
+    startedAt: parseSqliteUtc(row.started_at),
+    completedAt: row.completed_at ? parseSqliteUtc(row.completed_at) : null,
     status: row.status,
   };
 }
@@ -47,8 +48,8 @@ function toAuditSummary(row: DbAudit): AuditSummary {
     passedCount: row.passed_count,
     warningCount: row.warning_count,
     failedCount: row.failed_count,
-    startedAt: new Date(row.started_at),
-    completedAt: row.completed_at ? new Date(row.completed_at) : null,
+    startedAt: parseSqliteUtc(row.started_at),
+    completedAt: row.completed_at ? parseSqliteUtc(row.completed_at) : null,
     status: row.status,
   };
 }
@@ -210,12 +211,12 @@ export function listAudits(
 
   if (options.since) {
     conditions.push('started_at >= ?');
-    params.push(options.since.toISOString());
+    params.push(toSqliteUtc(options.since));
   }
 
   if (options.until) {
     conditions.push('started_at <= ?');
-    params.push(options.until.toISOString());
+    params.push(toSqliteUtc(options.until));
   }
 
   if (options.status) {

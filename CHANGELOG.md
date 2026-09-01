@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Category weights rebalanced** so the new accessibility rules carry real weight:
+  a11y 4 → 7, funded by perf 12 → 10 (Phase 1b will add a Lighthouse performance score
+  alongside it) and core 12 → 11 (18 rules, largely title/description/canonical variants).
+  Weights still sum to exactly 100, as `validateCategoryWeights()` requires.
+
 - **Site-wide link graph.** The crawler now records click depth as it discovers
   URLs and builds an inbound/outbound internal link graph, shared with every
   page as `AuditContext.site`. This is the first cross-page data available to
@@ -47,9 +52,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Core Web Vitals are now collected with the `web-vitals` library** injected into the page
   before navigation, replacing hand-rolled `PerformanceObserver` code. Metrics are now
   spec-compliant — the same values Lighthouse, PSI and CrUX report.
-- **Rendered audits are ~30% faster per page** (3258ms → 2284ms median on a local benchmark,
-  warm browser). The previous collector blocked a further second inside `page.evaluate`
-  waiting for metrics the injected collectors already hold; that wait is gone.
+- **Rendered audits are substantially faster.** Two waits were removed from the render path:
+  the previous CWV collector blocked a second inside `page.evaluate` waiting for metrics the
+  injected collectors already hold (−973ms/page), and the flat 1s post-load settle is now a
+  race between network quiet and that same 1s ceiling (−313 to −439ms/page). Combined, real
+  sites came in ~1.2–1.5s faster per page: example.com 3469→1984ms, en.wikipedia.org
+  3938→2701ms, react.dev 3953→2600ms. A page that never goes network-quiet costs exactly
+  what it did before. Rendered-DOM capture was byte-identical across all three sites, and
+  LCP showed no systematic shift.
 
 ### Fixed
 

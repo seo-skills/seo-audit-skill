@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Product** | `@seomator/seo-audit` (audit-cli) |
-| **Current version** | 3.1.1 — 261 rules / 20 categories |
+| **Current version** | 3.1.1 — 287 rules / 20 categories |
 | **Target version** | 3.2.0 |
-| **Status** | Phase 1 implemented; Phases 1b–4 open |
+| **Status** | Phases 1, 2a, 2b/2c, 4 implemented; 1b and 3 open |
 | **Date** | 2026-08-31 |
 
 ---
@@ -176,6 +176,26 @@ returns everything the old one did, plus `lcpElement` and `tbt`.
 `--simulate-interaction` adds roughly 600–1100ms depending on whether the page has anything
 clickable — opt-in, so the default path is unaffected.
 
+**Follow-on: post-load settle (also implemented).** The flat `waitForTimeout(1000)` after
+`load` is now `waitForLoadState('networkidle', { timeout: 1000 })`, so a page that goes quiet
+early is captured early and one that never does costs the same ceiling as before — the change
+can only be faster, never slower.
+
+| site | before both changes | after both | delta |
+|---|---|---|---|
+| example.com | 3469ms | 1984ms | −1485ms |
+| en.wikipedia.org | 3938ms | 2701ms | −1236ms |
+| react.dev | 3953ms | 2600ms | −1353ms |
+
+Isolated contribution of the settle change alone: −439ms (wikipedia), −313ms (react.dev).
+
+**Accuracy guards checked, because capturing early is the obvious risk:**
+- Rendered DOM was **byte-identical** on all three sites (0.0% change), so JS-rendering rules
+  see exactly what they saw before.
+- LCP over 4 alternating runs per site showed no systematic shift: wikipedia median 576→544,
+  react.dev median 444→**520** (higher). Truncation would bias both lower; run-to-run
+  variance dominates.
+
 **Verified result — TTFB on `example.com`:**
 
 | | value |
@@ -224,7 +244,7 @@ re-verify before relying on it for batch crawls. Unkeyed requests are throttled 
 Every rule below needs only `context.$` and `context.headers`. One file each, one
 `registerRule()` line — no changes to `auditor.ts` or the scoring path.
 
-**2a. Accessibility (12 → 31)**
+**2a. Accessibility (12 → 31)** ✅ IMPLEMENTED
 
 `a11y/aria-labels.ts` already covers `button-name`, `link-name`, `select-name` and the ARIA
 input/toggle name audits — those are **not** duplicated below.
@@ -251,7 +271,7 @@ input/toggle name audits — those are **not** duplicated below.
 | `a11y-identical-links-purpose` | identical-links-same-purpose |
 | `a11y-label-name-mismatch` | label-content-name-mismatch |
 
-**2b. Security / Best Practices**
+**2b. Security / Best Practices** ✅ IMPLEMENTED (5 of 7)
 
 `security/hsts.ts` already grades strength correctly. `security/csp.ts` is
 **presence-only** — it parses directives and checks a recommended list but never grades XSS
@@ -267,11 +287,18 @@ effectiveness.
 | `security-paste-blocking` | `onpaste="return false"` on inputs |
 | `technical-security-txt` | `/.well-known/security.txt` — Tier-2 fetch, same pattern as robots.txt |
 
-**2c. JS / performance (static)**
+**2c. JS / performance (static)** ✅ IMPLEMENTED (2 of 4)
 
-`js-document-write`, `js-source-maps` (`sourceMappingURL`), `perf-legacy-javascript`
-(core-js/babel polyfill markers), `js-permission-on-load` (geolocation +
-`Notification.requestPermission` at load).
+Shipped: `js-document-write`, `perf-legacy-javascript`.
+
+**Deferred, with reasons:**
+
+| Planned rule | Disposition |
+|---|---|
+| `security-coep-corp` | **Dropped.** COEP only matters to sites pursuing cross-origin isolation (SharedArrayBuffer). Warning on its absence would fire on nearly every site and teach people to ignore the category. Lighthouse audits COOP but not COEP, for the same reason. |
+| `technical-security-txt` | **Deferred to a Tier-2 batch.** Needs a `/.well-known/security.txt` fetch and `enrichContext` plumbing, so it is not a static rule despite being listed under one. |
+| `js-source-maps` | **Dropped.** Lighthouse frames missing source maps as a debugging convenience, which is weak signal for an SEO audit. The stronger framing — publicly exposed `.map` files leaking source — needs a network fetch to confirm, so it belongs with the Tier-2 batch if wanted. |
+| `js-permission-on-load` | **Moved to Phase 3.** Whether `getCurrentPosition` / `Notification.requestPermission` fires *on load* versus behind a click cannot be determined by reading source. Lighthouse hooks the APIs at runtime; doing it statically would produce false positives on every site that requests permission correctly. |
 
 ### Phase 3 — Playwright collector extension (~11 rules)
 
@@ -291,7 +318,7 @@ have none of it.
 **Constraint:** every new `AuditContext` field must be optional, or every rule test that
 builds a minimal context with `null as any` breaks.
 
-### Phase 4 — Reporter parity
+### Phase 4 — Reporter parity ✅ IMPLEMENTED (3 of 4)
 
 All data already exists in `AuditContext`; only `src/reporters/html-reporter.ts` changes.
 
@@ -299,7 +326,14 @@ All data already exists in `AuditContext`; only `src/reporters/html-reporter.ts`
 - **SERP + social card preview** — title/description/`og:image` already parsed by `social/*`
 - **Key metrics strip** — already computed by `links-external-count`,
   `content-word-count`, `content-text-html-ratio`
-- **Lighthouse section** — four score gauges + audit detail, rendered only when `--psi` ran
+- **Lighthouse section** — deferred with Phase 1b, since there is no PSI data to render yet
+
+**Implementation note:** the plan assumed "only `html-reporter.ts` changes" because the data
+already existed in `AuditContext`. It does — but the reporter receives an `AuditResult`, which
+carried only url, score, categoryResults, timestamp and crawledPages. The data had to be
+carried across that seam first, via a new optional `AuditResult.page`. Reading it back out of
+rule `details` was the alternative and was rejected: it would couple every reporter to the
+internal detail shape of whichever rule happened to record a given field.
 
 ---
 
@@ -321,7 +355,7 @@ Three options:
 **Recommendation: (a).** A score that shifts based on whether a network flag was passed is
 not a score users can trend over time.
 
-### D2 — Category weight rebalance *(blocking Phase 2a)*
+### D2 — Category weight rebalance — **DECIDED**
 
 Accessibility carries **4%** across 12 rules. Adding 19 more dilutes each to ~0.13% of the
 overall score — nineteen new checks that barely move the number is a bad trade.
@@ -337,8 +371,26 @@ content 5 · js 5 · a11y 4 · social 3 · eeat 3 · url 3 · redirect 3 · mobi
 htmlval 2 · geo 2 · legal 1
 ```
 
-**Open:** a11y likely needs 6–8. Which categories give up the 2–4 points is a product call,
-not a technical one.
+**Decided and applied:**
+
+| Category | Was | Now | Rationale |
+|---|---|---|---|
+| a11y | 4 | **7** | 31 rules after Phase 2a; at 4% each rule was worth 0.13% |
+| perf | 12 | **10** | Phase 1b adds a whole Lighthouse performance score alongside it |
+| core | 12 | **11** | 18 rules, largely title/description/canonical variants of each other |
+
+Sums to 100; `validateCategoryWeights()` passes.
+
+**Two false-positive classes found during live verification and fixed before merge:**
+
+1. `a11y-duplicate-id` failed GitHub on 10 duplicated IDs that were all SVG internals
+   (`clip0_1_610`, `gradient`) from the same icon inlined repeatedly. Those are referenced by
+   `url(#id)`, never by ARIA, so nothing is broken for a screen reader — which is exactly why
+   Lighthouse's audit is scoped to `duplicate-id-aria`. The rule now fails only on duplicates
+   that ARIA or `<label for>` actually target, warns on other document-level duplicates, and
+   passes SVG-internal ones with a note.
+2. `a11y-identical-links-purpose` treated `/docs` and `/docs/`, and URLs differing only by
+   fragment, as distinct destinations. Now normalised.
 
 ---
 

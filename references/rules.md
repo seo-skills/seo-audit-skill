@@ -2,7 +2,7 @@
 
 <!-- Updated: 2026-08-31 -->
 
-SEOmator ships **261 rules across 20 weighted categories**. Category weights
+SEOmator ships **287 rules across 20 weighted categories**. Category weights
 sum to exactly 100. Each rule returns `pass` (100), `warn` (50), or `fail` (0);
 the category score is the average of its rule results weighted by each rule's
 declared `weight`, and the overall score is the weighted average of category
@@ -16,17 +16,17 @@ neither side of the average.
 
 | Category ID | Name | Weight | Rules | Covers |
 |-------------|------|--------|-------|--------|
-| `core` | Core | 12% | 19 | Title, meta description, canonical, viewport, favicon, H1, lang |
-| `perf` | Performance | 12% | 22 | LCP, INP, CLS, TTFB, FCP, render-blocking resources, compression |
+| `core` | Core | 11% | 19 | Title, meta description, canonical, viewport, favicon, H1, lang |
+| `perf` | Performance | 10% | 23 | LCP, INP, CLS, TTFB, FCP, render-blocking resources, compression |
 | `links` | Links | 8% | 19 | Broken links, anchor text, internal linking, nofollow; click depth and inbound links need `--crawl` |
 | `images` | Images | 8% | 14 | Alt text, dimensions, lazy loading, WebP/AVIF, srcset, file size |
-| `security` | Security | 8% | 18 | HTTPS, HSTS, CSP, X-Frame-Options, mixed content, SSL, leaked secrets, cookie flags |
+| `security` | Security | 8% | 23 | HTTPS, HSTS, CSP, X-Frame-Options, mixed content, SSL, leaked secrets, cookie flags |
 | `technical` | Technical SEO | 7% | 13 | robots.txt, sitemap, URL hygiene, www redirect, custom 404 |
 | `crawl` | Crawlability | 5% | 19 | noindex, robots directives, sitemap coverage, lastmod quality, redirect chains |
 | `schema` | Structured Data | 5% | 13 | JSON-LD presence/validity, required fields, deprecated types |
 | `content` | Content | 5% | 17 | Word count, thin content, readability, duplicate content |
-| `js` | JavaScript Rendering | 5% | 15 | CSR vs SSR, rendered-DOM diff, JS-dependent content, console errors, failed requests |
-| `a11y` | Accessibility | 4% | 12 | ARIA, contrast, form labels, skip links, focus management |
+| `js` | JavaScript Rendering | 5% | 16 | CSR vs SSR, rendered-DOM diff, JS-dependent content, console errors, failed requests |
+| `a11y` | Accessibility | 7% | 31 | ARIA, contrast, form labels, skip links, focus management |
 | `social` | Social | 3% | 9 | Open Graph, Twitter Card, og:image validity |
 | `eeat` | E-E-A-T | 3% | 14 | Author bylines, dates, about/contact pages, external citations |
 | `url` | URL Structure | 3% | 14 | Lowercase, hyphens, length, parameters, trailing slash |

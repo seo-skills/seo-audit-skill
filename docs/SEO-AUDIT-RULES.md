@@ -1,10 +1,10 @@
 # SEO Audit Rules Reference
 
-> Complete reference of all 261 SEO audit rules across 20 categories (v3.1.1)
+> Complete reference of all 287 SEO audit rules across 20 categories (v3.1.1)
 
 ## Overview
 
-SEOmator audits websites using 261 rules organized into 20 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 287 rules organized into 20 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -15,28 +15,28 @@ SEOmator audits websites using 261 rules organized into 20 categories. Each rule
 
 | Category | Weight | Rules | Description |
 |----------|--------|-------|-------------|
-| [Core SEO](#core-seo) | 12% | 19 | Meta tags, canonical, H1, indexing directives |
-| [Performance](#performance) | 12% | 22 | Core Web Vitals + performance optimization hints |
-| [Links](#links) | 8% | 19 | Internal/external links, anchor text, validation |
-| [Images](#images) | 8% | 14 | Alt text, dimensions, lazy loading, optimization |
-| [Security](#security) | 8% | 18 | HTTPS, security headers, mixed content, SSL, cookie flags |
-| [Technical SEO](#technical-seo) | 7% | 13 | Robots.txt, sitemap, status codes, URL structure |
-| [Crawlability](#crawlability) | 5% | 19 | Indexability signals, sitemap conflicts, pagination, sitemap lastmod |
-| [Structured Data](#structured-data) | 5% | 13 | JSON-LD, Schema.org markup |
-| [Content](#content) | 5% | 17 | Text quality, readability, headings, duplicates |
-| [JavaScript Rendering](#javascript-rendering) | 5% | 15 | SSR validation, JS-dependent SEO elements, console errors |
-| [Accessibility](#accessibility) | 4% | 12 | WCAG compliance, ARIA, keyboard navigation |
-| [Social](#social) | 3% | 9 | Open Graph, Twitter Cards, social profiles |
-| [E-E-A-T](#e-e-a-t) | 3% | 14 | Experience, Expertise, Authority, Trust signals |
-| [URL Structure](#url-structure) | 3% | 14 | Slug keywords, formatting, parameters |
-| [Redirects](#redirects) | 3% | 8 | Redirect types, chains, loops |
-| [Mobile](#mobile) | 2% | 10 | Font size, viewport, responsive layout |
-| [Internationalization](#internationalization) | 2% | 10 | Language declarations, hreflang validation |
-| [HTML Validation](#html-validation) | 2% | 9 | DOCTYPE, charset, head structure |
-| [AI/GEO Readiness](#aigeo-readiness) | 2% | 5 | Semantic HTML, AI bot access, llms.txt |
-| [Legal Compliance](#legal-compliance) | 1% | 1 | Cookie consent |
+| [Core SEO]((#core-seo)) | 11% | 19 | Meta tags, canonical, H1, indexing directives |
+| [Performance]((#performance)) | 10% | 23 | Core Web Vitals + performance optimization hints |
+| [Links]((#links)) | 8% | 19 | Internal/external links, anchor text, validation |
+| [Images]((#images)) | 8% | 14 | Alt text, dimensions, lazy loading, optimization |
+| [Security]((#security)) | 8% | 23 | HTTPS, security headers, mixed content, SSL, cookie flags |
+| [Technical SEO]((#technical-seo)) | 7% | 13 | Robots.txt, sitemap, status codes, URL structure |
+| [Crawlability]((#crawlability)) | 5% | 19 | Indexability signals, sitemap conflicts, pagination, sitemap lastmod |
+| [Structured Data]((#structured-data)) | 5% | 13 | JSON-LD, Schema.org markup |
+| [Content]((#content)) | 5% | 17 | Text quality, readability, headings, duplicates |
+| [JavaScript Rendering]((#javascript-rendering)) | 5% | 16 | SSR validation, JS-dependent SEO elements, console errors |
+| [Accessibility]((#accessibility)) | 7% | 31 | WCAG compliance, ARIA, keyboard navigation |
+| [Social]((#social)) | 3% | 9 | Open Graph, Twitter Cards, social profiles |
+| [E-E-A-T]((#e-e-a-t)) | 3% | 14 | Experience, Expertise, Authority, Trust signals |
+| [URL Structure]((#url-structure)) | 3% | 14 | Slug keywords, formatting, parameters |
+| [Redirects]((#redirects)) | 3% | 8 | Redirect types, chains, loops |
+| [Mobile]((#mobile)) | 2% | 10 | Font size, viewport, responsive layout |
+| [Internationalization]((#internationalization)) | 2% | 10 | Language declarations, hreflang validation |
+| [HTML Validation]((#html-validation)) | 2% | 9 | DOCTYPE, charset, head structure |
+| [AI/GEO Readiness]((#aigeo-readiness)) | 2% | 5 | Semantic HTML, AI bot access, llms.txt |
+| [Legal Compliance]((#legal-compliance)) | 1% | 1 | Cookie consent |
 
-**Total: 100% weight, 261 rules**
+**Total: 100% weight, 287 rules**
 
 ---
 
@@ -164,6 +164,7 @@ Core Web Vitals measurements and static performance optimization hints.
 | `perf-page-weight` | Page Weight | warn/fail | Total page size including all resources |
 | `perf-js-file-size` | JS File Size | warn/fail | Checks individual JavaScript file sizes |
 | `perf-video-for-animations` | Video for Animations | warn | Suggests `<video>` over animated GIFs |
+| `perf-legacy-javascript` | Legacy JavaScript | warn | Detects polyfills and transpiler runtimes modern browsers do not need |
 
 ### Core Web Vitals Thresholds
 
@@ -367,6 +368,11 @@ Validates HTTPS, security headers, mixed content, SSL, and leaked secrets.
 | `security-mixed-content` | Mixed Content | warn/fail | Checks for HTTP resources on HTTPS pages |
 | `security-permissions-policy` | Permissions-Policy | warn | Checks for Permissions-Policy header |
 | `security-referrer-policy` | Referrer-Policy | warn | Checks for Referrer-Policy header |
+| `security-coop` | Cross-Origin-Opener-Policy | warn | Isolates the page from windows that open it |
+| `security-csp-xss` | CSP Strength Against XSS | warn/fail | Grades whether the CSP actually constrains script execution |
+| `security-info-disclosure` | Software Version Disclosure | warn | Headers do not advertise server software and version |
+| `security-paste-blocking` | Inputs Allow Pasting | fail | Input fields do not prevent pasting |
+| `security-trusted-types` | Trusted Types | warn | CSP requires Trusted Types for DOM XSS sinks |
 | `security-leaked-secrets` | Leaked Secrets | fail | Detects exposed API keys, credentials in HTML/JS |
 | `security-password-http` | Password over HTTP | fail | Detects password fields on non-HTTPS pages |
 | `security-protocol-relative` | Protocol-Relative URLs | warn | Detects `//example.com` URLs |
@@ -400,6 +406,27 @@ Validates HTTPS, security headers, mixed content, SSL, and leaked secrets.
 
 #### security-permissions-policy
 - **Fix:** Add `Permissions-Policy: camera=(), microphone=(), geolocation=()`
+
+#### security-coop
+- **Why:** Without COOP, any page that opens this one keeps a handle on its window and shares a browsing context group with it — the basis of tabnabbing.
+- **Fix:** Send `Cross-Origin-Opener-Policy: same-origin`.
+
+#### security-csp-xss
+- **Why:** `security-csp` asks whether a policy exists; this asks whether it does anything. A policy with `'unsafe-inline'` and no nonce blocks nothing.
+- **Note:** Reports at weight 0 when there is no CSP at all, so a missing policy is penalised once by `security-csp` rather than three times.
+- **Fix:** Drop `'unsafe-inline'`/`'unsafe-eval'` or pair them with a nonce or hash; set `object-src 'none'` and `base-uri 'none'`.
+
+#### security-info-disclosure
+- **Why:** Naming the exact server and version tells an attacker which published vulnerabilities to try first.
+- **Fix:** Remove `X-Powered-By` and `X-AspNet-Version`; strip the version from `Server`. A bare `Server: nginx` passes.
+
+#### security-paste-blocking
+- **Why:** Blocking paste breaks password managers, which pushes people toward weaker, typeable passwords — the practice makes the form less secure, not more.
+- **Fix:** Remove `onpaste` handlers that call `preventDefault()` or `return false`.
+
+#### security-trusted-types
+- **Note:** Only graded on sites that already ship a CSP.
+- **Fix:** Add `require-trusted-types-for 'script'` to the Content-Security-Policy.
 
 #### security-referrer-policy
 - **Fix:** Add `Referrer-Policy: strict-origin-when-cross-origin`
@@ -696,6 +723,7 @@ Validates that critical SEO elements are accessible without JavaScript or match 
 | `js-ssr-check` | SSR Check | warn/fail | Checks if server-side rendering is implemented |
 | `js-console-errors` | JavaScript Console Errors | warn/fail | Uncaught exceptions and console errors captured while rendering |
 | `js-failed-requests` | Failed Resource Requests | warn/fail | Scripts, stylesheets and other subresources that failed to load |
+| `js-document-write` | No document.write() | warn | Inline scripts do not use `document.write()` |
 
 ### Rule Details
 
@@ -740,6 +768,25 @@ Checks for WCAG compliance, screen reader support, and keyboard navigation.
 | `a11y-touch-targets` | Touch Targets | warn | Minimum 44x44px touch target size |
 | `a11y-video-captions` | Video Captions | warn/fail | Videos have captions or transcripts |
 | `a11y-zoom-disabled` | Zoom Disabled | fail | Viewport doesn't disable user zoom |
+| `a11y-aria-hidden-focusable` | aria-hidden Not Over Focusable Content | fail | aria-hidden not on body or wrapping focusable elements |
+| `a11y-aria-valid` | Valid ARIA Roles and Attributes | fail | ARIA roles exist and aria-* attributes are spelled correctly |
+| `a11y-accesskey-unique` | Unique Access Keys | warn | No accesskey assigned to more than one element |
+| `a11y-duplicate-id` | Unique Element IDs | warn/fail | No ID reused where ARIA or labels reference it |
+| `a11y-empty-heading` | Headings Contain Content | fail | No heading element is empty or inaccessible |
+| `a11y-form-multiple-labels` | Single Label Per Field | warn | No form control targeted by more than one `<label>` |
+| `a11y-identical-links-purpose` | Identical Links Same Purpose | warn | Links sharing text point to the same destination |
+| `a11y-iframe-title` | Frame Titles | fail | `<iframe>` and `<frame>` elements have a title |
+| `a11y-input-image-alt` | Image Button Alt Text | fail | `<input type="image">` elements have alt text |
+| `a11y-label-name-mismatch` | Accessible Name Matches Visible Label | warn | aria-label contains the element visible text |
+| `a11y-list-structure` | List Structure | fail | Lists contain only list items; items sit inside a list |
+| `a11y-main-landmark` | Main Landmark | warn/fail | Page has exactly one `<main>` or role="main" |
+| `a11y-object-alt` | Object Alternative Text | fail | `<object>` elements provide a text alternative |
+| `a11y-presentation-role-conflict` | Presentation Role Conflicts | warn | role="none"/"presentation" not negated by ARIA or focusability |
+| `a11y-redundant-alt` | Non-Redundant Alt Text | warn | Alt text does not duplicate adjacent link or caption text |
+| `a11y-svg-img-alt` | SVG Image Alt Text | fail | SVGs with an img role have an accessible name |
+| `a11y-table-caption` | Table Captions | warn | Data tables use `<caption>` rather than a spanning cell |
+| `a11y-tabindex-positive` | No Positive Tabindex | warn | No element uses a tabindex greater than 0 |
+| `a11y-valid-lang-element` | Valid Element Language Tags | warn | Element lang attributes are well-formed BCP 47 |
 
 ### Rule Details
 
@@ -778,6 +825,69 @@ Checks for WCAG compliance, screen reader support, and keyboard navigation.
 
 #### a11y-zoom-disabled
 - **Fix:** Remove `user-scalable=no` and `maximum-scale=1` from the viewport meta tag.
+
+#### a11y-aria-hidden-focusable
+- **Why:** `aria-hidden="true"` removes an element from the accessibility tree but not from the tab order, so a keyboard user can focus a control that announces nothing.
+- **Fix:** Add `tabindex="-1"` to focusable descendants, or use `display:none`/`hidden` instead.
+
+#### a11y-aria-valid
+- **Why:** Browsers silently discard an invalid role or a misspelled `aria-*` attribute. The markup reads as accessible while behaving as though it carried no ARIA at all.
+- **Fix:** Correct the spelling (`aria-lable` -> `aria-label`) and use a role from the WAI-ARIA specification.
+
+#### a11y-accesskey-unique
+- **Fix:** Give each `accesskey` a distinct value, or remove them — browser shortcut conflicts make them unreliable.
+
+#### a11y-duplicate-id
+- **Why:** `aria-labelledby`, `aria-describedby` and `<label for>` resolve to the first match, so a duplicate leaves every other reference unnamed.
+- **Note:** IDs duplicated only inside `<svg>` (e.g. `clipPath` defs from a repeated inline icon) are referenced by `url(#id)`, not ARIA, and pass.
+- **Fix:** Make IDs unique, especially any that ARIA or a label targets.
+
+#### a11y-empty-heading
+- **Fix:** Give the heading text, or remove it. An image inside a heading needs non-empty `alt`.
+
+#### a11y-form-multiple-labels
+- **Fix:** Keep one `<label for>` per control; move supplementary text to `aria-describedby`.
+
+#### a11y-identical-links-purpose
+- **Why:** Screen reader users can list every link out of context. Two "read more" links to different pages are indistinguishable there.
+- **Fix:** Make the link text or `aria-label` unique per destination.
+
+#### a11y-iframe-title
+- **Fix:** Add `title="..."` describing the frame's contents.
+
+#### a11y-input-image-alt
+- **Fix:** Add `alt="..."` describing what submitting the form does.
+
+#### a11y-label-name-mismatch
+- **Why:** Speech-recognition users say what they see. If the visible text is "Submit" but `aria-label` is "Send form", the voice command matches nothing.
+- **Fix:** Make the accessible name contain the visible text.
+
+#### a11y-list-structure
+- **Fix:** Put only `<li>` (plus `<script>`/`<template>`) directly inside `<ul>`/`<ol>`, and keep `<dt>`/`<dd>` within a `<dl>`.
+
+#### a11y-main-landmark
+- **Fix:** Wrap the primary content in a single `<main>` element.
+
+#### a11y-object-alt
+- **Fix:** Provide fallback content inside the `<object>`, or an `aria-label`.
+
+#### a11y-presentation-role-conflict
+- **Fix:** Remove global ARIA attributes and focusability from elements with `role="none"`/`"presentation"`.
+
+#### a11y-redundant-alt
+- **Fix:** Use `alt=""` when the image sits beside text that already says the same thing.
+
+#### a11y-svg-img-alt
+- **Fix:** Add `<title>` as the SVG's first child, or an `aria-label`.
+
+#### a11y-table-caption
+- **Fix:** Use `<caption>` rather than a first row whose single cell spans the table.
+
+#### a11y-tabindex-positive
+- **Fix:** Use `tabindex="0"` and rely on DOM order; a positive value overrides the whole page's tab sequence.
+
+#### a11y-valid-lang-element
+- **Fix:** Use a BCP 47 tag (`en`, `pt-BR`) so screen readers switch pronunciation correctly.
 
 ---
 

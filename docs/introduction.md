@@ -95,22 +95,28 @@ SEOmator runs **148 rules** across **16 categories**:
 
 | Category | Weight | Rules | Description |
 |----------|--------|-------|-------------|
-| **Core** | 14% | 14 | Meta tags, canonical, H1, indexing |
-| **Performance** | 14% | 12 | Core Web Vitals + performance hints |
-| **Links** | 9% | 13 | Internal/external links |
-| **Images** | 9% | 12 | Image optimization |
-| **Security** | 9% | 12 | HTTPS, headers, mixed content |
-| **Technical SEO** | 8% | 8 | Robots.txt, sitemap, SSL |
-| **Crawlability** | 6% | 6 | Sitemap, indexability signals |
-| **Structured Data** | 5% | 13 | JSON-LD, Schema.org |
-| **Accessibility** | 5% | 12 | WCAG, ARIA compliance |
-| **Content** | 5% | 11 | Text quality, readability, headings |
-| **Social** | 4% | 9 | Open Graph, Twitter Cards |
-| **E-E-A-T** | 4% | 14 | Trust signals, expertise |
-| **URL Structure** | 3% | 2 | Slug keywords, stop words |
-| **Mobile** | 3% | 3 | Font size, horizontal scroll |
-| **Internationalization** | 1% | 2 | Language, hreflang |
-| **Legal Compliance** | 1% | 1 | Cookie consent |
+| **Core SEO** | 11% | 19 | Meta tags, canonical, H1, indexing directives |
+| **Performance** | 10% | 23 | Core Web Vitals + performance optimization hints |
+| **Links** | 8% | 19 | Broken links, anchor text, internal linking, nofollow |
+| **Images** | 8% | 14 | Alt text, dimensions, lazy loading, WebP/AVIF, srcset |
+| **Security** | 8% | 23 | HTTPS, security headers, CSP strength, mixed content, SSL |
+| **Accessibility** | 7% | 31 | WCAG, ARIA validity, landmarks, list/table structure, contrast |
+| **Technical SEO** | 7% | 13 | robots.txt, sitemap, URL hygiene, www redirect, custom 404 |
+| **Crawlability** | 5% | 19 | Indexability signals, sitemap coverage, pagination |
+| **Structured Data** | 5% | 13 | JSON-LD presence/validity, required fields |
+| **Content** | 5% | 17 | Word count, thin content, readability, duplicates |
+| **JavaScript Rendering** | 5% | 16 | CSR vs SSR, rendered-DOM diff, console errors, document.write |
+| **Social** | 3% | 9 | Open Graph, Twitter Card, og:image validity |
+| **E-E-A-T** | 3% | 14 | Author bylines, dates, about/contact pages, citations |
+| **URL Structure** | 3% | 14 | Lowercase, hyphens, length, parameters, trailing slash |
+| **Redirects** | 3% | 8 | Chains, loops, 302-vs-301, meta refresh |
+| **Mobile** | 2% | 10 | Viewport, font sizes, tap spacing, mobile-first parity |
+| **Internationalization** | 2% | 10 | hreflang validity, x-default, lang attributes |
+| **HTML Validation** | 2% | 9 | DOCTYPE, charset, head structure, duplicate meta |
+| **AI/GEO Readiness** | 2% | 5 | AI crawler access, llms.txt, citability structure |
+| **Legal Compliance** | 1% | 1 | Cookie consent, privacy policy presence |
+
+**Total: 100% weight, 287 rules across 20 categories.**
 
 ## Resources
 

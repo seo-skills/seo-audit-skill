@@ -220,6 +220,12 @@ export interface RenderOptions {
 }
 
 /**
+ * Ceiling on the post-load settle. Pages that go network-quiet sooner are
+ * captured sooner; this is the worst case, not the usual one.
+ */
+const SETTLE_TIMEOUT_MS = 1000;
+
+/**
  * A representative modern phone. Chosen over playwright's device registry so
  * the emulation profile is explicit and does not shift with Playwright updates.
  */
@@ -379,8 +385,11 @@ export async function fetchPageWithPlaywright(
 
     const loadTime = performance.now() - startTime;
 
-    // Wait a bit more for any dynamic content
-    await page.waitForTimeout(1000);
+    // Settle for late-arriving content before capturing the rendered DOM.
+    // Racing network quiet against a fixed ceiling means a page that finishes
+    // early is captured early, while one that never goes quiet (polling,
+    // beacons, websockets) costs the same flat wait it always did.
+    await page.waitForLoadState('networkidle', { timeout: SETTLE_TIMEOUT_MS }).catch(() => {});
 
     // Get HTML content after JS execution
     const html = await page.content();

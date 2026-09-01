@@ -37,6 +37,7 @@ export async function runCrawl(url: string, options: CrawlOptions): Promise<void
     maxPages,
     concurrency: config.crawler.concurrency,
     timeout: config.crawler.timeout_ms,
+    respectRobots: config.crawler.respect_robots,
     onProgress: (progress) => {
       if (options.verbose) {
         const truncatedUrl = progress.currentUrl.length > 50

@@ -2,6 +2,8 @@ import * as cheerio from 'cheerio';
 import { fetchPage, createAuditContext, type FetchResult } from './fetcher.js';
 import type { AuditContext, CoreWebVitals, RenderDiagnostics, SiteContext } from '../types.js';
 import { UrlFilter, type UrlFilterOptions } from './url-filter.js';
+import { RobotsMatcher } from './robots.js';
+import { getUserAgent } from './user-agent.js';
 
 /**
  * Progress callback for reporting crawl status
@@ -51,6 +53,11 @@ export interface CrawlerOptions {
   renderPage?: (url: string) => Promise<PageRenderResult>;
   /** URL filter options for include/exclude patterns and query param handling */
   urlFilter?: Partial<UrlFilterOptions>;
+  /**
+   * Whether to obey the site's robots.txt. Defaults to true, matching the
+   * config default that previously had no effect.
+   */
+  respectRobots?: boolean;
 }
 
 /**
@@ -80,6 +87,8 @@ export class Crawler {
   private results: CrawledPage[] = [];
   private activeCount = 0;
   private urlFilter: UrlFilter;
+  /** Built once per crawl from the site's robots.txt; null when not applied. */
+  private robots: RobotsMatcher | null = null;
 
   constructor(options: Partial<CrawlerOptions> = {}) {
     this.options = {
@@ -89,10 +98,34 @@ export class Crawler {
       onProgress: options.onProgress,
       renderPage: options.renderPage,
       urlFilter: options.urlFilter,
+      respectRobots: options.respectRobots ?? true,
     };
 
     // Initialize URL filter with provided options
     this.urlFilter = new UrlFilter(options.urlFilter);
+  }
+
+  /**
+   * Fetch and parse the site's robots.txt once per crawl.
+   *
+   * A site with no robots.txt, or one that cannot be reached, permits
+   * everything — the same posture every other crawler takes.
+   */
+  private async loadRobots(startUrl: string): Promise<void> {
+    this.robots = null;
+    if (!this.options.respectRobots) return;
+
+    try {
+      const robotsUrl = new URL('/robots.txt', startUrl).href;
+      const response = await fetch(robotsUrl, {
+        headers: { 'User-Agent': getUserAgent() },
+        signal: AbortSignal.timeout(this.options.timeout),
+      });
+      if (!response.ok) return;
+      this.robots = new RobotsMatcher(await response.text(), getUserAgent());
+    } catch {
+      // Unreachable robots.txt is not a reason to refuse to crawl.
+    }
   }
 
   /**
@@ -129,6 +162,8 @@ export class Crawler {
     } catch {
       throw new Error(`Invalid start URL: ${startUrl}`);
     }
+
+    await this.loadRobots(startUrl);
 
     // Normalize and add start URL to queue
     const normalizedStart = this.normalizeUrl(startUrl);
@@ -343,6 +378,11 @@ export class Crawler {
 
       // Apply include/exclude patterns from URL filter
       if (!this.urlFilter.shouldCrawl(normalizedUrl)) {
+        continue;
+      }
+
+      // Respect the site's robots.txt, which until now was ignored entirely.
+      if (this.robots && !this.robots.isAllowed(normalizedUrl)) {
         continue;
       }
 

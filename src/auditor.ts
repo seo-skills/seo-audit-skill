@@ -83,6 +83,8 @@ export interface AuditorOptions {
    * Requires measureCwv. The resulting INP is flagged as synthetic.
    */
   simulateInteraction?: boolean;
+  /** Whether a crawl obeys the site's robots.txt. Defaults to true. */
+  respectRobots?: boolean;
   /** Optional browser-based page fetcher (replaces Playwright when provided) */
   browserFetcher?: (
     url: string,
@@ -121,6 +123,8 @@ export class Auditor {
       measureCwv: options.measureCwv ?? false,
       mobileParity: options.mobileParity ?? false,
       simulateInteraction: options.simulateInteraction ?? false,
+      // Defaults to true so a programmatic crawl is polite unless asked not to be.
+      respectRobots: options.respectRobots ?? true,
       browserFetcher: options.browserFetcher,
       onCategoryStart: options.onCategoryStart ?? (() => {}),
       onCategoryComplete: options.onCategoryComplete ?? (() => {}),
@@ -353,6 +357,7 @@ export class Auditor {
       maxPages,
       concurrency,
       timeout: this.options.timeout,
+      respectRobots: this.options.respectRobots,
       renderPage: this.options.measureCwv
         ? async (pageUrl: string) => {
             try {

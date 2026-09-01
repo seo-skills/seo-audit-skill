@@ -105,6 +105,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       measureCwv,
       mobileParity,
       simulateInteraction,
+      respectRobots: config.crawler.respect_robots,
       onCategoryStart: (categoryId, categoryName) => {
         progress.onCategoryStart(categoryId, categoryName);
       },

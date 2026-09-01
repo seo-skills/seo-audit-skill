@@ -155,7 +155,9 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
   lines.push(`${t1}<categories>${nl}`);
   for (const cat of result.categoryResults) {
     lines.push(
-      `${t2}<cat id="${cat.categoryId}" score="${cat.score}" p="${cat.passCount}" w="${cat.warnCount}" f="${cat.failCount}"/>${nl}`
+      `${t2}<cat id="${cat.categoryId}" score="${cat.score}" p="${cat.passCount}" w="${cat.warnCount}" f="${cat.failCount}"` +
+      ((cat.notMeasuredCount ?? 0) > 0 ? ` nm="${cat.notMeasuredCount}"` : '') +
+      `/>${nl}`
     );
   }
   lines.push(`${t1}</categories>${nl}`);

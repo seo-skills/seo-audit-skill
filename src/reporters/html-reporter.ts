@@ -1113,6 +1113,8 @@ function generateStyles(): string {
     .category-stat.fail { color: var(--color-fail); }
     .category-stat.warn { color: var(--color-warn); }
     .category-stat.pass { color: var(--color-pass); }
+    /* Muted: a check that took no reading is information, not a problem. */
+    .category-stat.not-measured { color: var(--color-text-muted, #6b7280); }
 
     .category-rules {
       background: var(--color-bg-elevated);
@@ -1955,6 +1957,11 @@ export function renderHtmlReport(result: AuditResult): string {
             <span class="category-stat pass">${cat.passCount} passed</span>
             <span class="category-stat warn">${cat.warnCount} warnings</span>
             <span class="category-stat fail">${cat.failCount} failed</span>
+            ${
+              (cat.notMeasuredCount ?? 0) > 0
+                ? `<span class="category-stat not-measured">${cat.notMeasuredCount} not measured</span>`
+                : ''
+            }
           </div>
         </div>
         <div class="category-rules">

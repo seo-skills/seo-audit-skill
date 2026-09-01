@@ -79,17 +79,28 @@ export function renderMarkdownReport(result: AuditResult): string {
   // Category Breakdown
   lines.push('## Category Breakdown');
   lines.push('');
-  lines.push('| Category | Score | Passed | Warnings | Failed |');
-  lines.push('|----------|-------|--------|----------|--------|');
+  // "Not measured" is its own column so a category cannot show a high score
+  // beside a warning count that is really a list of checks that never ran.
+  const anyNotMeasured = result.categoryResults.some((c) => (c.notMeasuredCount ?? 0) > 0);
+
+  if (anyNotMeasured) {
+    lines.push('| Category | Score | Passed | Warnings | Failed | Not measured |');
+    lines.push('|----------|-------|--------|----------|--------|--------------|');
+  } else {
+    lines.push('| Category | Score | Passed | Warnings | Failed |');
+    lines.push('|----------|-------|--------|----------|--------|');
+  }
 
   for (const categoryResult of result.categoryResults) {
     const category = getCategoryById(categoryResult.categoryId);
     const categoryName = category?.name ?? categoryResult.categoryId;
     const emoji = getScoreEmoji(categoryResult.score);
 
-    lines.push(
-      `| ${escapeMarkdown(categoryName)} | ${categoryResult.score} ${emoji} | ${categoryResult.passCount} | ${categoryResult.warnCount} | ${categoryResult.failCount} |`
-    );
+    const row =
+      `| ${escapeMarkdown(categoryName)} | ${categoryResult.score} ${emoji} ` +
+      `| ${categoryResult.passCount} | ${categoryResult.warnCount} | ${categoryResult.failCount} |`;
+
+    lines.push(anyNotMeasured ? `${row} ${categoryResult.notMeasuredCount ?? 0} |` : row);
   }
   lines.push('');
 

@@ -3,6 +3,7 @@ import type {
   CategoryResult,
   CategoryDefinition,
   AuditResult,
+  PageSnapshot,
 } from './types.js';
 
 /**
@@ -143,7 +144,8 @@ export function buildAuditResult(
   categoryResults: CategoryResult[],
   categories: CategoryDefinition[],
   timestamp: string,
-  crawledPages = 1
+  crawledPages = 1,
+  page?: PageSnapshot
 ): AuditResult {
   return {
     url,
@@ -151,5 +153,6 @@ export function buildAuditResult(
     categoryResults,
     timestamp,
     crawledPages,
+    ...(page && { page }),
   };
 }

@@ -440,6 +440,45 @@ export interface CategoryResult {
 /**
  * Complete audit result for a URL
  */
+/** One entry in the rendered heading outline */
+export interface SnapshotHeading {
+  /** Heading level, 1-6 */
+  level: number;
+  /** Visible heading text */
+  text: string;
+}
+
+/**
+ * Page-level signals captured for reporting, independent of any rule result.
+ *
+ * Reporters need the title, social tags and heading outline to draw previews.
+ * Reading them from rule `details` would couple the reporters to each rule's
+ * internal shape, so they are captured once from the parsed document instead.
+ */
+export interface PageSnapshot {
+  title?: string;
+  description?: string;
+  canonical?: string;
+  og: {
+    title?: string;
+    description?: string;
+    image?: string;
+    siteName?: string;
+    type?: string;
+  };
+  twitterCard?: string;
+  /** Heading outline in document order */
+  headings: SnapshotHeading[];
+  metrics: {
+    wordCount: number;
+    internalLinks: number;
+    externalLinks: number;
+    images: number;
+    /** Body text length as a percentage of total HTML length */
+    textRatio: number;
+  };
+}
+
 export interface AuditResult {
   /** URL that was audited */
   url: string;
@@ -451,6 +490,13 @@ export interface AuditResult {
   timestamp: string;
   /** Number of pages crawled (if crawl mode enabled) */
   crawledPages: number;
+  /**
+   * Page-level signals for the report's previews and outline.
+   *
+   * Optional: crawl runs cover many pages and have no single page to snapshot,
+   * and a stored audit predating this field has none.
+   */
+  page?: PageSnapshot;
 }
 
 /**

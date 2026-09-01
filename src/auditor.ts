@@ -21,6 +21,7 @@ import {
   type PlaywrightFetchResult,
   type RenderOptions,
 } from './crawler/index.js';
+import { buildPageSnapshot } from './page-snapshot.js';
 import { getUserAgent } from './crawler/user-agent.js';
 import { fetchSitemap } from './crawler/sitemap.js';
 import {
@@ -304,7 +305,14 @@ export class Auditor {
 
     // Build and return final result
     const timestamp = new Date().toISOString();
-    return buildAuditResult(url, categoryResults, this.categoriesToAudit, timestamp, 1);
+    return buildAuditResult(
+      url,
+      categoryResults,
+      this.categoriesToAudit,
+      timestamp,
+      1,
+      buildPageSnapshot(context)
+    );
   }
 
   /**

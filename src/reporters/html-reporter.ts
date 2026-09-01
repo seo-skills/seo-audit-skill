@@ -1,4 +1,4 @@
-import type { AuditResult, CategoryResult, RuleResult } from '../types.js';
+import type { PageSnapshot, AuditResult, CategoryResult, RuleResult } from '../types.js';
 import { getCategoryById } from '../categories/index.js';
 import { getFixSuggestion } from './fix-suggestions.js';
 import { getRuleById } from '../rules/registry.js';
@@ -711,6 +711,154 @@ function generateStyles(): string {
       min-width: 36px;
       text-align: right;
     }
+
+    /* ========================================
+       PAGE SNAPSHOT: metrics, previews, outline
+       ======================================== */
+    .snapshot-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 1px;
+      background: var(--color-border);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .snapshot-metric {
+      background: var(--color-bg-elevated);
+      padding: 14px 16px;
+      text-align: center;
+    }
+    .snapshot-metric-value {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+    .snapshot-metric-label {
+      display: block;
+      margin-top: 2px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--color-text-muted);
+    }
+    .snapshot-panels {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .snapshot-panel {
+      background: var(--color-bg-elevated);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      min-width: 0;
+    }
+    .snapshot-panel-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--color-text-muted);
+      margin: 0 0 12px;
+    }
+    .snapshot-subtitle {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      margin: 16px 0 6px;
+    }
+    .snapshot-subtitle:first-of-type { margin-top: 0; }
+    .snapshot-missing {
+      color: var(--color-warn);
+      font-style: italic;
+    }
+
+    /* Search result preview */
+    .serp-preview { font-family: arial, sans-serif; max-width: 600px; }
+    .serp-url { font-size: 12px; color: var(--color-text-secondary); word-break: break-all; }
+    .serp-title {
+      font-size: 18px;
+      line-height: 1.3;
+      color: #1a0dab;
+      margin: 2px 0 3px;
+      overflow-wrap: anywhere;
+    }
+    [data-theme="dark"] .serp-title { color: #8ab4f8; }
+    .serp-description {
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--color-text-secondary);
+      overflow-wrap: anywhere;
+    }
+
+    /* Social share card preview */
+    .social-card {
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      overflow: hidden;
+      max-width: 480px;
+    }
+    .social-card-image {
+      display: block;
+      width: 100%;
+      max-height: 240px;
+      object-fit: cover;
+      background: var(--color-bg-hover);
+    }
+    .social-card-body { padding: 10px 12px; }
+    .social-card-site {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--color-text-muted);
+    }
+    .social-card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-text);
+      margin: 2px 0;
+      overflow-wrap: anywhere;
+    }
+    .social-card-description {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      overflow-wrap: anywhere;
+    }
+
+    /* Heading outline */
+    .heading-outline {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: 340px;
+      overflow-y: auto;
+    }
+    .heading-outline li {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      padding: 3px 0;
+      font-size: 13px;
+      border-bottom: 1px solid var(--color-border-subtle);
+    }
+    .heading-outline li:last-child { border-bottom: none; }
+    .heading-level {
+      flex: none;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: var(--color-bg-active);
+      color: var(--color-text-secondary);
+    }
+    .heading-level.h1 { background: var(--color-info-bg); color: var(--color-info); }
+    .heading-text { color: var(--color-text); overflow-wrap: anywhere; }
 
     /* ========================================
        Filter Tabs (Fixed below header)
@@ -1520,6 +1668,106 @@ function getIcon(name: string): string {
  * @param result - Audit result to render
  * @returns Complete HTML string
  */
+
+/** Hostname for display, falling back to the raw string a stored audit may hold */
+function hostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Render the page snapshot: headline counts, the search and social previews,
+ * and the heading outline.
+ *
+ * Returns an empty string for crawl runs, which have many pages and therefore
+ * no single page to preview.
+ *
+ * @param page - Snapshot captured during the audit
+ * @param url - Audited URL, shown in the search preview
+ */
+function renderPageSnapshot(page: PageSnapshot | undefined, url: string): string {
+  if (!page) return '';
+
+  const { metrics } = page;
+  const metricCards = [
+    { value: metrics.wordCount.toLocaleString(), label: 'Words' },
+    { value: String(metrics.internalLinks), label: 'Internal Links' },
+    { value: String(metrics.externalLinks), label: 'External Links' },
+    { value: String(metrics.images), label: 'Images' },
+    { value: `${metrics.textRatio}%`, label: 'Text Ratio' },
+    { value: String(page.headings.length), label: 'Headings' },
+  ]
+    .map(
+      (m) => `
+        <div class="snapshot-metric">
+          <span class="snapshot-metric-value">${escapeHtml(m.value)}</span>
+          <span class="snapshot-metric-label">${escapeHtml(m.label)}</span>
+        </div>`
+    )
+    .join('');
+
+  // Fall back the way the platforms themselves do: a social card with no
+  // og:title shows the page title, so the preview should too.
+  const socialTitle = page.og.title ?? page.title;
+  const socialDescription = page.og.description ?? page.description;
+  const missing = (what: string) => `<span class="snapshot-missing">No ${escapeHtml(what)}</span>`;
+
+  const socialCard = `
+    <div class="social-card">
+      ${
+        page.og.image
+          ? `<img class="social-card-image" src="${escapeHtml(page.og.image)}" alt="" loading="lazy">`
+          : ''
+      }
+      <div class="social-card-body">
+        <div class="social-card-site">${escapeHtml(page.og.siteName ?? hostnameOf(url))}</div>
+        <div class="social-card-title">${socialTitle ? escapeHtml(socialTitle) : missing('og:title or title')}</div>
+        <div class="social-card-description">${
+          socialDescription ? escapeHtml(socialDescription) : missing('og:description or meta description')
+        }</div>
+      </div>
+    </div>`;
+
+  const outline = page.headings.length
+    ? `<ol class="heading-outline">${page.headings
+        .map(
+          (h) => `
+        <li style="padding-left: ${(h.level - 1) * 14}px">
+          <span class="heading-level h${h.level}">H${h.level}</span>
+          <span class="heading-text">${escapeHtml(h.text)}</span>
+        </li>`
+        )
+        .join('')}</ol>`
+    : `<p class="snapshot-missing">No headings found on the page</p>`;
+
+  return `
+      <div class="snapshot-metrics">${metricCards}</div>
+      <div class="snapshot-panels">
+        <section class="snapshot-panel">
+          <h2 class="snapshot-panel-title">Search &amp; Social Preview</h2>
+          <div class="snapshot-subtitle">Google result</div>
+          <div class="serp-preview">
+            <div class="serp-url">${escapeHtml(page.canonical ?? url)}</div>
+            <div class="serp-title">${page.title ? escapeHtml(page.title) : missing('title tag')}</div>
+            <div class="serp-description">${
+              page.description ? escapeHtml(page.description) : missing('meta description')
+            }</div>
+          </div>
+          <div class="snapshot-subtitle">Social card${
+            page.twitterCard ? ` (twitter:card = ${escapeHtml(page.twitterCard)})` : ''
+          }</div>
+          ${socialCard}
+        </section>
+        <section class="snapshot-panel">
+          <h2 class="snapshot-panel-title">Heading Outline</h2>
+          ${outline}
+        </section>
+      </div>`;
+}
+
 export function renderHtmlReport(result: AuditResult): string {
   const scoreColor = getScoreColor(result.overallScore);
   const scoreLabel = getScoreLabel(result.overallScore);
@@ -1830,6 +2078,9 @@ export function renderHtmlReport(result: AuditResult): string {
           </div>
         </div>
       </div>
+
+      <!-- Page Snapshot -->
+      ${renderPageSnapshot(result.page, result.url)}
 
       <!-- Filter Tabs -->
       <div class="filter-bar">

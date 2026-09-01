@@ -99,6 +99,10 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
       process.exit(1);
     }
 
+    // analyze runs in crawl mode, so per-category lines are suppressed. Without
+    // this the command sat silent through a multi-page analysis.
+    progress.startCrawlProgress(crawl.pages.length);
+
     // Rules that compare pages against each other hold state across the run
     resetCrossPageState();
 

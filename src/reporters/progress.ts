@@ -3,6 +3,7 @@ import cliProgress from 'cli-progress';
 import chalk from 'chalk';
 import type { CategoryResult, RuleResult } from '../types.js';
 import { getCategoryById } from '../categories/index.js';
+import { getRuleCount } from '../rules/registry.js';
 
 /**
  * Progress reporter using ora spinners and cli-progress bars
@@ -66,6 +67,12 @@ export class ProgressReporter {
       return;
     }
 
+    // A per-category spinner would fight the page progress bar for the same
+    // terminal line during a crawl.
+    if (this.isCrawlMode) {
+      return;
+    }
+
     this.spinner = ora({
       text: chalk.yellow(`Auditing ${categoryName}...`),
       spinner: 'dots',
@@ -110,6 +117,14 @@ export class ProgressReporter {
     if (this.spinner) {
       this.spinner.stop();
       this.spinner = null;
+    }
+
+    // In crawl mode this fires once per category *per page*, so an 8-page crawl
+    // printed 160 unlabelled category rows and a 100-page crawl printed 2000.
+    // The page progress bar is the crawl-mode display, and the final report
+    // prints the full breakdown, so per-page rows are noise on top of both.
+    if (this.isCrawlMode) {
+      return;
     }
 
     // Print category result line
@@ -187,7 +202,9 @@ export class ProgressReporter {
 
     this.log('');
     this.log(chalk.bold(`Crawling and auditing up to ${totalPages} pages...`));
-    this.log(chalk.gray('(Each page runs 251 SEO checks across 20 categories)'));
+    this.log(
+      chalk.gray(`(Each page runs ${getRuleCount()} SEO checks across 20 categories)`)
+    );
     this.log('');
 
     // In verbose JSON mode, don't use progress bar (use simple logs)

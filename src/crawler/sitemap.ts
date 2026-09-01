@@ -185,11 +185,25 @@ export async function fetchSitemap(
 
   const entries: SitemapEntry[] = [];
   const sources: string[] = [];
+  /** Which sitemap document each URL came from; several means duplicate listing */
+  const sourceByLoc = new Map<string, string[]>();
   const seen = new Set<string>();
   let rootContent: string | undefined;
   let sawIndex = false;
   let skippedSitemaps = 0;
   let childBudget = MAX_CHILD_SITEMAPS;
+
+  const collectEntries = (documentUrl: string, xml: string): void => {
+    for (const entry of parseSitemapEntries(xml)) {
+      entries.push(entry);
+      const known = sourceByLoc.get(entry.loc);
+      if (known) {
+        known.push(documentUrl);
+      } else {
+        sourceByLoc.set(entry.loc, [documentUrl]);
+      }
+    }
+  };
 
   for (const start of startingPoints) {
     if (seen.has(start)) continue;
@@ -216,16 +230,20 @@ export async function fetchSitemap(
         const childXml = await fetchSitemapDocument(child);
         if (childXml === null) continue;
         sources.push(child);
-        entries.push(...parseSitemapEntries(childXml));
+        collectEntries(child, childXml);
       }
     } else {
-      entries.push(...parseSitemapEntries(xml));
+      collectEntries(start, xml);
     }
 
     if (entries.length >= MAX_URLS) break;
   }
 
   const capped = entries.slice(0, MAX_URLS);
+  const urlSources = new Map<string, string[]>();
+  for (const entry of capped) {
+    urlSources.set(entry.loc, sourceByLoc.get(entry.loc) ?? []);
+  }
 
   return {
     ...(rootContent !== undefined && { content: rootContent }),
@@ -234,5 +252,8 @@ export async function fetchSitemap(
     sources,
     isIndex: sawIndex,
     skippedSitemaps,
+    // Omitted when nothing was fetched, so "unknown" stays distinguishable
+    // from "fetched, and no URL is listed twice".
+    ...(sources.length > 0 && { urlSources }),
   };
 }

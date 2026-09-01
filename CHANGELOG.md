@@ -80,7 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > ### ⚠️ Scores move again in this release — re-baseline before comparing
 >
-> Sixteen new rules joined the scored set. Each one dilutes its category
+> Twenty-nine new rules joined the scored set. Each one dilutes its category
 > average, so an existing site's category and overall scores may shift
 > slightly in either direction with no change on its side. Re-run your
 > baseline before treating a movement as a regression.
@@ -119,6 +119,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (width present, initial-scale=1, no minimum-scale).
   - Category totals: core 19 → 23, technical 13 → 17, htmlval 9 → 11,
     links 19 → 20, content 17 → 18, i18n 10 → 12, mobile 10 → 12.
+
+### Added (phase 2 — crawl-mode cross-page checks, 303 → 316)
+
+- **`SiteContext.pages`: per-URL crawl state.** The crawler now records, for
+  every URL it fetches, the HTTP status code (`0` on timeout), the resolved
+  canonical (`undefined` when undeclared, `null` when unresolvable), the
+  noindex/nofollow robots directives, a best-effort robots.txt `disallowed`
+  flag, the outgoing hreflang targets, and the page's H1 text — everything a
+  cross-page rule needs to cross-reference one page's signals against
+  another's state. Sitemap parsing also records per-source membership, so a
+  URL's declaring sitemap documents are known (`sitemapUrlSources`).
+- **13 new rules, all crawl-mode cross-page checks.** Each needs
+  `SiteContext.pages`, so it only measures in a multi-page crawl; in a
+  single-page audit it reports as not measured (weight 0) and does not affect
+  the score.
+  - Sitemap cross-referencing: `crawl-sitemap-non-200` fails on sitemap URLs
+    that returned 4xx/5xx during the crawl and warns on 3xx and timed-out
+    URLs; `crawl-sitemap-non-canonical` fails on sitemap URLs whose canonical
+    resolves elsewhere; `crawl-sitemap-disallowed` fails on sitemap URLs that
+    robots.txt disallows; `crawl-sitemap-cross-duplicates` warns on URLs
+    declared by more than one sitemap document.
+  - Canonical target validation: `crawl-canonical-to-noindex` and
+    `crawl-canonical-to-disallowed` fail when the canonical target is itself
+    noindex or robots.txt-disallowed; `crawl-canonical-chain` warns when the
+    target is itself canonicalized elsewhere; `crawl-canonical-loop` fails
+    when following canonical targets loops with no final destination.
+  - Hreflang target validation: `crawl-hreflang-to-noindex` and
+    `crawl-hreflang-to-disallowed` fail on outgoing annotations whose crawled
+    targets are noindex or disallowed; `crawl-hreflang-disallowed-target` is
+    the mirror — this page is disallowed while other crawled pages point
+    hreflang annotations at it.
+  - Pagination isolation: `crawl-pagination-isolated` fails on paginated URLs
+    with no incoming internal anchor links.
+  - Duplicate H1 across pages: `content-duplicate-h1` warns when a page's H1
+    text is identical to another crawled page's.
+- **Two i18n rules extended with live crawl checks.** `i18n-hreflang-to-broken`
+  now also fails on crawled hreflang targets that returned 4xx/5xx and warns
+  on targets whose fetch timed out; `i18n-hreflang-to-redirect` now also warns
+  on crawled targets that answered 3xx — both previously heuristic-only
+  (malformed URLs, HTTP-on-HTTPS). Targets the crawl never visited are
+  skipped.
+- Category totals: crawl 19 → 31, content 18 → 19.
 
 ### Changed
 

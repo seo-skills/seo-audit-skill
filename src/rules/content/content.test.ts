@@ -16,7 +16,9 @@ import {
   getDescriptionRegistryStats,
 } from './duplicate-description.js';
 import { titleSameAsDescriptionRule } from './title-same-as-description.js';
+import { duplicateH1Rule } from './duplicate-h1.js';
 import { createTestContext } from '../test-context.js';
+import type { SiteContext } from '../../types.js';
 
 /**
  * Create a mock AuditContext for testing
@@ -583,6 +585,110 @@ describe('Content Rules', () => {
       const result = await titleSameAsDescriptionRule.run(createContext(html));
       expect(result.status).toBe('pass');
       expect(result.details?.reason).toBe('skipped');
+    });
+  });
+
+  describe('duplicateH1Rule', () => {
+    /** Minimal SiteContext carrying only the per-page crawl inventory. */
+    function makeSiteWithH1s(
+      pages: Record<string, { statusCode: number; h1?: string }>
+    ): SiteContext {
+      return {
+        entryUrl: 'https://example.com/',
+        pageCount: Object.keys(pages).length,
+        depthByUrl: new Map(),
+        inboundLinksByUrl: new Map(),
+        outboundLinksByUrl: new Map(),
+        normalize: (u: string) => u,
+        pages: new Map(
+          Object.entries(pages).map(([u, info]) => [
+            u,
+            {
+              noindex: false,
+              nofollow: false,
+              disallowed: false,
+              hreflangOut: {},
+              ...info,
+            },
+          ])
+        ),
+      };
+    }
+
+    const H1_HTML = '<html><body><h1>Ignored - the crawl inventory supplies the h1</h1></body></html>';
+
+    it('should report unmeasured without a crawl (no site inventory)', async () => {
+      const result = await duplicateH1Rule.run(
+        createContext(H1_HTML, {}, 'https://example.com/a')
+      );
+      expect(result.weight).toBe(0);
+    });
+
+    it('should report unmeasured when the page is missing from the crawl inventory', async () => {
+      const site = makeSiteWithH1s({
+        'https://example.com/b': { statusCode: 200, h1: 'Shoes' },
+      });
+      const context = createTestContext(H1_HTML, {
+        url: 'https://example.com/a',
+        site,
+      });
+      const result = await duplicateH1Rule.run(context);
+      expect(result.weight).toBe(0);
+    });
+
+    it('should report unmeasured when the page has no h1 recorded', async () => {
+      const site = makeSiteWithH1s({
+        'https://example.com/a': { statusCode: 200 },
+        'https://example.com/b': { statusCode: 200, h1: 'Shoes' },
+      });
+      const context = createTestContext(H1_HTML, {
+        url: 'https://example.com/a',
+        site,
+      });
+      const result = await duplicateH1Rule.run(context);
+      expect(result.weight).toBe(0);
+    });
+
+    it('should warn when another crawled page has the exact same h1', async () => {
+      const site = makeSiteWithH1s({
+        'https://example.com/a': { statusCode: 200, h1: 'Blue Running Shoes' },
+        'https://example.com/b': { statusCode: 200, h1: 'Blue Running Shoes' },
+        'https://example.com/c': { statusCode: 200, h1: 'Trail Shoes' },
+      });
+      const context = createTestContext(H1_HTML, {
+        url: 'https://example.com/a',
+        site,
+      });
+      const result = await duplicateH1Rule.run(context);
+      expect(result.status).toBe('warn');
+      expect(result.details?.duplicateCount).toBe(1);
+      expect(result.details?.duplicateUrls).toEqual(['https://example.com/b']);
+    });
+
+    it('should pass when no other crawled page shares the h1', async () => {
+      const site = makeSiteWithH1s({
+        'https://example.com/a': { statusCode: 200, h1: 'Blue Running Shoes' },
+        'https://example.com/b': { statusCode: 200, h1: 'Trail Shoes' },
+      });
+      const context = createTestContext(H1_HTML, {
+        url: 'https://example.com/a',
+        site,
+      });
+      const result = await duplicateH1Rule.run(context);
+      expect(result.status).toBe('pass');
+    });
+
+    it('should not count near-identical h1s with different case as duplicates', async () => {
+      const site = makeSiteWithH1s({
+        'https://example.com/a': { statusCode: 200, h1: 'Blue Running Shoes' },
+        'https://example.com/b': { statusCode: 200, h1: 'blue running shoes' },
+      });
+      const context = createTestContext(H1_HTML, {
+        url: 'https://example.com/a',
+        site,
+      });
+      const result = await duplicateH1Rule.run(context);
+      expect(result.status).toBe('pass');
     });
   });
 });

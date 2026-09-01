@@ -2,7 +2,7 @@
 
 <!-- Updated: 2026-08-31 -->
 
-SEOmator ships **303 rules across 20 weighted categories**. Category weights
+SEOmator ships **316 rules across 20 weighted categories**. Category weights
 sum to exactly 100. Each rule returns `pass` (100), `warn` (50), or `fail` (0);
 the category score is the average of its rule results weighted by each rule's
 declared `weight`, and the overall score is the weighted average of category
@@ -16,24 +16,24 @@ neither side of the average.
 
 | Category ID | Name | Weight | Rules | Covers |
 |-------------|------|--------|-------|--------|
-| `core` | Core | 11% | 19 | Title, meta description, canonical, viewport, favicon, H1, lang |
+| `core` | Core | 11% | 23 | Title, meta description, canonical, viewport, favicon, H1, lang |
 | `perf` | Performance | 10% | 23 | LCP, INP, CLS, TTFB, FCP, render-blocking resources, compression |
-| `links` | Links | 8% | 19 | Broken links, anchor text, internal linking, nofollow; click depth and inbound links need `--crawl` |
+| `links` | Links | 8% | 20 | Broken links, anchor text, internal linking, nofollow; click depth and inbound links need `--crawl` |
 | `images` | Images | 8% | 14 | Alt text, dimensions, lazy loading, WebP/AVIF, srcset, file size |
 | `security` | Security | 8% | 23 | HTTPS, HSTS, CSP, X-Frame-Options, mixed content, SSL, leaked secrets, cookie flags |
-| `technical` | Technical SEO | 7% | 13 | robots.txt, sitemap, URL hygiene, www redirect, custom 404 |
-| `crawl` | Crawlability | 5% | 19 | noindex, robots directives, sitemap coverage, lastmod quality, redirect chains |
+| `technical` | Technical SEO | 7% | 17 | robots.txt, sitemap, URL hygiene, www redirect, custom 404 |
+| `crawl` | Crawlability | 5% | 31 | noindex, robots directives, sitemap coverage, lastmod quality, redirect chains |
 | `schema` | Structured Data | 5% | 13 | JSON-LD presence/validity, required fields, deprecated types |
-| `content` | Content | 5% | 17 | Word count, thin content, readability, duplicate content |
+| `content` | Content | 5% | 19 | Word count, thin content, readability, duplicate content |
 | `js` | JavaScript Rendering | 5% | 16 | CSR vs SSR, rendered-DOM diff, JS-dependent content, console errors, failed requests |
 | `a11y` | Accessibility | 7% | 31 | ARIA, contrast, form labels, skip links, focus management |
 | `social` | Social | 3% | 9 | Open Graph, Twitter Card, og:image validity |
 | `eeat` | E-E-A-T | 3% | 14 | Author bylines, dates, about/contact pages, external citations |
 | `url` | URL Structure | 3% | 14 | Lowercase, hyphens, length, parameters, trailing slash |
 | `redirect` | Redirects | 3% | 8 | Chains, loops, 302-vs-301, meta refresh |
-| `mobile` | Mobile | 2% | 10 | Viewport, font sizes, tap spacing, mobile-first parity (content, title, canonical, structured data, links) |
-| `i18n` | Internationalization | 2% | 10 | hreflang validity, x-default, lang attributes |
-| `htmlval` | HTML Validation | 2% | 9 | Duplicate IDs, deprecated tags, DOCTYPE, encoding |
+| `mobile` | Mobile | 2% | 12 | Viewport, font sizes, tap spacing, mobile-first parity (content, title, canonical, structured data, links) |
+| `i18n` | Internationalization | 2% | 12 | hreflang validity, x-default, lang attributes |
+| `htmlval` | HTML Validation | 2% | 11 | Duplicate IDs, deprecated tags, DOCTYPE, encoding |
 | `geo` | AI/GEO Readiness | 2% | 5 | AI crawler access, llms.txt, citability structure |
 | `legal` | Legal Compliance | 1% | 1 | Privacy policy presence |
 

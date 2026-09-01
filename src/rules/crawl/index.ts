@@ -35,6 +35,20 @@ import { paginationLoopRule } from './pagination-loop.js';
 import { paginationSequenceRule } from './pagination-sequence.js';
 import { paginationNoindexRule } from './pagination-noindex.js';
 import { paginationOrphanedRule } from './pagination-orphaned.js';
+import { paginationIsolatedRule } from './pagination-isolated.js';
+
+// Cross-page rules (require SiteContext.pages, crawl mode only)
+import { sitemapNon200Rule } from './sitemap-non-200.js';
+import { sitemapNonCanonicalRule } from './sitemap-non-canonical.js';
+import { sitemapDisallowedRule } from './sitemap-disallowed.js';
+import { sitemapCrossDuplicatesRule } from './sitemap-cross-duplicates.js';
+import { canonicalToNoindexRule } from './canonical-to-noindex.js';
+import { canonicalToDisallowedRule } from './canonical-to-disallowed.js';
+import { canonicalChainRule } from './canonical-chain.js';
+import { canonicalLoopRule } from './canonical-loop.js';
+import { hreflangToNoindexRule } from './hreflang-to-noindex.js';
+import { hreflangToDisallowedRule } from './hreflang-to-disallowed.js';
+import { hreflangDisallowedTargetRule } from './hreflang-disallowed-target.js';
 
 // Export all rules
 export {
@@ -63,6 +77,20 @@ export {
   paginationSequenceRule,
   paginationNoindexRule,
   paginationOrphanedRule,
+  paginationIsolatedRule,
+
+  // Cross-page rules (crawl mode only)
+  sitemapNon200Rule,
+  sitemapNonCanonicalRule,
+  sitemapDisallowedRule,
+  sitemapCrossDuplicatesRule,
+  canonicalToNoindexRule,
+  canonicalToDisallowedRule,
+  canonicalChainRule,
+  canonicalLoopRule,
+  hreflangToNoindexRule,
+  hreflangToDisallowedRule,
+  hreflangDisallowedTargetRule,
 };
 
 // Export orphan registry utilities for testing and cross-page analysis
@@ -97,3 +125,17 @@ registerRule(paginationSequenceRule);
 registerRule(paginationNoindexRule);
 registerRule(paginationOrphanedRule);
 registerRule(sitemapLastmodRule);
+registerRule(paginationIsolatedRule);
+
+// Cross-page rules (crawl mode only; notMeasured in single-page audits)
+registerRule(sitemapNon200Rule);
+registerRule(sitemapNonCanonicalRule);
+registerRule(sitemapDisallowedRule);
+registerRule(sitemapCrossDuplicatesRule);
+registerRule(canonicalToNoindexRule);
+registerRule(canonicalToDisallowedRule);
+registerRule(canonicalChainRule);
+registerRule(canonicalLoopRule);
+registerRule(hreflangToNoindexRule);
+registerRule(hreflangToDisallowedRule);
+registerRule(hreflangDisallowedTargetRule);

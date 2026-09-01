@@ -223,6 +223,7 @@ export class Auditor {
   private applySitemapData(context: AuditContext, sitemap: SitemapFetchResult): void {
     context.sitemapContent = sitemap.content;
     context.sitemapUrls = sitemap.urls;
+    context.sitemapUrlSources = sitemap.urlSources;
     context.sitemapEntries = sitemap.entries;
     context.sitemapIsIndex = sitemap.isIndex;
   }

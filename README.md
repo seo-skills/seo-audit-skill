@@ -5,7 +5,7 @@
 [![node](https://img.shields.io/node/v/@seomator/seo-audit.svg)](https://www.npmjs.com/package/@seomator/seo-audit)
 [![license: MIT](https://img.shields.io/npm/l/@seomator/seo-audit.svg)](./LICENSE)
 
-**SEOmator is a comprehensive SEO audit tool that scans any website against 303 rules across 20 categories** — technical SEO, Core Web Vitals, structured data, accessibility, security headers, and AI/GEO search readiness — and returns a prioritized, actionable report. It ships as a **command-line tool**, an **Electron desktop app**, and a **Claude Code skill**, so you can run an SEO audit from a terminal, a visual dashboard, or directly inside an AI coding agent.
+**SEOmator is a comprehensive SEO audit tool that scans any website against 316 rules across 20 categories** — technical SEO, Core Web Vitals, structured data, accessibility, security headers, and AI/GEO search readiness — and returns a prioritized, actionable report. It ships as a **command-line tool**, an **Electron desktop app**, and a **Claude Code skill**, so you can run an SEO audit from a terminal, a visual dashboard, or directly inside an AI coding agent.
 
 > **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
 
@@ -27,7 +27,7 @@
 
 ## Features
 
-- **303 SEO Audit Rules** across 20 categories
+- **316 SEO Audit Rules** across 20 categories
 - **Desktop App** - Visual audit dashboard with real-time progress, interactive results, score history, and light/dark theme
 - **CLI Tool** - Single page & crawl mode with 5 output formats
 - **Core Web Vitals** - LCP, CLS, FCP, TTFB, INP measurement via Playwright
@@ -794,7 +794,7 @@ npx skills add seo-skills/seo-audit-skill
 
 ### What is SEOmator?
 
-SEOmator is an SEO audit tool that checks a website against 303 rules across 20 categories — covering technical SEO, Core Web Vitals, structured data, accessibility, security headers, content quality, and AI/GEO search readiness — and returns a scored, prioritized report of what to fix first. It's available as an open-source CLI, an Electron desktop app, and a Claude Code skill.
+SEOmator is an SEO audit tool that checks a website against 316 rules across 20 categories — covering technical SEO, Core Web Vitals, structured data, accessibility, security headers, content quality, and AI/GEO search readiness — and returns a scored, prioritized report of what to fix first. It's available as an open-source CLI, an Electron desktop app, and a Claude Code skill.
 
 ### How is SEOmator different from Lighthouse or PageSpeed Insights?
 

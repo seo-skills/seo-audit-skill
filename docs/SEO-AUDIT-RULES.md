@@ -1,10 +1,10 @@
 # SEO Audit Rules Reference
 
-> Complete reference of all 303 SEO audit rules across 20 categories (v3.3.0)
+> Complete reference of all 316 SEO audit rules across 20 categories (v3.3.0)
 
 ## Overview
 
-SEOmator audits websites using 303 rules organized into 20 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 316 rules organized into 20 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -21,9 +21,9 @@ SEOmator audits websites using 303 rules organized into 20 categories. Each rule
 | [Images]((#images)) | 8% | 14 | Alt text, dimensions, lazy loading, optimization |
 | [Security]((#security)) | 8% | 23 | HTTPS, security headers, mixed content, SSL, cookie flags |
 | [Technical SEO]((#technical-seo)) | 7% | 17 | Robots.txt, sitemap, status codes, URL structure |
-| [Crawlability]((#crawlability)) | 5% | 19 | Indexability signals, sitemap conflicts, pagination, sitemap lastmod |
+| [Crawlability]((#crawlability)) | 5% | 31 | Indexability signals, sitemap conflicts, pagination, sitemap lastmod |
 | [Structured Data]((#structured-data)) | 5% | 13 | JSON-LD, Schema.org markup |
-| [Content]((#content)) | 5% | 18 | Text quality, readability, headings, duplicates |
+| [Content]((#content)) | 5% | 19 | Text quality, readability, headings, duplicates |
 | [JavaScript Rendering]((#javascript-rendering)) | 5% | 16 | SSR validation, JS-dependent SEO elements, console errors |
 | [Accessibility]((#accessibility)) | 7% | 31 | WCAG compliance, ARIA, keyboard navigation |
 | [Social]((#social)) | 3% | 9 | Open Graph, Twitter Cards, social profiles |
@@ -36,7 +36,7 @@ SEOmator audits websites using 303 rules organized into 20 categories. Each rule
 | [AI/GEO Readiness]((#aigeo-readiness)) | 2% | 5 | Semantic HTML, AI bot access, llms.txt |
 | [Legal Compliance]((#legal-compliance)) | 1% | 1 | Cookie consent |
 
-**Total: 100% weight, 303 rules**
+**Total: 100% weight, 316 rules**
 
 ---
 
@@ -545,6 +545,8 @@ Validates robots.txt, sitemap, SSL, status codes, and URL structure.
 
 Validates indexability signals, sitemap conflicts, canonical chains, and pagination.
 
+The cross-page rules (`crawl-sitemap-non-200`, `crawl-sitemap-non-canonical`, `crawl-sitemap-disallowed`, `crawl-sitemap-cross-duplicates`, `crawl-canonical-to-noindex`, `crawl-canonical-to-disallowed`, `crawl-canonical-chain`, `crawl-canonical-loop`, `crawl-hreflang-to-noindex`, `crawl-hreflang-to-disallowed`, `crawl-hreflang-disallowed-target`, `crawl-pagination-isolated`) need the per-URL state recorded during a multi-page crawl, so they only measure with `--crawl`; in a single-page audit they report as not measured (weight 0, excluded from the score).
+
 | Rule ID | Name | Severity | Description |
 |---------|------|----------|-------------|
 | `crawl-schema-noindex-conflict` | Schema + Noindex | fail | Rich result schema on noindexed pages |
@@ -566,6 +568,18 @@ Validates indexability signals, sitemap conflicts, canonical chains, and paginat
 | `crawl-pagination-sequence` | Pagination Sequence | warn | Pagination sequence has gaps or inconsistencies |
 | `crawl-pagination-noindex` | Pagination Noindex | warn | Paginated pages have noindex |
 | `crawl-pagination-orphaned` | Pagination Orphaned | warn | Paginated pages not linked from main navigation |
+| `crawl-pagination-isolated` | Pagination URL Without Incoming Links | fail | Paginated URL has no incoming internal anchor links (crawl mode) |
+| `crawl-sitemap-non-200` | Non-200 URLs in Sitemap | warn/fail | Sitemap URLs cross-referenced against crawled status codes; 4xx/5xx fail, 3xx and timeouts warn (crawl mode) |
+| `crawl-sitemap-non-canonical` | Canonicalised URLs in Sitemap | fail | Sitemap URLs whose canonical resolves to a different URL (crawl mode) |
+| `crawl-sitemap-disallowed` | Disallowed URLs in Sitemap | fail | Sitemap URLs disallowed by robots.txt (crawl mode) |
+| `crawl-sitemap-cross-duplicates` | URLs in Multiple Sitemaps | warn | URLs declared by more than one sitemap document (crawl mode) |
+| `crawl-canonical-to-noindex` | Canonical Points To Noindex URL | fail | Canonical target is itself noindex (crawl mode) |
+| `crawl-canonical-to-disallowed` | Canonical Points To Disallowed URL | fail | Canonical target is disallowed by robots.txt (crawl mode) |
+| `crawl-canonical-chain` | Canonical Chain | warn | Canonical target is itself canonicalized elsewhere (crawl mode) |
+| `crawl-canonical-loop` | Canonical Loop | fail | Canonical targets form a loop with no final destination (crawl mode) |
+| `crawl-hreflang-to-noindex` | Hreflang To Noindex URLs | fail | Outgoing hreflang annotations point to noindex URLs (crawl mode) |
+| `crawl-hreflang-to-disallowed` | Hreflang To Disallowed URLs | fail | Outgoing hreflang annotations point to robots.txt-disallowed URLs (crawl mode) |
+| `crawl-hreflang-disallowed-target` | Disallowed URL Has Incoming Hreflang | fail | Other pages point hreflang at this robots.txt-disallowed page (crawl mode) |
 
 ### Rule Details
 
@@ -607,6 +621,46 @@ Validates indexability signals, sitemap conflicts, canonical chains, and paginat
 
 #### crawl-pagination-noindex / crawl-pagination-orphaned
 - **Fix:** Allow paginated pages to be indexed. Link to them from the main content or navigation.
+
+#### crawl-pagination-isolated
+- **What it checks:** A paginated URL (pattern like `?page=N` or `/page/N`, or self-declared rel="next"/"prev") that no internal anchor link points to. Crawl mode only; pages the crawler reached by following anchors necessarily have an inbound link, so this fires for paginated URLs discovered another way
+- **Fix:** Link to the pagination series from ordinary anchors (e.g. a pager in the body), not only rel="next"/"prev" tags
+
+#### crawl-sitemap-non-200
+- **What it checks:** Every sitemap URL cross-referenced against the status code recorded during the crawl. 4xx and 5xx fail outright; 3xx and timed-out URLs warn. Sitemap URLs the crawl never reached carry no reading (crawl-sitemap-orphan-urls covers that gap)
+- **Fix:** Remove dead URLs from the sitemap, and list final destination URLs instead of redirecting ones
+
+#### crawl-sitemap-non-canonical
+- **What it checks:** Sitemap URLs whose canonical link element resolves to a different URL — the sitemap says "index this", the canonical says "index that", and the canonical wins
+- **Fix:** List only canonical (self-referencing) URLs in the sitemap
+
+#### crawl-sitemap-disallowed
+- **What it checks:** Sitemap URLs that robots.txt disallows — a direct contradiction between the two crawl signals. When no robots.txt content was captured and nothing was disallowed anywhere, the rule reports unmeasured rather than a vacuous pass
+- **Fix:** Remove the URL from the sitemap or the Disallow from robots.txt; a disallowed page may be indexed blind (URL only)
+
+#### crawl-sitemap-cross-duplicates
+- **What it checks:** Page URLs declared by more than one sitemap document (unlike crawl-sitemap-duplicate-urls, which spots repeated entries within a single sitemap). Informational — crawlers dedupe on their side
+- **Fix:** Assign each URL to a single sitemap; overlapping declarations usually mean sitemap ownership is unclear
+
+#### crawl-canonical-to-noindex / crawl-canonical-to-disallowed
+- **What it checks:** The page's canonical target is itself noindex, or disallowed by robots.txt — the page delegates indexing to a URL that cannot be indexed or even fetched. Self-referencing canonicals pass. Uncrawled targets report unmeasured
+- **Fix:** Point the canonical at an indexable, crawlable URL, or remove the noindex/Disallow from the target
+
+#### crawl-canonical-chain
+- **What it checks:** The canonical target is itself canonicalized to a different URL (A → B → C). Each hop weakens the signal and the final destination may not be the intended one. Loops are reported by crawl-canonical-loop instead
+- **Fix:** Point the canonical directly at the final destination URL
+
+#### crawl-canonical-loop
+- **What it checks:** Following canonical targets leads back to an already-visited URL (A ↔ B), leaving search engines no final destination
+- **Fix:** Make every page in the loop canonicalize to a single final URL
+
+#### crawl-hreflang-to-noindex / crawl-hreflang-to-disallowed
+- **What it checks:** Outgoing hreflang annotations whose crawled targets are noindex or disallowed by robots.txt — the annotation asks for the target to be served while the target cannot be indexed or fetched, so the localized cluster can break down
+- **Fix:** Remove noindex/Disallow from the hreflang targets, or drop the annotations pointing at them
+
+#### crawl-hreflang-disallowed-target
+- **What it checks:** The mirror direction: this page is disallowed by robots.txt while other crawled pages point hreflang annotations at it, so its return tags can never be confirmed
+- **Fix:** Remove the robots.txt Disallow for this URL, or remove the hreflang annotations pointing at it
 
 ---
 
@@ -694,6 +748,7 @@ Analyzes text quality, readability, headings, and duplicate content.
 | `content-duplicate-exact` | Exact Duplicate | fail | Detects pages with identical content (crawl mode) |
 | `content-duplicate-near` | Near Duplicate | warn | Detects pages with very similar content (crawl mode) |
 | `content-title-same-as-description` | Title Same as Description | warn | Detects identical title tag and meta description text |
+| `content-duplicate-h1` | Duplicate H1 Across Pages | warn | Detects pages whose H1 text is identical to another crawled page (crawl mode) |
 
 ### Rule Details
 
@@ -745,6 +800,10 @@ Analyzes text quality, readability, headings, and duplicate content.
 #### content-title-same-as-description
 - **What it checks:** The title tag and meta description contain identical text. Title and description serve different purposes in search results; identical text wastes the SERP snippet
 - **Fix:** Write a distinct meta description that expands on the title and encourages clicks from search results
+
+#### content-duplicate-h1
+- **What it checks:** This page's H1 is the exact same text as the H1 of at least one other crawled page — identical H1s suggest templated or duplicated content. Crawl mode only; a missing or empty H1 reports unmeasured (the heading rules cover that case)
+- **Fix:** Give each page a distinct H1 that describes its specific content
 
 ---
 
@@ -1208,8 +1267,8 @@ Checks language declarations and multi-language hreflang implementation.
 | `i18n-hreflang-return-links` | Hreflang Return Links | fail | Each hreflang target links back |
 | `i18n-hreflang-to-noindex` | Hreflang to Noindex | fail | Hreflang points to noindexed page |
 | `i18n-hreflang-to-non-canonical` | Hreflang to Non-Canonical | warn | Hreflang points to non-canonical URL |
-| `i18n-hreflang-to-broken` | Hreflang to Broken | fail | Hreflang target returns 4xx/5xx |
-| `i18n-hreflang-to-redirect` | Hreflang to Redirect | warn | Hreflang target redirects |
+| `i18n-hreflang-to-broken` | Hreflang to Broken | fail | Malformed hreflang URLs; in crawl mode also targets that returned 4xx/5xx, or timed out (warn) |
+| `i18n-hreflang-to-redirect` | Hreflang to Redirect | warn | Hreflang target redirects (HTTP on HTTPS site; in crawl mode also crawled 3xx targets) |
 | `i18n-hreflang-conflicting` | Hreflang Conflicting | fail | Conflicting hreflang declarations |
 | `i18n-hreflang-lang-mismatch` | Hreflang Lang Mismatch | warn | Hreflang language doesn't match page content |
 | `i18n-hreflang-multiple-methods` | Hreflang Multiple Methods | warn | Hreflang declared in multiple locations |
@@ -1234,6 +1293,7 @@ Checks language declarations and multi-language hreflang implementation.
 - **Fix:** Point hreflang to canonical URLs only. Don't reference non-canonical URL variants.
 
 #### i18n-hreflang-to-broken / i18n-hreflang-to-redirect
+- **What it checks:** Statically: empty, fragment-only, `javascript:` or unparsable hreflang hrefs (broken), and hreflang using HTTP on an HTTPS page (redirect heuristic). In crawl mode (`--crawl`) both rules add a live check against the crawled targets' status codes: 4xx/5xx fail as broken, fetch timeouts warn, and 3xx responses warn as redirects. Targets the crawl never visited are skipped
 - **Fix:** Update hreflang targets to valid, non-redirecting URLs. All hreflang targets should return 200.
 
 #### i18n-hreflang-conflicting

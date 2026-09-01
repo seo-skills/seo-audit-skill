@@ -195,12 +195,11 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question has a canonical element whereby the canonical URL itself is also canonicalized (e.g. Page A is canonicalized to Page B, which is then canonicalized to Page C).",
-    "status": "MISSING",
-    "note": "Canonical chains (A→B→C) require crawl-level canonical map; crawl-canonical-redirect only checks HTTP redirects.",
-    "ruleId": "crawl-canonical-chain",
-    "cat": "crawl",
-    "effort": "complex",
-    "data": "crawl-level cross-page canonical map"
+    "status": "COVERED",
+    "rules": [
+      "crawl-canonical-chain"
+    ],
+    "note": "Crawl mode only: follows the canonical chain via SiteContext.pages; warns when the target is itself canonicalized elsewhere."
   },
   {
     "category": "indexability",
@@ -210,15 +209,12 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question has a canonical element whereby the canonical URL is actually canonicalized back to the original URL (e.g. Page A is canonicalized to Page B, which is then canonicalized back to Page A).",
-    "status": "PARTIAL",
+    "status": "COVERED",
     "rules": [
-      "core-canonical-loop"
+      "core-canonical-loop",
+      "crawl-canonical-loop"
     ],
-    "note": "Our rule only heuristically flags non-self-referencing canonicals in single-page mode; a true A↔B loop needs crawl-level data.",
-    "ruleId": "crawl-canonical-loop",
-    "cat": "crawl",
-    "effort": "complex",
-    "data": "crawl-level canonical map"
+    "note": "crawl-canonical-loop detects true A↔B loops from the crawl-level canonical map; core-canonical-loop keeps the single-page heuristic."
   },
   {
     "category": "indexability",
@@ -228,12 +224,11 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question has a canonical element whereby the canonical URL is disallowed in robots.txt.",
-    "status": "MISSING",
-    "note": "No rule cross-references canonical target against robots.txt disallows.",
-    "ruleId": "crawl-canonical-to-disallowed",
-    "cat": "crawl",
-    "effort": "medium",
-    "data": "robots.txt (already fetched) + crawl-level canonical map"
+    "status": "COVERED",
+    "rules": [
+      "crawl-canonical-to-disallowed"
+    ],
+    "note": "Crawl mode only: cross-references the canonical target against the per-URL robots.txt disallow flags."
   },
   {
     "category": "indexability",
@@ -256,12 +251,11 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question has a canonical element whereby the canonical URL is noindex (e.g. Page A canonicalizes to Page B, which is noindex).",
-    "status": "MISSING",
-    "note": "core-canonical-to-noindex checks the page itself, not the canonical target's robots directives.",
-    "ruleId": "crawl-canonical-to-noindex",
-    "cat": "crawl",
-    "effort": "medium",
-    "data": "crawl-level: target page robots meta"
+    "status": "COVERED",
+    "rules": [
+      "crawl-canonical-to-noindex"
+    ],
+    "note": "Crawl mode only: reads the canonical target's robots state from SiteContext.pages."
   },
   {
     "category": "indexability",
@@ -801,15 +795,12 @@
     "importance": "Medium",
     "warningType": "Issue",
     "description": "This means that the URL in question is declared as a pagination URL, via rel=\"next\"/\"prev\" links on another URL, but which has no incoming anchor links from internal URLs (i.e. the only links they have are from the pagination link element).",
-    "status": "PARTIAL",
+    "status": "COVERED",
     "rules": [
-      "crawl-pagination-orphaned"
+      "crawl-pagination-orphaned",
+      "crawl-pagination-isolated"
     ],
-    "note": "Our rule checks the inverse direction (pages linking out via rel=next/prev); a declared pagination target with no inbound anchors is not detected.",
-    "ruleId": "crawl-pagination-isolated",
-    "cat": "crawl",
-    "effort": "medium",
-    "data": "crawl-level link graph"
+    "note": "crawl-pagination-isolated checks inbound anchors for paginated URLs (crawl mode only)."
   },
   {
     "category": "links",
@@ -1745,12 +1736,11 @@
     "importance": "Critical",
     "warningType": "Issue",
     "description": "This means that the URL in question returns an HTTP 'Error' status (5XX), yet is included in an XML Sitemap.",
-    "status": "MISSING",
-    "note": "Sitemap URLs are not cross-referenced with crawled status codes; SiteContext carries no per-URL status.",
-    "ruleId": "crawl-sitemap-non-200",
-    "cat": "crawl",
-    "effort": "medium",
-    "data": "crawl-level: status code per sitemap URL (needs SiteContext.statusByUrl)"
+    "status": "COVERED",
+    "rules": [
+      "crawl-sitemap-non-200"
+    ],
+    "note": "Crawl mode only: sitemap URLs cross-referenced with crawled status codes."
   },
   {
     "category": "xml-sitemaps",
@@ -1773,11 +1763,10 @@
     "importance": "Critical",
     "warningType": "Issue",
     "description": "This means that the URL in question returns a HTTP status of 4XX, yet is included in an XML Sitemap.",
-    "status": "MISSING",
-    "note": "Fold into crawl-sitemap-non-200.",
-    "ruleId": "crawl-sitemap-non-200",
-    "cat": "crawl",
-    "effort": "medium"
+    "status": "COVERED",
+    "rules": [
+      "crawl-sitemap-non-200"
+    ]
   },
   {
     "category": "xml-sitemaps",
@@ -1787,12 +1776,11 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question has a canonical element that points to another URL, yet is included in an XML Sitemap.",
-    "status": "MISSING",
-    "note": "Needs canonical state per sitemap URL.",
-    "ruleId": "crawl-sitemap-non-canonical",
-    "cat": "crawl",
-    "effort": "medium",
-    "data": "crawl-level canonical map"
+    "status": "COVERED",
+    "rules": [
+      "crawl-sitemap-non-canonical"
+    ],
+    "note": "Crawl mode only: canonical state per sitemap URL."
   },
   {
     "category": "xml-sitemaps",
@@ -1802,12 +1790,11 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question is disallowed in robots.txt, yet is included in an XML Sitemap.",
-    "status": "MISSING",
-    "note": "robots.txt is already fetched; needs per-URL disallow matching against sitemap URLs.",
-    "ruleId": "crawl-sitemap-disallowed",
-    "cat": "crawl",
-    "effort": "medium",
-    "data": "robots.txt (already fetched)"
+    "status": "COVERED",
+    "rules": [
+      "crawl-sitemap-disallowed"
+    ],
+    "note": "Crawl mode only: per-URL robots.txt disallow flags from the crawl."
   },
   {
     "category": "xml-sitemaps",
@@ -1817,11 +1804,10 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question returns a HTTP status of 403 (Forbidden), yet is included in an XML Sitemap.",
-    "status": "MISSING",
-    "note": "Fold into crawl-sitemap-non-200.",
-    "ruleId": "crawl-sitemap-non-200",
-    "cat": "crawl",
-    "effort": "medium"
+    "status": "COVERED",
+    "rules": [
+      "crawl-sitemap-non-200"
+    ]
   },
   {
     "category": "xml-sitemaps",
@@ -1831,11 +1817,11 @@
     "importance": "Medium",
     "warningType": "Issue",
     "description": "This means that the URL in question returns an HTTP 'Redirect' status (3XX), yet is included in an XML Sitemap.",
-    "status": "MISSING",
-    "note": "Fold into crawl-sitemap-non-200 (3xx branch).",
-    "ruleId": "crawl-sitemap-non-200",
-    "cat": "crawl",
-    "effort": "medium"
+    "status": "COVERED",
+    "rules": [
+      "crawl-sitemap-non-200"
+    ],
+    "note": "3xx sitemap URLs warn rather than fail."
   },
   {
     "category": "xml-sitemaps",
@@ -1845,11 +1831,11 @@
     "importance": "Medium",
     "warningType": "Issue",
     "description": "This means that the URL in question returns timed out when reference catalog requested it, yet is included in an XML Sitemap.",
-    "status": "MISSING",
-    "note": "Fold into crawl-sitemap-non-200 (timeout branch).",
-    "ruleId": "crawl-sitemap-non-200",
-    "cat": "crawl",
-    "effort": "medium"
+    "status": "COVERED",
+    "rules": [
+      "crawl-sitemap-non-200"
+    ],
+    "note": "Timeouts (statusCode 0) warn rather than fail."
   },
   {
     "category": "xml-sitemaps",
@@ -1859,15 +1845,12 @@
     "importance": "Insight",
     "warningType": "Insight",
     "description": "This means that the URL in question is included in more than one XML Sitemap.",
-    "status": "PARTIAL",
+    "status": "COVERED",
     "rules": [
-      "crawl-sitemap-duplicate-urls"
+      "crawl-sitemap-duplicate-urls",
+      "crawl-sitemap-cross-duplicates"
     ],
-    "note": "Duplicate entries within one sitemap are checked; membership across multiple sibling sitemaps is not.",
-    "ruleId": "crawl-sitemap-cross-duplicates",
-    "cat": "crawl",
-    "effort": "medium",
-    "data": "sitemap index entries (already parsed)"
+    "note": "Within-document duplicates and cross-sitemap membership both checked."
   },
   {
     "category": "security",
@@ -1988,12 +1971,11 @@
     "importance": "Critical",
     "warningType": "Issue",
     "description": "This means that the URL in question has at least one outgoing hreflang annotation URL which is noindex.",
-    "status": "MISSING",
-    "note": "Target-side noindex state needs crawl-level data.",
-    "ruleId": "crawl-hreflang-to-noindex",
-    "cat": "crawl",
-    "effort": "medium",
-    "data": "crawl-level: target robots meta"
+    "status": "COVERED",
+    "rules": [
+      "crawl-hreflang-to-noindex"
+    ],
+    "note": "Crawl mode only: reads hreflang target robots state from SiteContext.pages."
   },
   {
     "category": "international",
@@ -2016,14 +1998,11 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question has at least one outgoing hreflang annotation which returned as Not Found (4XX) or Error (5XX).",
-    "status": "PARTIAL",
+    "status": "COVERED",
     "rules": [
       "i18n-hreflang-to-broken"
     ],
-    "note": "Only malformed/obviously-broken URLs are caught statically; targets are not fetched for 4xx/5xx.",
-    "ruleId": "i18n-hreflang-to-broken (extend to crawl-level status)",
-    "cat": "i18n",
-    "effort": "medium"
+    "note": "Static malformed-URL checks plus crawl-mode live check: 4xx/5xx fail, fetch timeouts warn."
   },
   {
     "category": "international",
@@ -2060,12 +2039,11 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question has at least one outgoing hreflang annotation URL that is disallowed in robots.txt.",
-    "status": "MISSING",
-    "note": "Needs robots.txt cross-reference of hreflang targets.",
-    "ruleId": "crawl-hreflang-to-disallowed",
-    "cat": "crawl",
-    "effort": "medium",
-    "data": "robots.txt (already fetched) + hreflang targets"
+    "status": "COVERED",
+    "rules": [
+      "crawl-hreflang-to-disallowed"
+    ],
+    "note": "Crawl mode only: cross-references hreflang targets against robots.txt disallows."
   },
   {
     "category": "international",
@@ -2075,11 +2053,11 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question is defined as a hreflang alternate, yet is disallowed in robots.txt.",
-    "status": "MISSING",
-    "note": "Needs crawl-level incoming hreflang + robots.txt cross-reference.",
-    "ruleId": "crawl-hreflang-disallowed-target",
-    "cat": "crawl",
-    "effort": "medium"
+    "status": "COVERED",
+    "rules": [
+      "crawl-hreflang-disallowed-target"
+    ],
+    "note": "Crawl mode only: checks the site-wide hreflang graph against this page's disallow flag."
   },
   {
     "category": "international",
@@ -2215,14 +2193,11 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question has at least one outgoing hreflang annotation which is redirected to another URL.",
-    "status": "PARTIAL",
+    "status": "COVERED",
     "rules": [
       "i18n-hreflang-to-redirect"
     ],
-    "note": "Heuristic only (HTTP-on-HTTPS); targets are not fetched for actual 3xx.",
-    "ruleId": "i18n-hreflang-to-redirect (extend to crawl-level status)",
-    "cat": "i18n",
-    "effort": "medium"
+    "note": "HTTP-on-HTTPS heuristic plus crawl-mode live check for actual 3xx responses."
   },
   {
     "category": "international",
@@ -2591,12 +2566,11 @@
     "importance": "Medium",
     "warningType": "Issue",
     "description": "This means that the URL in question has the exact same header 1 (h1) tag as at least one other indexable URL.",
-    "status": "MISSING",
-    "note": "content-heading-unique is within-document; cross-page duplicate H1s are not tracked.",
-    "ruleId": "content-duplicate-h1",
-    "cat": "content",
-    "effort": "medium",
-    "data": "crawl-level cross-page H1 map"
+    "status": "COVERED",
+    "rules": [
+      "content-duplicate-h1"
+    ],
+    "note": "Crawl mode only: compares H1 text across SiteContext.pages."
   },
   {
     "category": "duplicate-content",

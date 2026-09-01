@@ -18,6 +18,7 @@
  * - Description pixel width estimation
  * - Exact duplicate content detection (cross-page)
  * - Near-duplicate content detection (cross-page)
+ * - Duplicate H1 detection (cross-page)
  *
  * Note: Author info and freshness rules moved to E-E-A-T category
  */
@@ -56,6 +57,7 @@ import {
   duplicateNearRule,
   resetNearDuplicateRegistry,
 } from './duplicate-near.js';
+import { duplicateH1Rule } from './duplicate-h1.js';
 
 // Export all rules
 export {
@@ -79,6 +81,7 @@ export {
   descriptionPixelWidthRule,
   duplicateExactRule,
   duplicateNearRule,
+  duplicateH1Rule,
 };
 
 // Export utility functions for duplicate description tracking
@@ -106,3 +109,4 @@ registerRule(titlePixelWidthRule);
 registerRule(descriptionPixelWidthRule);
 registerRule(duplicateExactRule);
 registerRule(duplicateNearRule);
+registerRule(duplicateH1Rule);

@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import { fetchPage, createAuditContext, type FetchResult } from './fetcher.js';
-import type { AuditContext, CoreWebVitals, RenderDiagnostics, SiteContext } from '../types.js';
+import type { AuditContext, CoreWebVitals, RenderDiagnostics, SiteContext, SitePageInfo } from '../types.js';
 import { UrlFilter, type UrlFilterOptions } from './url-filter.js';
 import { RobotsMatcher } from './robots.js';
 import { getUserAgent } from './user-agent.js';
@@ -70,6 +70,21 @@ export interface CrawledPage {
   context: AuditContext;
   /** Any error that occurred */
   error?: string;
+}
+
+/**
+ * Split a robots directive string (meta content or X-Robots-Tag value) into
+ * lowercase tokens.
+ *
+ * A copy of the parser in `src/rules/core/robots-meta.ts`, kept local because
+ * the layering runs rules → crawler, never the reverse.
+ */
+function parseRobotsDirectiveTokens(content: string): string[] {
+  return content
+    .toLowerCase()
+    .split(/[,\s]+/)
+    .map((d) => d.trim())
+    .filter((d) => d.length > 0);
 }
 
 /**
@@ -304,13 +319,19 @@ export class Crawler {
   buildSiteContext(): SiteContext {
     const inboundLinksByUrl = new Map<string, Set<string>>();
     const outboundLinksByUrl = new Map<string, Set<string>>();
+    const pages = new Map<string, SitePageInfo>();
     let pageCount = 0;
 
     for (const page of this.results) {
+      const from = this.normalizeUrl(page.url);
+      // Recorded for every result, including failed fetches (statusCode 0):
+      // sitemap cross-reference rules need to see those too. Cheap primitives
+      // only — no HTML is retained.
+      pages.set(from, this.buildPageInfo(page));
+
       if (page.error) continue;
       pageCount++;
 
-      const from = this.normalizeUrl(page.url);
       const targets = new Set<string>();
 
       for (const link of page.context.links) {
@@ -338,8 +359,66 @@ export class Crawler {
       depthByUrl: this.depthByUrl,
       inboundLinksByUrl,
       outboundLinksByUrl,
+      pages,
       normalize: (url: string) => this.normalizeUrl(url),
     };
+  }
+
+  /**
+   * Distil one crawled page into its SitePageInfo record.
+   *
+   * Parses only what is already in memory (`context.$`, headers) — no new
+   * fetches. Errored pages carry an empty context, so parsing them yields the
+   * defaults with `statusCode: 0`.
+   */
+  private buildPageInfo(page: CrawledPage): SitePageInfo {
+    const { $, headers, statusCode } = page.context;
+
+    const info: SitePageInfo = {
+      statusCode,
+      noindex: false,
+      nofollow: false,
+      // Best-effort: the matcher exists only when respectRobots is on and
+      // robots.txt was reachable, so "unknown" is reported as false.
+      disallowed: this.robots ? !this.robots.isAllowed(page.url) : false,
+      hreflangOut: {},
+    };
+
+    const canonicalHref = $('link[rel="canonical"]').first().attr('href');
+    if (canonicalHref !== undefined) {
+      try {
+        info.canonical = new URL(canonicalHref, page.url).href;
+      } catch {
+        info.canonical = null;
+      }
+    }
+
+    const directives: string[] = [];
+    $('meta[name="robots"]').each((_, el) => {
+      directives.push(...parseRobotsDirectiveTokens($(el).attr('content') ?? ''));
+    });
+    const xRobotsTag = headers['x-robots-tag'];
+    if (xRobotsTag) {
+      directives.push(...parseRobotsDirectiveTokens(xRobotsTag));
+    }
+    info.noindex = directives.includes('noindex') || directives.includes('none');
+    info.nofollow = directives.includes('nofollow') || directives.includes('none');
+
+    $('link[rel="alternate"][hreflang]').each((_, el) => {
+      const code = $(el).attr('hreflang')?.trim();
+      const href = $(el).attr('href');
+      if (!code || !href) return;
+      try {
+        info.hreflangOut[code] = new URL(href, page.url).href;
+      } catch {
+        // An unresolvable hreflang target is a per-page finding, not recorded here.
+      }
+    });
+
+    const h1 = $('h1').first().text().trim();
+    if (h1) info.h1 = h1;
+
+    return info;
   }
 
   /**

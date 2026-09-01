@@ -193,6 +193,14 @@ export interface SitemapFetchResult {
   isIndex: boolean;
   /** Child sitemaps discovered but not fetched, because a limit was reached */
   skippedSitemaps: number;
+  /**
+   * Which sitemap documents listed each page URL.
+   *
+   * Maps a page URL (`<loc>`) to the sitemap document URLs that declared it.
+   * A URL appearing under several documents is how "URL in multiple XML
+   * sitemaps" is detected. Omitted when nothing was fetched.
+   */
+  urlSources?: Map<string, string[]>;
 }
 
 /**
@@ -295,6 +303,47 @@ export interface SiteContext {
   outboundLinksByUrl: Map<string, Set<string>>;
   /** Normalise a URL into the key form used by the maps above */
   normalize: (url: string) => string;
+  /**
+   * Per-URL crawl state, one record per fetched page, keyed by normalised URL.
+   *
+   * Present only in crawl mode. Lets rules answer cross-page questions the
+   * link graph cannot — did this sitemap URL return a 404, is this page's
+   * canonical target noindex, is this hreflang target robots.txt-disallowed.
+   */
+  pages?: Map<string, SitePageInfo>;
+}
+
+/**
+ * What the crawler learned about one fetched page, distilled to primitives so
+ * a large crawl does not retain per-page HTML.
+ *
+ * Recorded for every page the crawler produced a result for, including pages
+ * whose fetch failed: those carry `statusCode: 0` and defaults elsewhere,
+ * which is exactly what sitemap cross-reference rules need to spot timeouts.
+ */
+export interface SitePageInfo {
+  /** Final HTTP status of the page fetch; 0 when it failed or timed out */
+  statusCode: number;
+  /**
+   * Resolved absolute target of `link[rel=canonical]`. Null when the tag was
+   * declared but its href could not be resolved against the page URL;
+   * undefined when the page declares no canonical.
+   */
+  canonical?: string | null;
+  /** `noindex` (or `none`) in the meta robots tag or X-Robots-Tag header */
+  noindex: boolean;
+  /** `nofollow` (or `none`) in the meta robots tag or X-Robots-Tag header */
+  nofollow: boolean;
+  /**
+   * Whether robots.txt disallows this URL. Best-effort: the crawler only
+   * keeps a robots matcher when `respectRobots` is on and robots.txt was
+   * reachable, so this is false whenever the answer is unknown.
+   */
+  disallowed: boolean;
+  /** hreflang code → resolved absolute target URL, from `link[rel=alternate][hreflang]` */
+  hreflangOut: Record<string, string>;
+  /** Text of the first `<h1>`, trimmed; undefined when absent or empty */
+  h1?: string;
 }
 
 /**
@@ -346,6 +395,11 @@ export interface AuditContext {
   sitemapContent?: string;
   /** URLs extracted from sitemap, including nested sitemaps under an index */
   sitemapUrls?: string[];
+  /**
+   * Which sitemap documents listed each sitemap URL (page URL → sitemap
+   * document URLs), for detecting URLs declared in multiple sitemaps.
+   */
+  sitemapUrlSources?: Map<string, string[]>;
   /** Sitemap entries with lastmod / changefreq / priority metadata */
   sitemapEntries?: SitemapEntry[];
   /** Whether the site's entry-point sitemap is an index of other sitemaps */

@@ -4,9 +4,14 @@ import * as TOML from '@iarna/toml';
 import type { SeomatorConfig, PartialSeomatorConfig } from './schema.js';
 
 /**
- * Config presets for different use cases
+ * Config presets for different use cases.
+ *
+ * The array is the source of truth so the CLI can validate `--preset` against
+ * the same list the type is derived from, instead of a second copy that drifts.
  */
-export type ConfigPreset = 'default' | 'blog' | 'ecommerce' | 'ci';
+export const CONFIG_PRESETS = ['default', 'blog', 'ecommerce', 'ci'] as const;
+
+export type ConfigPreset = (typeof CONFIG_PRESETS)[number];
 
 /**
  * Get preset configuration

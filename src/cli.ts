@@ -1,6 +1,11 @@
 import { Command, InvalidArgumentError } from 'commander';
 import { getCategoryIds } from './categories/index.js';
 import { getVersion } from './version.js';
+import { OUTPUT_FORMATS } from './commands/audit.js';
+import { CONFIG_PRESETS } from './config/writer.js';
+
+/** Formats the `report` command can render. */
+const REPORT_FORMATS = ['table', 'json'] as const;
 import './rules/loader.js'; // side-effect: registers every rule so the count below is accurate
 import { getRuleCount } from './rules/registry.js';
 import {
@@ -70,6 +75,30 @@ function parseCategories(value: string): string[] {
 }
 
 /**
+ * Validate that an option value is one of a fixed set.
+ *
+ * Without this, a typo'd `--format josn` silently fell back to console output
+ * and exited 0, which in CI looks exactly like success.
+ *
+ * @param value - The supplied option value
+ * @param name - Option name, for the error message
+ * @param allowed - The permitted values
+ * @returns The value, once known to be permitted
+ */
+function parseEnum<T extends string>(
+  value: string,
+  name: string,
+  allowed: readonly T[]
+): T {
+  if (!allowed.includes(value as T)) {
+    throw new InvalidArgumentError(
+      `Invalid ${name}: "${value}". Valid: ${allowed.join(', ')}`
+    );
+  }
+  return value as T;
+}
+
+/**
  * Parse integer value with validation
  */
 function parseIntValue(value: string, name: string, min: number, max: number): number {
@@ -96,7 +125,11 @@ program
   .description('Run SEO audit on a URL')
   .option('-c, --categories <list>', 'Categories to audit', parseCategories)
   .option('-j, --json', 'Output as JSON (deprecated, use --format json)', false)
-  .option('-f, --format <type>', 'Output format: console, json, html, markdown, llm')
+  .option(
+    '-f, --format <type>',
+    `Output format: ${OUTPUT_FORMATS.join(', ')}`,
+    (v) => parseEnum(v, 'format', OUTPUT_FORMATS)
+  )
   .option('-o, --output <path>', 'Output file path (for html/markdown/json)')
   .option('--crawl', 'Enable multi-page crawl', false)
   .option('-m, --max-pages <n>', 'Max pages to crawl', (v) => parseIntValue(v, 'max-pages', 1, 1000), 10)
@@ -117,7 +150,11 @@ program
   .command('init')
   .description('Create seomator.toml config file')
   .option('--name <name>', 'Project name')
-  .option('--preset <type>', 'Use preset (default, blog, ecommerce, ci)')
+  .option(
+    '--preset <type>',
+    `Use preset (${CONFIG_PRESETS.join(', ')})`,
+    (v) => parseEnum(v, 'preset', CONFIG_PRESETS)
+  )
   .option('-y, --yes', 'Use defaults without prompts', false)
   .action(runInit);
 
@@ -151,7 +188,12 @@ program
   .option('--list', 'List all reports', false)
   .option('--project <name>', 'Filter by project')
   .option('--since <date>', 'Filter by date (ISO format)')
-  .option('--format <type>', 'Output format (table, json)', 'table')
+  .option(
+    '--format <type>',
+    'Output format (table, json)',
+    (v) => parseEnum(v, 'format', REPORT_FORMATS),
+    'table'
+  )
   .action(runReport);
 
 // Compare command

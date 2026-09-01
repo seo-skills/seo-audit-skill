@@ -16,6 +16,16 @@ import { loadConfig } from '../config/index.js';
 import { setUserAgent } from '../crawler/user-agent.js';
 import { saveReport, createReport, generateId, saveAuditToDatabase } from '../storage/index.js';
 
+/**
+ * Output formats the audit command can render.
+ *
+ * The array is the source of truth so the CLI validates `--format` against the
+ * same list this type is derived from.
+ */
+export const OUTPUT_FORMATS = ['console', 'json', 'html', 'markdown', 'llm'] as const;
+
+export type OutputFormat = (typeof OUTPUT_FORMATS)[number];
+
 export interface AuditOptions {
   categories?: string[];
   json: boolean;
@@ -31,7 +41,7 @@ export interface AuditOptions {
   resume: boolean;
   config?: string;
   save: boolean;
-  format?: 'console' | 'json' | 'html' | 'markdown' | 'llm';
+  format?: OutputFormat;
   output?: string;
 }
 

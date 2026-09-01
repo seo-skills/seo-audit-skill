@@ -1299,6 +1299,7 @@ function generateStyles(): string {
       font-size: 11px;
       color: var(--color-text-muted);
       font-weight: 400;
+      overflow-wrap: anywhere;
     }
 
     .rule-url {
@@ -1309,6 +1310,7 @@ function generateStyles(): string {
       padding: 2px 8px;
       border-radius: var(--radius-sm);
       text-decoration: none;
+      overflow-wrap: anywhere;
     }
 
     .rule-url:hover {
@@ -1323,6 +1325,9 @@ function generateStyles(): string {
       font-weight: 500;
       color: var(--color-text);
       margin-bottom: 6px;
+      /* Findings embed long unbroken URLs; without this they push the card
+         past the viewport on narrow screens. */
+      overflow-wrap: anywhere;
     }
 
     /* The rule definition is identical on every audit of every site. It stays

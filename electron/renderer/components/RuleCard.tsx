@@ -67,7 +67,12 @@ function formatKey(key: string): string {
 
 export function RuleCard({ rule, metadata }: RuleCardProps) {
   const [showDetails, setShowDetails] = useState(false);
-  const fixText = rule.status !== 'pass' ? getFixSuggestion(rule.ruleId) : null;
+  const fixText =
+    rule.status !== 'pass'
+      ? // Fix text comes from the main-process registry metadata; the local
+        // fix-suggestions map is the offline fallback only.
+        (metadata?.fix ?? getFixSuggestion(rule.ruleId))
+      : null;
   const icon = getStatusIcon(rule.status);
   const colorClass = getStatusColorClass(rule.status);
   const details = rule.details ?? {};

@@ -10,6 +10,7 @@ import { BrowserWindow, ipcMain } from 'electron';
 import { Auditor } from '@core/auditor.js';
 import type { AuditResult } from '@core/types.js';
 import { getRuleById } from '@core/rules/registry.js';
+import { getFixSuggestion } from '@core/reporters/fix-suggestions.js';
 import { IPC_CHANNELS, type AuditRunArgs, type AuditCompletePayload, type RuleMetadataIpc } from '../shared/ipc-types.js';
 import { fetchPageWithBrowserWindow } from './electron-fetcher.js';
 
@@ -23,6 +24,7 @@ function buildRuleMetadata(result: AuditResult): Record<string, RuleMetadataIpc>
         metadata[r.ruleId] = {
           name: rule?.name ?? r.ruleId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
           description: rule?.description ?? '',
+          fix: getFixSuggestion(r.ruleId),
         };
       }
     }

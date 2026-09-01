@@ -6,7 +6,7 @@
  */
 
 export const FIX_SUGGESTIONS: Record<string, string> = {
-  // ============ Core SEO (19 rules) ============
+  // ============ Core SEO (24 rules) ============
   'core-title-present': 'Add <title> tag inside the <head> section',
   'core-title-length': 'Keep title between 30-60 characters for optimal search display',
   'core-description-present': 'Add <meta name="description" content="..."> with 120-160 characters',
@@ -26,8 +26,13 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'core-canonical-http-mismatch': 'Ensure canonical URL uses the same protocol (HTTP/HTTPS) as the page; prefer HTTPS',
   'core-canonical-loop': 'Break the canonical loop by pointing canonical to a single, self-referencing final URL',
   'core-canonical-to-noindex': 'Either remove noindex from the canonical target or change canonical to point to an indexable page',
+  'core-canonical-attributes': 'Remove invalid or superfluous attributes from canonical elements; keep only rel and href',
+  'core-canonical-external': 'Confirm this cross-domain canonical is intentional; the page cedes its ranking signals to the other host',
+  'core-canonical-multiple': 'Keep a single <link rel="canonical"> element pointing at the correct URL',
+  'core-canonical-outside-head': 'Move the <link rel="canonical"> element into the <head>; canonicals outside <head> are ignored',
+  'core-robots-directive-mismatch': 'Align robots directives between meta tags and X-Robots-Tag header; declare noindex/nofollow in one place only',
 
-  // ============ Performance (22 rules) ============
+  // ============ Performance (26 rules) ============
   'cwv-lcp': 'Optimize LCP: preload hero images, use CDN, reduce server response time',
   'cwv-cls': 'Prevent CLS: set width/height on images and embeds, avoid dynamic content injection',
   'cwv-inp': 'Reduce INP: optimize JavaScript, break long tasks, use web workers',
@@ -50,8 +55,12 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'perf-page-weight': 'Reduce total page weight below 3MB; compress images, minify code, lazy-load resources',
   'perf-js-file-size': 'Split large JavaScript bundles; use code splitting and tree shaking to reduce individual file sizes',
   'perf-video-for-animations': 'Replace large animated GIFs with MP4/WebM video for 80-90% smaller file sizes',
+  'perf-asset-cache-policy': 'Set Cache-Control max-age of at least 1 hour on static assets (CSS, JS, images, fonts)',
+  'perf-asset-compression': 'Serve text assets over 2KB (CSS, JS, JSON, SVG) with gzip or Brotli compression',
+  'perf-image-encoding': 'Replace BMP/TIFF images with WebP or AVIF; compress images transferred at over 100KB',
+  'perf-legacy-javascript': 'Drop legacy polyfills and ES5 transpiler runtimes modern browsers do not need; ship modern syntax',
 
-  // ============ Links (19 rules) ============
+  // ============ Links (24 rules) ============
   'links-broken-internal': 'Fix or remove broken internal links (404 errors)',
   'links-external-valid': 'Remove or update broken external links',
   'links-internal-present': 'Add internal links to relevant pages for better navigation',
@@ -71,6 +80,11 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'links-excessive': 'Reduce total number of links on the page; too many links dilute PageRank and confuse crawlers',
   'links-onclick': 'Replace onclick navigation with proper <a href="..."> links for crawlability and accessibility',
   'links-whitespace-href': 'Trim whitespace from href attributes; ensure URLs are clean and properly formatted',
+  'links-inbound-all-nofollow': 'Remove nofollow from internal links pointing to this page if it should receive ranking signal',
+  'links-inbound-anchor-text': 'Use descriptive anchor text on internal links pointing to this page instead of "click here"',
+  'links-inbound-low-quality': 'Earn followed links from indexable, self-canonical pages so this URL receives internal link equity',
+  'links-inbound-mixed-follow': 'Decide whether internal links to this page should be nofollowed and apply it consistently',
+  'links-non-http-protocol': 'Replace non-HTTP links (ftp:, file:, intent:) with HTTP(S) URLs unless the protocol is intentional',
 
   // ============ Images (14 rules) ============
   'images-alt-present': 'Add descriptive alt text to all images for accessibility and SEO',
@@ -88,7 +102,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'images-alt-length': 'Keep alt text between 5-125 characters; be descriptive but concise',
   'images-background-seo': 'Use <img> tags instead of CSS background-image for meaningful content images so search engines can index them',
 
-  // ============ Security (16 rules) ============
+  // ============ Security (23 rules) ============
   'security-https': 'Install SSL certificate and redirect all HTTP traffic to HTTPS',
   'security-https-redirect': 'Ensure HTTP to HTTPS redirect is in place',
   'security-hsts': 'Add Strict-Transport-Security header with max-age of at least 1 year',
@@ -105,8 +119,15 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'security-protocol-relative': 'Replace protocol-relative URLs (//example.com) with explicit https:// URLs',
   'security-ssl-expiry': 'Renew SSL certificate before expiry; set up auto-renewal with Let\'s Encrypt or your CA',
   'security-ssl-protocol': 'Disable TLS 1.0/1.1; require TLS 1.2+ for secure connections',
+  'security-cookie-flags': 'Set Secure and SameSite on all cookies, and HttpOnly on session cookies',
+  'security-cookie-lifetime': 'Reduce cookie expiry below the 400-day browser cap; long-lived identifiers raise privacy obligations',
+  'security-coop': 'Add Cross-Origin-Opener-Policy: same-origin (or same-origin-allow-popups) header',
+  'security-csp-xss': 'Remove unsafe-inline and wildcard script sources from CSP or add nonces/hashes; set object-src and base-uri',
+  'security-info-disclosure': 'Suppress or genericise headers that reveal software versions (Server, X-Powered-By, X-Generator)',
+  'security-paste-blocking': 'Remove onpaste handlers that cancel pasting; blocking paste breaks password managers',
+  'security-trusted-types': "Add require-trusted-types-for 'script' to the Content-Security-Policy to block DOM XSS sinks",
 
-  // ============ Technical SEO (13 rules) ============
+  // ============ Technical SEO (17 rules) ============
   'technical-robots-txt-exists': 'Create robots.txt at site root with User-agent and sitemap directives',
   'technical-robots-txt-valid': 'Fix syntax errors in robots.txt; use standard directives only',
   'technical-sitemap-exists': 'Create XML sitemap at /sitemap.xml and reference in robots.txt',
@@ -120,8 +141,12 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'technical-4xx-non-404': 'Fix 4xx errors (403 Forbidden, 410 Gone, etc.); check permissions, authentication, and removed content',
   'technical-timeout': 'Reduce page response time; optimize server, enable caching, or increase timeout thresholds',
   'technical-bad-content-type': 'Set correct Content-Type header matching actual content (text/html for pages, application/json for APIs)',
+  'technical-duplicate-ga': 'Verify all Google Analytics properties are intentional; remove duplicate or legacy tracking codes',
+  'technical-duplicate-gtm': 'Verify all GTM containers are intentional; consolidate into a single container where possible',
+  'technical-empty-html': 'Investigate why the server returns no HTML content; restore it or serve a 404/410 if it should not exist',
+  'technical-form-get-method': 'Switch forms to method="post", or block GET form action URLs via robots.txt if they are intentional',
 
-  // ============ Crawlability (18 rules) ============
+  // ============ Crawlability (35 rules) ============
   'crawl-schema-noindex-conflict': 'Remove noindex to allow rich results, or remove schema markup if page should stay hidden',
   'crawl-pagination-canonical': 'Each paginated page should have self-referencing canonical; do not canonicalize all pages to page 1',
   'crawl-sitemap-domain': 'Remove cross-domain URLs from sitemap; all URLs must match sitemap host domain',
@@ -140,6 +165,23 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'crawl-pagination-sequence': 'Ensure pagination follows correct sequential order (page 1 → 2 → 3); fix gaps or misordering',
   'crawl-pagination-noindex': 'Remove noindex from paginated pages; use self-referencing canonicals instead to preserve link equity',
   'crawl-pagination-orphaned': 'Link paginated pages from the main listing page or navigation; orphaned pagination pages may not be crawled',
+  'crawl-blocked-images': 'Allow image paths in robots.txt, or serve images from a path that is not disallowed',
+  'crawl-canonical-chain': 'Point the canonical directly at the final canonical URL instead of chaining through intermediate pages',
+  'crawl-canonical-loop': 'Make every page in the loop canonicalize to a single final URL',
+  'crawl-canonical-to-disallowed': 'Point the canonical at a crawlable URL, or remove the robots.txt disallow for the target',
+  'crawl-canonical-to-noindex': 'Point the canonical at an indexable URL, or remove noindex from the canonical target',
+  'crawl-hreflang-disallowed-target': 'Remove the robots.txt disallow for this URL, or remove the hreflang annotations pointing at it',
+  'crawl-hreflang-incoming-conflict': 'Make every page in the hreflang cluster annotate each member URL with the same single language/region code',
+  'crawl-hreflang-reciprocity': 'Add reciprocal hreflang annotations on the target pages pointing back at this URL',
+  'crawl-hreflang-to-disallowed': 'Remove the robots.txt disallow for the hreflang targets, or drop the annotations pointing at them',
+  'crawl-hreflang-to-noindex': 'Remove noindex from hreflang targets, or drop the annotations pointing at them',
+  'crawl-isolated-url': 'Link to this page from ordinary anchors on relevant, indexable pages; do not rely on canonicals or the sitemap',
+  'crawl-pagination-isolated': 'Link to paginated pages from ordinary anchors (e.g. a pager in the body), not only rel="next"/"prev" tags',
+  'crawl-sitemap-cross-duplicates': 'Assign each URL to a single sitemap so coverage reporting stays meaningful',
+  'crawl-sitemap-disallowed': 'Remove disallowed URLs from the sitemap or allow them in robots.txt, whichever reflects intent',
+  'crawl-sitemap-lastmod': 'Use truthful, valid W3C Datetime <lastmod> values; avoid future dates and stamping every URL with the same date',
+  'crawl-sitemap-non-200': 'Remove erroring URLs from the sitemap or fix their responses; list final destination URLs, not redirects',
+  'crawl-sitemap-non-canonical': 'List canonical target URLs in the sitemap instead of URLs that canonicalize away',
 
   // ============ Structured Data (13 rules) ============
   'schema-present': 'Add JSON-LD structured data for rich search results',
@@ -156,7 +198,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'schema-video': 'Add VideoObject schema with name, thumbnailUrl, uploadDate, and description',
   'schema-website-search': 'Add WebSite schema with potentialAction SearchAction for sitelinks searchbox',
 
-  // ============ Content (17 rules) ============
+  // ============ Content (19 rules) ============
   'content-word-count': 'Expand thin content to at least 300 words for informational pages',
   'content-reading-level': 'Simplify text for broader audience; aim for 8th grade reading level',
   'content-keyword-stuffing': 'Write naturally; avoid repeating keywords excessively',
@@ -174,8 +216,10 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'content-description-pixel-width': 'Keep meta description under ~920px pixel width to avoid truncation in search results',
   'content-duplicate-exact': 'Remove or consolidate pages with identical content; use canonical tags for intentional duplicates',
   'content-duplicate-near': 'Differentiate pages with near-duplicate content; add unique value or consolidate with canonical tags',
+  'content-duplicate-h1': 'Give each page a unique H1 that reflects its specific topic',
+  'content-title-same-as-description': 'Write a distinct meta description that expands on the title and encourages clicks',
 
-  // ============ JavaScript Rendering (13 rules) ============
+  // ============ JavaScript Rendering (16 rules) ============
   'js-rendered-title': 'Ensure the page title is present in raw HTML, not only injected by JavaScript',
   'js-rendered-description': 'Include meta description in server-rendered HTML; don\'t rely solely on JavaScript to inject it',
   'js-rendered-h1': 'Include H1 heading in server-rendered HTML for faster indexing; don\'t rely solely on client-side rendering',
@@ -189,8 +233,11 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'js-rendered-links': 'Include navigation links in server-rendered HTML; JavaScript-only links may not be discovered by crawlers',
   'js-blocked-resources': 'Unblock JavaScript and CSS files in robots.txt so search engines can render your pages correctly',
   'js-ssr-check': 'Implement server-side rendering (SSR) or static generation for important content pages',
+  'js-console-errors': 'Fix uncaught JavaScript errors; a halted script never writes the content or tags it was responsible for',
+  'js-document-write': 'Replace document.write() with DOM manipulation methods; it blocks the HTML parser and harms rendering',
+  'js-failed-requests': 'Fix failing script and stylesheet requests; resources that never load cannot render their content',
 
-  // ============ Accessibility (12 rules) ============
+  // ============ Accessibility (31 rules) ============
   'a11y-aria-labels': 'Add aria-label or visible text to interactive elements for screen readers',
   'a11y-color-contrast': 'Ensure text has minimum 4.5:1 contrast ratio against background',
   'a11y-focus-visible': 'Keep visible focus indicators; use :focus-visible for keyboard users',
@@ -203,6 +250,25 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'a11y-touch-targets': 'Ensure interactive elements are at least 44x44 CSS pixels',
   'a11y-video-captions': 'Add <track kind="captions"> or link to transcript for videos',
   'a11y-zoom-disabled': 'Remove user-scalable=no and maximum-scale=1 from viewport',
+  'a11y-accesskey-unique': 'Assign each accesskey value to only one element; duplicate accesskeys are ambiguous',
+  'a11y-aria-hidden-focusable': 'Remove aria-hidden from elements containing focusable content, or make that content unfocusable',
+  'a11y-aria-valid': 'Fix invalid ARIA roles and misspelled aria-* attributes; use valid ARIA names and values',
+  'a11y-duplicate-id': 'Make every id attribute unique; duplicate IDs break ARIA references and label associations',
+  'a11y-empty-heading': 'Remove empty headings or give them accessible text content',
+  'a11y-form-multiple-labels': 'Associate each form control with a single label; remove duplicate labels',
+  'a11y-identical-links-purpose': 'Differentiate link text for links that share the same text but point to different destinations',
+  'a11y-iframe-title': 'Add a descriptive title attribute to every <iframe> and <frame>',
+  'a11y-input-image-alt': 'Add alt text to <input type="image"> describing the button action',
+  'a11y-label-name-mismatch': 'Ensure the aria-label text contains the element visible label text',
+  'a11y-list-structure': 'Put <li> items only inside <ul>/<ol>, and keep only <li> items inside lists',
+  'a11y-main-landmark': 'Add exactly one <main> landmark wrapping the primary page content',
+  'a11y-object-alt': 'Provide a text alternative for <object> elements via fallback content or aria-label',
+  'a11y-presentation-role-conflict': 'Remove ARIA attributes and focusability from elements with role="presentation" or role="none"',
+  'a11y-redundant-alt': 'Remove alt text that duplicates adjacent link or caption text; use empty alt for decorative repeats',
+  'a11y-svg-img-alt': 'Add an accessible name (aria-label or <title>) to SVGs with role="img"',
+  'a11y-tabindex-positive': 'Use tabindex="0" or remove tabindex; positive values break the natural tab order',
+  'a11y-table-caption': 'Add a <caption> element to data tables instead of a spanning header cell',
+  'a11y-valid-lang-element': 'Use well-formed BCP 47 language tags in lang attributes (e.g. "en", "en-GB")',
 
   // ============ Social (9 rules) ============
   'social-og-title': 'Add <meta property="og:title" content="..."> for social sharing',
@@ -247,7 +313,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'url-internal-search': 'Block internal search result pages from indexing with noindex or robots.txt; they create thin content',
   'url-http-https-duplicate': 'Redirect HTTP version to HTTPS and set canonical to HTTPS to prevent duplicate content',
 
-  // ============ Redirects (8 rules) ============
+  // ============ Redirects (11 rules) ============
   'redirect-meta-refresh': 'Replace <meta http-equiv="refresh"> redirects with server-side 301 redirects',
   'redirect-javascript': 'Replace JavaScript redirects (window.location) with server-side 301 redirects for crawlability',
   'redirect-http-refresh': 'Replace HTTP Refresh headers with proper 301/302 redirect status codes',
@@ -256,15 +322,25 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'redirect-broken': 'Fix broken redirects that lead to 4xx/5xx errors; update to valid destination URLs',
   'redirect-resource': 'Fix redirecting resources (CSS, JS, images); serve them directly without redirects for better performance',
   'redirect-case-normalization': 'Ensure URLs are case-normalized; redirect mixed-case URLs to lowercase canonical versions',
+  'redirect-resource-broken': 'Update resource URLs to point directly at a working destination instead of a broken redirect',
+  'redirect-resource-chain': 'Update resource URLs to point directly at the final destination, skipping redirect hops',
+  'redirect-resource-loop': 'Fix the resource redirect target so the chain resolves to a final resource instead of looping',
 
-  // ============ Mobile (5 rules) ============
+  // ============ Mobile (12 rules) ============
   'mobile-font-size': 'Use minimum 16px for body text, 12px absolute minimum; prefer relative units (rem, em)',
   'mobile-horizontal-scroll': 'Use max-width: 100% on images, overflow-x: auto on tables, responsive iframes',
   'mobile-interstitials': 'Remove popups that cover main content on mobile; use compact banners instead of full-screen overlays',
   'mobile-viewport-width': 'Remove fixed width values from viewport meta tag; use width=device-width for responsive design',
   'mobile-multiple-viewports': 'Remove duplicate viewport meta tags; keep only one with width=device-width, initial-scale=1',
+  'mobile-image-maps': 'Replace image maps with SVG links or positioned anchors over a fluid image',
+  'mobile-parity-canonical': 'Serve the same canonical URL on mobile and desktop',
+  'mobile-parity-content': 'Serve the same main content on mobile as desktop; mobile-first indexing uses the mobile version',
+  'mobile-parity-links': 'Expose the same internal links on mobile as desktop; hidden mobile links are lost to mobile-first indexing',
+  'mobile-parity-structured-data': 'Include the same JSON-LD structured data on mobile as on desktop',
+  'mobile-parity-title': 'Serve the same title and meta description on mobile and desktop',
+  'mobile-viewport-content': 'Use <meta name="viewport" content="width=device-width, initial-scale=1">',
 
-  // ============ Internationalization (10 rules) ============
+  // ============ Internationalization (13 rules) ============
   'i18n-lang-attribute': 'Add lang attribute to <html> tag: <html lang="en">',
   'i18n-hreflang': 'Add <link rel="alternate" hreflang="xx"> for each language version with self-reference',
   'i18n-hreflang-return-links': 'Add reciprocal hreflang links; page A linking to page B must have page B linking back to page A',
@@ -275,8 +351,11 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'i18n-hreflang-conflicting': 'Resolve conflicting hreflang annotations where multiple pages target the same language-region',
   'i18n-hreflang-lang-mismatch': 'Ensure the hreflang language code matches the actual content language of the target page',
   'i18n-hreflang-multiple-methods': 'Use a single hreflang implementation method (HTML tags, HTTP headers, or sitemap); avoid mixing methods',
+  'i18n-hreflang-incoming-invalid': 'Fix source pages to use valid hreflang codes (ISO 639-1 language, optional ISO 3166-1 region, e.g. "en-GB")',
+  'i18n-hreflang-relative-url': 'Use absolute URLs in hreflang annotations; relative URLs are not valid',
+  'i18n-hreflang-x-default': 'Confirm the overlap is intentional; x-default is a fallback, not a language claim',
 
-  // ============ HTML Validation (9 rules) ============
+  // ============ HTML Validation (11 rules) ============
   'htmlval-missing-doctype': 'Add <!DOCTYPE html> as the first line of HTML documents for standards mode rendering',
   'htmlval-missing-charset': 'Add <meta charset="utf-8"> as the first element in <head> for proper character encoding',
   'htmlval-invalid-head': 'Move non-metadata elements out of <head>; only meta, link, title, style, script, and base belong there',
@@ -286,6 +365,8 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'htmlval-lorem-ipsum': 'Replace placeholder "Lorem ipsum" text with actual content before publishing',
   'htmlval-multiple-titles': 'Remove duplicate <title> tags; HTML documents must have exactly one <title> in <head>',
   'htmlval-multiple-descriptions': 'Remove duplicate meta description tags; use only one <meta name="description"> per page',
+  'htmlval-base-url': 'Use at most one <base> element with a valid, non-empty href; relative links resolve against it',
+  'htmlval-title-outside-head': 'Move the <title> element into the <head>; titles outside <head> may be ignored by search engines',
 
   // ============ AI/GEO Readiness (5 rules) ============
   'geo-semantic-html': 'Use semantic HTML elements (<article>, <section>, <nav>, <aside>) instead of generic <div> tags',

@@ -46,10 +46,12 @@ export interface AuditProgressPageComplete {
 
 // ─── Audit Complete Payload ─────────────────────────────────────────────────
 
-/** Rule name + description looked up from the registry in the main process */
+/** Rule name + description + fix text looked up from the registry in the main process */
 export interface RuleMetadataIpc {
   name: string;
   description: string;
+  /** Actionable fix text from the CLI's fix-suggestions map */
+  fix: string;
 }
 
 /** Sent with audit:complete — includes rule metadata for the renderer */

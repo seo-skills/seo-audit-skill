@@ -17,6 +17,7 @@ import {
   type RuleMetadataIpc,
 } from '../shared/ipc-types.js';
 import { getRuleById } from '@core/rules/registry.js';
+import { getFixSuggestion } from '@core/reporters/fix-suggestions.js';
 import type { AuditResult, CategoryResult, RuleResult } from '@core/types.js';
 
 export function registerDbHandlers(): void {
@@ -124,6 +125,7 @@ export function registerDbHandlers(): void {
           ruleMetadata[r.ruleId] = {
             name: rule?.name ?? r.ruleName,
             description: rule?.description ?? '',
+            fix: getFixSuggestion(r.ruleId),
           };
         }
       }

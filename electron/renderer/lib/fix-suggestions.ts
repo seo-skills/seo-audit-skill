@@ -1,10 +1,11 @@
 /**
- * Re-export fix suggestions for use in the renderer.
+ * Fix suggestions for the renderer — OFFLINE FALLBACK only.
  *
- * We inline a subset here because the full fix-suggestions.ts file
- * lives in src/ and uses Node.js module resolution. In a future
- * optimization we could share it via the preload bridge, but for
- * now the renderer imports this lightweight proxy.
+ * The primary path is `RuleMetadataIpc.fix`: the main process attaches fix
+ * text from src/reporters/fix-suggestions.ts to every rule's metadata when an
+ * audit completes (audit-bridge) or is loaded from history (db-bridge).
+ * RuleCard prefers `metadata.fix` and only calls this map when metadata is
+ * absent, so this stays empty unless the preload bridge ever preloads it.
  */
 
 const FIX_SUGGESTIONS: Record<string, string> = {};

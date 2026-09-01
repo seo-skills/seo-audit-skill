@@ -2,7 +2,7 @@
 
 <!-- Updated: 2026-08-31 -->
 
-SEOmator ships **287 rules across 20 weighted categories**. Category weights
+SEOmator ships **303 rules across 20 weighted categories**. Category weights
 sum to exactly 100. Each rule returns `pass` (100), `warn` (50), or `fail` (0);
 the category score is the average of its rule results weighted by each rule's
 declared `weight`, and the overall score is the weighted average of category

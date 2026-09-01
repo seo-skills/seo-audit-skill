@@ -1,15 +1,26 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail } from '../define-rule.js';
 
+// Reference hints: international/has-conflicting-outgoing-hreflang-annotations,
+// international/has-multiple-self-referencing-hreflang-annotations
+
 /**
  * Rule: Conflicting Hreflang Annotations
  *
- * Checks for conflicting hreflang annotations where the same language/region
- * code points to multiple different URLs.
+ * Checks for conflicting hreflang annotations, in three forms:
  *
- * Each language code should map to exactly one URL. When the same code points
- * to different URLs, search engines cannot determine which URL to serve,
- * potentially ignoring the hreflang set entirely.
+ * 1. The same language/region code points to multiple different URLs.
+ * 2. The same URL is targeted by multiple different language/region codes.
+ * 3. The current page is self-referenced by multiple different
+ *    language/region codes.
+ *
+ * Each language code should map to exactly one URL, and each URL to exactly
+ * one language. When annotations disagree, search engines cannot determine
+ * which URL to serve, potentially ignoring the hreflang set entirely.
+ *
+ * The x-default code is excluded from these conflict checks: sharing a
+ * target between a language annotation and x-default is a fallback
+ * declaration, not a conflict (covered by an insight-level rule instead).
  *
  * Example conflict:
  *   <link rel="alternate" hreflang="en" href="https://example.com/en/">
@@ -18,7 +29,8 @@ import { defineRule, pass, fail } from '../define-rule.js';
 export const hreflangConflictingRule = defineRule({
   id: 'i18n-hreflang-conflicting',
   name: 'Conflicting Hreflang Annotations',
-  description: 'Checks for same language code pointing to multiple different URLs',
+  description:
+    'Checks for hreflang conflicts: one language code pointing to multiple URLs, one URL targeted by multiple codes, or multiple self-referencing codes',
   category: 'i18n',
   weight: 10,
   run: (context: AuditContext) => {
@@ -31,8 +43,16 @@ export const hreflangConflictingRule = defineRule({
       });
     }
 
-    // Group hreflang entries by language code
+    let normalizedCurrentUrl: string;
+    try {
+      normalizedCurrentUrl = new URL(url).href;
+    } catch {
+      normalizedCurrentUrl = url;
+    }
+
+    // Group hreflang entries by language code, and by target URL
     const langToUrls = new Map<string, Set<string>>();
+    const urlToLangs = new Map<string, Set<string>>();
 
     hreflangElements.each((_, el) => {
       const $el = $(el);
@@ -54,6 +74,15 @@ export const hreflangConflictingRule = defineRule({
         langToUrls.set(hreflang, new Set());
       }
       langToUrls.get(hreflang)!.add(normalizedHref);
+
+      // x-default is a fallback declaration, not a language target — sharing
+      // a URL with it is insight-level, not a conflict
+      if (hreflang === 'x-default') return;
+
+      if (!urlToLangs.has(normalizedHref)) {
+        urlToLangs.set(normalizedHref, new Set());
+      }
+      urlToLangs.get(normalizedHref)!.add(hreflang);
     });
 
     // Find language codes with multiple different URLs
@@ -68,7 +97,24 @@ export const hreflangConflictingRule = defineRule({
       }
     }
 
-    if (conflicts.length === 0) {
+    // Find URLs targeted by multiple different language codes
+    const urlConflicts: Array<{ url: string; hreflangs: string[] }> = [];
+
+    for (const [targetUrl, hreflangs] of urlToLangs) {
+      if (hreflangs.size > 1) {
+        urlConflicts.push({
+          url: targetUrl,
+          hreflangs: Array.from(hreflangs),
+        });
+      }
+    }
+
+    // Find self-referencing annotations with different language codes
+    const selfReferencingLangs = urlToLangs.get(normalizedCurrentUrl);
+    const hasSelfReferenceConflict =
+      selfReferencingLangs !== undefined && selfReferencingLangs.size > 1;
+
+    if (conflicts.length === 0 && urlConflicts.length === 0 && !hasSelfReferenceConflict) {
       return pass(
         'i18n-hreflang-conflicting',
         'No conflicting hreflang annotations found',
@@ -79,15 +125,22 @@ export const hreflangConflictingRule = defineRule({
       );
     }
 
+    const conflictCount =
+      conflicts.length + urlConflicts.length + (hasSelfReferenceConflict ? 1 : 0);
+
     return fail(
       'i18n-hreflang-conflicting',
-      `Found ${conflicts.length} language code(s) with conflicting URLs`,
+      `Found ${conflictCount} hreflang conflict(s)`,
       {
         totalHreflang: hreflangElements.length,
-        conflictCount: conflicts.length,
+        conflictCount,
         conflicts: conflicts.slice(0, 10),
+        urlConflicts: urlConflicts.slice(0, 10),
+        selfReferencingLangs: hasSelfReferenceConflict
+          ? Array.from(selfReferencingLangs)
+          : [],
         recommendation:
-          'Each language/region code should point to exactly one URL. Remove duplicate entries.',
+          'Each language/region code should point to exactly one URL, each URL should be targeted by exactly one code, and the page should self-reference under a single code. Remove duplicate entries.',
       }
     );
   },

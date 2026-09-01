@@ -5,6 +5,10 @@ import { canonicalHeaderRule } from './canonical-header.js';
 import { nosnippetRule } from './nosnippet.js';
 import { robotsMetaRule } from './robots-meta.js';
 import { titleUniqueRule, resetTitleRegistry, getTitleRegistryStats } from './title-unique.js';
+import { canonicalOutsideHeadRule } from './canonical-outside-head.js';
+import { canonicalAttributesRule } from './canonical-attributes.js';
+import { canonicalMultipleRule } from './canonical-multiple.js';
+import { robotsDirectiveMismatchRule } from './robots-directive-mismatch.js';
 import { createTestContext } from '../test-context.js';
 
 /**
@@ -270,6 +274,221 @@ describe('Core SEO Rules', () => {
 
       const result = await titleUniqueRule.run(createContext(html, {}, 'https://example.com/2'));
       expect(result.status).toBe('pass'); // No duplicate after reset
+    });
+  });
+
+  describe('canonicalOutsideHeadRule', () => {
+    it('should pass when the canonical is inside the <head>', async () => {
+      const html = '<html><head><link rel="canonical" href="https://example.com/"></head><body></body></html>';
+      const context = createContext(html);
+      const result = await canonicalOutsideHeadRule.run(context);
+      expect(result.status).toBe('pass');
+      expect(result.details?.outsideHead).toBe(0);
+    });
+
+    it('should pass when no canonical exists at all', async () => {
+      const html = '<html><head></head><body></body></html>';
+      const context = createContext(html);
+      const result = await canonicalOutsideHeadRule.run(context);
+      expect(result.status).toBe('pass');
+    });
+
+    it('should fail when the canonical is in the <body>', async () => {
+      const html = '<html><head><title>t</title></head><body><link rel="canonical" href="https://example.com/"></body></html>';
+      const context = createContext(html);
+      const result = await canonicalOutsideHeadRule.run(context);
+      expect(result.status).toBe('fail');
+      expect(result.details?.outsideHead).toBe(1);
+      expect(result.details?.hrefs).toContain('https://example.com/');
+    });
+
+    it('should fail when a canonical is in the <head> and another in the <body>', async () => {
+      const html = '<html><head><link rel="canonical" href="https://example.com/"></head><body><link rel="canonical" href="https://example.com/dup"></body></html>';
+      const context = createContext(html);
+      const result = await canonicalOutsideHeadRule.run(context);
+      expect(result.status).toBe('fail');
+      expect(result.details?.outsideHead).toBe(1);
+      expect(result.details?.hrefs).toEqual(['https://example.com/dup']);
+    });
+  });
+
+  describe('canonicalAttributesRule', () => {
+    it('should pass when the canonical carries only rel and href', async () => {
+      const html = '<html><head><link rel="canonical" href="https://example.com/"></head></html>';
+      const context = createContext(html);
+      const result = await canonicalAttributesRule.run(context);
+      expect(result.status).toBe('pass');
+    });
+
+    it('should pass when no canonical exists at all', async () => {
+      const html = '<html><head></head><body></body></html>';
+      const context = createContext(html);
+      const result = await canonicalAttributesRule.run(context);
+      expect(result.status).toBe('pass');
+      expect(result.details?.found).toBe(false);
+    });
+
+    it('should fail when the canonical carries a type attribute', async () => {
+      const html = '<html><head><link rel="canonical" href="https://example.com/" type="text/html"></head></html>';
+      const context = createContext(html);
+      const result = await canonicalAttributesRule.run(context);
+      expect(result.status).toBe('fail');
+      expect(result.details?.invalidAttributes).toContain('type');
+    });
+
+    it('should fail when the canonical carries an hreflang attribute', async () => {
+      const html = '<html><head><link rel="canonical" href="https://example.com/" hreflang="en"></head></html>';
+      const context = createContext(html);
+      const result = await canonicalAttributesRule.run(context);
+      expect(result.status).toBe('fail');
+      expect(result.details?.invalidAttributes).toContain('hreflang');
+    });
+
+    it('should warn when the canonical carries a superfluous attribute', async () => {
+      const html = '<html><head><link rel="canonical" href="https://example.com/" data-testid="true"></head></html>';
+      const context = createContext(html);
+      const result = await canonicalAttributesRule.run(context);
+      expect(result.status).toBe('warn');
+      expect(result.details?.superfluousAttributes).toContain('data-testid');
+    });
+
+    it('should fail when invalid and superfluous attributes are combined', async () => {
+      const html = '<html><head><link rel="canonical" href="https://example.com/" media="print" id="c"></head></html>';
+      const context = createContext(html);
+      const result = await canonicalAttributesRule.run(context);
+      expect(result.status).toBe('fail');
+      expect(result.details?.invalidAttributes).toContain('media');
+      expect(result.details?.superfluousAttributes).toContain('id');
+    });
+  });
+
+  describe('canonicalMultipleRule', () => {
+    it('should pass when a single canonical exists', async () => {
+      const html = '<html><head><link rel="canonical" href="https://example.com/"></head></html>';
+      const context = createContext(html);
+      const result = await canonicalMultipleRule.run(context);
+      expect(result.status).toBe('pass');
+      expect(result.details?.count).toBe(1);
+    });
+
+    it('should pass when no canonical exists at all', async () => {
+      const html = '<html><head></head><body></body></html>';
+      const context = createContext(html);
+      const result = await canonicalMultipleRule.run(context);
+      expect(result.status).toBe('pass');
+      expect(result.details?.count).toBe(0);
+    });
+
+    it('should fail when multiple canonicals specify different URLs', async () => {
+      const html = '<html><head><link rel="canonical" href="https://example.com/page-a"><link rel="canonical" href="https://example.com/page-b"></head></html>';
+      const context = createContext(html);
+      const result = await canonicalMultipleRule.run(context);
+      expect(result.status).toBe('fail');
+      expect(result.details?.count).toBe(2);
+      expect(result.details?.match).toBe(false);
+    });
+
+    it('should warn when multiple canonicals specify the same URL', async () => {
+      const html = '<html><head><link rel="canonical" href="https://example.com/"><link rel="canonical" href="https://example.com/"></head></html>';
+      const context = createContext(html);
+      const result = await canonicalMultipleRule.run(context);
+      expect(result.status).toBe('warn');
+      expect(result.details?.count).toBe(2);
+      expect(result.details?.match).toBe(true);
+    });
+
+    it('should warn for duplicates that differ only by trailing slash', async () => {
+      const html = '<html><head><link rel="canonical" href="https://example.com/page/"><link rel="canonical" href="https://example.com/page"></head></html>';
+      const context = createContext(html);
+      const result = await canonicalMultipleRule.run(context);
+      expect(result.status).toBe('warn');
+      expect(result.details?.match).toBe(true);
+    });
+  });
+
+  describe('robotsDirectiveMismatchRule', () => {
+    it('should pass when neither meta robots nor X-Robots-Tag exists', async () => {
+      const html = '<html><head></head><body></body></html>';
+      const context = createContext(html);
+      const result = await robotsDirectiveMismatchRule.run(context);
+      expect(result.status).toBe('pass');
+      expect(result.message).toContain('No robots directives declared');
+    });
+
+    it('should pass when only the HTML declares noindex', async () => {
+      const html = '<html><head><meta name="robots" content="noindex"></head></html>';
+      const context = createContext(html);
+      const result = await robotsDirectiveMismatchRule.run(context);
+      expect(result.status).toBe('pass');
+    });
+
+    it('should pass when only the header declares noindex', async () => {
+      const html = '<html><head></head></html>';
+      const headers = { 'x-robots-tag': 'noindex' };
+      const context = createContext(html, headers);
+      const result = await robotsDirectiveMismatchRule.run(context);
+      expect(result.status).toBe('pass');
+    });
+
+    it('should fail when HTML declares noindex but the header declares index', async () => {
+      const html = '<html><head><meta name="robots" content="noindex,nofollow"></head></html>';
+      const headers = { 'x-robots-tag': 'index,nofollow' };
+      const context = createContext(html, headers);
+      const result = await robotsDirectiveMismatchRule.run(context);
+      expect(result.status).toBe('fail');
+      expect(result.details?.mismatches).toContain('noindex');
+    });
+
+    it('should fail when HTML declares index but the header declares noindex', async () => {
+      const html = '<html><head><meta name="robots" content="index,follow"></head></html>';
+      const headers = { 'x-robots-tag': 'noindex' };
+      const context = createContext(html, headers);
+      const result = await robotsDirectiveMismatchRule.run(context);
+      expect(result.status).toBe('fail');
+      expect(result.details?.mismatches).toContain('noindex');
+    });
+
+    it('should fail when HTML declares follow but the header declares nofollow', async () => {
+      const html = '<html><head><meta name="robots" content="index,follow"></head></html>';
+      const headers = { 'x-robots-tag': 'index,nofollow' };
+      const context = createContext(html, headers);
+      const result = await robotsDirectiveMismatchRule.run(context);
+      expect(result.status).toBe('fail');
+      expect(result.details?.mismatches).toContain('nofollow');
+    });
+
+    it('should warn when noindex is declared in both HTML and the header', async () => {
+      const html = '<html><head><meta name="robots" content="noindex"></head></html>';
+      const headers = { 'x-robots-tag': 'noindex' };
+      const context = createContext(html, headers);
+      const result = await robotsDirectiveMismatchRule.run(context);
+      expect(result.status).toBe('warn');
+      expect(result.message).toContain('noindex declared in 2 locations');
+    });
+
+    it('should warn when nofollow is declared in both HTML and the header', async () => {
+      const html = '<html><head><meta name="robots" content="nofollow"></head></html>';
+      const headers = { 'x-robots-tag': 'nofollow' };
+      const context = createContext(html, headers);
+      const result = await robotsDirectiveMismatchRule.run(context);
+      expect(result.status).toBe('warn');
+      expect(result.message).toContain('nofollow declared in 2 locations');
+    });
+
+    it('should warn when multiple meta robots tags declare noindex', async () => {
+      const html = '<html><head><meta name="robots" content="noindex,nofollow"><meta name="robots" content="noindex,follow"></head></html>';
+      const context = createContext(html);
+      const result = await robotsDirectiveMismatchRule.run(context);
+      expect(result.status).toBe('warn');
+      expect(result.message).toContain('noindex declared in 2 locations');
+    });
+
+    it('should ignore bot-prefixed header segments when comparing', async () => {
+      const html = '<html><head><meta name="robots" content="index,follow"></head></html>';
+      const headers = { 'x-robots-tag': 'googlebot: noindex' };
+      const context = createContext(html, headers);
+      const result = await robotsDirectiveMismatchRule.run(context);
+      expect(result.status).toBe('pass');
     });
   });
 });

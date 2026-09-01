@@ -13,6 +13,7 @@
  * - Heading hierarchy and structure
  * - Text-to-HTML ratio
  * - Title same as H1 detection
+ * - Title same as meta description detection
  * - Title pixel width estimation
  * - Description pixel width estimation
  * - Exact duplicate content detection (cross-page)
@@ -44,6 +45,7 @@ import { contentUniqueRule } from './heading-unique.js';
 // New content rules
 import { textHtmlRatioRule } from './text-html-ratio.js';
 import { titleSameAsH1Rule } from './title-same-as-h1.js';
+import { titleSameAsDescriptionRule } from './title-same-as-description.js';
 import { titlePixelWidthRule } from './title-pixel-width.js';
 import { descriptionPixelWidthRule } from './description-pixel-width.js';
 import {
@@ -72,6 +74,7 @@ export {
   // New content rules
   textHtmlRatioRule,
   titleSameAsH1Rule,
+  titleSameAsDescriptionRule,
   titlePixelWidthRule,
   descriptionPixelWidthRule,
   duplicateExactRule,
@@ -98,6 +101,7 @@ registerRule(contentLengthRule);
 registerRule(contentUniqueRule);
 registerRule(textHtmlRatioRule);
 registerRule(titleSameAsH1Rule);
+registerRule(titleSameAsDescriptionRule);
 registerRule(titlePixelWidthRule);
 registerRule(descriptionPixelWidthRule);
 registerRule(duplicateExactRule);

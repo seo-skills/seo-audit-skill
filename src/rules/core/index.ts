@@ -8,6 +8,8 @@
  * - Indexing directives (robots meta, nosnippet)
  * - Canonical header validation
  * - Canonical conflict, protocol, loop, and homepage checks
+ * - Canonical placement, attribute, and multiplicity checks
+ * - Robots directive consistency between HTML and HTTP header
  * - Title uniqueness
  */
 
@@ -39,6 +41,10 @@ import { canonicalToHomepageRule } from './canonical-to-homepage.js';
 import { canonicalHttpMismatchRule } from './canonical-http-mismatch.js';
 import { canonicalLoopRule } from './canonical-loop.js';
 import { canonicalToNoindexRule } from './canonical-to-noindex.js';
+import { canonicalOutsideHeadRule } from './canonical-outside-head.js';
+import { canonicalAttributesRule } from './canonical-attributes.js';
+import { canonicalMultipleRule } from './canonical-multiple.js';
+import { robotsDirectiveMismatchRule } from './robots-directive-mismatch.js';
 
 // Export all rules
 export {
@@ -65,6 +71,10 @@ export {
   canonicalHttpMismatchRule,
   canonicalLoopRule,
   canonicalToNoindexRule,
+  canonicalOutsideHeadRule,
+  canonicalAttributesRule,
+  canonicalMultipleRule,
+  robotsDirectiveMismatchRule,
 };
 
 // Export utility functions
@@ -90,3 +100,7 @@ registerRule(canonicalToHomepageRule);
 registerRule(canonicalHttpMismatchRule);
 registerRule(canonicalLoopRule);
 registerRule(canonicalToNoindexRule);
+registerRule(canonicalOutsideHeadRule);
+registerRule(canonicalAttributesRule);
+registerRule(canonicalMultipleRule);
+registerRule(robotsDirectiveMismatchRule);

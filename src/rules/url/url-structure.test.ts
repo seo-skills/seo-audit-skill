@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { slugKeywordsRule } from './slug-keywords.js';
 import { stopWordsRule } from './stop-words.js';
+import { parametersRule } from './parameters.js';
 import type { AuditContext } from '../../types.js';
 import { createTestContext } from '../test-context.js';
 
@@ -140,5 +141,51 @@ describe('stopWordsRule', () => {
     expect(result.details?.words).toContain('blog');
     expect(result.details?.words).toContain('articles');
     expect(result.details?.words).toContain('the');
+  });
+});
+
+describe('parametersRule', () => {
+  it('should pass for URLs without query parameters', async () => {
+    const context = createContext('https://example.com/page');
+    const result = await parametersRule.run(context);
+    expect(result.status).toBe('pass');
+    expect(result.message).toContain('no query parameters');
+  });
+
+  it('should warn for repetitive query parameters', async () => {
+    const context = createContext('https://example.com/search?q=shoes&q=boots');
+    const result = await parametersRule.run(context);
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('repetitive');
+    expect(result.details?.repetitiveParameters).toEqual(['q']);
+  });
+
+  it('should warn when the query string contains more than one question mark', async () => {
+    const context = createContext('https://example.com/page?a=1?b=2');
+    const result = await parametersRule.run(context);
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain("'?' characters");
+    expect(result.details?.questionMarkCount).toBe(2);
+  });
+
+  it('should pass for distinct parameters within the acceptable limit', async () => {
+    const context = createContext('https://example.com/search?q=shoes&sort=asc');
+    const result = await parametersRule.run(context);
+    expect(result.status).toBe('pass');
+    expect(result.message).toContain('acceptable');
+  });
+
+  it('should warn for a moderate number of distinct parameters', async () => {
+    const context = createContext('https://example.com/search?a=1&b=2&c=3&d=4');
+    const result = await parametersRule.run(context);
+    expect(result.status).toBe('warn');
+  });
+
+  it('should fail for an excessive number of parameters', async () => {
+    const context = createContext(
+      'https://example.com/search?a=1&b=2&c=3&d=4&e=5&f=6'
+    );
+    const result = await parametersRule.run(context);
+    expect(result.status).toBe('fail');
   });
 });

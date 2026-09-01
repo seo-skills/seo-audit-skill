@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { consoleErrorsRule } from './console-errors.js';
 import { failedRequestsRule } from './failed-requests.js';
 import { renderedTitleRule } from './rendered-title.js';
+import { noindexMismatchRule } from './noindex-mismatch.js';
 import { calculateCategoryScore } from '../../scoring.js';
 import type { AuditContext, RenderDiagnostics, RuleResult } from '../../types.js';
 import * as cheerio from 'cheerio';
@@ -122,6 +123,46 @@ describe('failedRequestsRule', () => {
   it('reports as unmeasured when rendering did not run', async () => {
     const result = await failedRequestsRule.run(createContext());
     expect(result.weight).toBe(0);
+  });
+});
+
+describe('noindexMismatchRule', () => {
+  function renderContext(rawRobots: string | null, renderedRobots: string | null): AuditContext {
+    const meta = (content: string | null) =>
+      content === null ? '' : `<meta name="robots" content="${content}">`;
+    const rawHtml = `<html><head>${meta(rawRobots)}</head><body></body></html>`;
+    const renderedHtml = `<html><head>${meta(renderedRobots)}</head><body></body></html>`;
+    return { ...createContext(), html: rawHtml, $: cheerio.load(rawHtml), rendered$: cheerio.load(renderedHtml) };
+  }
+
+  it('reports as unmeasured when rendering did not run', async () => {
+    const result = await noindexMismatchRule.run(createContext());
+    expect(result.weight).toBe(0);
+  });
+
+  it('passes when noindex and nofollow are consistent', async () => {
+    const result = await noindexMismatchRule.run(renderContext('noindex, nofollow', 'noindex,nofollow'));
+    expect(result.status).toBe('pass');
+  });
+
+  it('fails when noindex is present only in the raw HTML', async () => {
+    const result = await noindexMismatchRule.run(renderContext('noindex', 'index'));
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('noindex');
+  });
+
+  it('fails when nofollow is present only in the raw HTML', async () => {
+    // Reference hint: rendered/nofollow-only-in-the-http-response-html
+    const result = await noindexMismatchRule.run(renderContext('nofollow', null));
+    expect(result.status).toBe('fail');
+    expect(result.details?.rawHasNofollow).toBe(true);
+    expect(result.details?.renderedHasNofollow).toBe(false);
+  });
+
+  it('fails when nofollow is added by JavaScript', async () => {
+    const result = await noindexMismatchRule.run(renderContext(null, 'nofollow'));
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('nofollow');
   });
 });
 

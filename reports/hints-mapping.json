@@ -1,0 +1,3246 @@
+[
+  {
+    "category": "indexability",
+    "slug": "canonical-outside-of-head",
+    "url": "/hints/indexability/canonical-outside-of-head/",
+    "title": "Canonical outside of head",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a canonical element specified in the HTML, but outside of the \\<head>.",
+    "status": "COVERED",
+    "rules": [
+      "core-canonical-outside-head"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-points-to-http-version",
+    "url": "/hints/indexability/canonical-points-to-http-version/",
+    "title": "Canonical points to HTTP version",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question uses the HTTPS protocol, but the canonical URL uses HTTP.",
+    "status": "COVERED",
+    "rules": [
+      "core-canonical-http-mismatch"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "disallowed-javascript-file",
+    "url": "/hints/indexability/disallowed-javascript-file/",
+    "title": "Disallowed JavaScript file",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is a JavaScript URL that is blocked by a robots.txt disallow rule.",
+    "status": "COVERED",
+    "rules": [
+      "crawl-blocked-resources",
+      "js-blocked-resources"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "disallowed-image",
+    "url": "/hints/indexability/disallowed-image/",
+    "title": "Disallowed image",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an image URL that is blocked by a robots.txt disallow rule.",
+    "status": "MISSING",
+    "note": "crawl-blocked-resources covers CSS/JS only, not image URLs.",
+    "ruleId": "crawl-blocked-images",
+    "cat": "crawl",
+    "effort": "medium",
+    "data": "robots.txt (already fetched) + image URL list"
+  },
+  {
+    "category": "indexability",
+    "slug": "disallowed-style-sheet",
+    "url": "/hints/indexability/disallowed-style-sheet/",
+    "title": "Disallowed Style Sheet",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is a style sheet URL that is blocked by a robots.txt disallow rule.",
+    "status": "COVERED",
+    "rules": [
+      "crawl-blocked-resources"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "head-contains-a-noscript-tag-which-includes-an-image",
+    "url": "/hints/indexability/head-contains-a-noscript-tag-which-includes-an-image/",
+    "title": "&lt;head&gt; contains a &lt;noscript&gt; tag, which includes an image",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a \\<noscript> tag in the \\<head>, which includes an image reference.",
+    "status": "COVERED",
+    "rules": [
+      "htmlval-noscript-in-head"
+    ],
+    "note": "Rule flags any non-link/style/meta content in head noscript, which includes img."
+  },
+  {
+    "category": "indexability",
+    "slug": "head-contains-invalid-html-elements",
+    "url": "/hints/indexability/head-contains-invalid-html-elements/",
+    "title": "&lt;head&gt; contains invalid HTML elements",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a \\<noscript> tag in the \\<head>, which includes invalid HTML elements.",
+    "status": "COVERED",
+    "rules": [
+      "htmlval-invalid-head"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "meta-robots-found-outside-of-head",
+    "url": "/hints/indexability/meta-robots-found-outside-of-head/",
+    "title": "Meta robots found outside of &lt;head&gt;",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has meta robots specified in the HTML, but outside of the \\<head>.",
+    "status": "COVERED",
+    "rules": [
+      "content-meta-in-body"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-contains-invalid-html-attributes",
+    "url": "/hints/indexability/canonical-contains-invalid-html-attributes/",
+    "title": "Canonical contains invalid HTML attributes",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question specifies a canonical element that contains the invalid HTML attributes hreflang, lang, media, or type.",
+    "status": "COVERED",
+    "rules": [
+      "core-canonical-attributes"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "html-file-size-exceeds-googles-2mb-limit",
+    "url": "/hints/indexability/html-file-size-exceeds-googles-2mb-limit/",
+    "title": "HTML file size exceeds Google&#x27;s 2MB limit",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an internal HTML page whose uncompressed file size exceeds 2MB (2,097,152 bytes), which is the maximum amount of data Googlebot will crawl for any supported file type.",
+    "status": "COVERED",
+    "rules": [
+      "htmlval-size-limit"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "mismatched-canonical-tag-in-html-and-http-header",
+    "url": "/hints/indexability/mismatched-canonical-tag-in-html-and-http-header/",
+    "title": "Mismatched canonical tag in HTML and HTTP header",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a canonical element specified both in the HTML and in the HTTP header, where the canonical URLs differ.",
+    "status": "COVERED",
+    "rules": [
+      "core-canonical-conflicting",
+      "core-canonical-header"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "multiple-mismatched-canonical-tags",
+    "url": "/hints/indexability/multiple-mismatched-canonical-tags/",
+    "title": "Multiple, mismatched canonical tags",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a canonical element specified in multiple locations (either in the HTML, in the HTTP header, or in a combination of both), and that the canonical URLs specified are not the same.",
+    "status": "COVERED",
+    "rules": [
+      "core-canonical-conflicting",
+      "core-canonical-multiple"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-is-malformed-or-empty",
+    "url": "/hints/indexability/canonical-is-malformed-or-empty/",
+    "title": "Canonical is malformed or empty",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a canonical element specified, but the canonical URL is missing or invalid.",
+    "status": "COVERED",
+    "rules": [
+      "core-canonical-valid"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-points-to-https-version",
+    "url": "/hints/indexability/canonical-points-to-https-version/",
+    "title": "Canonical points to HTTPS version",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question uses the HTTP protocol, but the canonical URL uses HTTPS.",
+    "status": "COVERED",
+    "rules": [
+      "core-canonical-http-mismatch"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-points-to-another-canonicalized-url",
+    "url": "/hints/indexability/canonical-points-to-another-canonicalized-url/",
+    "title": "Canonical points to another canonicalized URL",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a canonical element whereby the canonical URL itself is also canonicalized (e.g. Page A is canonicalized to Page B, which is then canonicalized to Page C).",
+    "status": "MISSING",
+    "note": "Canonical chains (A→B→C) require crawl-level canonical map; crawl-canonical-redirect only checks HTTP redirects.",
+    "ruleId": "crawl-canonical-chain",
+    "cat": "crawl",
+    "effort": "complex",
+    "data": "crawl-level cross-page canonical map"
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-loop",
+    "url": "/hints/indexability/canonical-loop/",
+    "title": "Canonical loop",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a canonical element whereby the canonical URL is actually canonicalized back to the original URL (e.g. Page A is canonicalized to Page B, which is then canonicalized back to Page A).",
+    "status": "PARTIAL",
+    "rules": [
+      "core-canonical-loop"
+    ],
+    "note": "Our rule only heuristically flags non-self-referencing canonicals in single-page mode; a true A↔B loop needs crawl-level data.",
+    "ruleId": "crawl-canonical-loop",
+    "cat": "crawl",
+    "effort": "complex",
+    "data": "crawl-level canonical map"
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-points-to-a-disallowed-url",
+    "url": "/hints/indexability/canonical-points-to-a-disallowed-url/",
+    "title": "Canonical points to a disallowed URL",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a canonical element whereby the canonical URL is disallowed in robots.txt.",
+    "status": "MISSING",
+    "note": "No rule cross-references canonical target against robots.txt disallows.",
+    "ruleId": "crawl-canonical-to-disallowed",
+    "cat": "crawl",
+    "effort": "medium",
+    "data": "robots.txt (already fetched) + crawl-level canonical map"
+  },
+  {
+    "category": "indexability",
+    "slug": "canonicalized-url-is-noindex-nofollow",
+    "url": "/hints/indexability/canonicalized-url-is-noindex-nofollow/",
+    "title": "Canonicalized URL is noindex, nofollow",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is canonicalized, and also noindex,nofollow.",
+    "status": "COVERED",
+    "rules": [
+      "core-canonical-to-noindex"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-points-to-a-noindex-url",
+    "url": "/hints/indexability/canonical-points-to-a-noindex-url/",
+    "title": "Canonical points to a noindex URL",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a canonical element whereby the canonical URL is noindex (e.g. Page A canonicalizes to Page B, which is noindex).",
+    "status": "MISSING",
+    "note": "core-canonical-to-noindex checks the page itself, not the canonical target's robots directives.",
+    "ruleId": "crawl-canonical-to-noindex",
+    "cat": "crawl",
+    "effort": "medium",
+    "data": "crawl-level: target page robots meta"
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-points-to-a-url-that-is-error-5xx",
+    "url": "/hints/indexability/canonical-points-to-a-url-that-is-error-5xx/",
+    "title": "Canonical points to a URL that is Error (5XX)",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a canonical element whereby the canonical URL itself resolved in an error (5XX).",
+    "status": "COVERED",
+    "rules": [
+      "crawl-canonical-redirect"
+    ],
+    "note": "Rule HEAD-fetches the canonical target and fails on >=400."
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-points-to-a-url-that-is-not-found-404",
+    "url": "/hints/indexability/canonical-points-to-a-url-that-is-not-found-404/",
+    "title": "Canonical points to a URL that is Not Found 404",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a canonical element whereby the canonical URL itself was Not Found (404).",
+    "status": "COVERED",
+    "rules": [
+      "crawl-canonical-redirect"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "mismatched-nofollow-directives-in-html-and-header",
+    "url": "/hints/indexability/mismatched-nofollow-directives-in-html-and-header/",
+    "title": "Mismatched nofollow directives in HTML and header",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a nofollow directive in both the HTML and in the HTTP header, where the directives do not match.",
+    "status": "COVERED",
+    "rules": [
+      "core-robots-meta",
+      "core-robots-directive-mismatch"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "mismatched-noindex-directives-in-html-and-header",
+    "url": "/hints/indexability/mismatched-noindex-directives-in-html-and-header/",
+    "title": "Mismatched noindex directives in HTML and header",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a noindex directive in both the HTML and in the HTTP header, where the directives do not match.",
+    "status": "COVERED",
+    "rules": [
+      "core-robots-meta",
+      "core-robots-directive-mismatch"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "url-contains-a-form-with-a-get-method",
+    "url": "/hints/indexability/url-contains-a-form-with-a-get-method/",
+    "title": "URL contains a form with a GET method",
+    "importance": "High",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question contains a form which uses the GET method.",
+    "status": "COVERED",
+    "rules": [
+      "technical-form-get-method"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-only-found-in-rendered-dom",
+    "url": "/hints/indexability/canonical-only-found-in-rendered-dom/",
+    "title": "Canonical only found in rendered DOM",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a canonical element which is only present in the rendered DOM, and is not present in the source HTML.",
+    "status": "COVERED",
+    "rules": [
+      "js-canonical-mismatch",
+      "js-rendered-canonical"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "rendered-canonical-is-different-to-html-source",
+    "url": "/hints/indexability/rendered-canonical-is-different-to-html-source/",
+    "title": "Rendered canonical is different to HTML source",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a canonical element in the rendered DOM, which is different to the one in the source HTML.",
+    "status": "COVERED",
+    "rules": [
+      "js-canonical-mismatch"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "isolated-url-only-found-via-a-canonical",
+    "url": "/hints/indexability/isolated-url-only-found-via-a-canonical/",
+    "title": "Isolated URL - only found via a canonical",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is isolated, as it can only be found via a canonical link.",
+    "status": "MISSING",
+    "note": "Requires tracking the discovery source of every crawled URL; the crawler currently does not record it.",
+    "ruleId": "crawl-isolated-url",
+    "cat": "crawl",
+    "effort": "complex",
+    "data": "crawler discovery-source tracking (new)"
+  },
+  {
+    "category": "indexability",
+    "slug": "isolated-url-only-found-via-a-redirect",
+    "url": "/hints/indexability/isolated-url-only-found-via-a-redirect/",
+    "title": "Isolated URL - only found via a redirect",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is isolated, as it can only be found via a redirect.",
+    "status": "MISSING",
+    "note": "Same as above.",
+    "ruleId": "crawl-isolated-url",
+    "cat": "crawl",
+    "effort": "complex"
+  },
+  {
+    "category": "indexability",
+    "slug": "isolated-url-only-found-via-a-noindex-follow",
+    "url": "/hints/indexability/isolated-url-only-found-via-a-noindex-follow/",
+    "title": "Isolated URL - only found via a noindex,follow",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is isolated, as it can only be found via a noindex,follow link.",
+    "status": "MISSING",
+    "note": "Same as above.",
+    "ruleId": "crawl-isolated-url",
+    "cat": "crawl",
+    "effort": "complex"
+  },
+  {
+    "category": "indexability",
+    "slug": "isolated-url-only-linked-from-other-isolated-urls",
+    "url": "/hints/indexability/isolated-url-only-linked-from-other-isolated-urls/",
+    "title": "Isolated URL - only linked from other isolated URLs",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is isolated, as it can only be found via links from other isolated URLs.",
+    "status": "MISSING",
+    "note": "Same as above; additionally needs isolated-set graph analysis.",
+    "ruleId": "crawl-isolated-url",
+    "cat": "crawl",
+    "effort": "complex"
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-contains-superfluous-html-attributes",
+    "url": "/hints/indexability/canonical-contains-superfluous-html-attributes/",
+    "title": "Canonical contains superfluous HTML attributes",
+    "importance": "High",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question specifies a canonical element that contains attributes other than rel and href.",
+    "status": "COVERED",
+    "rules": [
+      "core-canonical-attributes"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-is-a-relative-url",
+    "url": "/hints/indexability/canonical-is-a-relative-url/",
+    "title": "Canonical is a relative URL",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a canonical element which uses a relative URL.",
+    "status": "COVERED",
+    "rules": [
+      "core-canonical-valid"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-points-to-a-redirecting-url",
+    "url": "/hints/indexability/canonical-points-to-a-redirecting-url/",
+    "title": "Canonical points to a redirecting URL",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a canonical element whereby the canonical URL itself is redirected (e.g. Page A is canonicalized to Page B, which redirects to Page C).",
+    "status": "COVERED",
+    "rules": [
+      "crawl-canonical-redirect"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "multiple-nofollow-directives",
+    "url": "/hints/indexability/multiple-nofollow-directives/",
+    "title": "Multiple nofollow directives",
+    "importance": "Medium",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question has a nofollow directive in multiple locations (e.g. in the HTML and in the HTTP header).",
+    "status": "COVERED",
+    "rules": [
+      "core-robots-meta",
+      "core-robots-directive-mismatch"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "multiple-noindex-directives",
+    "url": "/hints/indexability/multiple-noindex-directives/",
+    "title": "Multiple noindex directives",
+    "importance": "Medium",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question has a noindex directive in multiple locations (e.g. in the HTML and in the HTTP header).",
+    "status": "COVERED",
+    "rules": [
+      "core-robots-meta",
+      "core-robots-directive-mismatch"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "noindex-in-html-and-http-header",
+    "url": "/hints/indexability/noindex-in-html-and-http-header/",
+    "title": "Noindex in HTML and HTTP header",
+    "importance": "Medium",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question has a noindex directive in both the HTML and in the HTTP header.",
+    "status": "COVERED",
+    "rules": [
+      "core-robots-meta",
+      "core-robots-directive-mismatch"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "nofollow-in-html-and-http-header",
+    "url": "/hints/indexability/nofollow-in-html-and-http-header/",
+    "title": "Nofollow in HTML and HTTP header",
+    "importance": "Medium",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question has a nofollow directive in both the HTML and in the HTTP header.",
+    "status": "COVERED",
+    "rules": [
+      "core-robots-meta",
+      "core-robots-directive-mismatch"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-points-to-homepage",
+    "url": "/hints/indexability/canonical-points-to-homepage/",
+    "title": "Canonical points to homepage",
+    "importance": "Medium",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question has a canonical element which points to the homepage URL.",
+    "status": "COVERED",
+    "rules": [
+      "core-canonical-to-homepage"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "contains-possible-soft-404-phrases",
+    "url": "/hints/indexability/contains-possible-soft-404-phrases/",
+    "title": "Contains possible soft 404 phrases",
+    "importance": "Medium",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question responds with a 200 status but may appear to be an error page (soft 404).",
+    "status": "COVERED",
+    "rules": [
+      "technical-soft-404"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-tag-in-html-and-http-header",
+    "url": "/hints/indexability/canonical-tag-in-html-and-http-header/",
+    "title": "Canonical tag in HTML and HTTP header",
+    "importance": "Low",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question has a canonical element specified both in the HTML and in the HTTP header.",
+    "status": "COVERED",
+    "rules": [
+      "core-canonical-header"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "multiple-canonical-tags",
+    "url": "/hints/indexability/multiple-canonical-tags/",
+    "title": "Multiple canonical tags",
+    "importance": "Low",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question has a canonical element specified in multiple locations (either in the HTML, in the HTTP header, or in a combination of both).",
+    "status": "COVERED",
+    "rules": [
+      "core-canonical-conflicting",
+      "core-canonical-multiple"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "base-url-malformed-or-empty",
+    "url": "/hints/indexability/base-url-malformed-or-empty/",
+    "title": "Base URL malformed or empty",
+    "importance": "Low",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a base URL which is malformed or empty.",
+    "status": "COVERED",
+    "rules": [
+      "htmlval-base-url"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "multiple-mismatched-base-urls",
+    "url": "/hints/indexability/multiple-mismatched-base-urls/",
+    "title": "Multiple, mismatched base URLs",
+    "importance": "Low",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a base URL defined more than one, using different URLs.",
+    "status": "COVERED",
+    "rules": [
+      "htmlval-base-url"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "multiple-base-urls",
+    "url": "/hints/indexability/multiple-base-urls/",
+    "title": "Multiple base URLs",
+    "importance": "Low",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a base URL defined more than one.",
+    "status": "COVERED",
+    "rules": [
+      "htmlval-base-url"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-points-to-a-different-internal-url",
+    "url": "/hints/indexability/canonical-points-to-a-different-internal-url/",
+    "title": "Canonical points to a different internal URL",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "This means that the URL in question has a canonical element pointing at another internal URL. The URL in question can therefore be described as 'canonicalized.'",
+    "status": "PARTIAL",
+    "rules": [
+      "core-canonical-loop"
+    ],
+    "note": "Insight only: canonicalization is detected but never surfaced as neutral information."
+  },
+  {
+    "category": "indexability",
+    "slug": "canonical-points-to-external-url",
+    "url": "/hints/indexability/canonical-points-to-external-url/",
+    "title": "Canonical points to external URL",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "This means that the URL in question has a canonical element pointing at an external URL (a URL on a different domain or subdomain). This is known as a 'cross-domain canonical'.",
+    "status": "MISSING",
+    "note": "Cross-domain canonical not detected. Insight-level value.",
+    "ruleId": "core-canonical-external",
+    "cat": "core",
+    "effort": "trivial"
+  },
+  {
+    "category": "indexability",
+    "slug": "has-noindex-and-nofollow-directives",
+    "url": "/hints/indexability/has-noindex-and-nofollow-directives/",
+    "title": "Has noindex and nofollow directives",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "This means that the URL in question has both noindex and nofollow directives.",
+    "status": "COVERED",
+    "rules": [
+      "core-robots-meta"
+    ]
+  },
+  {
+    "category": "indexability",
+    "slug": "internal-disallowed-urls",
+    "url": "/hints/indexability/internal-disallowed-urls/",
+    "title": "Internal Disallowed URLs",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "This means that the URL in question is disallowed by a rule in robots.txt.",
+    "status": "PARTIAL",
+    "rules": [
+      "crawl-indexability-conflict"
+    ],
+    "note": "Conflict (disallowed + noindex) is detected; a URL that is simply disallowed is not surfaced as an insight."
+  },
+  {
+    "category": "indexability",
+    "slug": "url-only-has-nofollow-incoming-internal-links",
+    "url": "/hints/indexability/url-only-has-nofollow-incoming-internal-links/",
+    "title": "URL only has nofollow incoming internal links",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "This means that the URL in question does not have any incoming followed links from internal URLs - only nofollow ones.",
+    "status": "MISSING",
+    "note": "Inbound-link rel analysis needs crawl-level data not currently in SiteContext.",
+    "ruleId": "links-inbound-all-nofollow",
+    "cat": "links",
+    "effort": "complex",
+    "data": "crawl-level inbound rel=follow/nofollow per URL"
+  },
+  {
+    "category": "indexability",
+    "slug": "head-contains-a-noscript-tag",
+    "url": "/hints/indexability/head-contains-a-noscript-tag/",
+    "title": "&lt;head&gt; contains a &lt;noscript&gt; tag",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "This means that the URL in question contains a \\<noscript> tag in the \\<head>.",
+    "status": "PARTIAL",
+    "rules": [
+      "htmlval-noscript-in-head"
+    ],
+    "note": "We only flag invalid noscript contents; bare presence (insight) is not reported."
+  },
+  {
+    "category": "links",
+    "slug": "has-link-with-a-url-referencing-localhost-or-127001",
+    "url": "/hints/links/has-link-with-a-url-referencing-localhost-or-127001/",
+    "title": "Has link with a URL referencing LocalHost or 127.0.0.1",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains at least one outgoing anchor link with a URL referencing LocalHost or 127.0.0.1.",
+    "status": "COVERED",
+    "rules": [
+      "links-localhost"
+    ]
+  },
+  {
+    "category": "links",
+    "slug": "has-link-with-a-url-referencing-a-local-or-unc-file-path",
+    "url": "/hints/links/has-link-with-a-url-referencing-a-local-or-unc-file-path/",
+    "title": "Has link with a URL referencing a local or UNC file path",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains at least one outgoing anchor link with a URL referencing a local or UNC file path.",
+    "status": "COVERED",
+    "rules": [
+      "links-local-file"
+    ]
+  },
+  {
+    "category": "links",
+    "slug": "has-a-link-with-whitespace-in-href-attribute",
+    "url": "/hints/links/has-a-link-with-whitespace-in-href-attribute/",
+    "title": "Has a link with whitespace in href attribute",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains at least one outgoing anchor link which has trailing or leading whitespace character in the href attribute.",
+    "status": "COVERED",
+    "rules": [
+      "links-whitespace-href"
+    ]
+  },
+  {
+    "category": "links",
+    "slug": "has-no-outgoing-links",
+    "url": "/hints/links/has-no-outgoing-links/",
+    "title": "Has no outgoing links",
+    "importance": "High",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question does not have a single outgoing link (internal or external).",
+    "status": "COVERED",
+    "rules": [
+      "links-dead-end-pages"
+    ],
+    "note": "Superset: we flag pages with no outgoing internal links, which includes pages with no outgoing links at all."
+  },
+  {
+    "category": "links",
+    "slug": "has-only-one-followed-internal-linking-url",
+    "url": "/hints/links/has-only-one-followed-internal-linking-url/",
+    "title": "Has only one followed internal linking URL",
+    "importance": "High",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question has only one single followed **incoming** link, from one other URL on the website.",
+    "status": "COVERED",
+    "rules": [
+      "links-orphan-pages"
+    ],
+    "note": "Rule explicitly warns at inboundCount === 1 in crawl mode."
+  },
+  {
+    "category": "links",
+    "slug": "has-outgoing-links-with-malformed-href-data",
+    "url": "/hints/links/has-outgoing-links-with-malformed-href-data/",
+    "title": "Has outgoing links with malformed href data",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "URLs that contain at least one outgoing anchor link which has malformed href data.",
+    "status": "COVERED",
+    "rules": [
+      "links-invalid"
+    ]
+  },
+  {
+    "category": "links",
+    "slug": "url-is-orphaned-and-was-not-found-by-the-crawler",
+    "url": "/hints/links/url-is-orphaned-and-was-not-found-by-the-crawler/",
+    "title": "URL is orphaned and was not found by the crawler",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is not part of the crawlable website architecture, and is considered 'orphaned.'",
+    "status": "COVERED",
+    "rules": [
+      "crawl-sitemap-orphan-urls",
+      "links-orphan-pages"
+    ]
+  },
+  {
+    "category": "links",
+    "slug": "has-link-to-a-non-http-protocol",
+    "url": "/hints/links/has-link-to-a-non-http-protocol/",
+    "title": "Has link to a non-HTTP protocol",
+    "importance": "High",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question contains at least one outgoing anchor link to a destination URL which uses a non-HTTP protocol (e.g. FTP).",
+    "status": "COVERED",
+    "rules": [
+      "links-non-http-protocol"
+    ]
+  },
+  {
+    "category": "links",
+    "slug": "pagination-url-has-no-incoming-internal-links",
+    "url": "/hints/links/pagination-url-has-no-incoming-internal-links/",
+    "title": "Pagination URL has no incoming internal links",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is declared as a pagination URL, via rel=\"next\"/\"prev\" links on another URL, but which has no incoming anchor links from internal URLs (i.e. the only links they have are from the pagination link element).",
+    "status": "PARTIAL",
+    "rules": [
+      "crawl-pagination-orphaned"
+    ],
+    "note": "Our rule checks the inverse direction (pages linking out via rel=next/prev); a declared pagination target with no inbound anchors is not detected.",
+    "ruleId": "crawl-pagination-isolated",
+    "cat": "crawl",
+    "effort": "medium",
+    "data": "crawl-level link graph"
+  },
+  {
+    "category": "links",
+    "slug": "only-receives-nofollow-links-or-links-from-canonicalized-urls",
+    "url": "/hints/links/only-receives-nofollow-links-or-links-from-canonicalized-urls/",
+    "title": "Only receives nofollow or links from canonicalized URLs",
+    "importance": "Medium",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question only receives incoming nofollow links, or incoming links from canonicalized URLs. In other words, the URL only receives links from URLs that do not pass Link Equity.",
+    "status": "MISSING",
+    "note": "Inbound link-quality analysis not available in SiteContext.",
+    "ruleId": "links-inbound-low-quality",
+    "cat": "links",
+    "effort": "complex",
+    "data": "crawl-level inbound rel + canonical state"
+  },
+  {
+    "category": "links",
+    "slug": "has-an-internal-link-with-no-anchor-text",
+    "url": "/hints/links/has-an-internal-link-with-no-anchor-text/",
+    "title": "Has an internal link with no anchor text",
+    "importance": "Medium",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question contains at least one outgoing anchor link which has no anchor text.",
+    "status": "COVERED",
+    "rules": [
+      "a11y-link-text",
+      "links-anchor-text"
+    ]
+  },
+  {
+    "category": "links",
+    "slug": "has-an-anchored-image-with-no-alt-text",
+    "url": "/hints/links/has-an-anchored-image-with-no-alt-text/",
+    "title": "Has an anchored image with no alt text",
+    "importance": "Medium",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question contains anchor links to image URLs with no alt text, or no alt attribute.",
+    "status": "COVERED",
+    "rules": [
+      "images-alt-present"
+    ]
+  },
+  {
+    "category": "links",
+    "slug": "url-receives-both-follow-nofollow-internal-links",
+    "url": "/hints/links/url-receives-both-follow-nofollow-internal-links/",
+    "title": "URL receives both follow &amp; nofollow internal links",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a mixture of followed and nofollowed incoming links.",
+    "status": "MISSING",
+    "note": "Mixed inbound follow/nofollow not computed.",
+    "ruleId": "links-inbound-mixed-follow",
+    "cat": "links",
+    "effort": "complex",
+    "data": "crawl-level inbound rel per URL"
+  },
+  {
+    "category": "links",
+    "slug": "has-incoming-followed-links-that-do-not-use-descriptive-anchor-text",
+    "url": "/hints/links/has-incoming-followed-links-that-do-not-use-descriptive-anchor-text/",
+    "title": "Has incoming followed links without descriptive anchor text",
+    "importance": "Medium",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question receives incoming followed links from other internal URLs, which do not use descriptive anchor text (they instead have anchor text like 'click here', go', 'here', etc...).",
+    "status": "MISSING",
+    "note": "links-anchor-text checks outgoing anchors only; inbound anchor quality needs crawl-level data.",
+    "ruleId": "links-inbound-anchor-text",
+    "cat": "links",
+    "effort": "complex",
+    "data": "crawl-level inbound anchor text"
+  },
+  {
+    "category": "links",
+    "slug": "has-one-or-more-outgoing-followed-links-with-non-descriptive-anchor-text",
+    "url": "/hints/links/has-one-or-more-outgoing-followed-links-with-non-descriptive-anchor-text/",
+    "title": "1&#x2B; outgoing followed links with non descriptive anchor text",
+    "importance": "Medium",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question contains outgoing followed links to other internal URLs, which do not use descriptive anchor text (they instead have anchor text like 'click here', go', 'here', etc...).",
+    "status": "COVERED",
+    "rules": [
+      "links-anchor-text"
+    ]
+  },
+  {
+    "category": "links",
+    "slug": "has-a-link-with-an-empty-href-attribute",
+    "url": "/hints/links/has-a-link-with-an-empty-href-attribute/",
+    "title": "Has a link with an empty href attribute",
+    "importance": "Low",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains at least one outgoing anchor link which has an empty href attribute.",
+    "status": "COVERED",
+    "rules": [
+      "links-invalid"
+    ]
+  },
+  {
+    "category": "links",
+    "slug": "has-broken-bookmarks",
+    "url": "/hints/links/has-broken-bookmarks/",
+    "title": "Has broken bookmarks",
+    "importance": "Low",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains broken bookmark links to other internal pages.",
+    "status": "COVERED",
+    "rules": [
+      "links-broken-fragment"
+    ]
+  },
+  {
+    "category": "links",
+    "slug": "has-link-with-a-url-in-onclick-attribute",
+    "url": "/hints/links/has-link-with-a-url-in-onclick-attribute/",
+    "title": "Has link with a URL in onclick attribute",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "This means that the URL in question contains at least one outgoing anchor link with a URL in an onclick attribute.",
+    "status": "COVERED",
+    "rules": [
+      "links-onclick"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "title-tag-is-missing",
+    "url": "/hints/on-page/title-tag-is-missing/",
+    "title": "Title tag is missing",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question does not have a title tag present in the HTML.",
+    "status": "COVERED",
+    "rules": [
+      "core-title-present"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "html-is-missing-or-empty",
+    "url": "/hints/on-page/html-is-missing-or-empty/",
+    "title": "HTML is missing or empty",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has no HTML on the page.",
+    "status": "COVERED",
+    "rules": [
+      "technical-empty-html"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "title-tag-is-empty",
+    "url": "/hints/on-page/title-tag-is-empty/",
+    "title": "Title tag is empty",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains an empty \\<title> element.",
+    "status": "COVERED",
+    "rules": [
+      "core-title-present"
+    ],
+    "note": "Explicitly fails on present-but-empty title."
+  },
+  {
+    "category": "on-page",
+    "slug": "title-tag-outside-of-head",
+    "url": "/hints/on-page/title-tag-outside-of-head/",
+    "title": "Title tag outside of head",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a title tag that is not in the \\<head>.",
+    "status": "COVERED",
+    "rules": [
+      "htmlval-title-outside-head"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "broken-or-invalid-html",
+    "url": "/hints/on-page/broken-or-invalid-html/",
+    "title": "Broken or invalid HTML",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has broken or invalid HTML.",
+    "status": "COVERED",
+    "rules": [
+      "content-broken-html"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "multiple-title-tags",
+    "url": "/hints/on-page/multiple-title-tags/",
+    "title": "Multiple title tags",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains more than one title tag.",
+    "status": "COVERED",
+    "rules": [
+      "htmlval-multiple-titles"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "meta-description-outside-of-head",
+    "url": "/hints/on-page/meta-description-outside-of-head/",
+    "title": "Meta description outside of head",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a meta description that is not in the \\<head>.",
+    "status": "COVERED",
+    "rules": [
+      "content-meta-in-body"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "h1-tag-is-missing",
+    "url": "/hints/on-page/h1-tag-is-missing/",
+    "title": "&lt;h1&gt; tag is missing",
+    "importance": "Medium",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question does not have a header 1 tag.",
+    "status": "COVERED",
+    "rules": [
+      "core-h1-present"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "h1-tag-is-empty",
+    "url": "/hints/on-page/h1-tag-is-empty/",
+    "title": "&lt;h1&gt; tag is empty",
+    "importance": "Medium",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question has a header 1 tag which has no value.",
+    "status": "COVERED",
+    "rules": [
+      "core-h1-present"
+    ],
+    "note": "Explicitly fails on present-but-empty H1."
+  },
+  {
+    "category": "on-page",
+    "slug": "images-with-missing-alt-text",
+    "url": "/hints/on-page/images-with-missing-alt-text/",
+    "title": "Images with missing alt text",
+    "importance": "Medium",
+    "warningType": "Opportunity",
+    "description": "This means that the image URL in question is referenced in pages on the website without alt text.",
+    "status": "COVERED",
+    "rules": [
+      "images-alt-present"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "contains-lorem-ipsum-dummy-text",
+    "url": "/hints/on-page/contains-lorem-ipsum-dummy-text/",
+    "title": "Contains Lorem Ipsum dummy text",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains 'Lorem Ipsum' dummy text in the body content.",
+    "status": "COVERED",
+    "rules": [
+      "htmlval-lorem-ipsum"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "h1-length-too-short",
+    "url": "/hints/on-page/h1-length-too-short/",
+    "title": "&lt;h1&gt; length too short",
+    "importance": "Low",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question has a header 1 with too few words.",
+    "status": "COVERED",
+    "rules": [
+      "content-heading-length"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "h1-length-too-long",
+    "url": "/hints/on-page/h1-length-too-long/",
+    "title": "&lt;h1&gt; length too long",
+    "importance": "Low",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question has a header 1 with too many words.",
+    "status": "COVERED",
+    "rules": [
+      "content-heading-length"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "title-tag-length-too-short",
+    "url": "/hints/on-page/title-tag-length-too-short/",
+    "title": "Title tag length too short",
+    "importance": "Low",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question has a title tag with too few characters.",
+    "status": "COVERED",
+    "rules": [
+      "core-title-length",
+      "content-title-pixel-width"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "title-tag-length-too-long",
+    "url": "/hints/on-page/title-tag-length-too-long/",
+    "title": "Title tag length too long",
+    "importance": "Low",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question has a title tag with too many characters.",
+    "status": "COVERED",
+    "rules": [
+      "core-title-length",
+      "content-title-pixel-width"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "meta-description-length-too-short",
+    "url": "/hints/on-page/meta-description-length-too-short/",
+    "title": "Meta description length too short",
+    "importance": "Low",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question has a meta description with too few characters.",
+    "status": "COVERED",
+    "rules": [
+      "core-description-length",
+      "content-description-pixel-width"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "meta-description-length-too-long",
+    "url": "/hints/on-page/meta-description-length-too-long/",
+    "title": "Meta description length too long",
+    "importance": "Low",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question has a meta description with too many characters.",
+    "status": "COVERED",
+    "rules": [
+      "core-description-length",
+      "content-description-pixel-width"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "meta-description-is-empty",
+    "url": "/hints/on-page/meta-description-is-empty/",
+    "title": "Meta description is empty",
+    "importance": "Low",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question has a meta description that is empty.",
+    "status": "COVERED",
+    "rules": [
+      "core-description-present",
+      "core-description-length"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "multiple-meta-descriptions",
+    "url": "/hints/on-page/multiple-meta-descriptions/",
+    "title": "Multiple meta descriptions",
+    "importance": "Low",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains more than one meta description.",
+    "status": "COVERED",
+    "rules": [
+      "htmlval-multiple-descriptions"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "multiple-h1-tags",
+    "url": "/hints/on-page/multiple-h1-tags/",
+    "title": "Multiple &lt;h1&gt; tags",
+    "importance": "Low",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question has multiple \\<h1> elements.",
+    "status": "COVERED",
+    "rules": [
+      "core-h1-single"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "title-and-meta-description-are-the-same",
+    "url": "/hints/on-page/title-and-meta-description-are-the-same/",
+    "title": "Title and meta description are the same",
+    "importance": "Low",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question has identical text for both the title tag and the meta description.",
+    "status": "COVERED",
+    "rules": [
+      "content-title-same-as-description"
+    ]
+  },
+  {
+    "category": "on-page",
+    "slug": "meta-description-is-missing",
+    "url": "/hints/on-page/meta-description-is-missing/",
+    "title": "Meta description is missing",
+    "importance": "Low",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question does not have a meta description present in the HTML.",
+    "status": "COVERED",
+    "rules": [
+      "core-description-present"
+    ]
+  },
+  {
+    "category": "redirects",
+    "slug": "internal-url-redirect-broken-4xx-or-5xx",
+    "url": "/hints/redirects/internal-url-redirect-broken-4xx-or-5xx/",
+    "title": "Internal URL redirect broken (4XX or 5XX)",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an internal URL that redirected to a URL that was not accessible when reference catalog crawled the website.",
+    "status": "COVERED",
+    "rules": [
+      "redirect-broken"
+    ]
+  },
+  {
+    "category": "redirects",
+    "slug": "internal-url-redirects-back-to-itself",
+    "url": "/hints/redirects/internal-url-redirects-back-to-itself/",
+    "title": "Internal URL redirects back to itself",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a redirect which points back at itself (e.g. URL 1 -> URL 1).",
+    "status": "COVERED",
+    "rules": [
+      "redirect-loop"
+    ]
+  },
+  {
+    "category": "redirects",
+    "slug": "external-url-redirect-broken-4xx-or-5xx",
+    "url": "/hints/redirects/external-url-redirect-broken-4xx-or-5xx/",
+    "title": "External URL redirect broken (4XX or 5XX)",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an external URL that redirected to a URL that was not accessible when reference catalog crawled the website.",
+    "status": "PARTIAL",
+    "rules": [
+      "links-external-valid"
+    ],
+    "note": "External link reachability is checked, but broken external redirect chains are not distinguished."
+  },
+  {
+    "category": "redirects",
+    "slug": "resource-url-redirect-broken-4xx-or-5xx",
+    "url": "/hints/redirects/resource-url-redirect-broken-4xx-or-5xx/",
+    "title": "Resource URL redirect broken (4XX or 5XX)",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is a resource URL that redirected to a URL that was not accessible when reference catalog crawled the website.",
+    "status": "PARTIAL",
+    "rules": [
+      "js-failed-requests"
+    ],
+    "note": "Failed resource loads are observed during render, but resource redirect chains are not traced.",
+    "ruleId": "redirect-resource-broken",
+    "cat": "redirect",
+    "effort": "medium",
+    "data": "per-resource redirect/status via Playwright response listener"
+  },
+  {
+    "category": "redirects",
+    "slug": "page-resource-url-redirects-back-to-itself",
+    "url": "/hints/redirects/page-resource-url-redirects-back-to-itself/",
+    "title": "Page resource URL redirects back to itself",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is a resource URL that redirects back to itself in a loop (e.g. URL 1 -> URL 1), which results in the resource being inaccessible.",
+    "status": "MISSING",
+    "note": "Resource redirect loops not traced.",
+    "ruleId": "redirect-resource-loop",
+    "cat": "redirect",
+    "effort": "medium",
+    "data": "per-resource redirect chains"
+  },
+  {
+    "category": "redirects",
+    "slug": "page-resource-url-is-part-of-a-chained-redirect-loop",
+    "url": "/hints/redirects/page-resource-url-is-part-of-a-chained-redirect-loop/",
+    "title": "Page resource URL is part of a chained redirect loop",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL is question is a page resource URL that is part of a redirect chain which results in a redirect loop (e.g. URL 1 -> URL -> 2 -> URL 3 -> URL 1), which results in the resource being inaccessible.",
+    "status": "MISSING",
+    "note": "Fold into redirect-resource-loop.",
+    "ruleId": "redirect-resource-loop",
+    "cat": "redirect",
+    "effort": "medium"
+  },
+  {
+    "category": "redirects",
+    "slug": "internal-url-is-part-of-a-chained-redirect-loop",
+    "url": "/hints/redirects/internal-url-is-part-of-a-chained-redirect-loop/",
+    "title": "Internal URL is part of a chained redirect loop",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL is question is part of a redirect chain which results in a redirect loop (e.g. URL 1 -> URL -> 2 -> URL 3 -> URL 1), which results in the page being inaccessible.",
+    "status": "COVERED",
+    "rules": [
+      "redirect-loop"
+    ]
+  },
+  {
+    "category": "redirects",
+    "slug": "internal-redirects-from-trailing-slash-mismatch",
+    "url": "/hints/redirects/internal-redirects-from-trailing-slash-mismatch/",
+    "title": "Internal redirects from trailing slash mismatch",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is redirected to another internal URL, where the only difference between URLs is the presence/absence of a trailing slash.",
+    "status": "COVERED",
+    "rules": [
+      "technical-trailing-slash",
+      "links-redirect-chains"
+    ]
+  },
+  {
+    "category": "redirects",
+    "slug": "internal-redirects-from-case-normalization",
+    "url": "/hints/redirects/internal-redirects-from-case-normalization/",
+    "title": "Internal redirects from case normalization",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is redirected to another internal URL, where the only difference between URLs is a change of case to at least one of the characters (typically, an upper case character changed to lower case).",
+    "status": "COVERED",
+    "rules": [
+      "redirect-case-normalization"
+    ]
+  },
+  {
+    "category": "redirects",
+    "slug": "internal-redirected-urls",
+    "url": "/hints/redirects/internal-redirected-urls/",
+    "title": "Internal redirected URLs",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is redirected to another internal URL.",
+    "status": "COVERED",
+    "rules": [
+      "links-redirect-chains"
+    ]
+  },
+  {
+    "category": "redirects",
+    "slug": "redirected-page-resource-urls",
+    "url": "/hints/redirects/redirected-page-resource-urls/",
+    "title": "Redirected page resource URLs",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is a resource URL that redirects to another URL.",
+    "status": "PARTIAL",
+    "rules": [
+      "redirect-resource"
+    ],
+    "note": "redirect-resource only covers HTTP→HTTPS resource references; general resource redirect chains are not reported.",
+    "ruleId": "redirect-resource-chain",
+    "cat": "redirect",
+    "effort": "medium",
+    "data": "per-resource redirect chains"
+  },
+  {
+    "category": "redirects",
+    "slug": "external-redirected-urls",
+    "url": "/hints/redirects/external-redirected-urls/",
+    "title": "External redirected URLs",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "This means that the URL in question is an external URL that redirects to another external URL.",
+    "status": "PARTIAL",
+    "rules": [
+      "links-external-valid"
+    ],
+    "note": "Insight-level; external redirects are traversed but not reported as such."
+  },
+  {
+    "category": "redirects",
+    "slug": "redirects-using-a-meta-refresh",
+    "url": "/hints/redirects/redirects-using-a-meta-refresh/",
+    "title": "Redirects using a Meta refresh",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "This means that the URL in question uses a meta refresh to redirect the page.",
+    "status": "COVERED",
+    "rules": [
+      "redirect-meta-refresh",
+      "redirect-http-refresh"
+    ]
+  },
+  {
+    "category": "internal",
+    "slug": "broken-internal-urls",
+    "url": "/hints/internal/broken-internal-urls/",
+    "title": "Broken internal URLs",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question was not successfully audited, and had a crawl status of either Not Found, Error, Forbidden or Timeout.",
+    "status": "COVERED",
+    "rules": [
+      "links-broken-internal",
+      "technical-server-error"
+    ]
+  },
+  {
+    "category": "internal",
+    "slug": "url-contains-upper-case-characters",
+    "url": "/hints/internal/url-contains-upper-case-characters/",
+    "title": "URL contains upper case characters",
+    "importance": "Medium",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question contains upper case characters.",
+    "status": "COVERED",
+    "rules": [
+      "url-uppercase"
+    ]
+  },
+  {
+    "category": "internal",
+    "slug": "url-contains-whitespace",
+    "url": "/hints/internal/url-contains-whitespace/",
+    "title": "URL contains whitespace",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains whitespace characters in the path.",
+    "status": "COVERED",
+    "rules": [
+      "url-spaces"
+    ]
+  },
+  {
+    "category": "internal",
+    "slug": "query-string-contains-session-id-parameters",
+    "url": "/hints/internal/query-string-contains-session-id-parameters/",
+    "title": "Query string contains session ID parameters",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a query string with parameters that are typically used as session IDs.",
+    "status": "COVERED",
+    "rules": [
+      "url-session-ids"
+    ]
+  },
+  {
+    "category": "internal",
+    "slug": "query-string-contains-tracking-parameters",
+    "url": "/hints/internal/query-string-contains-tracking-parameters/",
+    "title": "Query string contains tracking parameters",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a query string with parameters that are typically used for tracking.",
+    "status": "COVERED",
+    "rules": [
+      "url-tracking-params"
+    ]
+  },
+  {
+    "category": "internal",
+    "slug": "query-string-contains-a-question-mark",
+    "url": "/hints/internal/query-string-contains-a-question-mark/",
+    "title": "Query string contains a question mark",
+    "importance": "Low",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question contains more than one question mark in the URL path.",
+    "status": "COVERED",
+    "rules": [
+      "url-parameters"
+    ]
+  },
+  {
+    "category": "internal",
+    "slug": "query-string-contains-repetitive-parameters",
+    "url": "/hints/internal/query-string-contains-repetitive-parameters/",
+    "title": "Query string contains repetitive parameters",
+    "importance": "Low",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question contains a query string with the same parameter more than once.",
+    "status": "COVERED",
+    "rules": [
+      "url-parameters"
+    ]
+  },
+  {
+    "category": "internal",
+    "slug": "url-contains-a-double-slash",
+    "url": "/hints/internal/url-contains-a-double-slash/",
+    "title": "URL contains a double slash",
+    "importance": "Low",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a double slash in the path.",
+    "status": "COVERED",
+    "rules": [
+      "url-double-slash"
+    ]
+  },
+  {
+    "category": "internal",
+    "slug": "url-contains-non-ascii-characters",
+    "url": "/hints/internal/url-contains-non-ascii-characters/",
+    "title": "URL contains non-ASCII characters",
+    "importance": "Low",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question contains characters outside the ASCII set.",
+    "status": "COVERED",
+    "rules": [
+      "url-non-ascii"
+    ]
+  },
+  {
+    "category": "internal",
+    "slug": "url-contains-repetitive-elements",
+    "url": "/hints/internal/url-contains-repetitive-elements/",
+    "title": "URL contains repetitive elements",
+    "importance": "Low",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question contains repetitive elements in the URL path.",
+    "status": "COVERED",
+    "rules": [
+      "url-repetitive-path"
+    ]
+  },
+  {
+    "category": "internal",
+    "slug": "url-contains-more-than-one-google-tag-manager-code",
+    "url": "/hints/internal/url-contains-more-than-one-google-tag-manager-code/",
+    "title": "URL contains more than one Google Tag Manager code",
+    "importance": "Low",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question contains more than one Google Tag Manager snippet.",
+    "status": "COVERED",
+    "rules": [
+      "technical-duplicate-gtm"
+    ]
+  },
+  {
+    "category": "internal",
+    "slug": "url-contains-more-than-one-google-analytics-code",
+    "url": "/hints/internal/url-contains-more-than-one-google-analytics-code/",
+    "title": "URL contains more than one Google Analytics code",
+    "importance": "Low",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question contains multiple Google Analytics snippets.",
+    "status": "COVERED",
+    "rules": [
+      "technical-duplicate-ga"
+    ]
+  },
+  {
+    "category": "internal",
+    "slug": "query-string-contains-more-than-three-parameters",
+    "url": "/hints/internal/query-string-contains-more-than-three-parameters/",
+    "title": "Query string contains more than three parameters",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "This means that the URL in question contains a query string with more than 3 parameters.",
+    "status": "COVERED",
+    "rules": [
+      "url-parameters"
+    ]
+  },
+  {
+    "category": "internal",
+    "slug": "query-string-contains-paginated-parameters",
+    "url": "/hints/internal/query-string-contains-paginated-parameters/",
+    "title": "Query string contains paginated parameters",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "This means that the URL in question contains a query string with apparent pagination parameters.",
+    "status": "PARTIAL",
+    "rules": [
+      "url-parameters",
+      "crawl-pagination-sequence"
+    ],
+    "note": "Pagination via rel=next/prev is checked; param-based pagination (?page=2) is not identified as such."
+  },
+  {
+    "category": "internal",
+    "slug": "query-string-contains-search-or-filter-parameters",
+    "url": "/hints/internal/query-string-contains-search-or-filter-parameters/",
+    "title": "Query string contains search or filter parameters",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "URLs that contain a query string with apparent search or filter parameters (e.g. http://example.com/search?w=shoes).",
+    "status": "PARTIAL",
+    "rules": [
+      "url-internal-search"
+    ],
+    "note": "Internal search URLs are detected; filter parameters are not."
+  },
+  {
+    "category": "internal",
+    "slug": "query-string-contains-sort-parameters",
+    "url": "/hints/internal/query-string-contains-sort-parameters/",
+    "title": "Query string contains sort parameters",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "This means that the URL in question contains a query string with apparent sort parameters.",
+    "status": "PARTIAL",
+    "rules": [
+      "url-parameters"
+    ],
+    "note": "Insight-level; sort params counted but not classified."
+  },
+  {
+    "category": "internal",
+    "slug": "url-contains-no-google-tag-manager-code",
+    "url": "/hints/internal/url-contains-no-google-tag-manager-code/",
+    "title": "URL contains no Google Tag Manager code",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "This means that the URL in question does not contain the Google Tag Manager snippet.",
+    "status": "SKIP",
+    "note": "Analytics presence is not an SEO issue; deliberately out of scope."
+  },
+  {
+    "category": "internal",
+    "slug": "url-contains-no-google-analytics-code",
+    "url": "/hints/internal/url-contains-no-google-analytics-code/",
+    "title": "URL contains no Google Analytics code",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "This means that the URL in question does not contain the Google Analytics snippet.",
+    "status": "SKIP",
+    "note": "Same as above."
+  },
+  {
+    "category": "search-traffic",
+    "slug": "canonicalized-url-received-organic-search-traffic",
+    "url": "/hints/search-traffic/canonicalized-url-received-organic-search-traffic/",
+    "title": "Canonicalized URL received organic search traffic",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is canonicalized to another URL, yet received organic search traffic, per the connected Google Analytics and Google Search Console accounts.",
+    "status": "SKIP",
+    "note": "Requires Google Search Console / GA4 integration, which the CLI does not have."
+  },
+  {
+    "category": "search-traffic",
+    "slug": "disallowed-url-received-organic-search-traffic",
+    "url": "/hints/search-traffic/disallowed-url-received-organic-search-traffic/",
+    "title": "Disallowed URL received organic search traffic",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is disallowed in robots.txt, yet received organic search traffic, per the connected Google Analytics and Google Search Console accounts.",
+    "status": "SKIP",
+    "note": "Requires GSC/GA4."
+  },
+  {
+    "category": "search-traffic",
+    "slug": "forbidden-403-url-received-search-traffic",
+    "url": "/hints/search-traffic/forbidden-403-url-received-search-traffic/",
+    "title": "Forbidden (403) URL received search traffic",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question returns a HTTP status of 403 (Forbidden), yet received organic search traffic, per the connected Google Analytics and Google Search Console accounts.",
+    "status": "SKIP",
+    "note": "Requires GSC/GA4."
+  },
+  {
+    "category": "search-traffic",
+    "slug": "noindex-url-received-organic-search-traffic",
+    "url": "/hints/search-traffic/noindex-url-received-organic-search-traffic/",
+    "title": "Noindex URL received organic search traffic",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is noindex, yet received organic search traffic, per the connected Google Analytics and Google Search Console accounts.",
+    "status": "SKIP",
+    "note": "Requires GSC/GA4."
+  },
+  {
+    "category": "search-traffic",
+    "slug": "not-found-4xx-url-received-search-traffic",
+    "url": "/hints/search-traffic/not-found-4xx-url-received-search-traffic/",
+    "title": "Not Found (4XX) URL received search traffic",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question returns a HTTP status of 4XX, yet received organic search traffic, per the connected Google Analytics and Google Search Console accounts.",
+    "status": "SKIP",
+    "note": "Requires GSC/GA4."
+  },
+  {
+    "category": "search-traffic",
+    "slug": "redirect-3xx-url-received-organic-search-traffic",
+    "url": "/hints/search-traffic/redirect-3xx-url-received-organic-search-traffic/",
+    "title": "Redirect (3XX) URL received organic search traffic",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question returns a HTTP status of 3XX (Redirect), yet received organic search traffic, per the connected Google Analytics and Google Search Console accounts.",
+    "status": "SKIP",
+    "note": "Requires GSC/GA4."
+  },
+  {
+    "category": "search-traffic",
+    "slug": "orphan-url-received-search-traffic",
+    "url": "/hints/search-traffic/orphan-url-received-search-traffic/",
+    "title": "Orphan URL received search traffic",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is not part of the crawlable website architecture, yet received organic search traffic, per the connected Google Analytics and Google Search Console accounts.",
+    "status": "SKIP",
+    "note": "Requires GSC/GA4."
+  },
+  {
+    "category": "search-traffic",
+    "slug": "had-bounce-rate-greater-than-or-equal-to-80",
+    "url": "/hints/search-traffic/had-bounce-rate-greater-than-or-equal-to-80/",
+    "title": "Had bounce rate greater than or equal to 80%",
+    "importance": "Medium",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question received organic search traffic with a bounce rate of 80% or more - with data taken from the connected Google Analytics account.",
+    "status": "SKIP",
+    "note": "Requires GA4. GA4 also no longer reports bounce rate in this form."
+  },
+  {
+    "category": "xml-sitemaps",
+    "slug": "error-5xx-url-in-xml-sitemaps",
+    "url": "/hints/xml-sitemaps/error-5xx-url-in-xml-sitemaps/",
+    "title": "Error (5XX) URL in XML Sitemaps",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question returns an HTTP 'Error' status (5XX), yet is included in an XML Sitemap.",
+    "status": "MISSING",
+    "note": "Sitemap URLs are not cross-referenced with crawled status codes; SiteContext carries no per-URL status.",
+    "ruleId": "crawl-sitemap-non-200",
+    "cat": "crawl",
+    "effort": "medium",
+    "data": "crawl-level: status code per sitemap URL (needs SiteContext.statusByUrl)"
+  },
+  {
+    "category": "xml-sitemaps",
+    "slug": "noindex-url-in-xml-sitemaps",
+    "url": "/hints/xml-sitemaps/noindex-url-in-xml-sitemaps/",
+    "title": "Noindex URL in XML Sitemaps",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is noindex, yet is included in an XML Sitemap.",
+    "status": "COVERED",
+    "rules": [
+      "crawl-noindex-in-sitemap"
+    ]
+  },
+  {
+    "category": "xml-sitemaps",
+    "slug": "not-found-4xx-url-in-xml-sitemaps",
+    "url": "/hints/xml-sitemaps/not-found-4xx-url-in-xml-sitemaps/",
+    "title": "Not Found (4XX) URL in XML Sitemaps",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question returns a HTTP status of 4XX, yet is included in an XML Sitemap.",
+    "status": "MISSING",
+    "note": "Fold into crawl-sitemap-non-200.",
+    "ruleId": "crawl-sitemap-non-200",
+    "cat": "crawl",
+    "effort": "medium"
+  },
+  {
+    "category": "xml-sitemaps",
+    "slug": "canonicalized-url-in-xml-sitemaps",
+    "url": "/hints/xml-sitemaps/canonicalized-url-in-xml-sitemaps/",
+    "title": "Canonicalized URL in XML Sitemaps",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a canonical element that points to another URL, yet is included in an XML Sitemap.",
+    "status": "MISSING",
+    "note": "Needs canonical state per sitemap URL.",
+    "ruleId": "crawl-sitemap-non-canonical",
+    "cat": "crawl",
+    "effort": "medium",
+    "data": "crawl-level canonical map"
+  },
+  {
+    "category": "xml-sitemaps",
+    "slug": "disallowed-url-in-xml-sitemaps",
+    "url": "/hints/xml-sitemaps/disallowed-url-in-xml-sitemaps/",
+    "title": "Disallowed URL in XML Sitemaps",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is disallowed in robots.txt, yet is included in an XML Sitemap.",
+    "status": "MISSING",
+    "note": "robots.txt is already fetched; needs per-URL disallow matching against sitemap URLs.",
+    "ruleId": "crawl-sitemap-disallowed",
+    "cat": "crawl",
+    "effort": "medium",
+    "data": "robots.txt (already fetched)"
+  },
+  {
+    "category": "xml-sitemaps",
+    "slug": "forbidden-403-url-in-xml-sitemaps",
+    "url": "/hints/xml-sitemaps/forbidden-403-url-in-xml-sitemaps/",
+    "title": "Forbidden (403) URL in XML Sitemaps",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question returns a HTTP status of 403 (Forbidden), yet is included in an XML Sitemap.",
+    "status": "MISSING",
+    "note": "Fold into crawl-sitemap-non-200.",
+    "ruleId": "crawl-sitemap-non-200",
+    "cat": "crawl",
+    "effort": "medium"
+  },
+  {
+    "category": "xml-sitemaps",
+    "slug": "redirect-3xx-url-in-xml-sitemaps",
+    "url": "/hints/xml-sitemaps/redirect-3xx-url-in-xml-sitemaps/",
+    "title": "Redirect (3XX) URL in XML Sitemaps",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question returns an HTTP 'Redirect' status (3XX), yet is included in an XML Sitemap.",
+    "status": "MISSING",
+    "note": "Fold into crawl-sitemap-non-200 (3xx branch).",
+    "ruleId": "crawl-sitemap-non-200",
+    "cat": "crawl",
+    "effort": "medium"
+  },
+  {
+    "category": "xml-sitemaps",
+    "slug": "timed-out-url-in-xml-sitemaps",
+    "url": "/hints/xml-sitemaps/timed-out-url-in-xml-sitemaps/",
+    "title": "Timed out URL in XML Sitemaps",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question returns timed out when reference catalog requested it, yet is included in an XML Sitemap.",
+    "status": "MISSING",
+    "note": "Fold into crawl-sitemap-non-200 (timeout branch).",
+    "ruleId": "crawl-sitemap-non-200",
+    "cat": "crawl",
+    "effort": "medium"
+  },
+  {
+    "category": "xml-sitemaps",
+    "slug": "url-in-multiple-xml-sitemaps",
+    "url": "/hints/xml-sitemaps/url-in-multiple-xml-sitemaps/",
+    "title": "URL in multiple XML Sitemaps",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "This means that the URL in question is included in more than one XML Sitemap.",
+    "status": "PARTIAL",
+    "rules": [
+      "crawl-sitemap-duplicate-urls"
+    ],
+    "note": "Duplicate entries within one sitemap are checked; membership across multiple sibling sitemaps is not.",
+    "ruleId": "crawl-sitemap-cross-duplicates",
+    "cat": "crawl",
+    "effort": "medium",
+    "data": "sitemap index entries (already parsed)"
+  },
+  {
+    "category": "security",
+    "slug": "mixed-content-loads-http-resources-on-https-url",
+    "url": "/hints/security/mixed-content-loads-http-resources-on-https-url/",
+    "title": "Mixed content (loads HTTP resources on HTTPS URL)",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is loaded over a secure HTTPS protocol, but some other resources (such as images, videos, stylesheets, scripts) are loaded over an insecure HTTP connection.",
+    "status": "COVERED",
+    "rules": [
+      "security-mixed-content"
+    ]
+  },
+  {
+    "category": "security",
+    "slug": "internal-http-urls",
+    "url": "/hints/security/internal-http-urls/",
+    "title": "Internal HTTP URLs",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is loaded over an insecure HTTP connection.",
+    "status": "COVERED",
+    "rules": [
+      "security-https",
+      "security-https-redirect"
+    ]
+  },
+  {
+    "category": "security",
+    "slug": "https-url-links-to-an-http-url",
+    "url": "/hints/security/https-url-links-to-an-http-url/",
+    "title": "HTTPS URL links to an HTTP URL",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question uses the HTTPS protocol, but contains outgoing links to internal URLs which are on HTTP.",
+    "status": "COVERED",
+    "rules": [
+      "links-https-downgrade"
+    ]
+  },
+  {
+    "category": "security",
+    "slug": "http-url-contains-a-password-input-field",
+    "url": "/hints/security/http-url-contains-a-password-input-field/",
+    "title": "HTTP URL contains a password input field",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question uses the HTTP protocol, but contains a form with a password input field.",
+    "status": "COVERED",
+    "rules": [
+      "security-password-http"
+    ]
+  },
+  {
+    "category": "security",
+    "slug": "https-url-contains-a-form-posting-to-http",
+    "url": "/hints/security/https-url-contains-a-form-posting-to-http/",
+    "title": "HTTPS URL contains a form posting to HTTP",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question uses the HTTPS protocol, but contains a form that posts to a HTTP URL.",
+    "status": "COVERED",
+    "rules": [
+      "security-form-https"
+    ]
+  },
+  {
+    "category": "security",
+    "slug": "loads-page-resources-using-protocol-relative-uris",
+    "url": "/hints/security/loads-page-resources-using-protocol-relative-uris/",
+    "title": "Loads page resources using protocol relative URIs",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question loads in resources using protocol relative URLs, which can be requested over HTTP and as such represent a security vulnerability.",
+    "status": "COVERED",
+    "rules": [
+      "security-protocol-relative"
+    ]
+  },
+  {
+    "category": "international",
+    "slug": "invalid-incoming-hreflang-annotations",
+    "url": "/hints/international/invalid-incoming-hreflang-annotations/",
+    "title": "Invalid incoming hreflang annotations",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has one or more incoming hreflang annotation that is invalid (e.g. invalid language or region code).",
+    "status": "PARTIAL",
+    "rules": [
+      "i18n-hreflang"
+    ],
+    "note": "Outgoing annotations are validated; incoming annotation validity needs crawl-level data.",
+    "ruleId": "i18n-hreflang-incoming-invalid",
+    "cat": "i18n",
+    "effort": "complex",
+    "data": "crawl-level hreflang graph"
+  },
+  {
+    "category": "international",
+    "slug": "has-invalid-outgoing-hreflang-annotations",
+    "url": "/hints/international/has-invalid-outgoing-hreflang-annotations/",
+    "title": "Has invalid outgoing hreflang annotations",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has one or more outgoing hreflang annotation that is invalid (e.g. invalid language or region code).",
+    "status": "COVERED",
+    "rules": [
+      "i18n-hreflang"
+    ],
+    "note": "Language/region codes are validated against ISO 639-1 / 3166-1."
+  },
+  {
+    "category": "international",
+    "slug": "has-outgoing-hreflang-annotations-to-noindex-urls",
+    "url": "/hints/international/has-outgoing-hreflang-annotations-to-noindex-urls/",
+    "title": "Has outgoing hreflang annotations to noindex URLs",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has at least one outgoing hreflang annotation URL which is noindex.",
+    "status": "MISSING",
+    "note": "Target-side noindex state needs crawl-level data.",
+    "ruleId": "crawl-hreflang-to-noindex",
+    "cat": "crawl",
+    "effort": "medium",
+    "data": "crawl-level: target robots meta"
+  },
+  {
+    "category": "international",
+    "slug": "noindex-url-has-incoming-hreflang",
+    "url": "/hints/international/noindex-url-has-incoming-hreflang/",
+    "title": "Noindex URL has incoming hreflang",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is defined as a hreflang alternate, yet is noindex.",
+    "status": "COVERED",
+    "rules": [
+      "i18n-hreflang-to-noindex"
+    ]
+  },
+  {
+    "category": "international",
+    "slug": "has-outgoing-hreflang-annotations-to-broken-urls",
+    "url": "/hints/international/has-outgoing-hreflang-annotations-to-broken-urls/",
+    "title": "Has outgoing hreflang annotations to broken URLs",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has at least one outgoing hreflang annotation which returned as Not Found (4XX) or Error (5XX).",
+    "status": "PARTIAL",
+    "rules": [
+      "i18n-hreflang-to-broken"
+    ],
+    "note": "Only malformed/obviously-broken URLs are caught statically; targets are not fetched for 4xx/5xx.",
+    "ruleId": "i18n-hreflang-to-broken (extend to crawl-level status)",
+    "cat": "i18n",
+    "effort": "medium"
+  },
+  {
+    "category": "international",
+    "slug": "has-outgoing-hreflang-annotations-to-canonicalized-urls",
+    "url": "/hints/international/has-outgoing-hreflang-annotations-to-canonicalized-urls/",
+    "title": "Has outgoing hreflang annotations to canonicalized URLs",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has at least one outgoing hreflang annotation which is canonicalized to another URL.",
+    "status": "COVERED",
+    "rules": [
+      "i18n-hreflang-to-non-canonical"
+    ]
+  },
+  {
+    "category": "international",
+    "slug": "canonicalized-url-has-incoming-hreflang",
+    "url": "/hints/international/canonicalized-url-has-incoming-hreflang/",
+    "title": "Canonicalized URL has incoming hreflang",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is defined as a hreflang alternate, yet is canonicalized to another URL.",
+    "status": "PARTIAL",
+    "rules": [
+      "i18n-hreflang-to-non-canonical"
+    ],
+    "note": "Outgoing direction covered; \"this page is canonicalized and is an hreflang target\" needs crawl-level data."
+  },
+  {
+    "category": "international",
+    "slug": "has-outgoing-hreflang-annotations-to-disallowed-urls",
+    "url": "/hints/international/has-outgoing-hreflang-annotations-to-disallowed-urls/",
+    "title": "Has outgoing hreflang annotations to disallowed URLs",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has at least one outgoing hreflang annotation URL that is disallowed in robots.txt.",
+    "status": "MISSING",
+    "note": "Needs robots.txt cross-reference of hreflang targets.",
+    "ruleId": "crawl-hreflang-to-disallowed",
+    "cat": "crawl",
+    "effort": "medium",
+    "data": "robots.txt (already fetched) + hreflang targets"
+  },
+  {
+    "category": "international",
+    "slug": "disallowed-url-has-incoming-hreflang",
+    "url": "/hints/international/disallowed-url-has-incoming-hreflang/",
+    "title": "Disallowed URL has incoming hreflang",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is defined as a hreflang alternate, yet is disallowed in robots.txt.",
+    "status": "MISSING",
+    "note": "Needs crawl-level incoming hreflang + robots.txt cross-reference.",
+    "ruleId": "crawl-hreflang-disallowed-target",
+    "cat": "crawl",
+    "effort": "medium"
+  },
+  {
+    "category": "international",
+    "slug": "has-conflicting-incoming-hreflang-annotations",
+    "url": "/hints/international/has-conflicting-incoming-hreflang-annotations/",
+    "title": "Has conflicting incoming hreflang annotations",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has multiple, different incoming hreflang annotations.",
+    "status": "MISSING",
+    "note": "Incoming annotation conflicts need the crawl-level hreflang graph.",
+    "ruleId": "crawl-hreflang-incoming-conflict",
+    "cat": "crawl",
+    "effort": "complex",
+    "data": "crawl-level hreflang graph"
+  },
+  {
+    "category": "international",
+    "slug": "has-conflicting-outgoing-hreflang-annotations",
+    "url": "/hints/international/has-conflicting-outgoing-hreflang-annotations/",
+    "title": "Has conflicting outgoing hreflang annotations",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has one or more outgoing hreflang annotations that specify the same URL, but with different hreflang - so there is a conflict between the two annotations.",
+    "status": "COVERED",
+    "rules": [
+      "i18n-hreflang-conflicting"
+    ]
+  },
+  {
+    "category": "international",
+    "slug": "has-multiple-self-referencing-hreflang-annotations",
+    "url": "/hints/international/has-multiple-self-referencing-hreflang-annotations/",
+    "title": "Has multiple self-referencing hreflang annotations",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has one or more self-referenced hreflang annotations, that specify different hreflang values - so there is a conflict between the annotations.",
+    "status": "COVERED",
+    "rules": [
+      "i18n-hreflang-return-links",
+      "i18n-hreflang-conflicting"
+    ]
+  },
+  {
+    "category": "international",
+    "slug": "has-outgoing-hreflang-annotation-to-multiple-urls",
+    "url": "/hints/international/has-outgoing-hreflang-annotation-to-multiple-urls/",
+    "title": "Has outgoing hreflang annotation to multiple URLs",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has hreflang annotations that specify the same hreflang to multiple different URLs - so there is a conflict between the various annotations.",
+    "status": "COVERED",
+    "rules": [
+      "i18n-hreflang-conflicting"
+    ]
+  },
+  {
+    "category": "international",
+    "slug": "has-outgoing-hreflang-annotations-using-relative-urls",
+    "url": "/hints/international/has-outgoing-hreflang-annotations-using-relative-urls/",
+    "title": "Has outgoing hreflang annotations using relative URLs",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has hreflang annotations that have at least one outgoing hreflang annotation which is referenced as a relative URL.",
+    "status": "COVERED",
+    "rules": [
+      "i18n-hreflang-relative-url"
+    ]
+  },
+  {
+    "category": "international",
+    "slug": "invalid-html-lang-attribute",
+    "url": "/hints/international/invalid-html-lang-attribute/",
+    "title": "Invalid HTML lang attribute",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has defined the language/region attribute using HTML lang, but either the language code or the geography code is invalid (or both are invalid).",
+    "status": "COVERED",
+    "rules": [
+      "i18n-lang-attribute"
+    ]
+  },
+  {
+    "category": "international",
+    "slug": "mismatched-hreflang-and-html-lang-declarations",
+    "url": "/hints/international/mismatched-hreflang-and-html-lang-declarations/",
+    "title": "Mismatched hreflang and HTML lang declarations",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has hreflang annotations and HTML lang attributes that do not match.",
+    "status": "COVERED",
+    "rules": [
+      "i18n-hreflang-lang-mismatch"
+    ]
+  },
+  {
+    "category": "international",
+    "slug": "missing-hreflang-annotations",
+    "url": "/hints/international/missing-hreflang-annotations/",
+    "title": "Missing hreflang annotations",
+    "importance": "High",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question is not specified as a translation through hreflang annotations.",
+    "status": "PARTIAL",
+    "rules": [
+      "i18n-hreflang"
+    ],
+    "note": "Presence is checked, but we do not infer that a site should have hreflang (multilingual signals)."
+  },
+  {
+    "category": "international",
+    "slug": "missing-reciprocal-hreflang-no-return-tag",
+    "url": "/hints/international/missing-reciprocal-hreflang-no-return-tag/",
+    "title": "Missing reciprocal hreflang (no return-tag)",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has hreflang annotations where at least one of the alternate hreflang URLs does not reciprocate.",
+    "status": "PARTIAL",
+    "rules": [
+      "i18n-hreflang-return-links"
+    ],
+    "note": "We check for a self-referencing annotation, not whether target pages link back; true reciprocity needs crawl-level data.",
+    "ruleId": "crawl-hreflang-reciprocity",
+    "cat": "crawl",
+    "effort": "complex",
+    "data": "crawl-level hreflang graph"
+  },
+  {
+    "category": "international",
+    "slug": "has-outgoing-hreflang-annotations-to-redirecting-urls",
+    "url": "/hints/international/has-outgoing-hreflang-annotations-to-redirecting-urls/",
+    "title": "Has outgoing hreflang annotations to redirecting URLs",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has at least one outgoing hreflang annotation which is redirected to another URL.",
+    "status": "PARTIAL",
+    "rules": [
+      "i18n-hreflang-to-redirect"
+    ],
+    "note": "Heuristic only (HTTP-on-HTTPS); targets are not fetched for actual 3xx.",
+    "ruleId": "i18n-hreflang-to-redirect (extend to crawl-level status)",
+    "cat": "i18n",
+    "effort": "medium"
+  },
+  {
+    "category": "international",
+    "slug": "has-unsupported-or-misconfigured-hreflang",
+    "url": "/hints/international/has-unsupported-or-misconfigured-hreflang/",
+    "title": "Has unsupported or misconfigured hreflang",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has one or more outgoing hreflang annotation that is configured incorrectly.",
+    "status": "COVERED",
+    "rules": [
+      "i18n-hreflang"
+    ]
+  },
+  {
+    "category": "international",
+    "slug": "has-hreflang-annotations-using-multiple-methods",
+    "url": "/hints/international/has-hreflang-annotations-using-multiple-methods/",
+    "title": "Has hreflang annotations using multiple methods",
+    "importance": "High",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question has hreflang annotations defined using more than one method (HTML, HTTP Header or XML Sitemap)",
+    "status": "COVERED",
+    "rules": [
+      "i18n-hreflang-multiple-methods"
+    ],
+    "note": "HTML vs HTTP header covered; XML sitemap method not parsed."
+  },
+  {
+    "category": "international",
+    "slug": "missing-canonical-url",
+    "url": "/hints/international/missing-canonical-url/",
+    "title": "Missing canonical URL",
+    "importance": "Medium",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question hashreflang annotations, but no canonical tag.",
+    "status": "COVERED",
+    "rules": [
+      "core-canonical-present"
+    ]
+  },
+  {
+    "category": "international",
+    "slug": "missing-html-lang-attribute",
+    "url": "/hints/international/missing-html-lang-attribute/",
+    "title": "Missing HTML lang attribute",
+    "importance": "Medium",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question has not defined the language/region attribute using HTML lang.",
+    "status": "COVERED",
+    "rules": [
+      "i18n-lang-attribute"
+    ]
+  },
+  {
+    "category": "international",
+    "slug": "has-hreflang-annotations-without-html-lang",
+    "url": "/hints/international/has-hreflang-annotations-without-html-lang/",
+    "title": "Has hreflang annotations without HTML lang",
+    "importance": "Medium",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question has hreflang annotations, but has not defined the language/region attribute using HTML lang.",
+    "status": "COVERED",
+    "rules": [
+      "i18n-lang-attribute",
+      "i18n-hreflang-lang-mismatch"
+    ]
+  },
+  {
+    "category": "international",
+    "slug": "hreflang-annotation-also-x-default",
+    "url": "/hints/international/hreflang-annotation-also-x-default/",
+    "title": "Hreflang annotation also x-default",
+    "importance": "Insight",
+    "warningType": "Insight",
+    "description": "This means that the URL in question is defined as an hreflang alternate, and also defined as the x-default hreflang.",
+    "status": "COVERED",
+    "rules": [
+      "i18n-hreflang-x-default"
+    ]
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-has-validation-errors",
+    "url": "/hints/amp/amp-page-has-validation-errors/",
+    "title": "AMP Page has validation errors",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL that contains validation errors and does not pass an AMP validation test.",
+    "status": "SKIP",
+    "note": "AMP is deprecated as a ranking concern (page experience update 2021+; Google killed AMP cache requirement). Recommend not implementing."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-has-canonical-url-which-is-error-5xx",
+    "url": "/hints/amp/amp-page-url-has-canonical-url-which-is-error-5xx/",
+    "title": "AMP Page URL has canonical URL which is Error (5XX)",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL, and contains a canonical tag which returned Error (5XX).",
+    "status": "SKIP",
+    "note": "AMP-specific; see amp-page-has-validation-errors."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-has-canonical-url-which-is-forbidden-403",
+    "url": "/hints/amp/amp-page-url-has-canonical-url-which-is-forbidden-403/",
+    "title": "AMP Page URL has canonical URL which is Forbidden (403)",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL, and contains a canonical tag which returned Forbidden (403).",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-has-canonical-url-which-is-not-found-4xx",
+    "url": "/hints/amp/amp-page-url-has-canonical-url-which-is-not-found-4xx/",
+    "title": "AMP Page URL has canonical URL which is Not Found (4XX)",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL, and contains a canonical tag which returned Not Found (4XX).",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-is-error-5xx",
+    "url": "/hints/amp/amp-page-url-is-error-5xx/",
+    "title": "AMP Page URL is Error (5XX)",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL, which returned Error (5XX).",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-is-forbidden-403",
+    "url": "/hints/amp/amp-page-url-is-forbidden-403/",
+    "title": "AMP Page URL is Forbidden (403)",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL which is Forbidden (403).",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-is-not-found-4xx",
+    "url": "/hints/amp/amp-page-url-is-not-found-4xx/",
+    "title": "AMP Page URL is Not Found (4XX)",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL, which is Not Found (4XX).",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-has-canonical-url-which-is-canonicalized",
+    "url": "/hints/amp/amp-page-url-has-canonical-url-which-is-canonicalized/",
+    "title": "AMP Page URL has canonical URL which is canonicalized",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL, and contains a canonical tag pointing to a canonicalized URL (i.e. the canonical URL is itself canonicalized to another URL).",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-has-canonical-url-which-is-disallowed",
+    "url": "/hints/amp/amp-page-url-has-canonical-url-which-is-disallowed/",
+    "title": "AMP Page URL has canonical URL which is disallowed",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL, and contains a canonical tag pointing to a disallowed URL.",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-has-canonical-url-which-is-noindex",
+    "url": "/hints/amp/amp-page-url-has-canonical-url-which-is-noindex/",
+    "title": "AMP Page URL has canonical URL which is noindex",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL, and contains a canonical tag pointing to a noindex URL.",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-has-canonical-url-which-is-not-indexable",
+    "url": "/hints/amp/amp-page-url-has-canonical-url-which-is-not-indexable/",
+    "title": "AMP Page URL has canonical URL which is not indexable",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL, and contains a canonical tag pointing to a URL which is not indexable.",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-has-canonical-url-which-is-redirect-3xx",
+    "url": "/hints/amp/amp-page-url-has-canonical-url-which-is-redirect-3xx/",
+    "title": "AMP Page URL has canonical URL which is Redirect (3XX)",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL, and contains a canonical tag which returned Redirect (3XX).",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-is-disallowed",
+    "url": "/hints/amp/amp-page-url-is-disallowed/",
+    "title": "AMP Page URL is disallowed",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL, which is disallowed in robots.txt.",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-is-missing-a-canonical-tag",
+    "url": "/hints/amp/amp-page-url-is-missing-a-canonical-tag/",
+    "title": "AMP Page URL is missing a canonical tag",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL, which does not contain a canonical tag.",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-is-missing-the-html-amp-tag",
+    "url": "/hints/amp/amp-page-url-is-missing-the-html-amp-tag/",
+    "title": "AMP Page URL is missing the &lt;html amp&gt; tag",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL, which does not contain an \\<html amp> tag.",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-is-noindex",
+    "url": "/hints/amp/amp-page-url-is-noindex/",
+    "title": "AMP Page URL is noindex",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL, which is noindex.",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-is-redirect-3xx",
+    "url": "/hints/amp/amp-page-url-is-redirect-3xx/",
+    "title": "AMP Page URL is Redirect (3XX)",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is an AMP Page URL, which is a Redirect (3XX).",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "amp",
+    "slug": "amphtml-link-only-found-in-rendered-dom",
+    "url": "/hints/amp/amphtml-link-only-found-in-rendered-dom/",
+    "title": "amphtml link only found in rendered DOM",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a an amphtml link element which is only present in the rendered DOM, and is not present in the source HTML.",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "amp",
+    "slug": "amp-page-url-loops",
+    "url": "/hints/amp/amp-page-url-loops/",
+    "title": "AMP Page URL loops",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains an \\<amphtml> tag pointing at a URL, where this URL also has \\<amphtml> tag, that points back at the original URL.",
+    "status": "SKIP",
+    "note": "AMP-specific."
+  },
+  {
+    "category": "duplicate-content",
+    "slug": "urls-with-duplicate-content",
+    "url": "/hints/duplicate-content/urls-with-duplicate-content/",
+    "title": "URLs with duplicate content",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has identical HTML content to at least one other indexable URL.",
+    "status": "COVERED",
+    "rules": [
+      "content-duplicate-exact"
+    ]
+  },
+  {
+    "category": "duplicate-content",
+    "slug": "urls-with-duplicate-page-titles",
+    "url": "/hints/duplicate-content/urls-with-duplicate-page-titles/",
+    "title": "URLs with duplicate page titles",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has the exact same page title as at least one other indexable URL.",
+    "status": "COVERED",
+    "rules": [
+      "core-title-unique"
+    ]
+  },
+  {
+    "category": "duplicate-content",
+    "slug": "technically-duplicate-urls",
+    "url": "/hints/duplicate-content/technically-duplicate-urls/",
+    "title": "Technically duplicate URLs",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is technically identical to at least one other indexable URL. This could be URLs that are only different based on case, or have the same query string parameters and values (but in a different order).",
+    "status": "PARTIAL",
+    "rules": [
+      "url-uppercase",
+      "url-parameters",
+      "redirect-case-normalization"
+    ],
+    "note": "We check the individual URL properties but do not cluster URLs that resolve to identical content."
+  },
+  {
+    "category": "duplicate-content",
+    "slug": "urls-with-duplicate-title-and-meta-descriptions",
+    "url": "/hints/duplicate-content/urls-with-duplicate-title-and-meta-descriptions/",
+    "title": "URLs with duplicate title and meta descriptions",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has the exact same page title and meta description as at least one other indexable URL.",
+    "status": "COVERED",
+    "rules": [
+      "core-title-unique",
+      "content-duplicate-description"
+    ],
+    "note": "The combination is implied by the two single-field rules."
+  },
+  {
+    "category": "duplicate-content",
+    "slug": "urls-with-similar-content",
+    "url": "/hints/duplicate-content/urls-with-similar-content/",
+    "title": "URLs with similar content",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has substantially similar HTML content to at least one other indexable URL.",
+    "status": "COVERED",
+    "rules": [
+      "content-duplicate-near"
+    ]
+  },
+  {
+    "category": "duplicate-content",
+    "slug": "urls-with-duplicate-h1s",
+    "url": "/hints/duplicate-content/urls-with-duplicate-h1s/",
+    "title": "URLs with duplicate h1s",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has the exact same header 1 (h1) tag as at least one other indexable URL.",
+    "status": "MISSING",
+    "note": "content-heading-unique is within-document; cross-page duplicate H1s are not tracked.",
+    "ruleId": "content-duplicate-h1",
+    "cat": "content",
+    "effort": "medium",
+    "data": "crawl-level cross-page H1 map"
+  },
+  {
+    "category": "duplicate-content",
+    "slug": "urls-with-duplicate-meta-descriptions",
+    "url": "/hints/duplicate-content/urls-with-duplicate-meta-descriptions/",
+    "title": "URLs with duplicate meta descriptions",
+    "importance": "Low",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has the exact same meta description as at least one other indexable URL.",
+    "status": "COVERED",
+    "rules": [
+      "content-duplicate-description"
+    ]
+  },
+  {
+    "category": "mobile-friendly",
+    "slug": "multiple-viewport-meta-tags-were-found-in-the-head",
+    "url": "/hints/mobile-friendly/multiple-viewport-meta-tags-were-found-in-the-head/",
+    "title": "Multiple viewport &lt;meta&gt; tags were found in the &lt;head&gt;",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains multiple viewport \\<meta> tags in the \\<head>.",
+    "status": "COVERED",
+    "rules": [
+      "mobile-multiple-viewports"
+    ]
+  },
+  {
+    "category": "mobile-friendly",
+    "slug": "content-does-not-size-correctly-to-viewport",
+    "url": "/hints/mobile-friendly/content-does-not-size-correctly-to-viewport/",
+    "title": "Content does not size correctly to viewport",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question is not responsive, and the page content does not size accordingly when the screen size is changed.",
+    "status": "PARTIAL",
+    "rules": [
+      "mobile-viewport-width",
+      "mobile-horizontal-scroll"
+    ],
+    "note": "Static heuristics only; a true rendered-viewport overflow measurement would need a mobile render pass."
+  },
+  {
+    "category": "mobile-friendly",
+    "slug": "font-size-is-too-small-for-mobile-devices",
+    "url": "/hints/mobile-friendly/font-size-is-too-small-for-mobile-devices/",
+    "title": "Font size is too small for mobile devices",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains some text which is too small, and therefore not legible for mobile devices.",
+    "status": "COVERED",
+    "rules": [
+      "mobile-font-size"
+    ]
+  },
+  {
+    "category": "mobile-friendly",
+    "slug": "has-one-or-more-image-map-map-tags",
+    "url": "/hints/mobile-friendly/has-one-or-more-image-map-map-tags/",
+    "title": "Has one or more image-map &lt;map&gt; tags",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains image-map tags.",
+    "status": "COVERED",
+    "rules": [
+      "mobile-image-maps"
+    ]
+  },
+  {
+    "category": "mobile-friendly",
+    "slug": "tap-targets-are-too-small-and-close",
+    "url": "/hints/mobile-friendly/tap-targets-are-too-small-and-close/",
+    "title": "Tap targets are too small and close",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains touch targets (such as buttons and links) which are too small and close to each other.",
+    "status": "COVERED",
+    "rules": [
+      "a11y-touch-targets"
+    ]
+  },
+  {
+    "category": "mobile-friendly",
+    "slug": "missing-viewport-meta-tag-in-the-head",
+    "url": "/hints/mobile-friendly/missing-viewport-meta-tag-in-the-head/",
+    "title": "Missing Viewport &lt;Meta&gt; tag in the &lt;head&gt; -reference catalog SEO Tips",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question does not contain a viewport \\<meta> tag in the \\<head>",
+    "status": "COVERED",
+    "rules": [
+      "core-viewport-present"
+    ]
+  },
+  {
+    "category": "mobile-friendly",
+    "slug": "the-viewport-meta-tag-does-not-have-a-width-set",
+    "url": "/hints/mobile-friendly/the-viewport-meta-tag-does-not-have-a-width-set/",
+    "title": "The viewport &lt;meta&gt; tag does not have a width set",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a viewport \\<meta> tag with no width set.",
+    "status": "COVERED",
+    "rules": [
+      "mobile-viewport-content"
+    ]
+  },
+  {
+    "category": "mobile-friendly",
+    "slug": "the-viewport-meta-tag-has-a-specific-width-set",
+    "url": "/hints/mobile-friendly/the-viewport-meta-tag-has-a-specific-width-set/",
+    "title": "The viewport &lt;meta&gt; tag has a specific width set",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a viewport \\<meta> tag with a specific width set.",
+    "status": "COVERED",
+    "rules": [
+      "mobile-viewport-width"
+    ]
+  },
+  {
+    "category": "mobile-friendly",
+    "slug": "the-viewport-meta-tag-has-a-maximum-scale-set",
+    "url": "/hints/mobile-friendly/the-viewport-meta-tag-has-a-maximum-scale-set/",
+    "title": "The viewport &lt;meta&gt; tag has a maximum-scale set",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a viewport \\<meta> tag with a maximum-scale set.",
+    "status": "COVERED",
+    "rules": [
+      "a11y-zoom-disabled"
+    ]
+  },
+  {
+    "category": "mobile-friendly",
+    "slug": "the-viewport-meta-tag-has-a-minimum-scale-set",
+    "url": "/hints/mobile-friendly/the-viewport-meta-tag-has-a-minimum-scale-set/",
+    "title": "The viewport &lt;meta&gt; tag has a minimum-scale set",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a viewport \\<meta> tag with a minimum-scale set.",
+    "status": "COVERED",
+    "rules": [
+      "a11y-zoom-disabled",
+      "mobile-viewport-content"
+    ]
+  },
+  {
+    "category": "mobile-friendly",
+    "slug": "the-viewport-meta-tag-initial-scale-is-incorrect",
+    "url": "/hints/mobile-friendly/the-viewport-meta-tag-initial-scale-is-incorrect/",
+    "title": "The viewport &lt;meta&gt; tag initial-scale is incorrect",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a viewport \\<meta> tag with an initial-scale set to a value other than 1.0.",
+    "status": "COVERED",
+    "rules": [
+      "mobile-viewport-content"
+    ]
+  },
+  {
+    "category": "mobile-friendly",
+    "slug": "the-viewport-meta-tag-is-missing-an-initial-scale",
+    "url": "/hints/mobile-friendly/the-viewport-meta-tag-is-missing-an-initial-scale/",
+    "title": "The viewport &lt;meta&gt; tag is missing an initial-scale",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a viewport \\<meta> tag with no initial-scale attribute.",
+    "status": "COVERED",
+    "rules": [
+      "mobile-viewport-content"
+    ]
+  },
+  {
+    "category": "mobile-friendly",
+    "slug": "the-viewport-meta-tag-prevents-the-user-from-scaling",
+    "url": "/hints/mobile-friendly/the-viewport-meta-tag-prevents-the-user-from-scaling/",
+    "title": "The viewport &lt;meta&gt; tag prevents the user from scaling",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a viewport \\<meta> tag with the attribute user-scalable set to '0' or 'no', which prevents the user from zooming in or zooming out.",
+    "status": "COVERED",
+    "rules": [
+      "a11y-zoom-disabled"
+    ]
+  },
+  {
+    "category": "performance",
+    "slug": "eliminate-render-blocking-resources",
+    "url": "/hints/performance/eliminate-render-blocking-resources/",
+    "title": "Eliminate render blocking resources",
+    "importance": "Critical",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question contains JavaScript or CSS that blocks the initial render of the page.",
+    "status": "COVERED",
+    "rules": [
+      "perf-render-blocking"
+    ]
+  },
+  {
+    "category": "performance",
+    "slug": "avoid-enormous-network-payloads",
+    "url": "/hints/performance/avoid-enormous-network-payloads/",
+    "title": "Avoid enormous network payloads",
+    "importance": "Critical",
+    "warningType": "Diagnostic",
+    "description": "This means that the URL has an extremely large page size (over 4Mb), which makes it slow to download.",
+    "status": "COVERED",
+    "rules": [
+      "perf-page-weight"
+    ]
+  },
+  {
+    "category": "performance",
+    "slug": "serve-static-assets-with-an-efficient-cache-policy",
+    "url": "/hints/performance/serve-static-assets-with-an-efficient-cache-policy/",
+    "title": "Serve static assets with an efficient cache policy",
+    "importance": "Critical",
+    "warningType": "Diagnostic",
+    "description": "This means that the URL in question contains resource URLs, such as images or JavaScript files, which do not specify a cache header.",
+    "status": "PARTIAL",
+    "rules": [
+      "perf-cache-policy"
+    ],
+    "note": "Only the page response headers are checked; per-asset cache headers need resource-level fetches or the Playwright response listener.",
+    "ruleId": "perf-asset-cache-policy",
+    "cat": "perf",
+    "effort": "medium",
+    "data": "Playwright response listener (per-resource headers)"
+  },
+  {
+    "category": "performance",
+    "slug": "efficiently-encode-images",
+    "url": "/hints/performance/efficiently-encode-images/",
+    "title": "Efficiently encode images",
+    "importance": "High",
+    "warningType": "Opportunity",
+    "description": "This means that the URL contains images that are unoptimized.",
+    "status": "PARTIAL",
+    "rules": [
+      "images-size",
+      "images-modern-format"
+    ],
+    "note": "Size is estimated, not measured per image; no recompression analysis.",
+    "ruleId": "perf-image-encoding",
+    "cat": "perf",
+    "effort": "medium",
+    "data": "per-resource bytes via response listener"
+  },
+  {
+    "category": "performance",
+    "slug": "defer-offscreen-images",
+    "url": "/hints/performance/defer-offscreen-images/",
+    "title": "Defer offscreen images",
+    "importance": "High",
+    "warningType": "Opportunity",
+    "description": "This means that the URL contains images that are fully loaded by the browser even though they are not visible in the user's viewport.",
+    "status": "COVERED",
+    "rules": [
+      "images-lazy-loading",
+      "perf-lazy-above-fold"
+    ]
+  },
+  {
+    "category": "performance",
+    "slug": "minify-javascript",
+    "url": "/hints/performance/minify-javascript/",
+    "title": "Minify JavaScript",
+    "importance": "High",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question contains JavaScript files that are not minified or could be minified further.",
+    "status": "PARTIAL",
+    "rules": [
+      "perf-minify-js"
+    ],
+    "note": "Only inline scripts are checked; external JS files are not fetched for minification analysis.",
+    "ruleId": "perf-minify-js (extend to external)",
+    "cat": "perf",
+    "effort": "medium"
+  },
+  {
+    "category": "performance",
+    "slug": "minify-css",
+    "url": "/hints/performance/minify-css/",
+    "title": "Minify CSS",
+    "importance": "High",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question contains CSS files that are not minified or could be minified further.",
+    "status": "PARTIAL",
+    "rules": [
+      "perf-minify-css"
+    ],
+    "note": "Only inline styles are checked.",
+    "ruleId": "perf-minify-css (extend to external)",
+    "cat": "perf",
+    "effort": "medium"
+  },
+  {
+    "category": "performance",
+    "slug": "reduce-server-response-times-ttfb",
+    "url": "/hints/performance/reduce-server-response-times-ttfb/",
+    "title": "Reduce server response times (TTFB)",
+    "importance": "High",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question has a Time-to-First-Byte (TTFB) greater than 600ms.",
+    "status": "COVERED",
+    "rules": [
+      "cwv-ttfb",
+      "perf-response-time"
+    ]
+  },
+  {
+    "category": "performance",
+    "slug": "enable-text-compression",
+    "url": "/hints/performance/enable-text-compression/",
+    "title": "Enable text compression",
+    "importance": "High",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question contains text-based resources that are not served with compression.",
+    "status": "PARTIAL",
+    "rules": [
+      "perf-text-compression",
+      "perf-brotli"
+    ],
+    "note": "Page response compression is checked; compression of sub-resources is not.",
+    "ruleId": "perf-asset-compression",
+    "cat": "perf",
+    "effort": "medium"
+  },
+  {
+    "category": "performance",
+    "slug": "ensure-text-remains-visible-during-webfont-load",
+    "url": "/hints/performance/ensure-text-remains-visible-during-webfont-load/",
+    "title": "Ensure text remains visible during webfont load",
+    "importance": "Medium",
+    "warningType": "Diagnostic",
+    "description": "This means that the URL in question hides text content until the webfont loads, causing a flash of invisible text.",
+    "status": "COVERED",
+    "rules": [
+      "perf-font-loading"
+    ]
+  },
+  {
+    "category": "performance",
+    "slug": "add-dimensions-to-images",
+    "url": "/hints/performance/add-dimensions-to-images/",
+    "title": "Add dimensions to images",
+    "importance": "Medium",
+    "warningType": "Opportunity",
+    "description": "This means that the URL contains images that do not have width and height size attributes.",
+    "status": "COVERED",
+    "rules": [
+      "images-dimensions"
+    ]
+  },
+  {
+    "category": "performance",
+    "slug": "properly-size-images",
+    "url": "/hints/performance/properly-size-images/",
+    "title": "Properly size images",
+    "importance": "Medium",
+    "warningType": "Opportunity",
+    "description": "This means that the URL contains images that are larger than the size they are rendered at.",
+    "status": "PARTIAL",
+    "rules": [
+      "images-responsive",
+      "images-size"
+    ],
+    "note": "Rendered-size vs intrinsic-size comparison needs layout measurement.",
+    "ruleId": "perf-image-oversize",
+    "cat": "perf",
+    "effort": "complex",
+    "data": "rendered layout measurements"
+  },
+  {
+    "category": "performance",
+    "slug": "remove-unused-css",
+    "url": "/hints/performance/remove-unused-css/",
+    "title": "Remove unused CSS",
+    "importance": "Medium",
+    "warningType": "Opportunity",
+    "description": "This means that the URL contains 'unused CSS', which is not actually used for rendering.",
+    "status": "MISSING",
+    "note": "Needs CSS coverage collection; planned as perf-unused-css in the Lighthouse PRD Phase 3 but not yet implemented.",
+    "ruleId": "perf-unused-css",
+    "cat": "perf",
+    "effort": "complex",
+    "data": "Playwright coverage API"
+  },
+  {
+    "category": "performance",
+    "slug": "remove-unused-javascript",
+    "url": "/hints/performance/remove-unused-javascript/",
+    "title": "Reduce Or Remove Unused JavaScript for SEO - reference catalog SEO Tips",
+    "importance": "Medium",
+    "warningType": "Opportunity",
+    "description": "This means that the URL contains 'unused JavaScript', which is not actually used for rendering.",
+    "status": "MISSING",
+    "note": "Needs JS coverage collection; planned as perf-unused-js in the Lighthouse PRD Phase 3 but not yet implemented.",
+    "ruleId": "perf-unused-js",
+    "cat": "perf",
+    "effort": "complex",
+    "data": "Playwright coverage API"
+  },
+  {
+    "category": "performance",
+    "slug": "transferred-image-size-is-over-100kb",
+    "url": "/hints/performance/transferred-image-size-is-over-100kb/",
+    "title": "Transferred image size is over 100KB",
+    "importance": "Medium",
+    "warningType": "Opportunity",
+    "description": "This means that the URL in question is an image file that is over 100KB, which is generally considered large.",
+    "status": "PARTIAL",
+    "rules": [
+      "images-size"
+    ],
+    "note": "Estimate-based, threshold 200KB; transferred bytes are not measured.",
+    "ruleId": "perf-image-encoding",
+    "cat": "perf",
+    "effort": "medium"
+  },
+  {
+    "category": "performance",
+    "slug": "serve-images-in-next-gen-formats",
+    "url": "/hints/performance/serve-images-in-next-gen-formats/",
+    "title": "Serve images in next gen formats",
+    "importance": "Low",
+    "warningType": "Opportunity",
+    "description": "This means that the URL contains images that are in older formats (BMP, JPEG or PNG).",
+    "status": "COVERED",
+    "rules": [
+      "images-modern-format"
+    ]
+  },
+  {
+    "category": "performance",
+    "slug": "use-video-formats-for-animated-content",
+    "url": "/hints/performance/use-video-formats-for-animated-content/",
+    "title": "Use video formats for animated content",
+    "importance": "Low",
+    "warningType": "Opportunity",
+    "description": "This means that the URL contains animated content in GIF format.",
+    "status": "COVERED",
+    "rules": [
+      "perf-video-for-animations"
+    ]
+  },
+  {
+    "category": "performance",
+    "slug": "avoid-excessive-dom-width",
+    "url": "/hints/performance/avoid-excessive-dom-width/",
+    "title": "Avoid excessive DOM width",
+    "importance": "Low",
+    "warningType": "Diagnostic",
+    "description": "This means that the URL in question has a parent node in the DOM with more than the recommended 60 child nodes.",
+    "status": "COVERED",
+    "rules": [
+      "perf-dom-size"
+    ]
+  },
+  {
+    "category": "performance",
+    "slug": "avoid-excessive-dom-size",
+    "url": "/hints/performance/avoid-excessive-dom-size/",
+    "title": "Avoid excessive DOM size",
+    "importance": "Low",
+    "warningType": "Diagnostic",
+    "description": "This means that the URL in question has more than the recommended 1500 elements in the DOM.",
+    "status": "COVERED",
+    "rules": [
+      "perf-dom-size"
+    ]
+  },
+  {
+    "category": "performance",
+    "slug": "avoid-excessive-dom-depth",
+    "url": "/hints/performance/avoid-excessive-dom-depth/",
+    "title": "Avoid excessive DOM depth",
+    "importance": "Low",
+    "warningType": "Diagnostic",
+    "description": "This means that the URL in question has DOM nodes exceeding the maximum recommended depth of 32.",
+    "status": "COVERED",
+    "rules": [
+      "perf-dom-size"
+    ]
+  },
+  {
+    "category": "rendered",
+    "slug": "noindex-only-in-the-http-response-html",
+    "url": "/hints/rendered/noindex-only-in-the-http-response-html/",
+    "title": "Noindex only in the HTTP response HTML",
+    "importance": "Critical",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a noindex in the response HTML, and not in the rendered HTML.",
+    "status": "COVERED",
+    "rules": [
+      "js-noindex-mismatch"
+    ]
+  },
+  {
+    "category": "rendered",
+    "slug": "nofollow-only-in-the-http-response-html",
+    "url": "/hints/rendered/nofollow-only-in-the-http-response-html/",
+    "title": "Nofollow only in the HTTP response HTML",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a nofollow in the response HTML, and not in the rendered HTML.",
+    "status": "COVERED",
+    "rules": [
+      "js-noindex-mismatch"
+    ]
+  },
+  {
+    "category": "rendered",
+    "slug": "canonical-only-in-the-rendered-html",
+    "url": "/hints/rendered/canonical-only-in-the-rendered-html/",
+    "title": "Canonical only in the rendered HTML",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a canonical element that is only present in the rendered HTML and is not present in the initial response HTML. The canonical is only present on the page once the page is rendered.",
+    "status": "COVERED",
+    "rules": [
+      "js-canonical-mismatch",
+      "js-rendered-canonical"
+    ]
+  },
+  {
+    "category": "rendered",
+    "slug": "canonical-mismatch-between-rendered-and-response-html",
+    "url": "/hints/rendered/canonical-mismatch-between-rendered-and-response-html/",
+    "title": "Canonical mismatch between rendered and response HTML",
+    "importance": "High",
+    "warningType": "Issue",
+    "description": "This means that the URL in question contains a canonical element has a different link in the response HTML, when compared with the rendered HTML.",
+    "status": "COVERED",
+    "rules": [
+      "js-canonical-mismatch"
+    ]
+  },
+  {
+    "category": "rendered",
+    "slug": "page-title-only-in-the-rendered-html",
+    "url": "/hints/rendered/page-title-only-in-the-rendered-html/",
+    "title": "Page Title only in the rendered HTML",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a page title that is not present in the response HTML of the page, it only appears after JavaScript has executed.",
+    "status": "COVERED",
+    "rules": [
+      "js-rendered-title",
+      "js-title-modified"
+    ]
+  },
+  {
+    "category": "rendered",
+    "slug": "page-title-modified-by-javascript",
+    "url": "/hints/rendered/page-title-modified-by-javascript/",
+    "title": "Page Title modified by JavaScript",
+    "importance": "Medium",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a page title that is different in the response HTML of the page, when compared with the rendered HTML.",
+    "status": "COVERED",
+    "rules": [
+      "js-title-modified"
+    ]
+  },
+  {
+    "category": "rendered",
+    "slug": "meta-description-only-in-the-rendered-html",
+    "url": "/hints/rendered/meta-description-only-in-the-rendered-html/",
+    "title": "Meta Description only in the rendered HTML",
+    "importance": "Low",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a meta description that is not present in the response HTML of the page, it only appears after JavaScript has executed.",
+    "status": "COVERED",
+    "rules": [
+      "js-rendered-description",
+      "js-description-modified"
+    ]
+  },
+  {
+    "category": "rendered",
+    "slug": "meta-description-modified-by-javascript",
+    "url": "/hints/rendered/meta-description-modified-by-javascript/",
+    "title": "Meta Description modified by JavaScript",
+    "importance": "Low",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has a meta description that is different in the response HTML of the page, when compared with the rendered HTML.",
+    "status": "COVERED",
+    "rules": [
+      "js-description-modified"
+    ]
+  },
+  {
+    "category": "rendered",
+    "slug": "h1-only-in-the-rendered-html",
+    "url": "/hints/rendered/h1-only-in-the-rendered-html/",
+    "title": "&lt;h1&gt; only in the rendered HTML",
+    "importance": "Low",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has an \\<h1> that is not present in the response HTML of the page, it only appears after JavaScript has executed.",
+    "status": "COVERED",
+    "rules": [
+      "js-rendered-h1",
+      "js-h1-modified"
+    ]
+  },
+  {
+    "category": "rendered",
+    "slug": "h1-modified-by-javascript",
+    "url": "/hints/rendered/h1-modified-by-javascript/",
+    "title": "&lt;h1&gt; modified by JavaScript",
+    "importance": "Low",
+    "warningType": "Issue",
+    "description": "This means that the URL in question has an \\<h1> that is different in the response HTML of the page, when compared with the rendered HTML.",
+    "status": "COVERED",
+    "rules": [
+      "js-h1-modified"
+    ]
+  },
+  {
+    "category": "rendered",
+    "slug": "contains-javascript-content",
+    "url": "/hints/rendered/contains-javascript-content/",
+    "title": "Contains JavaScript content",
+    "importance": "Low",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question contains body content that is only discovered after JavaScript has executed: the content is not present in the response HTML of the page.",
+    "status": "COVERED",
+    "rules": [
+      "js-rendered-content"
+    ]
+  },
+  {
+    "category": "rendered",
+    "slug": "contains-javascript-links",
+    "url": "/hints/rendered/contains-javascript-links/",
+    "title": "Contains JavaScript links",
+    "importance": "Low",
+    "warningType": "Potential Issue",
+    "description": "This means that the URL in question contains links that are only discovered after JavaScript has executed: the links are not present in the response HTML of the page.",
+    "status": "COVERED",
+    "rules": [
+      "js-rendered-links"
+    ]
+  }
+]

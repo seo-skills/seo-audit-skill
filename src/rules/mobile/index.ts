@@ -10,6 +10,8 @@
  * - mobile-interstitials: Detects intrusive popups and overlays
  * - mobile-viewport-width: Detects fixed viewport width instead of device-width
  * - mobile-multiple-viewports: Detects multiple viewport meta tags
+ * - mobile-image-maps: Detects <map>/<area> image maps
+ * - mobile-viewport-content: Validates width, initial-scale, and minimum-scale directives
  *
  * Mobile-first parity (require a second render at a mobile viewport, --mobile):
  * - mobile-parity-content: mobile body content matches desktop
@@ -30,6 +32,8 @@ import { horizontalScrollRule } from './horizontal-scroll.js';
 import { interstitialsRule } from './interstitials.js';
 import { viewportWidthRule } from './viewport-width.js';
 import { multipleViewportsRule } from './multiple-viewports.js';
+import { imageMapsRule } from './image-maps.js';
+import { viewportContentRule } from './viewport-content.js';
 import {
   mobileParityContentRule,
   mobileParityTitleRule,
@@ -45,6 +49,8 @@ export {
   interstitialsRule,
   viewportWidthRule,
   multipleViewportsRule,
+  imageMapsRule,
+  viewportContentRule,
   mobileParityContentRule,
   mobileParityTitleRule,
   mobileParityCanonicalRule,
@@ -58,6 +64,8 @@ registerRule(horizontalScrollRule);
 registerRule(interstitialsRule);
 registerRule(viewportWidthRule);
 registerRule(multipleViewportsRule);
+registerRule(imageMapsRule);
+registerRule(viewportContentRule);
 registerRule(mobileParityContentRule);
 registerRule(mobileParityTitleRule);
 registerRule(mobileParityCanonicalRule);

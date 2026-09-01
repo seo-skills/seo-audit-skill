@@ -1,10 +1,10 @@
 # SEO Audit Rules Reference
 
-> Complete reference of all 287 SEO audit rules across 20 categories (v3.1.1)
+> Complete reference of all 303 SEO audit rules across 20 categories (v3.3.0)
 
 ## Overview
 
-SEOmator audits websites using 287 rules organized into 20 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 303 rules organized into 20 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -15,28 +15,28 @@ SEOmator audits websites using 287 rules organized into 20 categories. Each rule
 
 | Category | Weight | Rules | Description |
 |----------|--------|-------|-------------|
-| [Core SEO]((#core-seo)) | 11% | 19 | Meta tags, canonical, H1, indexing directives |
+| [Core SEO]((#core-seo)) | 11% | 23 | Meta tags, canonical, H1, indexing directives |
 | [Performance]((#performance)) | 10% | 23 | Core Web Vitals + performance optimization hints |
-| [Links]((#links)) | 8% | 19 | Internal/external links, anchor text, validation |
+| [Links]((#links)) | 8% | 20 | Internal/external links, anchor text, validation |
 | [Images]((#images)) | 8% | 14 | Alt text, dimensions, lazy loading, optimization |
 | [Security]((#security)) | 8% | 23 | HTTPS, security headers, mixed content, SSL, cookie flags |
-| [Technical SEO]((#technical-seo)) | 7% | 13 | Robots.txt, sitemap, status codes, URL structure |
+| [Technical SEO]((#technical-seo)) | 7% | 17 | Robots.txt, sitemap, status codes, URL structure |
 | [Crawlability]((#crawlability)) | 5% | 19 | Indexability signals, sitemap conflicts, pagination, sitemap lastmod |
 | [Structured Data]((#structured-data)) | 5% | 13 | JSON-LD, Schema.org markup |
-| [Content]((#content)) | 5% | 17 | Text quality, readability, headings, duplicates |
+| [Content]((#content)) | 5% | 18 | Text quality, readability, headings, duplicates |
 | [JavaScript Rendering]((#javascript-rendering)) | 5% | 16 | SSR validation, JS-dependent SEO elements, console errors |
 | [Accessibility]((#accessibility)) | 7% | 31 | WCAG compliance, ARIA, keyboard navigation |
 | [Social]((#social)) | 3% | 9 | Open Graph, Twitter Cards, social profiles |
 | [E-E-A-T]((#e-e-a-t)) | 3% | 14 | Experience, Expertise, Authority, Trust signals |
 | [URL Structure]((#url-structure)) | 3% | 14 | Slug keywords, formatting, parameters |
 | [Redirects]((#redirects)) | 3% | 8 | Redirect types, chains, loops |
-| [Mobile]((#mobile)) | 2% | 10 | Font size, viewport, responsive layout |
-| [Internationalization]((#internationalization)) | 2% | 10 | Language declarations, hreflang validation |
-| [HTML Validation]((#html-validation)) | 2% | 9 | DOCTYPE, charset, head structure |
+| [Mobile]((#mobile)) | 2% | 12 | Font size, viewport, responsive layout |
+| [Internationalization]((#internationalization)) | 2% | 12 | Language declarations, hreflang validation |
+| [HTML Validation]((#html-validation)) | 2% | 11 | DOCTYPE, charset, head structure |
 | [AI/GEO Readiness]((#aigeo-readiness)) | 2% | 5 | Semantic HTML, AI bot access, llms.txt |
 | [Legal Compliance]((#legal-compliance)) | 1% | 1 | Cookie consent |
 
-**Total: 100% weight, 287 rules**
+**Total: 100% weight, 303 rules**
 
 ---
 
@@ -65,6 +65,10 @@ Essential SEO checks for meta tags, canonical URLs, H1 headings, and indexing di
 | `core-canonical-http-mismatch` | Canonical HTTP Mismatch | warn | Detects protocol mismatch between page and canonical |
 | `core-canonical-loop` | Canonical Loop | fail | Detects circular canonical references |
 | `core-canonical-to-noindex` | Canonical to Noindex | fail | Detects canonicals pointing to noindexed pages |
+| `core-canonical-outside-head` | Canonical Outside Head | fail | Detects `<link rel="canonical">` elements placed outside the `<head>` |
+| `core-canonical-attributes` | Canonical Attributes | warn/fail | Checks canonical elements carry only `rel` and `href` attributes |
+| `core-canonical-multiple` | Multiple Canonical Tags | warn/fail | Detects multiple canonical elements in the HTML and whether they agree |
+| `core-robots-directive-mismatch` | Robots Directive Mismatch | warn/fail | Checks robots directives in meta tags and the X-Robots-Tag header are consistent |
 
 ### Rule Details
 
@@ -133,6 +137,22 @@ Essential SEO checks for meta tags, canonical URLs, H1 headings, and indexing di
 #### core-canonical-to-noindex
 - **What it checks:** Canonical URL has a noindex directive, making it unsearchable
 - **Fix:** Remove noindex from the canonical target or change the canonical URL
+
+#### core-canonical-outside-head
+- **What it checks:** `<link rel="canonical">` elements placed outside the `<head>` (e.g. in the `<body>`), which search engines ignore entirely
+- **Fix:** Move the canonical element into the `<head>`
+
+#### core-canonical-attributes
+- **What it checks:** Canonical elements carrying attributes other than `rel` and `href`. `hreflang`, `lang`, `media`, or `type` change the element's semantics and cause search engines to ignore it (fail); any other extra attribute is superfluous (warn)
+- **Fix:** Simplify the canonical element to only `rel` and `href`; use alternate annotations (e.g. hreflang links) where appropriate
+
+#### core-canonical-multiple
+- **What it checks:** More than one `<link rel="canonical">` in the same document. URLs that disagree fail (search engines may ignore the canonical entirely); identical duplicates warn
+- **Fix:** Keep a single canonical element pointing at the correct URL
+
+#### core-robots-directive-mismatch
+- **What it checks:** Index/follow directives from meta robots tags vs the X-Robots-Tag header. Fails when one location declares index/follow and the other noindex/nofollow (the most restrictive wins); warns when noindex or nofollow is declared in more than one location
+- **Fix:** Declare robots directives in one location only and make them agree
 
 ---
 
@@ -254,6 +274,7 @@ Analyzes internal and external links, anchor text, broken links, and link qualit
 | `links-excessive` | Excessive Links | warn | Warns when page has too many total links |
 | `links-onclick` | OnClick Navigation | warn | Detects onclick-based navigation instead of hrefs |
 | `links-whitespace-href` | Whitespace Href | warn | Detects href values with leading/trailing whitespace |
+| `links-non-http-protocol` | Non-HTTP Protocol Links | warn | Detects anchor links using protocols other than HTTP(S), tel: or mailto: (e.g. ftp:, file:, intent:) |
 
 ### Rule Details
 
@@ -286,6 +307,10 @@ Analyzes internal and external links, anchor text, broken links, and link qualit
 
 #### links-whitespace-href
 - **Fix:** Trim whitespace from href attribute values.
+
+#### links-non-http-protocol
+- **What it checks:** Anchor hrefs using protocols other than HTTP(S) — `ftp:`, `file:`, `intent:`, `chrome:`, and so on. Browsers hand these to external handlers, so behavior is unpredictable and link equity is lost. Legitimate `tel:` and `mailto:` links are excluded (validated by links-tel-mailto)
+- **Fix:** Prefer HTTP(S) URLs unless the non-HTTP protocol is intentional
 
 ---
 
@@ -468,6 +493,10 @@ Validates robots.txt, sitemap, SSL, status codes, and URL structure.
 | `technical-4xx-non-404` | Non-404 Client Error | warn | Detects 4xx errors other than 404 (403, 410, etc.) |
 | `technical-timeout` | Timeout | fail | Detects pages that time out |
 | `technical-bad-content-type` | Bad Content-Type | warn/fail | Checks pages serve correct Content-Type header |
+| `technical-empty-html` | Empty HTML | fail | Detects 200 responses with missing or empty HTML content |
+| `technical-form-get-method` | Form GET Method | warn | Detects forms that submit with the GET method, exposing query-string URLs |
+| `technical-duplicate-gtm` | Multiple GTM Containers | warn | Detects more than one distinct Google Tag Manager container on the page |
+| `technical-duplicate-ga` | Multiple GA Properties | warn | Detects more than one distinct Google Analytics property ID (UA- or G-) on the page |
 
 ### Rule Details
 
@@ -497,6 +526,18 @@ Validates robots.txt, sitemap, SSL, status codes, and URL structure.
 
 #### technical-bad-content-type
 - **Fix:** Configure server to send `Content-Type: text/html; charset=utf-8` for HTML pages.
+
+#### technical-empty-html
+- **What it checks:** Pages returning HTTP 200 with an empty response body, or a document whose `<head>` and `<body>` are both empty — nothing for users or search engines to see or index
+- **Fix:** Investigate why the server returns no HTML; restore the content or serve a 404/410 if the page should not exist
+
+#### technical-form-get-method
+- **What it checks:** Forms submitted with GET (the HTML default when `method` is omitted) append their input data to the action URL as a query string. Those URLs can be crawled, cached and indexed, and unrestricted inputs can generate an unbounded number of unique URLs
+- **Fix:** Switch the form method to POST, or block the form action URL from crawlers via robots.txt if GET URLs are intentional
+
+#### technical-duplicate-gtm / technical-duplicate-ga
+- **What it checks:** More than one distinct Google Tag Manager container ID or Google Analytics property ID embedded in the page — usually a configuration error (e.g. a plugin adding a second snippet)
+- **Fix:** Verify all containers/properties are intentional; consolidate into a single one where possible
 
 ---
 
@@ -652,6 +693,7 @@ Analyzes text quality, readability, headings, and duplicate content.
 | `content-description-pixel-width` | Description Pixel Width | warn | Checks description fits SERP pixel limit |
 | `content-duplicate-exact` | Exact Duplicate | fail | Detects pages with identical content (crawl mode) |
 | `content-duplicate-near` | Near Duplicate | warn | Detects pages with very similar content (crawl mode) |
+| `content-title-same-as-description` | Title Same as Description | warn | Detects identical title tag and meta description text |
 
 ### Rule Details
 
@@ -700,6 +742,10 @@ Analyzes text quality, readability, headings, and duplicate content.
 #### content-duplicate-description
 - **Fix:** Write unique, compelling descriptions (120-160 chars) for each page.
 
+#### content-title-same-as-description
+- **What it checks:** The title tag and meta description contain identical text. Title and description serve different purposes in search results; identical text wastes the SERP snippet
+- **Fix:** Write a distinct meta description that expands on the title and encourages clicks from search results
+
 ---
 
 ## JavaScript Rendering
@@ -713,7 +759,7 @@ Validates that critical SEO elements are accessible without JavaScript or match 
 | `js-rendered-h1` | JS Rendered H1 | fail | Checks H1 is present in initial HTML |
 | `js-rendered-canonical` | JS Rendered Canonical | fail | Checks canonical is present in initial HTML |
 | `js-canonical-mismatch` | JS Canonical Mismatch | fail | Canonical differs between HTML source and rendered DOM |
-| `js-noindex-mismatch` | JS Noindex Mismatch | fail | Noindex status differs between source and rendered |
+| `js-noindex-mismatch` | Noindex/Nofollow Mismatch | fail | Noindex or nofollow directives differ between source and rendered DOM |
 | `js-title-modified` | JS Title Modified | warn | JavaScript modifies title after initial load |
 | `js-description-modified` | JS Description Modified | warn | JavaScript modifies description after initial load |
 | `js-h1-modified` | JS H1 Modified | warn | JavaScript modifies H1 after initial load |
@@ -731,7 +777,7 @@ Validates that critical SEO elements are accessible without JavaScript or match 
 - **Fix:** Implement SSR (server-side rendering) so critical SEO elements are in the initial HTML response, not injected by JavaScript.
 
 #### js-canonical-mismatch / js-noindex-mismatch
-- **Fix:** Ensure the rendered DOM matches the initial HTML for canonical and indexing directives. Avoid JavaScript that modifies these elements.
+- **Fix:** Ensure the rendered DOM matches the initial HTML for canonical and indexing directives (noindex, nofollow). Avoid JavaScript that modifies these elements — set the directives in server-side HTML instead.
 
 #### js-title-modified / js-description-modified / js-h1-modified
 - **Fix:** Set title, description, and H1 server-side. Avoid client-side JavaScript that overwrites them.
@@ -1042,7 +1088,8 @@ Analyzes URL formatting, keywords, parameters, and common issues.
 - **Fix:** Remove repeated segments like `/shoes/shoes/blue-shoes`.
 
 #### url-parameters
-- **Fix:** Minimize query parameters. Use clean URL paths instead.
+- **What it checks:** Excessive query parameters (3-5 warn, more than 5 fail), plus malformed query strings: the same parameter name repeated, or more than one literal `?` in the URL (usually a concatenation mistake)
+- **Fix:** Minimize query parameters. Use clean URL paths instead. Join values of repeated parameters and ensure only one `?` separates the path from the query
 
 #### url-session-ids
 - **Fix:** Remove session IDs from URLs. Use cookies for session management instead.
@@ -1118,6 +1165,8 @@ Mobile-friendliness checks for font size, viewport, and responsive layout.
 | `mobile-parity-canonical` | Mobile Canonical Parity | fail | Canonical matches between renders (requires --mobile) |
 | `mobile-parity-structured-data` | Mobile Structured Data Parity | fail | JSON-LD present on mobile as on desktop (requires --mobile) |
 | `mobile-parity-links` | Mobile Internal Link Parity | warn | Comparable internal link count (requires --mobile) |
+| `mobile-image-maps` | Image Maps | warn | Detects `<map>`/`<area>` image maps, whose fixed-coordinate tap targets do not adapt to mobile screens |
+| `mobile-viewport-content` | Viewport Content | warn | Validates viewport directives: width present, initial-scale=1, no minimum-scale |
 
 ### Rule Details
 
@@ -1138,6 +1187,14 @@ Mobile-friendliness checks for font size, viewport, and responsive layout.
 #### mobile-multiple-viewports
 - **Fix:** Use a single `<meta name="viewport">` tag. Remove duplicates.
 
+#### mobile-image-maps
+- **What it checks:** Client-side image maps (`<map>` with `<area>` children). Their tap targets rely on precise pixel coordinates over a fixed-size image, so they do not reflow or rescale and are effectively unusable on small touch screens
+- **Fix:** Replace image maps with SVG links or positioned anchors over a fluid image
+
+#### mobile-viewport-content
+- **What it checks:** The directives inside the viewport meta tag's content attribute: a `width` directive must be present, `initial-scale` must be present and equal to 1, and `minimum-scale` must not be set (it limits how far users can zoom out). Not measured when no viewport tag exists at all (handled by core-viewport-present)
+- **Fix:** Use `<meta name="viewport" content="width=device-width, initial-scale=1">`
+
 ---
 
 ## Internationalization
@@ -1156,6 +1213,8 @@ Checks language declarations and multi-language hreflang implementation.
 | `i18n-hreflang-conflicting` | Hreflang Conflicting | fail | Conflicting hreflang declarations |
 | `i18n-hreflang-lang-mismatch` | Hreflang Lang Mismatch | warn | Hreflang language doesn't match page content |
 | `i18n-hreflang-multiple-methods` | Hreflang Multiple Methods | warn | Hreflang declared in multiple locations |
+| `i18n-hreflang-relative-url` | Hreflang Relative URLs | fail | Hreflang annotations must use absolute URLs, not relative ones |
+| `i18n-hreflang-x-default` | Hreflang Also X-Default | info | Reports when a language annotation targets the same URL as x-default (insight) |
 
 ### Rule Details
 
@@ -1178,13 +1237,22 @@ Checks language declarations and multi-language hreflang implementation.
 - **Fix:** Update hreflang targets to valid, non-redirecting URLs. All hreflang targets should return 200.
 
 #### i18n-hreflang-conflicting
-- **Fix:** Resolve conflicting hreflang declarations. Each language/region pair should map to exactly one URL.
+- **What it checks:** Three conflict forms: the same language/region code pointing to multiple different URLs, the same URL targeted by multiple different codes, and the current page self-referenced by multiple different codes. The x-default code is excluded — sharing a target with x-default is a fallback declaration, not a conflict
+- **Fix:** Resolve conflicting hreflang declarations. Each language/region pair should map to exactly one URL, each URL to exactly one code, and the page should self-reference under a single code.
 
 #### i18n-hreflang-lang-mismatch
 - **Fix:** Ensure the hreflang language code matches the actual content language of the target page.
 
 #### i18n-hreflang-multiple-methods
 - **Fix:** Use a single method for hreflang: HTML link tags, HTTP headers, or sitemap. Don't mix methods.
+
+#### i18n-hreflang-relative-url
+- **What it checks:** Hreflang annotations whose href is a relative URL (`/fr/`, `fr/page`, or protocol-relative `//example.com/fr/`). Targets must be absolute URLs including the protocol; relative ones are invalid per the hreflang specification and may break the entire annotation set
+- **Fix:** Rewrite hreflang hrefs as absolute URLs (e.g. `https://example.com/fr/`)
+
+#### i18n-hreflang-x-default
+- **What it checks:** Insight-level: the URL targeted by the x-default annotation is also targeted by a language/region annotation on the same page. Not an error — x-default is the fallback shown when no language matches — but the overlap is worth surfacing so the intent is deliberate
+- **Fix:** No action required; confirm the overlap is intentional
 
 ---
 
@@ -1203,6 +1271,8 @@ Validates HTML document structure, DOCTYPE, charset, and common markup issues.
 | `htmlval-lorem-ipsum` | Lorem Ipsum | warn | Detects placeholder lorem ipsum text |
 | `htmlval-multiple-titles` | Multiple Titles | fail | Detects multiple `<title>` tags |
 | `htmlval-multiple-descriptions` | Multiple Descriptions | fail | Detects multiple meta description tags |
+| `htmlval-title-outside-head` | Title Outside Head | fail | Detects `<title>` elements placed outside of `<head>` |
+| `htmlval-base-url` | Valid Base URL | warn/fail | Checks the document has at most one `<base>` element with a valid href |
 
 ### Rule Details
 
@@ -1222,7 +1292,7 @@ Validates HTML document structure, DOCTYPE, charset, and common markup issues.
 - **Fix:** Ensure only one `<head>` element exists. Fix template or CMS generating duplicates.
 
 #### htmlval-size-limit
-- **Threshold:** HTML documents should be under 5MB.
+- **Thresholds:** Warn above 250 KB, fail above 500 KB. Above ~2 MB, Googlebot may only crawl and index the first part of the HTML, so content and links near the end of the document can be missed entirely.
 - **Fix:** Reduce HTML size by removing inline data, externalizing scripts/styles, paginating content.
 
 #### htmlval-lorem-ipsum
@@ -1230,6 +1300,14 @@ Validates HTML document structure, DOCTYPE, charset, and common markup issues.
 
 #### htmlval-multiple-titles / htmlval-multiple-descriptions
 - **Fix:** Ensure only one `<title>` tag and one `<meta name="description">` exist per page.
+
+#### htmlval-title-outside-head
+- **What it checks:** `<title>` elements placed outside of `<head>` (e.g. in the `<body>`), which search engines may ignore entirely — leaving the page without a recognised title for indexing and search display
+- **Fix:** Move the `<title>` element into the `<head>`
+
+#### htmlval-base-url
+- **What it checks:** The `<base>` element, which sets the base URL for every relative link on the page. Fails on an empty or malformed href, a non-HTTP(S) absolute href, or multiple `<base>` elements with different hrefs; warns on multiple identical `<base>` elements (only one is allowed per document)
+- **Fix:** Keep at most one `<base>` element with a valid href so relative links resolve correctly for crawlers
 
 ---
 

@@ -5,12 +5,15 @@ import { defineRule, pass, warn, fail } from '../define-rule.js';
  * Rule: Check HTML document size
  *
  * Extremely large HTML documents increase download time, parsing time, and
- * memory usage. Search engine crawlers may also truncate very large pages,
- * missing content and links near the end of the document.
+ * memory usage. Above roughly 2 MB, Googlebot may only crawl and index the
+ * first part of the HTML, so content and links near the end of the document
+ * can be missed entirely. Smaller documents still incur a performance
+ * penalty, checked by the 250 KB / 500 KB thresholds below.
  */
 
 const WARN_THRESHOLD_BYTES = 250 * 1024; // 250 KB
 const FAIL_THRESHOLD_BYTES = 500 * 1024; // 500 KB
+const CRAWL_CUTOFF_BYTES = 2 * 1024 * 1024; // ~2 MB
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -29,6 +32,14 @@ export const sizeLimitRule = defineRule({
   run: async (context: AuditContext) => {
     const sizeBytes = Buffer.byteLength(context.html, 'utf8');
     const sizeFormatted = formatBytes(sizeBytes);
+
+    if (sizeBytes > CRAWL_CUTOFF_BYTES) {
+      return fail(
+        'htmlval-size-limit',
+        `HTML document is ${sizeFormatted}, which exceeds the ~2 MB Googlebot crawl cutoff. Googlebot may only crawl and index the first part of the HTML, so content and links near the end of the document may be missed entirely`,
+        { sizeBytes, sizeFormatted, threshold: '~2 MB' }
+      );
+    }
 
     if (sizeBytes > FAIL_THRESHOLD_BYTES) {
       return fail(

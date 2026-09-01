@@ -76,6 +76,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   showing `Links Depth` for a rule named "Page Depth" and `Eeat About Page`
   for "About Page".
 
+## [3.3.0] - 2026-09-01
+
+> ### ⚠️ Scores move again in this release — re-baseline before comparing
+>
+> Sixteen new rules joined the scored set. Each one dilutes its category
+> average, so an existing site's category and overall scores may shift
+> slightly in either direction with no change on its side. Re-run your
+> baseline before treating a movement as a regression.
+
+### Added
+
+- **16 rules closing static audit-coverage gaps (287 → 303).**
+  - Canonical checks (`core`): `core-canonical-outside-head` fails on a
+    `<link rel="canonical">` placed outside the `<head>` (search engines
+    ignore it); `core-canonical-attributes` flags canonical elements carrying
+    invalid (`hreflang`, `lang`, `media`, `type`) or superfluous attributes;
+    `core-canonical-multiple` detects multiple canonical elements in one
+    document, failing when the URLs disagree.
+  - `core-robots-directive-mismatch` (`core`) compares robots directives
+    between meta tags and the X-Robots-Tag header, failing on index/noindex
+    or follow/nofollow conflicts and warning on duplicated declarations.
+  - `technical-empty-html` fails on 200 responses with an empty body or no
+    meaningful `<head>`/`<body>` content; `technical-form-get-method` warns
+    on forms submitted with GET, whose inputs become crawlable, indexable
+    query-string URLs; `technical-duplicate-gtm` and `technical-duplicate-ga`
+    warn on multiple distinct Google Tag Manager containers or Google
+    Analytics properties embedded in one page.
+  - `htmlval-title-outside-head` fails on `<title>` elements outside
+    `<head>`; `htmlval-base-url` validates the `<base>` element (empty or
+    malformed href, more than one per document, conflicting hrefs).
+  - `links-non-http-protocol` warns on anchor links using protocols other
+    than HTTP(S), tel: or mailto: (ftp:, file:, intent:, …).
+  - `content-title-same-as-description` warns when the title tag and meta
+    description contain identical text.
+  - `i18n-hreflang-relative-url` fails on hreflang annotations using
+    relative URLs; `i18n-hreflang-x-default` is an insight-level rule
+    reporting when a language annotation targets the same URL as x-default.
+  - `mobile-image-maps` warns on `<map>`/`<area>` image maps, whose
+    fixed-coordinate tap targets do not adapt to mobile screens;
+    `mobile-viewport-content` validates the viewport meta tag's directives
+    (width present, initial-scale=1, no minimum-scale).
+  - Category totals: core 19 → 23, technical 13 → 17, htmlval 9 → 11,
+    links 19 → 20, content 17 → 18, i18n 10 → 12, mobile 10 → 12.
+
+### Changed
+
+- **`htmlval-size-limit`** gains a fail branch above ~2 MB: Googlebot may
+  only crawl and index the first part of the HTML, so content and links near
+  the end of the document can be missed entirely. The 250 KB warn / 500 KB
+  fail thresholds are unchanged.
+- **`url-parameters`** now also warns on malformed query strings: the same
+  parameter name repeated, or more than one literal `?` in the URL.
+- **`i18n-hreflang-conflicting`** now also flags the same URL targeted by
+  multiple different hreflang codes, and the current page self-referenced by
+  multiple conflicting codes (previously only same-code → multiple-URLs was
+  flagged).
+- **`js-noindex-mismatch`** is renamed "Noindex/Nofollow Mismatch" and now
+  also detects the nofollow directive being added or removed by JavaScript
+  rendering, not just noindex.
+
 ## [3.2.0] - 2026-09-01
 
 > ### ⚠️ Scores move again in this release — re-baseline before comparing

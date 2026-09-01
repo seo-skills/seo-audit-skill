@@ -19,6 +19,10 @@ import { serverErrorRule } from './server-error.js';
 import { fourXxNon404Rule } from './4xx-non-404.js';
 import { timeoutRule } from './timeout.js';
 import { badContentTypeRule } from './bad-content-type.js';
+import { emptyHtmlRule } from './empty-html.js';
+import { formGetMethodRule } from './form-get-method.js';
+import { duplicateGtmRule } from './duplicate-gtm.js';
+import { duplicateGaRule } from './duplicate-ga.js';
 
 // Export all rules
 export {
@@ -35,6 +39,10 @@ export {
   fourXxNon404Rule,
   timeoutRule,
   badContentTypeRule,
+  emptyHtmlRule,
+  formGetMethodRule,
+  duplicateGtmRule,
+  duplicateGaRule,
 };
 
 // Register all rules
@@ -51,3 +59,7 @@ registerRule(serverErrorRule);
 registerRule(fourXxNon404Rule);
 registerRule(timeoutRule);
 registerRule(badContentTypeRule);
+registerRule(emptyHtmlRule);
+registerRule(formGetMethodRule);
+registerRule(duplicateGtmRule);
+registerRule(duplicateGaRule);

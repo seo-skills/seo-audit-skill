@@ -2,6 +2,18 @@ import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn } from '../define-rule.js';
 
 /**
+ * Split a robots directive string (meta content or X-Robots-Tag value) into
+ * lowercase tokens.
+ */
+export function parseRobotsDirectives(content: string): string[] {
+  return content
+    .toLowerCase()
+    .split(/[,\s]+/)
+    .map((d) => d.trim())
+    .filter((d) => d.length > 0);
+}
+
+/**
  * Rule: Check robots meta tag for indexing directives
  *
  * Detects directives like noindex, nofollow, noarchive that may
@@ -30,13 +42,7 @@ export const robotsMetaRule = defineRule({
     ];
 
     // Parse directive content
-    const parseDirectives = (content: string): string[] => {
-      return content
-        .toLowerCase()
-        .split(/[,\s]+/)
-        .map((d) => d.trim())
-        .filter((d) => d.length > 0);
-    };
+    const parseDirectives = parseRobotsDirectives;
 
     // Check meta robots tag
     const robotsMeta = $('meta[name="robots"]');

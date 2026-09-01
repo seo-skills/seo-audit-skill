@@ -15,6 +15,8 @@ import { hreflangToNonCanonicalRule } from './hreflang-to-non-canonical.js';
 import { hreflangToBrokenRule } from './hreflang-to-broken.js';
 import { hreflangToRedirectRule } from './hreflang-to-redirect.js';
 import { hreflangConflictingRule } from './hreflang-conflicting.js';
+import { hreflangRelativeUrlRule } from './hreflang-relative-url.js';
+import { hreflangXDefaultRule } from './hreflang-x-default.js';
 import { hreflangLangMismatchRule } from './hreflang-lang-mismatch.js';
 import { hreflangMultipleMethodsRule } from './hreflang-multiple-methods.js';
 
@@ -28,6 +30,8 @@ export {
   hreflangToBrokenRule,
   hreflangToRedirectRule,
   hreflangConflictingRule,
+  hreflangRelativeUrlRule,
+  hreflangXDefaultRule,
   hreflangLangMismatchRule,
   hreflangMultipleMethodsRule,
 };
@@ -41,5 +45,7 @@ registerRule(hreflangToNonCanonicalRule);
 registerRule(hreflangToBrokenRule);
 registerRule(hreflangToRedirectRule);
 registerRule(hreflangConflictingRule);
+registerRule(hreflangRelativeUrlRule);
+registerRule(hreflangXDefaultRule);
 registerRule(hreflangLangMismatchRule);
 registerRule(hreflangMultipleMethodsRule);

@@ -116,7 +116,7 @@ SEOmator runs **148 rules** across **16 categories**:
 | **AI/GEO Readiness** | 2% | 5 | AI crawler access, llms.txt, citability structure |
 | **Legal Compliance** | 1% | 1 | Cookie consent, privacy policy presence |
 
-**Total: 100% weight, 287 rules across 20 categories.**
+**Total: 100% weight, 303 rules across 20 categories.**
 
 ## Resources
 

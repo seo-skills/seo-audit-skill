@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { fontSizeRule } from './font-size.js';
 import { horizontalScrollRule } from './horizontal-scroll.js';
 import { interstitialsRule } from './interstitials.js';
+import { imageMapsRule } from './image-maps.js';
+import { viewportContentRule } from './viewport-content.js';
 import type { AuditContext } from '../../types.js';
 import * as cheerio from 'cheerio';
 import { createTestContext } from '../test-context.js';
@@ -317,5 +319,142 @@ describe('interstitialsRule', () => {
     const context = createContext(html);
     const result = await interstitialsRule.run(context);
     expect(result.status).toBe('fail');
+  });
+});
+
+describe('imageMapsRule', () => {
+  it('should pass when no image map tags are present', async () => {
+    const html = `
+      <html>
+        <body>
+          <img src="photo.jpg" alt="Photo">
+        </body>
+      </html>
+    `;
+    const context = createContext(html);
+    const result = await imageMapsRule.run(context);
+    expect(result.status).toBe('pass');
+  });
+
+  it('should warn when the page uses a <map> with <area> tags', async () => {
+    const html = `
+      <html>
+        <body>
+          <img src="menu.jpg" usemap="#menu">
+          <map name="menu">
+            <area shape="rect" coords="0,0,100,100" href="/a">
+            <area shape="rect" coords="100,0,200,100" href="/b">
+          </map>
+        </body>
+      </html>
+    `;
+    const context = createContext(html);
+    const result = await imageMapsRule.run(context);
+    expect(result.status).toBe('warn');
+    expect(result.details?.mapCount).toBe(1);
+    expect(result.details?.areaCount).toBe(2);
+  });
+});
+
+describe('viewportContentRule', () => {
+  it('should pass for width=device-width with initial-scale=1', async () => {
+    const html = `
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+        </head>
+        <body>Content</body>
+      </html>
+    `;
+    const context = createContext(html);
+    const result = await viewportContentRule.run(context);
+    expect(result.status).toBe('pass');
+  });
+
+  it('should not be measured when no viewport meta tag exists', async () => {
+    const html = `
+      <html>
+        <body>Content</body>
+      </html>
+    `;
+    const context = createContext(html);
+    const result = await viewportContentRule.run(context);
+    expect(result.status).toBe('warn');
+    expect(result.weight).toBe(0);
+  });
+
+  it('should warn when the width directive is missing', async () => {
+    const html = `
+      <html>
+        <head>
+          <meta name="viewport" content="initial-scale=1">
+        </head>
+        <body>Content</body>
+      </html>
+    `;
+    const context = createContext(html);
+    const result = await viewportContentRule.run(context);
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('width directive is missing');
+  });
+
+  it('should warn when initial-scale is missing', async () => {
+    const html = `
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width">
+        </head>
+        <body>Content</body>
+      </html>
+    `;
+    const context = createContext(html);
+    const result = await viewportContentRule.run(context);
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('initial-scale directive is missing');
+  });
+
+  it('should warn when initial-scale is not 1', async () => {
+    const html = `
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=0.5">
+        </head>
+        <body>Content</body>
+      </html>
+    `;
+    const context = createContext(html);
+    const result = await viewportContentRule.run(context);
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('initial-scale is set to "0.5" instead of 1');
+  });
+
+  it('should warn when minimum-scale is set', async () => {
+    const html = `
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+        </head>
+        <body>Content</body>
+      </html>
+    `;
+    const context = createContext(html);
+    const result = await viewportContentRule.run(context);
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('minimum-scale is set');
+  });
+
+  it('should report multiple content issues together', async () => {
+    const html = `
+      <html>
+        <head>
+          <meta name="viewport" content="initial-scale=2, minimum-scale=1">
+        </head>
+        <body>Content</body>
+      </html>
+    `;
+    const context = createContext(html);
+    const result = await viewportContentRule.run(context);
+    expect(result.status).toBe('warn');
+    expect((result.details?.issues as string[]).length).toBe(3);
   });
 });

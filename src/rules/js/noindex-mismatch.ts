@@ -1,26 +1,30 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail, notMeasured } from '../define-rule.js';
 
+// Reference hints: rendered/noindex-only-in-the-http-response-html,
+// rendered/nofollow-only-in-the-http-response-html
+
 /**
- * Check if a Cheerio instance has a noindex robots directive.
+ * Check if a Cheerio instance carries a given robots meta directive.
  */
-function hasNoindex($: any): boolean {
+function hasRobotsDirective($: any, directive: 'noindex' | 'nofollow'): boolean {
   const robotsContent = $('meta[name="robots"]').attr('content') || '';
-  return /noindex/i.test(robotsContent);
+  return new RegExp(directive, 'i').test(robotsContent);
 }
 
 /**
- * Rule: Noindex Mismatch Between Raw and Rendered DOM
+ * Rule: Noindex/Nofollow Mismatch Between Raw and Rendered DOM
  *
- * Detects when the noindex directive changes after JavaScript execution.
+ * Detects when robots meta directives change after JavaScript execution.
  * This is extremely dangerous: JavaScript could accidentally add or remove
- * noindex, causing pages to be hidden from or exposed to search engines
- * depending on whether the crawler executes JavaScript.
+ * noindex or nofollow, causing pages to be hidden from or exposed to search
+ * engines — and their links followed or ignored — depending on whether the
+ * crawler executes JavaScript.
  */
 export const noindexMismatchRule = defineRule({
   id: 'js-noindex-mismatch',
-  name: 'Noindex Mismatch (Raw vs Rendered)',
-  description: 'Checks if the noindex directive changes between raw HTML and rendered DOM',
+  name: 'Noindex/Nofollow Mismatch (Raw vs Rendered)',
+  description: 'Checks if the noindex or nofollow directives change between raw HTML and rendered DOM',
   category: 'js',
   weight: 10,
   run: async (context: AuditContext) => {
@@ -33,31 +37,49 @@ export const noindexMismatchRule = defineRule({
       );
     }
 
-    const rawHasNoindex = hasNoindex(context.$);
-    const renderedHasNoindex = hasNoindex(rendered$);
+    const rawHasNoindex = hasRobotsDirective(context.$, 'noindex');
+    const renderedHasNoindex = hasRobotsDirective(rendered$, 'noindex');
+    const rawHasNofollow = hasRobotsDirective(context.$, 'nofollow');
+    const renderedHasNofollow = hasRobotsDirective(rendered$, 'nofollow');
+
+    const changes: string[] = [];
 
     if (rawHasNoindex !== renderedHasNoindex) {
-      const direction = rawHasNoindex
-        ? 'JavaScript removed the noindex directive (page becomes indexable after JS)'
-        : 'JavaScript added a noindex directive (page becomes hidden after JS)';
+      changes.push(
+        rawHasNoindex
+          ? 'JavaScript removed the noindex directive (page becomes indexable after JS)'
+          : 'JavaScript added a noindex directive (page becomes hidden after JS)'
+      );
+    }
 
+    if (rawHasNofollow !== renderedHasNofollow) {
+      changes.push(
+        rawHasNofollow
+          ? 'JavaScript removed the nofollow directive (page links become followed after JS)'
+          : 'JavaScript added a nofollow directive (page links become unfollowed after JS)'
+      );
+    }
+
+    if (changes.length > 0) {
       return fail(
         'js-noindex-mismatch',
-        `Noindex status changed after JavaScript execution: ${direction}`,
+        `Robots directives changed after JavaScript execution: ${changes.join('; ')}`,
         {
           rawHasNoindex,
           renderedHasNoindex,
-          direction,
-          impact: 'Search engines may index or de-index the page inconsistently depending on JS execution',
-          recommendation: 'Set noindex directives in server-side HTML, not via client-side JavaScript',
+          rawHasNofollow,
+          renderedHasNofollow,
+          direction: changes.join('; '),
+          impact: 'Search engines may index, de-index, or follow links inconsistently depending on JS execution',
+          recommendation: 'Set noindex/nofollow directives in server-side HTML, not via client-side JavaScript',
         }
       );
     }
 
     return pass(
       'js-noindex-mismatch',
-      'Noindex status is consistent between raw and rendered DOM',
-      { rawHasNoindex, renderedHasNoindex }
+      'Noindex and nofollow status is consistent between raw and rendered DOM',
+      { rawHasNoindex, renderedHasNoindex, rawHasNofollow, renderedHasNofollow }
     );
   },
 });

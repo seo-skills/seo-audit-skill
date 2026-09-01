@@ -25,6 +25,7 @@ import { brokenFragmentRule } from './broken-fragment.js';
 import { excessiveRule } from './excessive.js';
 import { onclickRule } from './onclick.js';
 import { whitespaceHrefRule } from './whitespace-href.js';
+import { nonHttpProtocolRule } from './non-http-protocol.js';
 
 // Export all rules
 export {
@@ -47,6 +48,7 @@ export {
   excessiveRule,
   onclickRule,
   whitespaceHrefRule,
+  nonHttpProtocolRule,
 };
 
 // Register all rules
@@ -69,3 +71,4 @@ registerRule(brokenFragmentRule);
 registerRule(excessiveRule);
 registerRule(onclickRule);
 registerRule(whitespaceHrefRule);
+registerRule(nonHttpProtocolRule);

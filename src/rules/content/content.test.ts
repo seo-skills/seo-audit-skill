@@ -15,6 +15,7 @@ import {
   resetDescriptionRegistry,
   getDescriptionRegistryStats,
 } from './duplicate-description.js';
+import { titleSameAsDescriptionRule } from './title-same-as-description.js';
 import { createTestContext } from '../test-context.js';
 
 /**
@@ -533,6 +534,55 @@ describe('Content Rules', () => {
 
       const result = await duplicateDescriptionRule.run(createContext(html, {}, 'https://example.com/2'));
       expect(result.status).toBe('pass'); // No duplicate after reset
+    });
+  });
+
+  describe('titleSameAsDescriptionRule', () => {
+    it('should warn when title and meta description are identical', async () => {
+      const html = `<html><head>
+        <title>Blue Running Shoes for Marathon Training</title>
+        <meta name="description" content="Blue Running Shoes for Marathon Training">
+      </head><body></body></html>`;
+      const result = await titleSameAsDescriptionRule.run(createContext(html));
+      expect(result.status).toBe('warn');
+      expect(result.message).toContain('identical');
+    });
+
+    it('should warn when identical except for case and whitespace', async () => {
+      const html = `<html><head>
+        <title>Blue Running Shoes</title>
+        <meta name="description" content="  blue   running shoes ">
+      </head><body></body></html>`;
+      const result = await titleSameAsDescriptionRule.run(createContext(html));
+      expect(result.status).toBe('warn');
+    });
+
+    it('should pass when title and meta description differ', async () => {
+      const html = `<html><head>
+        <title>Blue Running Shoes</title>
+        <meta name="description" content="Shop lightweight blue running shoes built for marathon training.">
+      </head><body></body></html>`;
+      const result = await titleSameAsDescriptionRule.run(createContext(html));
+      expect(result.status).toBe('pass');
+      expect(result.message).toContain('different');
+    });
+
+    it('should pass when the title is missing (handled by other rules)', async () => {
+      const html = `<html><head>
+        <meta name="description" content="A description without a title.">
+      </head><body></body></html>`;
+      const result = await titleSameAsDescriptionRule.run(createContext(html));
+      expect(result.status).toBe('pass');
+      expect(result.details?.reason).toBe('skipped');
+    });
+
+    it('should pass when the meta description is missing (handled by other rules)', async () => {
+      const html = `<html><head>
+        <title>A Title Without Description</title>
+      </head><body></body></html>`;
+      const result = await titleSameAsDescriptionRule.run(createContext(html));
+      expect(result.status).toBe('pass');
+      expect(result.details?.reason).toBe('skipped');
     });
   });
 });

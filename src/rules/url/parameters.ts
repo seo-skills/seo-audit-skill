@@ -17,6 +17,11 @@ const PARAMS_WARN = 5;
  * Too many query parameters can hurt SEO by creating numerous URL
  * variations that dilute page authority and waste crawl budget.
  * Search engines may also struggle to determine the canonical version.
+ *
+ * Also warns on malformed query strings: the same parameter name appearing
+ * more than once, or more than one literal '?' character in the URL.
+ * Reference hints: internal/query-string-contains-repetitive-parameters,
+ * internal/query-string-contains-a-question-mark
  */
 export const parametersRule = defineRule({
   id: 'url-parameters',
@@ -31,14 +36,48 @@ export const parametersRule = defineRule({
     try {
       const urlObj = new URL(url);
       const params = urlObj.searchParams;
-      const paramCount = Array.from(params.keys()).length;
       const paramNames = Array.from(params.keys());
+      const paramCount = paramNames.length;
 
       const details = {
         url,
         parameterCount: paramCount,
         parameters: paramNames,
       };
+
+      // More than one '?' means the query string itself contains a literal
+      // question mark — almost always a concatenation mistake.
+      const questionMarkCount = (url.match(/\?/g) || []).length;
+
+      // Repetitive parameters: the same name appears more than once.
+      const uniqueNames = new Set(paramNames);
+      const repetitiveNames = [
+        ...new Set(
+          paramNames.filter((name) => paramNames.indexOf(name) !== paramNames.lastIndexOf(name))
+        ),
+      ];
+
+      if (questionMarkCount > 1 || repetitiveNames.length > 0) {
+        const issues: string[] = [];
+        if (questionMarkCount > 1) {
+          issues.push(`query string contains ${questionMarkCount} '?' characters`);
+        }
+        if (repetitiveNames.length > 0) {
+          issues.push(`repetitive parameter(s): ${repetitiveNames.join(', ')}`);
+        }
+
+        return warn(
+          'url-parameters',
+          `URL query string is malformed: ${issues.join('; ')}`,
+          {
+            ...details,
+            questionMarkCount,
+            repetitiveParameters: repetitiveNames,
+            uniqueParameterCount: uniqueNames.size,
+            fix: 'Fix the query string: join values of repeated parameters and ensure only one \'?\' separates the path from the query',
+          }
+        );
+      }
 
       if (paramCount <= PARAMS_GOOD) {
         return pass(

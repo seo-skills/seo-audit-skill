@@ -154,11 +154,12 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
       renderTerminalReport(result);
     }
 
-    const exitCode = result.overallScore >= 70 ? 0 : 1;
-    process.exit(exitCode);
+    // Set the code rather than exiting, so a large --json payload on stdout is
+    // not truncated at the pipe buffer. See the note in commands/audit.ts.
+    process.exitCode = result.overallScore >= 70 ? 0 : 1;
   } catch (error) {
     progress.stop();
     console.error(chalk.red('Analysis failed:'), error instanceof Error ? error.message : 'Unknown error');
-    process.exit(2);
+    process.exitCode = 2;
   }
 }

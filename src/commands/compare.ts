@@ -151,7 +151,10 @@ export async function runCompare(
 
   try {
     if (options.trend) {
-      process.exit(renderTrend(domain, options.json));
+      // Returning rather than exiting lets stdout drain and lets the finally
+      // below actually close the database — process.exit() skips finally.
+      process.exitCode = renderTrend(domain, options.json);
+      return;
     }
 
     const db = getAuditsDatabase();
@@ -279,7 +282,7 @@ export async function runCompare(
     }
 
     const regressionFound = scoreDelta < 0 || regressed.length > 0;
-    process.exit(options.failOnRegression && regressionFound ? 1 : 0);
+    process.exitCode = options.failOnRegression && regressionFound ? 1 : 0;
   } finally {
     closeAuditsDatabase();
   }

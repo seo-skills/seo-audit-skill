@@ -218,9 +218,13 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
         break;
     }
 
-    // Exit with appropriate code
-    const exitCode = result.overallScore >= 70 ? 0 : 1;
-    process.exit(exitCode);
+    // Set the code rather than calling process.exit(), which would discard
+    // anything still buffered on stdout. Writes to a file are synchronous on
+    // POSIX but writes to a pipe are not, so `--format json | jq` lost
+    // everything past the 64KB pipe buffer while the same command redirected
+    // to a file was complete. The process exits on its own once the event loop
+    // drains, by which point stdout has been flushed.
+    process.exitCode = result.overallScore >= 70 ? 0 : 1;
   } catch (error) {
     progress.stop();
 
@@ -237,6 +241,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       console.log(JSON.stringify(errorOutput, null, 2));
     }
 
-    process.exit(2);
+    // Same reason as the success path: let stdout drain before the process ends.
+    process.exitCode = 2;
   }
 }

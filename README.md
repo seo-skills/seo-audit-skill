@@ -16,7 +16,7 @@
 - [Desktop App](#desktop-app)
 - [Quick Start (CLI)](#quick-start-cli)
 - [Commands](#commands)
-- [Categories & Rules](#categories--rules-261-total)
+- [Categories & Rules](#categories--rules-332-total)
 - [Configuration](#configuration)
 - [Output Formats](#output-formats)
 - [CI/CD Integration](#cicd-integration)
@@ -27,16 +27,18 @@
 
 ## Features
 
-- **331 SEO Audit Rules** across 20 categories
+- **332 SEO Audit Rules** across 20 categories
 - **Desktop App** - Visual audit dashboard with real-time progress, interactive results, score history, and light/dark theme
 - **CLI Tool** - Single page & crawl mode with 5 output formats
 - **Core Web Vitals** - LCP, CLS, FCP, TTFB, INP measurement via Playwright
 - **JavaScript Rendering Analysis** - Compare raw vs rendered DOM for SPA/CSR sites
+- **Per-Asset Checks** - Cache policy, text compression, image sizing, and redirect chains for every subresource loaded during render
 - **5 Output Formats** - Console, JSON, HTML, Markdown, and LLM-optimized XML
+- **Actionable Reports** - Every rule ships a specific fix suggestion; unmeasurable checks report as "not measured" instead of fake passes
 - **AI/GEO Readiness** - Check semantic HTML, AI bot access, and llms.txt
 - **Redirect Chain Detection** - Loops, broken redirects, meta/JS redirects
 - **HTML Validation** - Doctype, charset, head structure, lorem ipsum detection
-- **Cross-Page Analysis** - Duplicate content detection, orphan pages, pagination
+- **Cross-Page Analysis** - Sitemap URLs cross-checked against status/canonical/robots.txt, canonical chains & loops, hreflang target validation and reciprocity, duplicate content & H1s, orphan & isolated pages, inbound link quality
 - **Concurrent Crawling** - Fast multi-page audits with configurable concurrency
 - **SQLite Storage** - Persistent crawl data with compression and audit history
 - **CI/CD Ready** - Exit codes, JSON output, GitHub Actions & GitLab CI examples
@@ -278,6 +280,11 @@ seomator self doctor -v          # Verbose diagnostics
 | `core-canonical-http-mismatch` | Canonical protocol should match page protocol |
 | `core-canonical-loop` | Detects circular canonical chains |
 | `core-canonical-to-noindex` | Canonical should not point to noindexed page |
+| `core-canonical-outside-head` | No canonical element outside the `<head>` |
+| `core-canonical-attributes` | Canonical elements carry only rel and href attributes |
+| `core-canonical-multiple` | Multiple canonical elements should agree |
+| `core-canonical-external` | Canonical pointing to a different host (worth verifying) |
+| `core-robots-directive-mismatch` | Robots directives in meta tags and X-Robots-Tag header should be consistent |
 
 ### Performance (26 rules) - 12% weight
 
@@ -305,6 +312,10 @@ seomator self doctor -v          # Verbose diagnostics
 | `perf-page-weight` | Total page size should be <3MB |
 | `perf-js-file-size` | Individual JS files should be <500KB |
 | `perf-video-for-animations` | Use `<video>` instead of animated GIFs |
+| `perf-asset-compression` | Text assets >2KB should be gzip/Brotli compressed (requires render) |
+| `perf-asset-cache-policy` | Static assets should have cache max-age of at least 1 hour (requires render) |
+| `perf-legacy-javascript` | No polyfills modern browsers do not need |
+| `perf-image-encoding` | Images should be <100KB and not legacy BMP/TIFF (requires render) |
 
 ### Links (24 rules) - 8% weight
 
@@ -319,7 +330,7 @@ seomator self doctor -v          # Verbose diagnostics
 | `links-dead-end-pages` | Pages should have outgoing internal links |
 | `links-https-downgrade` | HTTPS pages should not link to HTTP |
 | `links-external-count` | Warn if >100 external links |
-| `links-invalid-links` | No empty, javascript:, or malformed hrefs |
+| `links-invalid` | No empty, javascript:, or malformed hrefs |
 | `links-tel-mailto` | Valid tel: and mailto: link formats |
 | `links-redirect-chains` | Links should not go through redirects |
 | `links-orphan-pages` | Pages have enough inbound internal links (requires `--crawl`) |
@@ -329,6 +340,11 @@ seomator self doctor -v          # Verbose diagnostics
 | `links-excessive` | Limit internal links per page |
 | `links-onclick` | No onclick-based navigation instead of `<a>` tags |
 | `links-whitespace-href` | No whitespace in href attributes |
+| `links-non-http-protocol` | No anchor links with non-HTTP protocols (ftp:, intent:) |
+| `links-inbound-all-nofollow` | All inbound internal links nofollow, so no link equity (requires `--crawl`) |
+| `links-inbound-mixed-follow` | Mixed followed/nofollowed inbound links (requires `--crawl`) |
+| `links-inbound-low-quality` | No inbound internal link passes link equity (requires `--crawl`) |
+| `links-inbound-anchor-text` | All followed inbound links use generic anchor text (requires `--crawl`) |
 
 ### Images (14 rules) - 8% weight
 
@@ -357,8 +373,8 @@ seomator self doctor -v          # Verbose diagnostics
 | `security-https-redirect` | HTTP should redirect to HTTPS |
 | `security-hsts` | Strict-Transport-Security header |
 | `security-csp` | Content-Security-Policy header |
-| `security-x-frame` | X-Frame-Options header |
-| `security-x-content-type` | X-Content-Type-Options: nosniff |
+| `security-x-frame-options` | X-Frame-Options header |
+| `security-x-content-type-options` | X-Content-Type-Options: nosniff |
 | `security-external-links` | External target="_blank" links have noopener/noreferrer |
 | `security-form-https` | Form actions use HTTPS |
 | `security-mixed-content` | No HTTP resources on HTTPS pages |
@@ -371,6 +387,11 @@ seomator self doctor -v          # Verbose diagnostics
 | `security-ssl-protocol` | TLS 1.2+ required; no TLS 1.0/1.1 |
 | `security-cookie-flags` | Session cookies set Secure, HttpOnly and SameSite |
 | `security-cookie-lifetime` | Cookies stay within the 400-day browser cap |
+| `security-coop` | Cross-Origin-Opener-Policy header isolates the page |
+| `security-csp-xss` | CSP should actually constrain script execution |
+| `security-info-disclosure` | Headers should not advertise server software/version |
+| `security-paste-blocking` | Input fields should not prevent pasting |
+| `security-trusted-types` | CSP should require Trusted Types for DOM XSS sinks |
 
 ### Technical SEO (17 rules) - 7% weight
 
@@ -389,6 +410,10 @@ seomator self doctor -v          # Verbose diagnostics
 | `technical-4xx-non-404` | No 400, 403, 410 client errors |
 | `technical-timeout` | Pages should respond within timeout |
 | `technical-bad-content-type` | Content-Type header matches actual content |
+| `technical-empty-html` | Page should return meaningful, non-empty HTML |
+| `technical-form-get-method` | Forms should not submit with the GET method |
+| `technical-duplicate-gtm` | No multiple Google Tag Manager containers |
+| `technical-duplicate-ga` | No multiple Google Analytics property IDs |
 
 ### Crawlability (35 rules) - 5% weight
 
@@ -413,6 +438,22 @@ seomator self doctor -v          # Verbose diagnostics
 | `crawl-pagination-noindex` | Paginated pages should not be noindexed |
 | `crawl-pagination-orphaned` | Paginated pages should be linked from content |
 | `crawl-sitemap-lastmod` | Sitemap lastmod values are valid, not future-dated, and not bulk-identical |
+| `crawl-blocked-images` | Image URLs should not be disallowed by robots.txt |
+| `crawl-pagination-isolated` | Paginated URLs should have incoming internal links (requires `--crawl`) |
+| `crawl-sitemap-non-200` | Sitemap URLs should return 200 when crawled (requires `--crawl`) |
+| `crawl-sitemap-non-canonical` | Sitemap URLs should not canonicalize to a different URL (requires `--crawl`) |
+| `crawl-sitemap-disallowed` | Sitemap URLs should not be disallowed by robots.txt (requires `--crawl`) |
+| `crawl-sitemap-cross-duplicates` | URLs should not be declared by multiple sitemaps (requires `--crawl`) |
+| `crawl-canonical-to-noindex` | Canonical target should not itself be noindex (requires `--crawl`) |
+| `crawl-canonical-to-disallowed` | Canonical target should not be disallowed by robots.txt (requires `--crawl`) |
+| `crawl-canonical-chain` | Canonical target should not canonicalize elsewhere (requires `--crawl`) |
+| `crawl-canonical-loop` | Canonical targets should not form a loop (requires `--crawl`) |
+| `crawl-hreflang-to-noindex` | Hreflang should not point to noindex URLs (requires `--crawl`) |
+| `crawl-hreflang-to-disallowed` | Hreflang should not point to robots.txt-disallowed URLs (requires `--crawl`) |
+| `crawl-hreflang-disallowed-target` | Disallowed pages should not receive hreflang annotations (requires `--crawl`) |
+| `crawl-hreflang-incoming-conflict` | Incoming hreflang annotations should not conflict (requires `--crawl`) |
+| `crawl-hreflang-reciprocity` | Hreflang targets should annotate this page in return (requires `--crawl`) |
+| `crawl-isolated-url` | Page should be reachable via ordinary internal links (requires `--crawl`) |
 
 ### Structured Data (13 rules) - 5% weight
 
@@ -451,6 +492,7 @@ seomator self doctor -v          # Verbose diagnostics
 | `js-ssr-check` | Server-side rendering detected |
 | `js-console-errors` | No uncaught JavaScript exceptions or console errors while rendering |
 | `js-failed-requests` | Scripts, stylesheets and other subresources load successfully |
+| `js-document-write` | Inline scripts should not use `document.write()` |
 
 ### Accessibility (31 rules) - 4% weight
 
@@ -468,6 +510,25 @@ seomator self doctor -v          # Verbose diagnostics
 | `a11y-touch-targets` | Minimum 44x44px touch target sizing |
 | `a11y-video-captions` | Videos have captions or transcripts |
 | `a11y-zoom-disabled` | Viewport doesn't disable user zoom |
+| `a11y-iframe-title` | Iframes and frames have title attributes |
+| `a11y-object-alt` | `<object>` elements provide a text alternative |
+| `a11y-empty-heading` | No empty or inaccessible headings |
+| `a11y-input-image-alt` | Image inputs have alt text |
+| `a11y-main-landmark` | Exactly one `<main>` landmark |
+| `a11y-list-structure` | Lists contain only list items |
+| `a11y-duplicate-id` | No duplicate element IDs |
+| `a11y-tabindex-positive` | No tabindex greater than 0 |
+| `a11y-accesskey-unique` | No duplicate accesskey values |
+| `a11y-form-multiple-labels` | Form controls have at most one label |
+| `a11y-aria-valid` | ARIA roles and attributes are valid |
+| `a11y-aria-hidden-focusable` | aria-hidden not on body or focusable elements |
+| `a11y-svg-img-alt` | SVGs with img role have accessible names |
+| `a11y-presentation-role-conflict` | role="none"/"presentation" not negated by ARIA |
+| `a11y-valid-lang-element` | Element lang attributes are valid BCP 47 tags |
+| `a11y-redundant-alt` | Alt text doesn't duplicate adjacent text |
+| `a11y-table-caption` | Data tables use `<caption>` |
+| `a11y-identical-links-purpose` | Same link text should point to same destination |
+| `a11y-label-name-mismatch` | aria-label should contain the visible text |
 
 ### Content (19 rules) - 5% weight
 
@@ -486,10 +547,12 @@ seomator self doctor -v          # Verbose diagnostics
 | `content-heading-unique` | Headings should be unique |
 | `content-text-html-ratio` | Text-to-HTML ratio should be >10% |
 | `content-title-same-as-h1` | Title and H1 should differ |
+| `content-title-same-as-description` | Title and meta description should differ |
 | `content-title-pixel-width` | Title pixel width for SERP display (<580px) |
 | `content-description-pixel-width` | Description pixel width for SERP (<920px) |
 | `content-duplicate-exact` | Detects exact duplicate content across pages |
 | `content-duplicate-near` | Detects near-duplicate content via simhash |
+| `content-duplicate-h1` | H1 text should be unique across crawled pages (requires `--crawl`) |
 
 ### Social (9 rules) - 3% weight
 
@@ -503,7 +566,7 @@ seomator self doctor -v          # Verbose diagnostics
 | `social-og-url` | og:url meta tag |
 | `social-og-url-canonical` | og:url matches canonical |
 | `social-share-buttons` | Social share buttons present |
-| `social-social-profiles` | Social profile links present |
+| `social-profiles` | Social profile links present |
 
 ### E-E-A-T (14 rules) - 3% weight
 
@@ -555,6 +618,9 @@ seomator self doctor -v          # Verbose diagnostics
 | `redirect-broken` | Redirects should not lead to errors |
 | `redirect-resource` | No redirects on CSS/JS/image resources |
 | `redirect-case-normalization` | Redirect uppercase URLs to lowercase |
+| `redirect-resource-broken` | Redirected resources should not resolve to 4xx/5xx (requires render) |
+| `redirect-resource-loop` | Resources should not be caught in redirect loops (requires render) |
+| `redirect-resource-chain` | Resources should not go through multi-hop redirect chains (requires render) |
 
 ### Mobile (12 rules) - 2% weight
 
@@ -565,6 +631,8 @@ seomator self doctor -v          # Verbose diagnostics
 | `mobile-interstitials` | No intrusive interstitials |
 | `mobile-viewport-width` | No fixed viewport width |
 | `mobile-multiple-viewports` | Single viewport meta tag |
+| `mobile-image-maps` | No `<map>`/`<area>` image maps |
+| `mobile-viewport-content` | Viewport directives: width, initial-scale, no minimum-scale |
 | `mobile-parity-content` | Mobile render carries as much content as desktop (`--mobile`) |
 | `mobile-parity-title` | Title and meta description match mobile vs desktop (`--mobile`) |
 | `mobile-parity-canonical` | Canonical matches mobile vs desktop (`--mobile`) |
@@ -585,6 +653,9 @@ seomator self doctor -v          # Verbose diagnostics
 | `i18n-hreflang-conflicting` | No duplicate hreflang for same language |
 | `i18n-hreflang-lang-mismatch` | Page language matches hreflang code |
 | `i18n-hreflang-multiple-methods` | Use single hreflang method |
+| `i18n-hreflang-relative-url` | Hreflang annotations should use absolute URLs |
+| `i18n-hreflang-x-default` | Language annotation targets same URL as x-default (insight) |
+| `i18n-hreflang-incoming-invalid` | Incoming hreflang annotations use valid language codes (requires `--crawl`) |
 
 ### HTML Validation (11 rules) - 2% weight
 
@@ -599,6 +670,8 @@ seomator self doctor -v          # Verbose diagnostics
 | `htmlval-lorem-ipsum` | No placeholder lorem ipsum text |
 | `htmlval-multiple-titles` | Single `<title>` tag only |
 | `htmlval-multiple-descriptions` | Single meta description only |
+| `htmlval-title-outside-head` | No `<title>` element outside of `<head>` |
+| `htmlval-base-url` | At most one `<base>` element with a valid href |
 
 ### AI/GEO Readiness (5 rules) - 2% weight
 

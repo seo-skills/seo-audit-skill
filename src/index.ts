@@ -39,4 +39,17 @@ export type {
   InvalidLinkInfo,
   SpecialLinkInfo,
   RedirectChainEntry,
+  // Remaining AuditContext members, so every field of the context a custom
+  // rule receives can be named by consumers.
+  FigureInfo,
+  InlineSvgInfo,
+  PictureElementInfo,
+  CookieInfo,
+  SitemapEntry,
+  SitemapFetchResult,
+  RenderDiagnostics,
+  ConsoleMessageInfo,
+  FailedRequestInfo,
+  SiteContext,
+  PageSnapshot,
 } from './types.js';

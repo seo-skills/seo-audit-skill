@@ -18,7 +18,7 @@ neither side of the average.
 |-------------|------|--------|-------|--------|
 | `core` | Core | 11% | 19 | Title, meta description, canonical, viewport, favicon, H1, lang |
 | `perf` | Performance | 10% | 23 | LCP, INP, CLS, TTFB, FCP, render-blocking resources, compression |
-| `links` | Links | 8% | 19 | Broken links, anchor text, internal linking, nofollow, page depth |
+| `links` | Links | 8% | 19 | Broken links, anchor text, internal linking, nofollow; click depth and inbound links need `--crawl` |
 | `images` | Images | 8% | 14 | Alt text, dimensions, lazy loading, WebP/AVIF, srcset, file size |
 | `security` | Security | 8% | 23 | HTTPS, HSTS, CSP, X-Frame-Options, mixed content, SSL, leaked secrets, cookie flags |
 | `technical` | Technical SEO | 7% | 13 | robots.txt, sitemap, URL hygiene, www redirect, custom 404 |
@@ -31,7 +31,7 @@ neither side of the average.
 | `eeat` | E-E-A-T | 3% | 14 | Author bylines, dates, about/contact pages, external citations |
 | `url` | URL Structure | 3% | 14 | Lowercase, hyphens, length, parameters, trailing slash |
 | `redirect` | Redirects | 3% | 8 | Chains, loops, 302-vs-301, meta refresh |
-| `mobile` | Mobile | 2% | 10 | Viewport, touch targets, font sizes, tap spacing |
+| `mobile` | Mobile | 2% | 10 | Viewport, font sizes, tap spacing, mobile-first parity (content, title, canonical, structured data, links) |
 | `i18n` | Internationalization | 2% | 10 | hreflang validity, x-default, lang attributes |
 | `htmlval` | HTML Validation | 2% | 9 | Duplicate IDs, deprecated tags, DOCTYPE, encoding |
 | `geo` | AI/GEO Readiness | 2% | 5 | AI crawler access, llms.txt, citability structure |

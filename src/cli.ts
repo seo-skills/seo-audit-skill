@@ -1,6 +1,6 @@
 import { Command, InvalidArgumentError } from 'commander';
-import { readFileSync } from 'node:fs';
 import { getCategoryIds } from './categories/index.js';
+import { getVersion } from './version.js';
 import './rules/loader.js'; // side-effect: registers every rule so the count below is accurate
 import { getRuleCount } from './rules/registry.js';
 import {
@@ -16,21 +16,6 @@ import {
   runDbRestore,
   runSelfDoctor,
 } from './commands/index.js';
-
-/**
- * Read the package version from package.json rather than hardcoding it.
- * The published layout is dist/cli.js with package.json one level up, so this
- * resolves to the root manifest and can never drift from the released version.
- * Falls back gracefully if the manifest cannot be read.
- */
-function readVersion(): string {
-  try {
-    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-    return typeof pkg.version === 'string' ? pkg.version : '0.0.0';
-  } catch {
-    return '0.0.0';
-  }
-}
 
 /**
  * Validate that a string is a valid URL
@@ -86,7 +71,7 @@ program
   .description(
     `SEOmator - Comprehensive SEO audit CLI with ${getRuleCount()} rules across 20 categories`
   )
-  .version(readVersion());
+  .version(getVersion());
 
 // Audit command
 program

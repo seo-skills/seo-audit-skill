@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { getVersion } from '../version.js';
 
 /**
  * ASCII art banner for SEOmator CLI
@@ -13,9 +14,10 @@ const ASCII_BANNER = `
 `;
 
 /**
- * CLI version (should match package.json)
+ * CLI version, read from package.json so the banner cannot drift from the
+ * released version the way a hardcoded string does.
  */
-const VERSION = '2.1.0';
+const VERSION = getVersion();
 
 /**
  * Website URL

@@ -4,7 +4,7 @@
 
 ## Overview
 
-SEOmator audits websites using 331 rules organized into 20 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 332 rules organized into 20 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -36,7 +36,7 @@ SEOmator audits websites using 331 rules organized into 20 categories. Each rule
 | [AI/GEO Readiness]((#aigeo-readiness)) | 2% | 5 | Semantic HTML, AI bot access, llms.txt |
 | [Legal Compliance]((#legal-compliance)) | 1% | 1 | Cookie consent |
 
-**Total: 100% weight, 331 rules**
+**Total: 100% weight, 332 rules**
 
 ---
 
@@ -597,6 +597,7 @@ The cross-page rules (`crawl-sitemap-non-200`, `crawl-sitemap-non-canonical`, `c
 | `crawl-sitemap-duplicate-urls` | Sitemap Duplicates | warn | Duplicate URLs within sitemap |
 | `crawl-sitemap-orphan-urls` | Sitemap Orphan URLs | warn | Sitemap URLs not linked from the site |
 | `crawl-blocked-resources` | Blocked Resources | warn | CSS/JS blocked by robots.txt |
+| `crawl-blocked-images` | Blocked Images | fail | Image URLs disallowed by robots.txt cannot be crawled for image indexing |
 | `crawl-crawl-delay` | Crawl Delay | info | Detects crawl-delay directive in robots.txt |
 | `crawl-sitemap-in-robotstxt` | Sitemap in Robots.txt | warn | Sitemap not referenced in robots.txt |
 | `crawl-sitemap-lastmod` | Sitemap lastmod Quality | warn | Invalid, future-dated or bulk-identical lastmod values |
@@ -652,6 +653,10 @@ The cross-page rules (`crawl-sitemap-non-200`, `crawl-sitemap-non-canonical`, `c
 
 #### crawl-blocked-resources
 - **Fix:** Unblock CSS and JS in robots.txt so search engines can render pages correctly.
+
+#### crawl-blocked-images
+- **What it checks:** Same-origin image URLs matched against robots.txt with the RFC 9309 matcher; a disallowed image cannot be crawled, so it will not appear in image search. Not measured when robots.txt was not fetched.
+- **Fix:** Remove the disallow covering the image paths, or move images to an allowed path.
 
 #### crawl-sitemap-in-robotstxt
 - **Fix:** Add `Sitemap: https://example.com/sitemap.xml` to robots.txt.

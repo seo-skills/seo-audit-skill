@@ -146,7 +146,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > ### ⚠️ Scores move again in this release — re-baseline before comparing
 >
-> Forty-four new rules joined the scored set. Each one dilutes its category
+> Forty-five new rules joined the scored set. Each one dilutes its category
 > average, so an existing site's category and overall scores may shift
 > slightly in either direction with no change on its side. Re-run your
 > baseline before treating a movement as a regression.
@@ -287,8 +287,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   content-length) whose URL lacks a `.min.` marker as heuristic suspects
   (warn only; asset bodies are not captured, so external minification cannot
   be verified directly).
-- Category totals: crawl 31 → 34, links 20 → 24, redirect 8 → 11,
+- Category totals: crawl 31 → 35, links 20 → 24, redirect 8 → 11,
   perf 23 → 26, core 23 → 24, i18n 12 → 13.
+- **Blocked images (`crawl-blocked-images`).** Added after phase 3 closed out:
+  same-origin image URLs are matched against robots.txt with the RFC 9309
+  matcher, and a disallowed image fails — it cannot be crawled, so it will
+  not appear in image search. Not measured when robots.txt was not fetched.
 
 ### Changed
 

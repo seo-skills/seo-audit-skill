@@ -1,6 +1,6 @@
 ---
 name: seo-audit
-description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 331 rules and 20 categories, and can diff two audits to show what a deploy changed. Use when analyzing websites, debugging SEO issues, checking site health, or comparing a site before and after a change.
+description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 332 rules and 20 categories, and can diff two audits to show what a deploy changed. Use when analyzing websites, debugging SEO issues, checking site health, or comparing a site before and after a change.
 license: MIT
 compatibility: Requires Node.js 20+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
 metadata:
@@ -13,7 +13,7 @@ allowed-tools: Bash(seomator:*)
 
 Audit websites for SEO, technical, content, performance, security, JavaScript rendering, and AI readiness using the SEOmator CLI.
 
-SEOmator provides comprehensive website auditing by analyzing website structure and content against **331 rules** across **20 categories**.
+SEOmator provides comprehensive website auditing by analyzing website structure and content against **332 rules** across **20 categories**.
 
 It provides a list of issues with severity levels, affected URLs, and actionable fix suggestions.
 
@@ -25,7 +25,7 @@ It provides a list of issues with severity levels, affected URLs, and actionable
 
 ## What This Skill Does
 
-This skill enables AI agents to audit websites for **331 rules** in **20 categories**, including:
+This skill enables AI agents to audit websites for **332 rules** in **20 categories**, including:
 
 - **Core SEO** (24 rules): Canonical URLs, indexing directives, title uniqueness, canonical conflicts/loops
 - **Performance** (26 rules): LCP, CLS, FCP, TTFB, INP, compression, caching, minification, HTTP/2
@@ -33,7 +33,7 @@ This skill enables AI agents to audit websites for **331 rules** in **20 categor
 - **Images** (14 rules): Alt text, dimensions, lazy loading, modern formats, alt length, background images
 - **Security** (23 rules): HTTPS, HSTS, CSP, external link safety, leaked secrets, SSL expiry/protocol, cookie flags and lifetime
 - **Technical SEO** (17 rules): robots.txt, sitemap.xml, URL structure, 404 pages, soft 404s, error codes
-- **Crawlability** (34 rules): Sitemap conflicts, indexability signals, canonical chains, pagination issues, sitemap lastmod quality
+- **Crawlability** (35 rules): Sitemap conflicts, indexability signals, canonical chains, pagination issues, sitemap lastmod quality
 - **Structured Data** (13 rules): Schema.org markup, Article, Organization, FAQ, Product, Breadcrumb
 - **JavaScript Rendering** (16 rules): Rendered DOM checks, raw vs rendered mismatches, SSR detection, console errors, failed resource requests
 - **Accessibility** (31 rules): ARIA labels, color contrast, form labels, landmarks, touch targets
@@ -473,6 +473,6 @@ untrusted delimiters would dilute the signal.
 
 ## Resources
 
-- **Full rules reference**: See `docs/SEO-AUDIT-RULES.md` for all 331 rules
+- **Full rules reference**: See `docs/SEO-AUDIT-RULES.md` for all 332 rules
 - **Storage architecture**: See `docs/STORAGE-ARCHITECTURE.md` for database details
 - **CLI help**: `seomator --help` and `seomator <command> --help`

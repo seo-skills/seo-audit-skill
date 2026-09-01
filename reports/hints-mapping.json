@@ -47,12 +47,10 @@
     "importance": "Critical",
     "warningType": "Issue",
     "description": "This means that the URL in question is an image URL that is blocked by a robots.txt disallow rule.",
-    "status": "MISSING",
-    "note": "crawl-blocked-resources covers CSS/JS only, not image URLs.",
-    "ruleId": "crawl-blocked-images",
-    "cat": "crawl",
-    "effort": "medium",
-    "data": "robots.txt (already fetched) + image URL list"
+    "status": "COVERED",
+    "rules": [
+      "crawl-blocked-images"
+    ]
   },
   {
     "category": "indexability",

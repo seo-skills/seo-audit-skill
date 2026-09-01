@@ -26,6 +26,7 @@ import { sitemapLastmodRule } from './sitemap-lastmod.js';
 
 // Robots.txt rules
 import { blockedResourcesRule } from './blocked-resources.js';
+import { blockedImagesRule } from './blocked-images.js';
 import { crawlDelayRule } from './crawl-delay.js';
 import { sitemapInRobotstxtRule } from './sitemap-in-robotstxt.js';
 
@@ -71,6 +72,7 @@ export {
 
   // Robots.txt rules
   blockedResourcesRule,
+  blockedImagesRule,
   crawlDelayRule,
   sitemapInRobotstxtRule,
 
@@ -121,6 +123,7 @@ registerRule(sitemapOrphanUrlsRule);
 
 // Robots.txt rules
 registerRule(blockedResourcesRule);
+registerRule(blockedImagesRule);
 registerRule(crawlDelayRule);
 registerRule(sitemapInRobotstxtRule);
 

@@ -1,6 +1,6 @@
 ---
 name: seo-audit
-description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 331 rules and 20 categories, and can diff two audits to show what a deploy changed. Use when analyzing websites, debugging SEO issues, checking site health, or comparing a site before and after a change.
+description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 332 rules and 20 categories, and can diff two audits to show what a deploy changed. Use when analyzing websites, debugging SEO issues, checking site health, or comparing a site before and after a change.
 license: MIT
 compatibility: Requires Node.js 20+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
 metadata:
@@ -13,7 +13,7 @@ allowed-tools: Bash(seomator:*)
 
 Audit websites for SEO, technical, content, performance, security, JavaScript rendering, and AI readiness using the SEOmator CLI.
 
-SEOmator provides comprehensive website auditing by analyzing website structure and content against **331 rules** across **20 categories**.
+SEOmator provides comprehensive website auditing by analyzing website structure and content against **332 rules** across **20 categories**.
 
 It provides a list of issues with severity levels, affected URLs, and actionable fix suggestions.
 
@@ -25,7 +25,7 @@ It provides a list of issues with severity levels, affected URLs, and actionable
 
 ## What This Skill Does
 
-This skill enables AI agents to audit websites for **331 rules** in **20 categories**, including:
+This skill enables AI agents to audit websites for **332 rules** in **20 categories**, including:
 
 - **Core SEO** (24 rules): Canonical URLs, indexing directives, title uniqueness, canonical conflicts/loops
 - **Performance** (26 rules): LCP, CLS, FCP, TTFB, INP, compression, caching, minification, HTTP/2
@@ -473,6 +473,6 @@ untrusted delimiters would dilute the signal.
 
 ## Resources
 
-- **Full rules reference**: See `docs/SEO-AUDIT-RULES.md` for all 331 rules
+- **Full rules reference**: See `docs/SEO-AUDIT-RULES.md` for all 332 rules
 - **Storage architecture**: See `docs/STORAGE-ARCHITECTURE.md` for database details
 - **CLI help**: `seomator --help` and `seomator <command> --help`

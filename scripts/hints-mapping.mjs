@@ -6,7 +6,7 @@ export const MAPPING = {
   'canonical-outside-of-head': { status: 'COVERED', rules: ['core-canonical-outside-head'] },
   'canonical-points-to-http-version': { status: 'COVERED', rules: ['core-canonical-http-mismatch'] },
   'disallowed-javascript-file': { status: 'COVERED', rules: ['crawl-blocked-resources', 'js-blocked-resources'] },
-  'disallowed-image': { status: 'MISSING', note: 'crawl-blocked-resources covers CSS/JS only, not image URLs.', ruleId: 'crawl-blocked-images', cat: 'crawl', effort: 'medium', data: 'robots.txt (already fetched) + image URL list' },
+  'disallowed-image': { status: 'COVERED', rules: ['crawl-blocked-images'] },
   'disallowed-style-sheet': { status: 'COVERED', rules: ['crawl-blocked-resources'] },
   'head-contains-a-noscript-tag-which-includes-an-image': { status: 'COVERED', rules: ['htmlval-noscript-in-head'], note: 'Rule flags any non-link/style/meta content in head noscript, which includes img.' },
   'head-contains-invalid-html-elements': { status: 'COVERED', rules: ['htmlval-invalid-head'] },

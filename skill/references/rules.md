@@ -2,7 +2,7 @@
 
 <!-- Updated: 2026-09-01 -->
 
-SEOmator ships **331 rules across 20 weighted categories**. Category weights
+SEOmator ships **332 rules across 20 weighted categories**. Category weights
 sum to exactly 100. Each rule returns `pass` (100), `warn` (50), or `fail` (0);
 the category score is the average of its rule results weighted by each rule's
 declared `weight`, and the overall score is the weighted average of category
@@ -22,7 +22,7 @@ neither side of the average.
 | `images` | Images | 8% | 14 | Alt text, dimensions, lazy loading, WebP/AVIF, srcset, file size |
 | `security` | Security | 8% | 23 | HTTPS, HSTS, CSP, X-Frame-Options, mixed content, SSL, leaked secrets, cookie flags |
 | `technical` | Technical SEO | 7% | 17 | robots.txt, sitemap, URL hygiene, www redirect, custom 404 |
-| `crawl` | Crawlability | 5% | 34 | noindex, robots directives, sitemap coverage, lastmod quality, redirect chains |
+| `crawl` | Crawlability | 5% | 35 | noindex, robots directives, sitemap coverage, lastmod quality, redirect chains |
 | `schema` | Structured Data | 5% | 13 | JSON-LD presence/validity, required fields, deprecated types |
 | `content` | Content | 5% | 19 | Word count, thin content, readability, duplicate content |
 | `js` | JavaScript Rendering | 5% | 16 | CSR vs SSR, rendered-DOM diff, JS-dependent content, console errors, failed requests |

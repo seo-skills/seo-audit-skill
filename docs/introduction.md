@@ -2,7 +2,7 @@
 
 > CLI Website Audits for Humans, Agents & LLMs
 
-A comprehensive SEO audit tool with **331 rules** across **20 categories** that fits into your AI workflow. Built with Node.js, works with your system browser.
+A comprehensive SEO audit tool with **332 rules** across **20 categories** that fits into your AI workflow. Built with Node.js, works with your system browser.
 
 ## Quick Links
 
@@ -91,7 +91,7 @@ Console, JSON, HTML reports, Markdown, LLM-friendly output. Export exactly what 
 
 ## Rule Categories
 
-SEOmator runs **331 rules** across **20 categories**:
+SEOmator runs **332 rules** across **20 categories**:
 
 | Category | Weight | Rules | Description |
 |----------|--------|-------|-------------|
@@ -102,7 +102,7 @@ SEOmator runs **331 rules** across **20 categories**:
 | **Security** | 8% | 23 | HTTPS, security headers, CSP strength, mixed content, SSL |
 | **Accessibility** | 7% | 31 | WCAG, ARIA validity, landmarks, list/table structure, contrast |
 | **Technical SEO** | 7% | 17 | robots.txt, sitemap, URL hygiene, www redirect, custom 404 |
-| **Crawlability** | 5% | 34 | Indexability signals, sitemap coverage, pagination |
+| **Crawlability** | 5% | 35 | Indexability signals, sitemap coverage, pagination |
 | **Structured Data** | 5% | 13 | JSON-LD presence/validity, required fields |
 | **Content** | 5% | 19 | Word count, thin content, readability, duplicates |
 | **JavaScript Rendering** | 5% | 16 | CSR vs SSR, rendered-DOM diff, console errors, document.write |
@@ -116,7 +116,7 @@ SEOmator runs **331 rules** across **20 categories**:
 | **AI/GEO Readiness** | 2% | 5 | AI crawler access, llms.txt, citability structure |
 | **Legal Compliance** | 1% | 1 | Cookie consent, privacy policy presence |
 
-**Total: 100% weight, 331 rules across 20 categories.**
+**Total: 100% weight, 332 rules across 20 categories.**
 
 ## Resources
 

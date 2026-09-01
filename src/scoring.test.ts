@@ -15,6 +15,14 @@ function res(status: RuleResult['status'], weight?: number): RuleResult {
   return { ruleId: `rule-${status}-${weight ?? 'x'}`, status, message: status, score, weight };
 }
 
+/**
+ * Build a result the way notMeasured() does: a warn-shaped result carrying
+ * weight 0, so it is excluded from the average rather than scored at 50.
+ */
+function notMeasuredRes(ruleId: string): RuleResult {
+  return { ruleId, status: 'warn', message: 'not measured', score: 50, weight: 0 };
+}
+
 describe('calculateCategoryScore', () => {
   it('returns 0 for empty results array', () => {
     expect(calculateCategoryScore([])).toBe(0);
@@ -206,5 +214,59 @@ describe('buildCategoryResult', () => {
     expect(result.warnCount).toBe(0);
     expect(result.failCount).toBe(3);
     expect(result.score).toBe(0);
+  });
+
+  // Regression: ISSUE-003 — checks that took no reading were counted as warnings
+  // Found by /qa on 2026-09-01
+  // Report: .gstack/qa-reports/qa-report-seomator-cli-2026-09-01.md
+  describe('checks that took no reading', () => {
+    it('counts them separately instead of as warnings', () => {
+      // What --no-cwv produced: rules that could not measure, reported as
+      // "score 100, N warnings" because weight-0 results fell into warnCount.
+      const result = buildCategoryResult('js', [
+        res('pass', 5),
+        res('pass', 5),
+        notMeasuredRes('cwv-lcp'),
+        notMeasuredRes('cwv-inp'),
+        notMeasuredRes('cwv-cls'),
+      ]);
+
+      expect(result.warnCount).toBe(0);
+      expect(result.notMeasuredCount).toBe(3);
+      expect(result.passCount).toBe(2);
+      // The score already excluded them; the counts now agree with it.
+      expect(result.score).toBe(100);
+    });
+
+    it('keeps real warnings distinct from unmeasured ones', () => {
+      const result = buildCategoryResult('mixed', [
+        res('warn', 10),
+        notMeasuredRes('skipped-1'),
+        res('fail', 10),
+      ]);
+
+      expect(result.warnCount).toBe(1);
+      expect(result.notMeasuredCount).toBe(1);
+      expect(result.failCount).toBe(1);
+      // (50*10 + 0*10) / 20 = 25 — the unmeasured result moves nothing.
+      expect(result.score).toBe(25);
+    });
+
+    it('reports zero when everything was measured', () => {
+      const result = buildCategoryResult('clean', [res('pass', 5), res('fail', 5)]);
+
+      expect(result.notMeasuredCount).toBe(0);
+    });
+
+    it('does not treat a missing weight as unmeasured', () => {
+      // Stored audits from before weights were injected carry no weight at all.
+      // Those are real results and must stay in the warning count.
+      const result = buildCategoryResult('legacy', [
+        { ruleId: 'old-rule', status: 'warn', message: 'legacy', score: 50 },
+      ]);
+
+      expect(result.warnCount).toBe(1);
+      expect(result.notMeasuredCount).toBe(0);
+    });
   });
 });

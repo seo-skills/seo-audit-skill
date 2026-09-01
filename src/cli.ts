@@ -18,21 +18,37 @@ import {
 } from './commands/index.js';
 
 /**
- * Validate that a string is a valid URL
+ * Validate that a string is a URL the crawler can actually fetch.
+ *
+ * Runs at parse time so a bad URL is rejected before the banner prints and
+ * before any network call. A missing scheme is the most common way to get
+ * here, so say so rather than surfacing the underlying parser error.
  */
 function validateUrl(value: string): string {
+  let url: URL;
+
   try {
-    const url = new URL(value);
-    if (!['http:', 'https:'].includes(url.protocol)) {
-      throw new InvalidArgumentError('URL must use http or https protocol');
+    url = new URL(value);
+  } catch {
+    // Suggest a scheme only when the value does not already carry one and
+    // prefixing it actually parses. Without the first condition, "http://"
+    // would be offered back as "https://http://".
+    if (!value.includes('://')) {
+      const withScheme = `https://${value}`;
+      if (URL.canParse(withScheme)) {
+        throw new InvalidArgumentError(`Invalid URL "${value}". Did you mean ${withScheme}?`);
+      }
     }
-    return value;
-  } catch (error) {
-    if (error instanceof InvalidArgumentError) {
-      throw error;
-    }
-    throw new InvalidArgumentError('Invalid URL format');
+    throw new InvalidArgumentError(`Invalid URL "${value}"`);
   }
+
+  if (!['http:', 'https:'].includes(url.protocol)) {
+    throw new InvalidArgumentError(
+      `URL must use http or https, got "${url.protocol.replace(':', '')}"`
+    );
+  }
+
+  return value;
 }
 
 /**
@@ -75,7 +91,8 @@ program
 
 // Audit command
 program
-  .command('audit <url>')
+  .command('audit')
+  .argument('<url>', 'URL to audit', validateUrl)
   .description('Run SEO audit on a URL')
   .option('-c, --categories <list>', 'Categories to audit', parseCategories)
   .option('-j, --json', 'Output as JSON (deprecated, use --format json)', false)
@@ -106,7 +123,8 @@ program
 
 // Crawl command
 program
-  .command('crawl <url>')
+  .command('crawl')
+  .argument('<url>', 'URL to crawl', validateUrl)
   .description('Crawl website without analysis')
   .option('-m, --max-pages <n>', 'Max pages to crawl', (v) => parseIntValue(v, 'max-pages', 1, 1000))
   .option('-r, --refresh', 'Ignore cache, fetch all pages fresh', false)

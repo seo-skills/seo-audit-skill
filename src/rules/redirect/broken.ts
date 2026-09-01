@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, fail } from '../define-rule.js';
+import { defineRule, pass, fail, notMeasured } from '../define-rule.js';
 
 /**
  * Redirect chain entry as provided by the crawler/fetcher.
@@ -25,9 +25,10 @@ export const brokenRedirectRule = defineRule({
   run: (context: AuditContext) => {
     const redirectChain = (context as AuditContext & { redirectChain?: RedirectChainEntry[] }).redirectChain;
 
-    // No redirect chain or empty chain - nothing to check
+    // Not a pass: redirects are followed silently by the fetcher, so an absent
+    // chain means it was never recorded, not that the page was reached direct.
     if (!redirectChain || redirectChain.length === 0) {
-      return pass('redirect-broken', 'No redirect chain to check');
+      return notMeasured('redirect-broken', 'Redirect chain was not recorded for this page');
     }
 
     const { statusCode } = context;

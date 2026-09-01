@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, fail } from '../define-rule.js';
+import { defineRule, pass, fail, notMeasured } from '../define-rule.js';
 
 /**
  * Redirect chain entry as provided by the crawler/fetcher.
@@ -27,7 +27,10 @@ export const redirectLoopRule = defineRule({
     const redirectChain = (context as AuditContext & { redirectChain?: RedirectChainEntry[] }).redirectChain;
 
     if (!redirectChain || redirectChain.length === 0) {
-      return pass('redirect-loop', 'No redirect chain to check');
+      // Not a pass: the fetcher follows redirects silently, so a page reached
+      // through four hops is indistinguishable here from one reached directly.
+      // Absent chain data means unmeasured, not "no redirects happened".
+      return notMeasured('redirect-loop', 'Redirect chain was not recorded for this page');
     }
 
     const seenUrls = new Set<string>();

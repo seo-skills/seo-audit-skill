@@ -6,6 +6,7 @@ import { hreflangRelativeUrlRule } from './hreflang-relative-url.js';
 import { hreflangXDefaultRule } from './hreflang-x-default.js';
 import { hreflangToBrokenRule } from './hreflang-to-broken.js';
 import { hreflangToRedirectRule } from './hreflang-to-redirect.js';
+import { hreflangIncomingInvalidRule } from './hreflang-incoming-invalid.js';
 
 /**
  * Helper to create an audit context from HTML
@@ -499,6 +500,103 @@ describe('i18n Rules', () => {
       expect(result.status).toBe('warn');
       expect(result.details?.httpCount).toBe(1);
       expect(result.details?.redirectCount).toBe(1);
+    });
+  });
+
+  describe('i18n-hreflang-incoming-invalid', () => {
+    it('should report unmeasured without crawl state', async () => {
+      const context = createContext('<html><head></head></html>');
+      const result = await hreflangIncomingInvalidRule.run(context);
+      expect(result.weight).toBe(0);
+    });
+
+    it('should fail when another page targets this URL with an invalid code', async () => {
+      const site = makeSiteWithPages({
+        'https://example.com/en/': { statusCode: 200 },
+        'https://example.com/fr/': {
+          statusCode: 200,
+          hreflangOut: { english: 'https://example.com/en/' },
+        },
+      });
+      const context = createContext('<html><head></head></html>', 'https://example.com/en/', {}, site);
+      const result = await hreflangIncomingInvalidRule.run(context);
+      expect(result.status).toBe('fail');
+      const invalid = result.details?.invalid as Array<{ source: string; hreflang: string }>;
+      expect(invalid).toEqual([
+        { source: 'https://example.com/fr/', hreflang: 'english' },
+      ]);
+    });
+
+    it('should flag codes with malformed separators', async () => {
+      const site = makeSiteWithPages({
+        'https://example.com/en/': { statusCode: 200 },
+        'https://example.com/fr/': {
+          statusCode: 200,
+          hreflangOut: { en_US: 'https://example.com/en/' },
+        },
+      });
+      const context = createContext('<html><head></head></html>', 'https://example.com/en/', {}, site);
+      const result = await hreflangIncomingInvalidRule.run(context);
+      expect(result.status).toBe('fail');
+      expect(result.details?.incomingCount).toBe(1);
+    });
+
+    it('should pass when incoming annotations use valid codes', async () => {
+      const site = makeSiteWithPages({
+        'https://example.com/en/': { statusCode: 200 },
+        'https://example.com/fr/': {
+          statusCode: 200,
+          hreflangOut: { 'en-GB': 'https://example.com/en/' },
+        },
+        'https://example.com/de/': {
+          statusCode: 200,
+          hreflangOut: { en: 'https://example.com/en/' },
+        },
+      });
+      const context = createContext('<html><head></head></html>', 'https://example.com/en/', {}, site);
+      const result = await hreflangIncomingInvalidRule.run(context);
+      expect(result.status).toBe('pass');
+      expect(result.details?.incomingCount).toBe(2);
+    });
+
+    it('should not flag an incoming x-default annotation', async () => {
+      const site = makeSiteWithPages({
+        'https://example.com/en/': { statusCode: 200 },
+        'https://example.com/fr/': {
+          statusCode: 200,
+          hreflangOut: { 'x-default': 'https://example.com/en/' },
+        },
+      });
+      const context = createContext('<html><head></head></html>', 'https://example.com/en/', {}, site);
+      const result = await hreflangIncomingInvalidRule.run(context);
+      expect(result.status).toBe('pass');
+    });
+
+    it('should pass when no other crawled page annotates this URL', async () => {
+      const site = makeSiteWithPages({
+        'https://example.com/en/': { statusCode: 200 },
+        'https://example.com/fr/': {
+          statusCode: 200,
+          hreflangOut: { fr: 'https://example.com/fr/' },
+        },
+      });
+      const context = createContext('<html><head></head></html>', 'https://example.com/en/', {}, site);
+      const result = await hreflangIncomingInvalidRule.run(context);
+      expect(result.status).toBe('pass');
+      expect(result.details?.incomingCount).toBe(0);
+    });
+
+    it('should ignore the page\'s own annotations - those are the outgoing side', async () => {
+      const site = makeSiteWithPages({
+        'https://example.com/en/': {
+          statusCode: 200,
+          hreflangOut: { english: 'https://example.com/en/' },
+        },
+      });
+      const context = createContext('<html><head></head></html>', 'https://example.com/en/', {}, site);
+      const result = await hreflangIncomingInvalidRule.run(context);
+      expect(result.status).toBe('pass');
+      expect(result.details?.incomingCount).toBe(0);
     });
   });
 });

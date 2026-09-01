@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createAuditor, Auditor } from './index.js';
+import { markSitemapDiscoverySources } from './auditor.js';
 import { categories } from './categories/index.js';
+import type { SiteContext, SitemapFetchResult } from './types.js';
 
 const PAGE_URL = 'https://example.test/';
 
@@ -174,5 +176,60 @@ describe('Programmatic API (createAuditor / Auditor)', () => {
       return url === PAGE_URL;
     });
     expect(pageFetches).toHaveLength(1);
+  });
+});
+
+describe('markSitemapDiscoverySources', () => {
+  function makeSite(normalize: (url: string) => string = (u) => u): SiteContext {
+    return {
+      entryUrl: 'https://example.com/',
+      pageCount: 1,
+      depthByUrl: new Map(),
+      inboundLinksByUrl: new Map(),
+      outboundLinksByUrl: new Map(),
+      normalize,
+    };
+  }
+
+  function makeSitemap(urls: string[]): SitemapFetchResult {
+    return { urls, entries: [], sources: [], isIndex: false, skippedSitemaps: 0 };
+  }
+
+  it('marks every sitemap URL as sitemap-discovered', () => {
+    const site = makeSite();
+    markSitemapDiscoverySources(site, makeSitemap([
+      'https://example.com/a',
+      'https://example.com/b',
+    ]));
+
+    const sources = site.discoverySourceByUrl!;
+    expect([...sources.get('https://example.com/a')!]).toEqual(['sitemap']);
+    expect(sources.get('https://example.com/b')!.has('sitemap')).toBe(true);
+  });
+
+  it('accumulates with sources the crawler already recorded', () => {
+    const site = makeSite();
+    site.discoverySourceByUrl = new Map([['https://example.com/a', new Set(['link' as const])]]);
+
+    markSitemapDiscoverySources(site, makeSitemap(['https://example.com/a']));
+
+    const sources = site.discoverySourceByUrl.get('https://example.com/a')!;
+    expect(sources.has('link')).toBe(true);
+    expect(sources.has('sitemap')).toBe(true);
+  });
+
+  it('keys entries through the site normaliser', () => {
+    const site = makeSite((u) => u.replace(/\/$/, ''));
+    markSitemapDiscoverySources(site, makeSitemap(['https://example.com/a/']));
+
+    expect(site.discoverySourceByUrl!.has('https://example.com/a')).toBe(true);
+    expect(site.discoverySourceByUrl!.has('https://example.com/a/')).toBe(false);
+  });
+
+  it('leaves the map untouched when the sitemap has no URLs', () => {
+    const site = makeSite();
+    markSitemapDiscoverySources(site, makeSitemap([]));
+
+    expect(site.discoverySourceByUrl).toBeUndefined();
   });
 });

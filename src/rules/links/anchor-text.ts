@@ -2,9 +2,12 @@ import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn } from '../define-rule.js';
 
 /**
- * Non-descriptive anchor text patterns to flag
+ * Non-descriptive anchor text patterns to flag.
+ *
+ * Exported for `inbound-anchor-text.ts`, which applies the same list to
+ * incoming followed links.
  */
-const NON_DESCRIPTIVE_PATTERNS = [
+export const NON_DESCRIPTIVE_PATTERNS = [
   'click here',
   'click',
   'here',

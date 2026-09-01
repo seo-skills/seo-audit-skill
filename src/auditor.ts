@@ -6,6 +6,8 @@ import type {
   CategoryDefinition,
   CoreWebVitals,
   RenderDiagnostics,
+  AssetInfo,
+  SiteContext,
   SitemapFetchResult,
 } from './types.js';
 import { categories, getCategoryById } from './categories/index.js';
@@ -61,6 +63,35 @@ export type OnPageCompleteCallback = (
   pageNumber: number,
   totalPages: number
 ) => void;
+
+/**
+ * Mark every sitemap URL as sitemap-discovered on the shared site graph.
+ *
+ * Lives here rather than in the crawler because the Auditor owns the sitemap
+ * fetch; the crawler never sees sitemap data. Marks the source only — sitemap
+ * URLs are deliberately NOT queued for crawling, which would blow up crawl
+ * scope. Keys go through `site.normalize` so they line up with the crawler's
+ * own map keys.
+ */
+export function markSitemapDiscoverySources(
+  site: SiteContext,
+  sitemap: SitemapFetchResult
+): void {
+  if (!sitemap.urls.length) return;
+
+  const map = site.discoverySourceByUrl ?? new Map();
+  site.discoverySourceByUrl = map;
+
+  for (const url of sitemap.urls) {
+    const key = site.normalize(url);
+    let sources = map.get(key);
+    if (!sources) {
+      sources = new Set();
+      map.set(key, sources);
+    }
+    sources.add('sitemap');
+  }
+}
 
 /**
  * Options for configuring the Auditor
@@ -257,6 +288,7 @@ export class Auditor {
     let renderedHtml: string | undefined;
     let rendered$: import('cheerio').CheerioAPI | undefined;
     let renderDiagnostics: RenderDiagnostics | undefined;
+    let assets: AssetInfo[] | undefined;
     let mobileHtml: string | undefined;
     let mobile$: import('cheerio').CheerioAPI | undefined;
     if (this.options.measureCwv) {
@@ -267,6 +299,7 @@ export class Auditor {
         });
         cwv = pwResult.cwv;
         renderDiagnostics = pwResult.diagnostics;
+        assets = pwResult.assets;
         // Capture rendered HTML for JS rendering rules
         if (pwResult.html) {
           renderedHtml = pwResult.html;
@@ -312,6 +345,9 @@ export class Auditor {
     }
     if (renderDiagnostics) {
       context.renderDiagnostics = renderDiagnostics;
+    }
+    if (assets) {
+      context.assets = assets;
     }
     if (mobileHtml) {
       context.mobileHtml = mobileHtml;
@@ -363,7 +399,15 @@ export class Auditor {
         ? async (pageUrl: string) => {
             try {
               const result = await fetcher(pageUrl, this.options.timeout);
-              return { cwv: result.cwv, diagnostics: result.diagnostics };
+              // `html` is what the JS-rendering rules read. Leaving it out here
+              // is what made all eleven of them report "rendered DOM not
+              // available" on every page of every crawl.
+              return {
+                cwv: result.cwv,
+                html: result.html,
+                diagnostics: result.diagnostics,
+                assets: result.assets,
+              };
             } catch {
               return { cwv: {} };
             }
@@ -382,6 +426,7 @@ export class Auditor {
     // Build the site graph once, then share it by reference with every page so
     // rules can answer cross-page questions (inbound links, click depth).
     const site = crawler.buildSiteContext();
+    markSitemapDiscoverySources(site, sitemapData);
 
     // Enrich each crawled page context with shared data
     for (const crawledPage of crawledPages) {

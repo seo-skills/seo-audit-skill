@@ -360,12 +360,11 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question is isolated, as it can only be found via a canonical link.",
-    "status": "MISSING",
-    "note": "Requires tracking the discovery source of every crawled URL; the crawler currently does not record it.",
-    "ruleId": "crawl-isolated-url",
-    "cat": "crawl",
-    "effort": "complex",
-    "data": "crawler discovery-source tracking (new)"
+    "status": "COVERED",
+    "rules": [
+      "crawl-isolated-url"
+    ],
+    "note": "Crawl mode only: per-URL discovery sources (link/canonical/redirect/sitemap/entry) recorded during the crawl."
   },
   {
     "category": "indexability",
@@ -375,11 +374,11 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question is isolated, as it can only be found via a redirect.",
-    "status": "MISSING",
-    "note": "Same as above.",
-    "ruleId": "crawl-isolated-url",
-    "cat": "crawl",
-    "effort": "complex"
+    "status": "COVERED",
+    "rules": [
+      "crawl-isolated-url"
+    ],
+    "note": "Same rule; redirect-only discovery is one of the isolation forms it reports."
   },
   {
     "category": "indexability",
@@ -389,11 +388,11 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question is isolated, as it can only be found via a noindex,follow link.",
-    "status": "MISSING",
-    "note": "Same as above.",
-    "ruleId": "crawl-isolated-url",
-    "cat": "crawl",
-    "effort": "complex"
+    "status": "COVERED",
+    "rules": [
+      "crawl-isolated-url"
+    ],
+    "note": "Same rule; fails when every linking page is noindex,follow."
   },
   {
     "category": "indexability",
@@ -403,11 +402,11 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question is isolated, as it can only be found via links from other isolated URLs.",
-    "status": "MISSING",
-    "note": "Same as above; additionally needs isolated-set graph analysis.",
-    "ruleId": "crawl-isolated-url",
-    "cat": "crawl",
-    "effort": "complex"
+    "status": "COVERED",
+    "rules": [
+      "crawl-isolated-url"
+    ],
+    "note": "Same rule; one propagation pass over the isolated set catches URLs linked only from isolated pages."
   },
   {
     "category": "indexability",
@@ -618,11 +617,11 @@
     "importance": "Insight",
     "warningType": "Insight",
     "description": "This means that the URL in question has a canonical element pointing at an external URL (a URL on a different domain or subdomain). This is known as a 'cross-domain canonical'.",
-    "status": "MISSING",
-    "note": "Cross-domain canonical not detected. Insight-level value.",
-    "ruleId": "core-canonical-external",
-    "cat": "core",
-    "effort": "trivial"
+    "status": "COVERED",
+    "rules": [
+      "core-canonical-external"
+    ],
+    "note": "Insight-level rule: always passes, reports cross-domain canonicals for confirmation."
   },
   {
     "category": "indexability",
@@ -659,12 +658,11 @@
     "importance": "Insight",
     "warningType": "Insight",
     "description": "This means that the URL in question does not have any incoming followed links from internal URLs - only nofollow ones.",
-    "status": "MISSING",
-    "note": "Inbound-link rel analysis needs crawl-level data not currently in SiteContext.",
-    "ruleId": "links-inbound-all-nofollow",
-    "cat": "links",
-    "effort": "complex",
-    "data": "crawl-level inbound rel=follow/nofollow per URL"
+    "status": "COVERED",
+    "rules": [
+      "links-inbound-all-nofollow"
+    ],
+    "note": "Crawl mode only: per-edge nofollow state from SiteContext.inboundEdgesByUrl; warns at most (insight-level)."
   },
   {
     "category": "indexability",
@@ -810,12 +808,11 @@
     "importance": "Medium",
     "warningType": "Potential Issue",
     "description": "This means that the URL in question only receives incoming nofollow links, or incoming links from canonicalized URLs. In other words, the URL only receives links from URLs that do not pass Link Equity.",
-    "status": "MISSING",
-    "note": "Inbound link-quality analysis not available in SiteContext.",
-    "ruleId": "links-inbound-low-quality",
-    "cat": "links",
-    "effort": "complex",
-    "data": "crawl-level inbound rel + canonical state"
+    "status": "COVERED",
+    "rules": [
+      "links-inbound-low-quality"
+    ],
+    "note": "Crawl mode only: warns when no inbound edge passes link equity (all nofollow or from canonicalized-away pages)."
   },
   {
     "category": "links",
@@ -852,12 +849,11 @@
     "importance": "Medium",
     "warningType": "Issue",
     "description": "This means that the URL in question has a mixture of followed and nofollowed incoming links.",
-    "status": "MISSING",
-    "note": "Mixed inbound follow/nofollow not computed.",
-    "ruleId": "links-inbound-mixed-follow",
-    "cat": "links",
-    "effort": "complex",
-    "data": "crawl-level inbound rel per URL"
+    "status": "COVERED",
+    "rules": [
+      "links-inbound-mixed-follow"
+    ],
+    "note": "Crawl mode only: per-edge nofollow state from SiteContext.inboundEdgesByUrl."
   },
   {
     "category": "links",
@@ -867,12 +863,11 @@
     "importance": "Medium",
     "warningType": "Opportunity",
     "description": "This means that the URL in question receives incoming followed links from other internal URLs, which do not use descriptive anchor text (they instead have anchor text like 'click here', go', 'here', etc...).",
-    "status": "MISSING",
-    "note": "links-anchor-text checks outgoing anchors only; inbound anchor quality needs crawl-level data.",
-    "ruleId": "links-inbound-anchor-text",
-    "cat": "links",
-    "effort": "complex",
-    "data": "crawl-level inbound anchor text"
+    "status": "COVERED",
+    "rules": [
+      "links-inbound-anchor-text"
+    ],
+    "note": "Crawl mode only: per-edge anchor text from SiteContext.inboundEdgesByUrl; warns when every followed inbound link is generic."
   },
   {
     "category": "links",
@@ -1253,11 +1248,12 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question is an external URL that redirected to a URL that was not accessible when reference catalog crawled the website.",
-    "status": "PARTIAL",
+    "status": "COVERED",
     "rules": [
-      "links-external-valid"
+      "links-external-valid",
+      "redirect-resource-broken"
     ],
-    "note": "External link reachability is checked, but broken external redirect chains are not distinguished."
+    "note": "redirect-resource-broken fails on redirected resources (incl. external) ending 4xx/5xx; needs rendered asset data (not measured under --no-cwv)."
   },
   {
     "category": "redirects",
@@ -1267,15 +1263,12 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question is a resource URL that redirected to a URL that was not accessible when reference catalog crawled the website.",
-    "status": "PARTIAL",
+    "status": "COVERED",
     "rules": [
-      "js-failed-requests"
+      "js-failed-requests",
+      "redirect-resource-broken"
     ],
-    "note": "Failed resource loads are observed during render, but resource redirect chains are not traced.",
-    "ruleId": "redirect-resource-broken",
-    "cat": "redirect",
-    "effort": "medium",
-    "data": "per-resource redirect/status via Playwright response listener"
+    "note": "Per-resource redirect chains from the Playwright render; not measured under --no-cwv."
   },
   {
     "category": "redirects",
@@ -1285,12 +1278,11 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question is a resource URL that redirects back to itself in a loop (e.g. URL 1 -> URL 1), which results in the resource being inaccessible.",
-    "status": "MISSING",
-    "note": "Resource redirect loops not traced.",
-    "ruleId": "redirect-resource-loop",
-    "cat": "redirect",
-    "effort": "medium",
-    "data": "per-resource redirect chains"
+    "status": "COVERED",
+    "rules": [
+      "redirect-resource-loop"
+    ],
+    "note": "Per-resource redirect loop detection from the rendered asset data; not measured under --no-cwv."
   },
   {
     "category": "redirects",
@@ -1300,11 +1292,11 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL is question is a page resource URL that is part of a redirect chain which results in a redirect loop (e.g. URL 1 -> URL -> 2 -> URL 3 -> URL 1), which results in the resource being inaccessible.",
-    "status": "MISSING",
-    "note": "Fold into redirect-resource-loop.",
-    "ruleId": "redirect-resource-loop",
-    "cat": "redirect",
-    "effort": "medium"
+    "status": "COVERED",
+    "rules": [
+      "redirect-resource-loop"
+    ],
+    "note": "Same rule; any loop back to a URL already in the chain is detected."
   },
   {
     "category": "redirects",
@@ -1367,15 +1359,12 @@
     "importance": "Medium",
     "warningType": "Issue",
     "description": "This means that the URL in question is a resource URL that redirects to another URL.",
-    "status": "PARTIAL",
+    "status": "COVERED",
     "rules": [
-      "redirect-resource"
+      "redirect-resource",
+      "redirect-resource-chain"
     ],
-    "note": "redirect-resource only covers HTTP→HTTPS resource references; general resource redirect chains are not reported.",
-    "ruleId": "redirect-resource-chain",
-    "cat": "redirect",
-    "effort": "medium",
-    "data": "per-resource redirect chains"
+    "note": "redirect-resource-chain warns on multi-hop resource chains from the rendered asset data; not measured under --no-cwv."
   },
   {
     "category": "redirects",
@@ -1939,15 +1928,12 @@
     "importance": "Critical",
     "warningType": "Issue",
     "description": "This means that the URL in question has one or more incoming hreflang annotation that is invalid (e.g. invalid language or region code).",
-    "status": "PARTIAL",
+    "status": "COVERED",
     "rules": [
-      "i18n-hreflang"
+      "i18n-hreflang",
+      "i18n-hreflang-incoming-invalid"
     ],
-    "note": "Outgoing annotations are validated; incoming annotation validity needs crawl-level data.",
-    "ruleId": "i18n-hreflang-incoming-invalid",
-    "cat": "i18n",
-    "effort": "complex",
-    "data": "crawl-level hreflang graph"
+    "note": "Crawl mode only for the incoming side: annotations from other crawled pages targeting this URL are code-validated."
   },
   {
     "category": "international",
@@ -2067,12 +2053,11 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question has multiple, different incoming hreflang annotations.",
-    "status": "MISSING",
-    "note": "Incoming annotation conflicts need the crawl-level hreflang graph.",
-    "ruleId": "crawl-hreflang-incoming-conflict",
-    "cat": "crawl",
-    "effort": "complex",
-    "data": "crawl-level hreflang graph"
+    "status": "COVERED",
+    "rules": [
+      "crawl-hreflang-incoming-conflict"
+    ],
+    "note": "Crawl mode only: compares what other crawled pages say about this URL; x-default excluded."
   },
   {
     "category": "international",
@@ -2175,15 +2160,12 @@
     "importance": "High",
     "warningType": "Issue",
     "description": "This means that the URL in question has hreflang annotations where at least one of the alternate hreflang URLs does not reciprocate.",
-    "status": "PARTIAL",
+    "status": "COVERED",
     "rules": [
-      "i18n-hreflang-return-links"
+      "i18n-hreflang-return-links",
+      "crawl-hreflang-reciprocity"
     ],
-    "note": "We check for a self-referencing annotation, not whether target pages link back; true reciprocity needs crawl-level data.",
-    "ruleId": "crawl-hreflang-reciprocity",
-    "cat": "crawl",
-    "effort": "complex",
-    "data": "crawl-level hreflang graph"
+    "note": "Crawl mode only for true reciprocity: crawled targets must annotate this page in return; uncrawled targets skipped."
   },
   {
     "category": "international",
@@ -2791,15 +2773,12 @@
     "importance": "Critical",
     "warningType": "Diagnostic",
     "description": "This means that the URL in question contains resource URLs, such as images or JavaScript files, which do not specify a cache header.",
-    "status": "PARTIAL",
+    "status": "COVERED",
     "rules": [
-      "perf-cache-policy"
+      "perf-cache-policy",
+      "perf-asset-cache-policy"
     ],
-    "note": "Only the page response headers are checked; per-asset cache headers need resource-level fetches or the Playwright response listener.",
-    "ruleId": "perf-asset-cache-policy",
-    "cat": "perf",
-    "effort": "medium",
-    "data": "Playwright response listener (per-resource headers)"
+    "note": "Per-asset cache headers from the Playwright render; not measured under --no-cwv."
   },
   {
     "category": "performance",
@@ -2809,16 +2788,13 @@
     "importance": "High",
     "warningType": "Opportunity",
     "description": "This means that the URL contains images that are unoptimized.",
-    "status": "PARTIAL",
+    "status": "COVERED",
     "rules": [
       "images-size",
-      "images-modern-format"
+      "images-modern-format",
+      "perf-image-encoding"
     ],
-    "note": "Size is estimated, not measured per image; no recompression analysis.",
-    "ruleId": "perf-image-encoding",
-    "cat": "perf",
-    "effort": "medium",
-    "data": "per-resource bytes via response listener"
+    "note": "perf-image-encoding measures transferred bytes per rendered image; not measured under --no-cwv."
   },
   {
     "category": "performance",
@@ -2842,14 +2818,11 @@
     "importance": "High",
     "warningType": "Opportunity",
     "description": "This means that the URL in question contains JavaScript files that are not minified or could be minified further.",
-    "status": "PARTIAL",
+    "status": "COVERED",
     "rules": [
       "perf-minify-js"
     ],
-    "note": "Only inline scripts are checked; external JS files are not fetched for minification analysis.",
-    "ruleId": "perf-minify-js (extend to external)",
-    "cat": "perf",
-    "effort": "medium"
+    "note": "Inline JS checked directly; large external scripts without a .min. URL marker flagged heuristically from render asset data (bodies not captured)."
   },
   {
     "category": "performance",
@@ -2859,14 +2832,11 @@
     "importance": "High",
     "warningType": "Opportunity",
     "description": "This means that the URL in question contains CSS files that are not minified or could be minified further.",
-    "status": "PARTIAL",
+    "status": "COVERED",
     "rules": [
       "perf-minify-css"
     ],
-    "note": "Only inline styles are checked.",
-    "ruleId": "perf-minify-css (extend to external)",
-    "cat": "perf",
-    "effort": "medium"
+    "note": "Inline CSS checked directly; large external stylesheets without a .min. URL marker flagged heuristically from render asset data (bodies not captured)."
   },
   {
     "category": "performance",
@@ -2890,15 +2860,13 @@
     "importance": "High",
     "warningType": "Opportunity",
     "description": "This means that the URL in question contains text-based resources that are not served with compression.",
-    "status": "PARTIAL",
+    "status": "COVERED",
     "rules": [
       "perf-text-compression",
-      "perf-brotli"
+      "perf-brotli",
+      "perf-asset-compression"
     ],
-    "note": "Page response compression is checked; compression of sub-resources is not.",
-    "ruleId": "perf-asset-compression",
-    "cat": "perf",
-    "effort": "medium"
+    "note": "perf-asset-compression checks sub-resource compression from render asset data; not measured under --no-cwv."
   },
   {
     "category": "performance",
@@ -2983,14 +2951,12 @@
     "importance": "Medium",
     "warningType": "Opportunity",
     "description": "This means that the URL in question is an image file that is over 100KB, which is generally considered large.",
-    "status": "PARTIAL",
+    "status": "COVERED",
     "rules": [
-      "images-size"
+      "images-size",
+      "perf-image-encoding"
     ],
-    "note": "Estimate-based, threshold 200KB; transferred bytes are not measured.",
-    "ruleId": "perf-image-encoding",
-    "cat": "perf",
-    "effort": "medium"
+    "note": "perf-image-encoding measures content-length per rendered image against a 100KB threshold; not measured under --no-cwv."
   },
   {
     "category": "performance",

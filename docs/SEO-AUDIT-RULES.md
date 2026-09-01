@@ -1,10 +1,10 @@
 # SEO Audit Rules Reference
 
-> Complete reference of all 316 SEO audit rules across 20 categories (v3.3.0)
+> Complete reference of all 331 SEO audit rules across 20 categories (v3.3.0)
 
 ## Overview
 
-SEOmator audits websites using 316 rules organized into 20 categories. Each rule returns one of three statuses:
+SEOmator audits websites using 331 rules organized into 20 categories. Each rule returns one of three statuses:
 - **Pass** (score: 100) - Meets best practices
 - **Warn** (score: 50) - Potential issue, should address
 - **Fail** (score: 0) - Critical issue, must fix
@@ -15,13 +15,13 @@ SEOmator audits websites using 316 rules organized into 20 categories. Each rule
 
 | Category | Weight | Rules | Description |
 |----------|--------|-------|-------------|
-| [Core SEO]((#core-seo)) | 11% | 23 | Meta tags, canonical, H1, indexing directives |
-| [Performance]((#performance)) | 10% | 23 | Core Web Vitals + performance optimization hints |
-| [Links]((#links)) | 8% | 20 | Internal/external links, anchor text, validation |
+| [Core SEO]((#core-seo)) | 11% | 24 | Meta tags, canonical, H1, indexing directives |
+| [Performance]((#performance)) | 10% | 26 | Core Web Vitals + performance optimization hints |
+| [Links]((#links)) | 8% | 24 | Internal/external links, anchor text, validation |
 | [Images]((#images)) | 8% | 14 | Alt text, dimensions, lazy loading, optimization |
 | [Security]((#security)) | 8% | 23 | HTTPS, security headers, mixed content, SSL, cookie flags |
 | [Technical SEO]((#technical-seo)) | 7% | 17 | Robots.txt, sitemap, status codes, URL structure |
-| [Crawlability]((#crawlability)) | 5% | 31 | Indexability signals, sitemap conflicts, pagination, sitemap lastmod |
+| [Crawlability]((#crawlability)) | 5% | 34 | Indexability signals, sitemap conflicts, pagination, sitemap lastmod |
 | [Structured Data]((#structured-data)) | 5% | 13 | JSON-LD, Schema.org markup |
 | [Content]((#content)) | 5% | 19 | Text quality, readability, headings, duplicates |
 | [JavaScript Rendering]((#javascript-rendering)) | 5% | 16 | SSR validation, JS-dependent SEO elements, console errors |
@@ -29,14 +29,14 @@ SEOmator audits websites using 316 rules organized into 20 categories. Each rule
 | [Social]((#social)) | 3% | 9 | Open Graph, Twitter Cards, social profiles |
 | [E-E-A-T]((#e-e-a-t)) | 3% | 14 | Experience, Expertise, Authority, Trust signals |
 | [URL Structure]((#url-structure)) | 3% | 14 | Slug keywords, formatting, parameters |
-| [Redirects]((#redirects)) | 3% | 8 | Redirect types, chains, loops |
+| [Redirects]((#redirects)) | 3% | 11 | Redirect types, chains, loops |
 | [Mobile]((#mobile)) | 2% | 12 | Font size, viewport, responsive layout |
-| [Internationalization]((#internationalization)) | 2% | 12 | Language declarations, hreflang validation |
+| [Internationalization]((#internationalization)) | 2% | 13 | Language declarations, hreflang validation |
 | [HTML Validation]((#html-validation)) | 2% | 11 | DOCTYPE, charset, head structure |
 | [AI/GEO Readiness]((#aigeo-readiness)) | 2% | 5 | Semantic HTML, AI bot access, llms.txt |
 | [Legal Compliance]((#legal-compliance)) | 1% | 1 | Cookie consent |
 
-**Total: 100% weight, 316 rules**
+**Total: 100% weight, 331 rules**
 
 ---
 
@@ -69,6 +69,7 @@ Essential SEO checks for meta tags, canonical URLs, H1 headings, and indexing di
 | `core-canonical-attributes` | Canonical Attributes | warn/fail | Checks canonical elements carry only `rel` and `href` attributes |
 | `core-canonical-multiple` | Multiple Canonical Tags | warn/fail | Detects multiple canonical elements in the HTML and whether they agree |
 | `core-robots-directive-mismatch` | Robots Directive Mismatch | warn/fail | Checks robots directives in meta tags and the X-Robots-Tag header are consistent |
+| `core-canonical-external` | Canonical Points To External URL | info | Reports when the canonical URL points to a different host (insight; legitimate for syndication) |
 
 ### Rule Details
 
@@ -154,6 +155,10 @@ Essential SEO checks for meta tags, canonical URLs, H1 headings, and indexing di
 - **What it checks:** Index/follow directives from meta robots tags vs the X-Robots-Tag header. Fails when one location declares index/follow and the other noindex/nofollow (the most restrictive wins); warns when noindex or nofollow is declared in more than one location
 - **Fix:** Declare robots directives in one location only and make them agree
 
+#### core-canonical-external
+- **What it checks:** Insight-level: the canonical URL points to a different host. Cross-domain canonicals are the legitimate mechanism for content syndication and consolidating duplicates across owned domains, but the page cedes its ranking signals to the other host. Always passes; the finding travels in the message so the intent can be confirmed
+- **Fix:** No action required; verify the external canonical target is deliberate
+
 ---
 
 ## Performance
@@ -177,8 +182,11 @@ Core Web Vitals measurements and static performance optimization hints.
 | `perf-text-compression` | Text Compression | warn | Checks gzip/brotli compression on text resources |
 | `perf-brotli` | Brotli Compression | warn | Checks for Brotli over gzip for better ratios |
 | `perf-cache-policy` | Cache Policy | warn | Validates Cache-Control headers on static assets |
-| `perf-minify-css` | Minify CSS | warn | Checks CSS files are minified |
-| `perf-minify-js` | Minify JS | warn | Checks JavaScript files are minified |
+| `perf-minify-css` | Minify CSS | warn | Checks inline CSS is minified; with render data, also flags large external stylesheets lacking a `.min.` URL marker (heuristic) |
+| `perf-minify-js` | Minify JS | warn | Checks inline JavaScript is minified; with render data, also flags large external scripts lacking a `.min.` URL marker (heuristic) |
+| `perf-asset-cache-policy` | Static Asset Cache Policy | warn | Per-asset check: static CSS/JS/image/font responses carry a cache-control max-age of at least 1 hour (requires render; not measured with --no-cwv) |
+| `perf-asset-compression` | Text Asset Compression | warn | Per-asset check: text-based assets over 2KB are served with gzip/Brotli (requires render; not measured with --no-cwv) |
+| `perf-image-encoding` | Efficient Image Encoding | warn/fail | Per-asset check: images transferred over 100KB (warn) or served in legacy BMP/TIFF formats (fail) (requires render; not measured with --no-cwv) |
 | `perf-response-time` | Response Time | warn/fail | Measures server response time for the page |
 | `perf-http2` | HTTP/2 | warn | Checks site is served over HTTP/2 or HTTP/3 |
 | `perf-page-weight` | Page Weight | warn/fail | Total page size including all resources |
@@ -232,7 +240,20 @@ Core Web Vitals measurements and static performance optimization hints.
 - **Fix:** Set `Cache-Control: max-age=31536000` for static assets with content hashes
 
 #### perf-minify-css / perf-minify-js
+- **What it checks:** Inline CSS/JS is checked directly (whitespace ratio, and block comments for JS). When per-asset render data is available, external scripts/stylesheets over 2KB (by content-length) whose URL lacks a `.min.` marker are additionally flagged as suspects — a heuristic only, since asset bodies are not captured, and never stronger than a warn
 - **Fix:** Use build tools (esbuild, terser, cssnano) to minify CSS and JavaScript
+
+#### perf-asset-cache-policy
+- **What it checks:** Static assets (stylesheets, scripts, images, fonts) observed during the rendered page load whose cache-control max-age is below 1 hour or missing. The Expires header is intentionally not consulted. Not measured under `--no-cwv` — per-asset headers come from the Playwright render
+- **Fix:** Serve static assets with `Cache-Control: max-age=3600` or longer (a year for content-hashed URLs)
+
+#### perf-asset-compression
+- **What it checks:** Text-based assets (CSS, JS, JSON, XML, SVG) over 2KB observed during render with no gzip/Brotli/deflate/zstd content-encoding. Size is read from the content-length header; chunked responses without one are not judged. Not measured under `--no-cwv`
+- **Fix:** Enable gzip or Brotli compression for text resources
+
+#### perf-image-encoding
+- **What it checks:** Images observed during render: a transferred size over 100KB (content-length header) warns; legacy BMP/TIFF formats fail, since modern equivalents are smaller by an order of magnitude. Not measured under `--no-cwv`
+- **Fix:** Compress oversized images; re-encode BMP/TIFF as WebP or AVIF
 
 #### perf-response-time
 - **Fix:** Optimize server processing, enable caching, use CDN
@@ -275,6 +296,10 @@ Analyzes internal and external links, anchor text, broken links, and link qualit
 | `links-onclick` | OnClick Navigation | warn | Detects onclick-based navigation instead of hrefs |
 | `links-whitespace-href` | Whitespace Href | warn | Detects href values with leading/trailing whitespace |
 | `links-non-http-protocol` | Non-HTTP Protocol Links | warn | Detects anchor links using protocols other than HTTP(S), tel: or mailto: (e.g. ftp:, file:, intent:) |
+| `links-inbound-all-nofollow` | Inbound Links All Nofollow | warn | Every inbound internal link is nofollow, so no link equity reaches the page (requires --crawl) |
+| `links-inbound-mixed-follow` | Mixed Follow/Nofollow Inbound | warn | Page receives both followed and nofollowed internal links, suggesting inconsistent nofollow usage (requires --crawl) |
+| `links-inbound-low-quality` | Inbound Links Passing No Link Equity | warn | Every inbound internal link is nofollow or comes from a page canonicalized elsewhere (requires --crawl) |
+| `links-inbound-anchor-text` | Descriptive Inbound Anchor Text | warn | All followed inbound internal links use generic anchor text like "click here" (requires --crawl) |
 
 ### Rule Details
 
@@ -311,6 +336,18 @@ Analyzes internal and external links, anchor text, broken links, and link qualit
 #### links-non-http-protocol
 - **What it checks:** Anchor hrefs using protocols other than HTTP(S) — `ftp:`, `file:`, `intent:`, `chrome:`, and so on. Browsers hand these to external handlers, so behavior is unpredictable and link equity is lost. Legitimate `tel:` and `mailto:` links are excluded (validated by links-tel-mailto)
 - **Fix:** Prefer HTTP(S) URLs unless the non-HTTP protocol is intentional
+
+#### links-inbound-all-nofollow / links-inbound-mixed-follow
+- **What it checks:** Per-edge nofollow state of the internal links pointing at this page, from the crawl's inbound link graph. All-nofollow means the page is linked yet receives no link equity (insight-level, so it warns at most); a follow/nofollow mix usually means nofollow was applied inconsistently rather than as policy. Pages with no inbound links pass — that is links-orphan-pages' territory. Crawl mode only; not measured in a single-page audit
+- **Fix:** Decide whether internal links to this page should be nofollowed and apply it consistently
+
+#### links-inbound-low-quality
+- **What it checks:** Whether any inbound internal link passes link equity at all: an edge passes equity only when it is followed AND its source page is not canonicalized to another URL (a canonicalized-away source consolidates its signals onto the canonical target). Pages with no inbound links pass — that is links-orphan-pages' territory. Crawl mode only
+- **Fix:** Earn followed links from indexable, self-canonical pages so the URL receives internal link equity
+
+#### links-inbound-anchor-text
+- **What it checks:** Anchor text of followed inbound internal links: empty (image-only links), under 2 characters, or an exact match of the generic-phrase list shared with links-anchor-text ("click here", "read more", …). Warns only when every followed inbound link is generic — inbound anchor text is a relevance signal for the target page. Crawl mode only
+- **Fix:** Use descriptive anchor text on internal links pointing to this page
 
 ---
 
@@ -545,7 +582,7 @@ Validates robots.txt, sitemap, SSL, status codes, and URL structure.
 
 Validates indexability signals, sitemap conflicts, canonical chains, and pagination.
 
-The cross-page rules (`crawl-sitemap-non-200`, `crawl-sitemap-non-canonical`, `crawl-sitemap-disallowed`, `crawl-sitemap-cross-duplicates`, `crawl-canonical-to-noindex`, `crawl-canonical-to-disallowed`, `crawl-canonical-chain`, `crawl-canonical-loop`, `crawl-hreflang-to-noindex`, `crawl-hreflang-to-disallowed`, `crawl-hreflang-disallowed-target`, `crawl-pagination-isolated`) need the per-URL state recorded during a multi-page crawl, so they only measure with `--crawl`; in a single-page audit they report as not measured (weight 0, excluded from the score).
+The cross-page rules (`crawl-sitemap-non-200`, `crawl-sitemap-non-canonical`, `crawl-sitemap-disallowed`, `crawl-sitemap-cross-duplicates`, `crawl-canonical-to-noindex`, `crawl-canonical-to-disallowed`, `crawl-canonical-chain`, `crawl-canonical-loop`, `crawl-hreflang-to-noindex`, `crawl-hreflang-to-disallowed`, `crawl-hreflang-disallowed-target`, `crawl-pagination-isolated`, `crawl-hreflang-incoming-conflict`, `crawl-hreflang-reciprocity`, `crawl-isolated-url`) need the per-URL state recorded during a multi-page crawl, so they only measure with `--crawl`; in a single-page audit they report as not measured (weight 0, excluded from the score).
 
 | Rule ID | Name | Severity | Description |
 |---------|------|----------|-------------|
@@ -580,6 +617,9 @@ The cross-page rules (`crawl-sitemap-non-200`, `crawl-sitemap-non-canonical`, `c
 | `crawl-hreflang-to-noindex` | Hreflang To Noindex URLs | fail | Outgoing hreflang annotations point to noindex URLs (crawl mode) |
 | `crawl-hreflang-to-disallowed` | Hreflang To Disallowed URLs | fail | Outgoing hreflang annotations point to robots.txt-disallowed URLs (crawl mode) |
 | `crawl-hreflang-disallowed-target` | Disallowed URL Has Incoming Hreflang | fail | Other pages point hreflang at this robots.txt-disallowed page (crawl mode) |
+| `crawl-hreflang-incoming-conflict` | Conflicting Incoming Hreflang | fail | Other crawled pages annotate this URL with different hreflang codes (crawl mode) |
+| `crawl-hreflang-reciprocity` | Hreflang Reciprocity | warn | Crawled hreflang targets do not annotate this page in return (crawl mode) |
+| `crawl-isolated-url` | Isolated URL | fail | URL reachable only via canonicals, redirects, the sitemap, noindex,follow paths, or other isolated URLs (crawl mode) |
 
 ### Rule Details
 
@@ -661,6 +701,18 @@ The cross-page rules (`crawl-sitemap-non-200`, `crawl-sitemap-non-canonical`, `c
 #### crawl-hreflang-disallowed-target
 - **What it checks:** The mirror direction: this page is disallowed by robots.txt while other crawled pages point hreflang annotations at it, so its return tags can never be confirmed
 - **Fix:** Remove the robots.txt Disallow for this URL, or remove the hreflang annotations pointing at it
+
+#### crawl-hreflang-incoming-conflict
+- **What it checks:** The incoming side of hreflang conflicts: annotations from OTHER crawled pages that target this URL must agree on a single language/region code. The page's own annotations are excluded (i18n-hreflang-conflicting's job), and x-default never conflicts — it is a fallback, not a language claim
+- **Fix:** Make every page in the hreflang cluster annotate each member URL with the same single language/region code
+
+#### crawl-hreflang-reciprocity
+- **What it checks:** Every crawled hreflang target of this page annotates this page in return (return tags) — annotations are only honoured when mutual. Warns rather than fails, since missing return tags are usually a template gap. Targets the crawl never visited are skipped; when none were crawled the rule is not measured
+- **Fix:** Add reciprocal hreflang annotations on the target pages pointing back at this URL
+
+#### crawl-isolated-url
+- **What it checks:** How the crawl discovered this URL (internal link, canonical tag, redirect, XML sitemap, or the crawl entry point). Fails when no anchor link points to it (found only via a canonical, a redirect or the sitemap), when every linking page is noindex,follow, or when every linker is itself isolated (one propagation pass). The crawl entry point always passes. Crawl mode only
+- **Fix:** Link to the page from ordinary anchors on relevant, indexable pages; do not rely on canonicals, redirects or the sitemap for discovery
 
 ---
 
@@ -1178,6 +1230,9 @@ Validates redirect implementation, types, and common redirect issues.
 | `redirect-broken` | Broken Redirect | fail | Redirect target returns error |
 | `redirect-resource` | Resource Redirect | warn | Static resources (CSS/JS/images) being redirected |
 | `redirect-case-normalization` | Case Normalization | warn | URL case differences causing redirects |
+| `redirect-resource-broken` | Broken Resource Redirects | fail | Redirected page resources resolve to a 4xx/5xx status (requires render; not measured with --no-cwv) |
+| `redirect-resource-loop` | Resource Redirect Loops | fail | Page resources caught in a redirect loop and never resolve (requires render; not measured with --no-cwv) |
+| `redirect-resource-chain` | Resource Redirect Chains | warn | Page resources resolve through multi-hop redirect chains (requires render; not measured with --no-cwv) |
 
 ### Rule Details
 
@@ -1205,6 +1260,18 @@ Validates redirect implementation, types, and common redirect issues.
 
 #### redirect-case-normalization
 - **Fix:** Normalize URL case on the server. Redirect uppercase URLs to lowercase with 301.
+
+#### redirect-resource-broken
+- **What it checks:** Page resources (scripts, stylesheets, images, fonts) whose requests were redirected and ended in a 4xx/5xx response — the redirect destination is broken, so the hops are wasted and the page still loads without the resource. Resources that fail without any redirect are js-failed-requests' territory. Not measured under `--no-cwv` — per-resource redirect chains come from the Playwright render
+- **Fix:** Update the resource URLs to point directly at a working destination
+
+#### redirect-resource-loop
+- **What it checks:** A page resource request that loops back to a URL already present in its own redirect chain. The browser aborts with ERR_TOO_MANY_REDIRECTS, so the page loads without that script, stylesheet, or image. Not measured under `--no-cwv`
+- **Fix:** Fix the redirect target so the chain resolves to a final resource instead of looping
+
+#### redirect-resource-chain
+- **What it checks:** Page resources resolving through redirect chains of 2 or more hops — each extra hop adds latency and wastes crawl budget. A single hop (http to https, trailing-slash normalisation) is treated as benign, and looping resources are excluded (redirect-resource-loop reports those). Not measured under `--no-cwv`
+- **Fix:** Point resource URLs directly at the final destination
 
 ---
 
@@ -1274,6 +1341,7 @@ Checks language declarations and multi-language hreflang implementation.
 | `i18n-hreflang-multiple-methods` | Hreflang Multiple Methods | warn | Hreflang declared in multiple locations |
 | `i18n-hreflang-relative-url` | Hreflang Relative URLs | fail | Hreflang annotations must use absolute URLs, not relative ones |
 | `i18n-hreflang-x-default` | Hreflang Also X-Default | info | Reports when a language annotation targets the same URL as x-default (insight) |
+| `i18n-hreflang-incoming-invalid` | Invalid Incoming Hreflang | fail | Hreflang annotations from other crawled pages targeting this URL use invalid language/region codes (crawl mode) |
 
 ### Rule Details
 
@@ -1313,6 +1381,10 @@ Checks language declarations and multi-language hreflang implementation.
 #### i18n-hreflang-x-default
 - **What it checks:** Insight-level: the URL targeted by the x-default annotation is also targeted by a language/region annotation on the same page. Not an error — x-default is the fallback shown when no language matches — but the overlap is worth surfacing so the intent is deliberate
 - **Fix:** No action required; confirm the overlap is intentional
+
+#### i18n-hreflang-incoming-invalid
+- **What it checks:** The incoming counterpart to i18n-hreflang's outgoing validation: other crawled pages pointing hreflang annotations AT this URL must use valid language/region codes (`xx` or `xx-YY`; x-default is always valid). An invalid code makes the annotation unusable, so this page loses the cluster membership the source page tried to declare. Crawl mode only
+- **Fix:** Fix the annotations on the source pages to use valid ISO 639-1 language codes with optional ISO 3166-1 Alpha-2 region codes (e.g. "en", "en-GB")
 
 ---
 

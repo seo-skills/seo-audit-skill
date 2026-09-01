@@ -279,6 +279,41 @@ export interface RenderDiagnostics {
 }
 
 /**
+ * Per-subresource response data captured during a Playwright render.
+ *
+ * Rules otherwise see only the page's own response (`context.headers`); this
+ * carries the same kind of facts for each CSS/JS/image/font the render loaded.
+ * The page's main document is not included — it is not an asset.
+ */
+export interface AssetInfo {
+  /** Final URL after redirects */
+  url: string;
+  /** Playwright `request.resourceType()`: 'stylesheet' | 'script' | 'image' | 'font' | … */
+  resourceType: string;
+  /** Final HTTP status */
+  statusCode: number;
+  /**
+   * Response headers, lowercased keys. Only cache/encoding/length/type-relevant
+   * ones are kept (cache-control, content-encoding, content-length,
+   * content-type, expires, age, etag) to bound memory on asset-heavy pages.
+   */
+  headers: Record<string, string>;
+  /** Redirect chain statuses if the request was redirected (empty array otherwise) */
+  redirectChain: Array<{ url: string; statusCode: number }>;
+  /** True when the request looped back to a URL already in its own chain */
+  redirectLoop: boolean;
+  /**
+   * Transfer size in bytes when known (encoded body size).
+   *
+   * Currently never populated: Playwright exposes no transfer-size metric on a
+   * completed response without fetching the body again (`response.body()`), and
+   * double-fetching every subresource would distort the very page load being
+   * measured. Rules should fall back to the `content-length` header when present.
+   */
+  transferBytes?: number;
+}
+
+/**
  * A site-wide view of the crawl, available to rules in crawl mode.
  *
  * Rules receive one page at a time, so questions that span pages — is anything
@@ -290,6 +325,30 @@ export interface RenderDiagnostics {
  * crawler used to dedupe URLs, so lookups line up with what was actually
  * crawled. Look a URL up with `normalize(url)` rather than the raw string.
  */
+/**
+ * How the crawl first learned about a URL.
+ *
+ * A URL can carry several sources — being linked does not stop it also being
+ * in the sitemap. The isolated-URL hints look for URLs whose sources never
+ * include `link`.
+ */
+export type DiscoverySource = 'link' | 'canonical' | 'redirect' | 'sitemap' | 'entry';
+
+/**
+ * One inbound link edge: who links to a URL, and how.
+ *
+ * Complements `SiteContext.inboundLinksByUrl` (which only says WHO links) with
+ * the two facts anchor- and nofollow-related rules need per edge.
+ */
+export interface InboundEdge {
+  /** Normalised URL of the page carrying the link */
+  from: string;
+  /** Whether the link carries a nofollow rel attribute */
+  nofollow: boolean;
+  /** The link's anchor text, trimmed; empty when the link has no text */
+  anchor: string;
+}
+
 export interface SiteContext {
   /** The URL the crawl started from, normalised */
   entryUrl: string;
@@ -311,6 +370,20 @@ export interface SiteContext {
    * canonical target noindex, is this hreflang target robots.txt-disallowed.
    */
   pages?: Map<string, SitePageInfo>;
+  /**
+   * How each URL was discovered, by normalised URL. A URL present in the
+   * sitemap but never anchor-linked carries `sitemap` without `link` — that
+   * combination is what isolated-URL rules look for. Sitemap entries are
+   * marked by the Auditor after the crawl (the crawler never fetches
+   * sitemaps); the rest are marked by the crawler itself.
+   */
+  discoverySourceByUrl?: Map<string, Set<DiscoverySource>>;
+  /**
+   * Inbound link edges with per-edge metadata, keyed by normalised target
+   * URL. Same filtering as `inboundLinksByUrl` (internal, same-domain, no
+   * self-links); a page linking twice to the same target yields two edges.
+   */
+  inboundEdgesByUrl?: Map<string, InboundEdge[]>;
 }
 
 /**
@@ -415,6 +488,11 @@ export interface AuditContext {
   rendered$?: CheerioAPI;
   /** Errors and failed requests observed while rendering the page */
   renderDiagnostics?: RenderDiagnostics;
+  /**
+   * Per-subresource response data observed while rendering the page
+   * (status, cache headers, redirect chains). Present only when a render ran.
+   */
+  assets?: AssetInfo[];
 
   // --- Mobile parity (optional, requires a second render at a mobile viewport) ---
 

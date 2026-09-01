@@ -8,14 +8,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`npm run sync:docs` derives the counts the docs advertise.** The rule count,
+  category count, per-category counts, and the skill manifest's version are now
+  rewritten from the live registry and `package.json` rather than typed by hand.
+  `npm run check:docs` reports drift without writing and exits non-zero;
+  `prepublishOnly` runs it, so a release cannot ship prose that disagrees with
+  the code. The registry and category table are exported from the package entry
+  so consumers can read the same numbers.
+
+- **SEOmator branding in the HTML report.** The header carries the SEOmator
+  wordmark, inlined so the report stays one self-contained file, in a lockup
+  with the product name and an "Open Source" tag. The footer credits
+  "SEO Audit Open Source" and links to
+  [seomator.com/free-seo-audit-tool](https://seomator.com/free-seo-audit-tool).
+  The wordmark lettering renders in `currentColor`, so it flips with the theme
+  rather than staying black against the dark background.
+
+- **"Not measured" is a real state in the HTML report.** Checks that took no
+  reading get their own neutral status, filter tab, and summary counter instead
+  of being painted amber next to real findings. They are excluded from the
+  issues-to-fix table and no longer carry fix advice.
+
 - **robots.txt compliance.** The crawler now parses and obeys robots.txt per
   RFC 9309: user-agent group selection (most specific group wins), Allow and
   Disallow with longest-match precedence and Allow breaking ties, `*` and `$`
   wildcards, comments, and multi-agent groups. No new dependency. `respect_robots`
   finally does what it has always claimed; set it to `false` to opt out.
 
+### Changed
+
+- **The finding leads each rule card in the HTML report.** The measured result
+  ("LCP is 0.44s") was 13px muted grey below the rule's generic definition, so
+  the two loudest lines on every card were text identical on every audit of
+  every site. The result now renders first at full contrast; the definition
+  drops below it as reference.
+
 ### Fixed
 
+- **The HTML report over-counted warnings.** It re-derived its own counts from
+  raw rule results instead of reading `CategoryResult`, so the weight-0 results
+  produced by `notMeasured()` were counted as warnings: a report advertising 52
+  warnings where 28 were real, and a "How to Fix: reduce INP, optimize
+  JavaScript" box on a metric no one had measured. `scoring.ts` and the terminal
+  reporter had always read this correctly through `isNotMeasured()`; the HTML
+  reporter is now the third caller rather than a second implementation.
+- **Single-page reports rendered a page link on every rule.** A 316-rule audit
+  of one URL emitted 316 identical `/` chips, the only coloured element on each
+  card and the one carrying no information. Per-rule page links now appear only
+  when the report actually covers more than one URL, and the site root displays
+  as "Homepage" rather than `/`.
+- **The docs advertised four different rule counts.** The same repository
+  claimed 251 rules (the published 3.2.0 `dist`), 261 (a README heading), and
+  316 (every other doc) while the registry held 320, and `SKILL.md` still
+  declared `version: "3.1"`. Every per-category count was stale too
+  (Accessibility said 12 against 31, Crawlability 19 against 33). The code was
+  never wrong — `getRuleCount()` and `getVersion()` have been derived since
+  3.1.1 — only the prose was, so the prose is now generated.
+- **The HTML report scrolled sideways on a phone.** A category header put its
+  title and four counters on one row, overflowing the viewport at 390px. Both
+  rows now wrap. The `pages` icon in the header meta had also never rendered:
+  it was a flex item with no intrinsic size, measuring 0×0.
 - **Piped JSON output was truncated at 64KB.** `seomator audit --format json | jq`
   silently lost everything past the pipe buffer (119,040 bytes to a file,
   65,536 through a pipe, `jq: parse error: Unfinished string at EOF`).
@@ -80,7 +132,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > ### ⚠️ Scores move again in this release — re-baseline before comparing
 >
-> Twenty-nine new rules joined the scored set. Each one dilutes its category
+> Forty-four new rules joined the scored set. Each one dilutes its category
 > average, so an existing site's category and overall scores may shift
 > slightly in either direction with no change on its side. Re-run your
 > baseline before treating a movement as a regression.
@@ -161,6 +213,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (malformed URLs, HTTP-on-HTTPS). Targets the crawl never visited are
   skipped.
 - Category totals: crawl 19 → 31, content 18 → 19.
+
+### Added (phase 3 — discovery tracking, inbound link quality, per-asset checks, 316 → 331)
+
+- **Per-URL discovery tracking (`SiteContext.discoverySourceByUrl`).** The
+  crawler now records how it first learned about every URL: an internal link,
+  a canonical tag, a redirect hop, the XML sitemap, or the crawl entry point
+  (a URL can carry several). To make `canonical` a real discovery source,
+  internal canonical targets are now also queued for crawling — conservatively:
+  same-host, filtered through the usual crawl rules, and capped by `maxPages`.
+  Sitemap URLs are source-marked but deliberately NOT queued — declaring a URL
+  in a sitemap does not make the crawler fetch it.
+- **Per-edge inbound link metadata (`SiteContext.inboundEdgesByUrl`).** The
+  inbound link graph previously said only WHO links to a URL; each edge now
+  also carries its nofollow state and anchor text, so rules can judge link
+  equity and anchor quality from the receiving side.
+- **Per-subresource render data (`AuditContext.assets`).** The Playwright
+  render now records every loaded subresource's final URL, resource type,
+  status code, response headers (whitelisted to cache/encoding/length/type
+  headers to bound memory), and redirect chain (including loop detection).
+  The main document is excluded — it is not an asset. `transferBytes` exists
+  in the type but is never populated: Playwright exposes no transfer size
+  without re-fetching the body, so rules fall back to the `content-length`
+  header.
+- **15 new rules.** Six crawl-mode rules need the crawl state and report as
+  not measured (weight 0) in a single-page audit; six per-asset rules need the
+  rendered page's asset data and report as not measured under `--no-cwv`.
+  - Discovery and isolation: `crawl-isolated-url` fails when no internal
+    anchor link points to the URL — the crawl found it only via a canonical,
+    a redirect or the sitemap — when every linking page is noindex,follow, or
+    when every linker is itself isolated.
+  - Incoming hreflang validation (crawl mode):
+    `crawl-hreflang-incoming-conflict` fails when other crawled pages annotate
+    this URL with different hreflang codes; `crawl-hreflang-reciprocity` warns
+    when crawled hreflang targets do not annotate this page in return;
+    `i18n-hreflang-incoming-invalid` fails when annotations from other pages
+    targeting this URL use invalid language/region codes.
+  - Canonical insight: `core-canonical-external` is an insight-level rule
+    (always passes) reporting when the canonical points to a different host —
+    legitimate for syndication, worth confirming.
+  - Inbound link quality (crawl mode): `links-inbound-all-nofollow` and
+    `links-inbound-mixed-follow` warn when every inbound internal link is
+    nofollow, or when followed and nofollowed links are mixed;
+    `links-inbound-low-quality` warns when no inbound link passes link equity
+    (all nofollow or from canonicalized pages); `links-inbound-anchor-text`
+    warns when every followed inbound link uses generic anchor text.
+  - Resource redirects (render required): `redirect-resource-broken` fails
+    when redirected page resources resolve to 4xx/5xx; `redirect-resource-loop`
+    fails on resources caught in a redirect loop; `redirect-resource-chain`
+    warns on resources resolving through multi-hop chains.
+  - Per-asset performance (render required): `perf-asset-cache-policy` warns
+    on static assets with a cache-control max-age under 1 hour;
+    `perf-asset-compression` warns on text assets over 2KB served without
+    gzip/Brotli; `perf-image-encoding` warns on images transferred over 100KB
+    and fails on legacy BMP/TIFF formats.
+- **Two minification rules extended.** `perf-minify-js` and `perf-minify-css`
+  still check inline code directly, and now — when render asset data is
+  available — also flag large external scripts/stylesheets (>2KB by
+  content-length) whose URL lacks a `.min.` marker as heuristic suspects
+  (warn only; asset bodies are not captured, so external minification cannot
+  be verified directly).
+- Category totals: crawl 31 → 34, links 20 → 24, redirect 8 → 11,
+  perf 23 → 26, core 23 → 24, i18n 12 → 13.
 
 ### Changed
 

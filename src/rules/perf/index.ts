@@ -5,12 +5,12 @@
  * Includes:
  * - Core Web Vitals (LCP, CLS, INP, FCP, TTFB)
  * - Static performance hints (DOM size, CSS, fonts, preconnect, render-blocking)
- * - Compression (text compression, Brotli)
- * - Caching (cache policy)
- * - Minification (inline CSS, inline JS)
+ * - Compression (text compression, Brotli, per-asset compression)
+ * - Caching (cache policy, per-asset cache policy)
+ * - Minification (inline CSS, inline JS, external asset heuristics)
  * - Network (response time, HTTP/2+)
  * - Page weight (HTML size, inline JS size)
- * - Media (video for animations)
+ * - Media (image encoding, video for animations)
  */
 
 import { registerRule } from '../registry.js';
@@ -34,9 +34,11 @@ import { lcpHintsRule } from './lcp-hints.js';
 // Compression
 import { textCompressionRule } from './text-compression.js';
 import { brotliRule } from './brotli.js';
+import { assetCompressionRule } from './asset-compression.js';
 
 // Caching
 import { cachePolicyRule } from './cache-policy.js';
+import { assetCachePolicyRule } from './asset-cache-policy.js';
 
 // Minification
 import { minifyCssRule } from './minify-css.js';
@@ -53,6 +55,7 @@ import { jsFileSizeRule } from './js-file-size.js';
 // Media
 import { legacyJavascriptRule } from './legacy-javascript.js';
 import { videoForAnimationsRule } from './video-for-animations.js';
+import { imageEncodingRule } from './image-encoding.js';
 
 // Export all rules
 export {
@@ -73,8 +76,10 @@ export {
   // Compression
   textCompressionRule,
   brotliRule,
+  assetCompressionRule,
   // Caching
   cachePolicyRule,
+  assetCachePolicyRule,
   // Minification
   minifyCssRule,
   minifyJsRule,
@@ -87,6 +92,7 @@ export {
   // Media
   videoForAnimationsRule,
   legacyJavascriptRule,
+  imageEncodingRule,
 };
 
 // Register all rules
@@ -104,7 +110,9 @@ registerRule(lazyAboveFoldRule);
 registerRule(lcpHintsRule);
 registerRule(textCompressionRule);
 registerRule(brotliRule);
+registerRule(assetCompressionRule);
 registerRule(cachePolicyRule);
+registerRule(assetCachePolicyRule);
 registerRule(minifyCssRule);
 registerRule(minifyJsRule);
 registerRule(responseTimeRule);
@@ -113,3 +121,4 @@ registerRule(pageWeightRule);
 registerRule(jsFileSizeRule);
 registerRule(videoForAnimationsRule);
 registerRule(legacyJavascriptRule);
+registerRule(imageEncodingRule);

@@ -44,6 +44,7 @@ import { canonicalToNoindexRule } from './canonical-to-noindex.js';
 import { canonicalOutsideHeadRule } from './canonical-outside-head.js';
 import { canonicalAttributesRule } from './canonical-attributes.js';
 import { canonicalMultipleRule } from './canonical-multiple.js';
+import { canonicalExternalRule } from './canonical-external.js';
 import { robotsDirectiveMismatchRule } from './robots-directive-mismatch.js';
 
 // Export all rules
@@ -74,6 +75,7 @@ export {
   canonicalOutsideHeadRule,
   canonicalAttributesRule,
   canonicalMultipleRule,
+  canonicalExternalRule,
   robotsDirectiveMismatchRule,
 };
 
@@ -103,4 +105,5 @@ registerRule(canonicalToNoindexRule);
 registerRule(canonicalOutsideHeadRule);
 registerRule(canonicalAttributesRule);
 registerRule(canonicalMultipleRule);
+registerRule(canonicalExternalRule);
 registerRule(robotsDirectiveMismatchRule);

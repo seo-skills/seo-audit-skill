@@ -19,6 +19,7 @@ import { hreflangRelativeUrlRule } from './hreflang-relative-url.js';
 import { hreflangXDefaultRule } from './hreflang-x-default.js';
 import { hreflangLangMismatchRule } from './hreflang-lang-mismatch.js';
 import { hreflangMultipleMethodsRule } from './hreflang-multiple-methods.js';
+import { hreflangIncomingInvalidRule } from './hreflang-incoming-invalid.js';
 
 // Export all rules
 export {
@@ -34,6 +35,7 @@ export {
   hreflangXDefaultRule,
   hreflangLangMismatchRule,
   hreflangMultipleMethodsRule,
+  hreflangIncomingInvalidRule,
 };
 
 // Register all rules
@@ -49,3 +51,4 @@ registerRule(hreflangRelativeUrlRule);
 registerRule(hreflangXDefaultRule);
 registerRule(hreflangLangMismatchRule);
 registerRule(hreflangMultipleMethodsRule);
+registerRule(hreflangIncomingInvalidRule);

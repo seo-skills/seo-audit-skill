@@ -49,6 +49,9 @@ import { canonicalLoopRule } from './canonical-loop.js';
 import { hreflangToNoindexRule } from './hreflang-to-noindex.js';
 import { hreflangToDisallowedRule } from './hreflang-to-disallowed.js';
 import { hreflangDisallowedTargetRule } from './hreflang-disallowed-target.js';
+import { hreflangIncomingConflictRule } from './hreflang-incoming-conflict.js';
+import { hreflangReciprocityRule } from './hreflang-reciprocity.js';
+import { crawlIsolatedUrlRule } from './isolated-url.js';
 
 // Export all rules
 export {
@@ -91,6 +94,9 @@ export {
   hreflangToNoindexRule,
   hreflangToDisallowedRule,
   hreflangDisallowedTargetRule,
+  hreflangIncomingConflictRule,
+  hreflangReciprocityRule,
+  crawlIsolatedUrlRule,
 };
 
 // Export orphan registry utilities for testing and cross-page analysis
@@ -139,3 +145,6 @@ registerRule(canonicalLoopRule);
 registerRule(hreflangToNoindexRule);
 registerRule(hreflangToDisallowedRule);
 registerRule(hreflangDisallowedTargetRule);
+registerRule(hreflangIncomingConflictRule);
+registerRule(hreflangReciprocityRule);
+registerRule(crawlIsolatedUrlRule);

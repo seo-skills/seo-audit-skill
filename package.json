@@ -1,7 +1,7 @@
 {
   "name": "@seomator/seo-audit",
   "version": "3.2.0",
-  "description": "SEOmator - Comprehensive SEO audit CLI tool with 316 rules across 20 categories",
+  "description": "SEOmator - Comprehensive SEO audit CLI tool with 331 rules across 20 categories",
   "type": "module",
   "bin": {
     "seomator": "./dist/cli.js"
@@ -29,7 +29,9 @@
     "electron:dist": "electron-builder install-app-deps && npm run electron:build && electron-builder",
     "electron:dist:mac": "electron-builder install-app-deps && npm run electron:build && electron-builder --mac",
     "electron:dist:win": "electron-builder install-app-deps && npm run electron:build && electron-builder --win",
-    "prepublishOnly": "npm run typecheck && npm run build"
+    "prepublishOnly": "npm run typecheck && npm run build && npm run check:docs",
+    "sync:docs": "node scripts/sync-docs.mjs",
+    "check:docs": "node scripts/sync-docs.mjs --check"
   },
   "keywords": [
     "seo",

@@ -11,6 +11,9 @@
  * - Broken redirect detection
  * - HTTP resource redirect detection on HTTPS pages
  * - URL case normalization checks
+ * - Broken resource redirect detection (redirected assets ending in 4xx/5xx)
+ * - Resource redirect loop detection
+ * - Multi-hop resource redirect chain detection
  */
 
 import { registerRule } from '../registry.js';
@@ -24,6 +27,9 @@ import { redirectTypeRule } from './type.js';
 import { brokenRedirectRule } from './broken.js';
 import { resourceRedirectRule } from './resource.js';
 import { caseNormalizationRule } from './case-normalization.js';
+import { resourceBrokenRedirectRule } from './resource-broken.js';
+import { resourceLoopRedirectRule } from './resource-loop.js';
+import { resourceChainRedirectRule } from './resource-chain.js';
 
 // Export all rules
 export {
@@ -35,6 +41,9 @@ export {
   brokenRedirectRule,
   resourceRedirectRule,
   caseNormalizationRule,
+  resourceBrokenRedirectRule,
+  resourceLoopRedirectRule,
+  resourceChainRedirectRule,
 };
 
 // Register all rules
@@ -46,3 +55,6 @@ registerRule(redirectTypeRule);
 registerRule(brokenRedirectRule);
 registerRule(resourceRedirectRule);
 registerRule(caseNormalizationRule);
+registerRule(resourceBrokenRedirectRule);
+registerRule(resourceLoopRedirectRule);
+registerRule(resourceChainRedirectRule);

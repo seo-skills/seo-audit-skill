@@ -8,6 +8,7 @@ import { titleUniqueRule, resetTitleRegistry, getTitleRegistryStats } from './ti
 import { canonicalOutsideHeadRule } from './canonical-outside-head.js';
 import { canonicalAttributesRule } from './canonical-attributes.js';
 import { canonicalMultipleRule } from './canonical-multiple.js';
+import { canonicalExternalRule } from './canonical-external.js';
 import { robotsDirectiveMismatchRule } from './robots-directive-mismatch.js';
 import { createTestContext } from '../test-context.js';
 
@@ -489,6 +490,51 @@ describe('Core SEO Rules', () => {
       const context = createContext(html, headers);
       const result = await robotsDirectiveMismatchRule.run(context);
       expect(result.status).toBe('pass');
+    });
+  });
+
+  describe('canonicalExternalRule', () => {
+    it('should surface a canonical pointing to a different host', async () => {
+      const html = '<html><head><link rel="canonical" href="https://cdn.example.net/syndicated-post"></head></html>';
+      const context = createContext(html, {}, 'https://example.com/blog/post');
+      const result = await canonicalExternalRule.run(context);
+      expect(result.status).toBe('pass');
+      expect(result.details?.external).toBe(true);
+      expect(result.details?.canonicalHost).toBe('cdn.example.net');
+      expect(result.details?.pageHost).toBe('example.com');
+      expect(result.message).toContain('cdn.example.net');
+    });
+
+    it('should pass quietly when the canonical is on the same host', async () => {
+      const html = '<html><head><link rel="canonical" href="https://example.com/blog/post"></head></html>';
+      const context = createContext(html, {}, 'https://example.com/blog/post?utm=1');
+      const result = await canonicalExternalRule.run(context);
+      expect(result.status).toBe('pass');
+      expect(result.details?.external).toBe(false);
+    });
+
+    it('should pass when no canonical tag is declared', async () => {
+      const context = createContext('<html><head></head></html>');
+      const result = await canonicalExternalRule.run(context);
+      expect(result.status).toBe('pass');
+      expect(result.details?.found).toBe(false);
+    });
+
+    it('should pass when the canonical URL cannot be parsed', async () => {
+      const html = '<html><head><link rel="canonical" href="http://[bad"></head></html>';
+      const context = createContext(html);
+      const result = await canonicalExternalRule.run(context);
+      expect(result.status).toBe('pass');
+      expect(result.details?.found).toBe(true);
+    });
+
+    it('should resolve a relative canonical against the page URL', async () => {
+      const html = '<html><head><link rel="canonical" href="/blog/post"></head></html>';
+      const context = createContext(html, {}, 'https://example.com/blog/post');
+      const result = await canonicalExternalRule.run(context);
+      expect(result.status).toBe('pass');
+      expect(result.details?.external).toBe(false);
+      expect(result.details?.canonicalUrl).toBe('https://example.com/blog/post');
     });
   });
 });

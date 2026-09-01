@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import { chromium, type Browser, type Page } from 'playwright';
-import type { CoreWebVitals, FailedRequestInfo, RenderDiagnostics } from '../types.js';
+import { chromium, type Browser, type Page, type Request, type Response } from 'playwright';
+import type { AssetInfo, CoreWebVitals, FailedRequestInfo, RenderDiagnostics } from '../types.js';
 import { getUserAgent, MOBILE_USER_AGENT } from './user-agent.js';
 
 /**
@@ -104,6 +104,14 @@ export interface PlaywrightFetchResult {
    * unmeasured rather than as a clean result.
    */
   diagnostics?: RenderDiagnostics;
+  /**
+   * Per-subresource response data observed during the render.
+   *
+   * Optional for the same reason as `diagnostics`: a custom `browserFetcher`
+   * (e.g. the Electron BrowserWindow fetcher) cannot produce it, and absent
+   * means "not captured", which rules report as unmeasured.
+   */
+  assets?: AssetInfo[];
 }
 
 /**
@@ -116,6 +124,27 @@ export interface PlaywrightFetchResult {
 const MAX_PAGE_ERRORS = 25;
 const MAX_CONSOLE_MESSAGES = 50;
 const MAX_FAILED_REQUESTS = 50;
+/**
+ * Cap on recorded subresources, on the same reasoning as the diagnostic caps:
+ * asset-heavy pages can fire thousands of responses and the array travels into
+ * stored audits and reports.
+ */
+const MAX_ASSETS = 500;
+
+/**
+ * Response headers worth keeping per asset. Bounded to the cache, encoding,
+ * length and content-type facts rules actually score on, so an asset-heavy
+ * page does not drag its full header set into stored audits.
+ */
+const KEPT_ASSET_HEADERS = new Set([
+  'cache-control',
+  'content-encoding',
+  'content-length',
+  'content-type',
+  'expires',
+  'age',
+  'etag',
+]);
 
 /**
  * Attach diagnostic listeners to a page before navigation.
@@ -202,6 +231,90 @@ function collectDiagnostics(page: Page): RenderDiagnostics {
   });
 
   return diagnostics;
+}
+
+/**
+ * Build the AssetInfo for one completed response, walking its redirect chain.
+ *
+ * @param response - The final response for the request
+ * @param statusByRequest - Statuses of redirect-hop responses seen earlier
+ * @returns The asset record for the final response
+ */
+function buildAssetInfo(
+  response: Response,
+  statusByRequest: Map<Request, number>
+): AssetInfo {
+  const request = response.request();
+
+  // Walk the chain backwards from the final request, unshifting so the
+  // recorded chain reads in chronological order (first request first).
+  const redirectChain: Array<{ url: string; statusCode: number }> = [];
+  const seenUrls = new Set([request.url()]);
+  let redirectLoop = false;
+  let hop = request.redirectedFrom();
+  while (hop) {
+    if (seenUrls.has(hop.url())) {
+      redirectLoop = true;
+      break;
+    }
+    seenUrls.add(hop.url());
+    redirectChain.unshift({
+      url: hop.url(),
+      // A hop's own response event fired before the final one, so its status
+      // is already recorded; 0 marks a hop whose response we never saw.
+      statusCode: statusByRequest.get(hop) ?? 0,
+    });
+    hop = hop.redirectedFrom();
+  }
+
+  const headers: Record<string, string> = {};
+  for (const [name, value] of Object.entries(response.headers())) {
+    if (KEPT_ASSET_HEADERS.has(name)) headers[name] = value;
+  }
+
+  return {
+    url: response.url(),
+    resourceType: request.resourceType(),
+    statusCode: response.status(),
+    headers,
+    redirectChain,
+    redirectLoop,
+  };
+}
+
+/**
+ * Attach per-subresource response capture to a page before navigation.
+ *
+ * Records every subresource that receives a response — status, cache-relevant
+ * headers, and the redirect chain that led to it. Skipped:
+ * - the main document (`resourceType === 'document'`): it is the page itself,
+ *   already reported via `statusCode` and `context.headers`;
+ * - redirect hops (`request.redirectedTo()` non-null): a hop is not a separate
+ *   asset, its status is folded into the final request's `redirectChain`.
+ * Requests that never receive a response (network-level failures) are already
+ * covered by `RenderDiagnostics.failedRequests`.
+ *
+ * Must run before `page.goto`, like the diagnostics collector.
+ *
+ * @param page - The page about to be navigated
+ * @returns The array that fills as responses arrive
+ */
+export function collectAssets(page: Page): AssetInfo[] {
+  const assets: AssetInfo[] = [];
+  const statusByRequest = new Map<Request, number>();
+
+  page.on('response', (response) => {
+    const request = response.request();
+    statusByRequest.set(request, response.status());
+
+    if (request.resourceType() === 'document') return;
+    if (request.redirectedTo()) return;
+    if (assets.length >= MAX_ASSETS) return;
+
+    assets.push(buildAssetInfo(response, statusByRequest));
+  });
+
+  return assets;
 }
 
 /** Options controlling how a page is rendered */
@@ -371,6 +484,8 @@ export async function fetchPageWithPlaywright(
   const page = await context.newPage();
   // Listeners must be attached before goto to see load-time errors.
   const diagnostics = collectDiagnostics(page);
+  // Same timing constraint: subresource responses fire during load.
+  const assets = collectAssets(page);
   // Likewise the metric collectors: LCP and layout shifts happen during load.
   await injectWebVitals(page);
 
@@ -411,6 +526,7 @@ export async function fetchPageWithPlaywright(
       responseTime: Math.round(loadTime),
       cwv,
       diagnostics,
+      assets,
     };
   } finally {
     await page.close();

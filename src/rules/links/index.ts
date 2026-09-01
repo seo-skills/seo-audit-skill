@@ -26,6 +26,10 @@ import { excessiveRule } from './excessive.js';
 import { onclickRule } from './onclick.js';
 import { whitespaceHrefRule } from './whitespace-href.js';
 import { nonHttpProtocolRule } from './non-http-protocol.js';
+import { inboundAllNofollowRule } from './inbound-all-nofollow.js';
+import { inboundMixedFollowRule } from './inbound-mixed-follow.js';
+import { inboundLowQualityRule } from './inbound-low-quality.js';
+import { inboundAnchorTextRule } from './inbound-anchor-text.js';
 
 // Export all rules
 export {
@@ -49,6 +53,10 @@ export {
   onclickRule,
   whitespaceHrefRule,
   nonHttpProtocolRule,
+  inboundAllNofollowRule,
+  inboundMixedFollowRule,
+  inboundLowQualityRule,
+  inboundAnchorTextRule,
 };
 
 // Register all rules
@@ -72,3 +80,7 @@ registerRule(excessiveRule);
 registerRule(onclickRule);
 registerRule(whitespaceHrefRule);
 registerRule(nonHttpProtocolRule);
+registerRule(inboundAllNofollowRule);
+registerRule(inboundMixedFollowRule);
+registerRule(inboundLowQualityRule);
+registerRule(inboundAnchorTextRule);

@@ -5,7 +5,7 @@ ground in more depth — read it for anything not spelled out here.
 
 ## Project Overview
 
-SEOmator (`@seomator/seo-audit`) is an SEO audit engine: **287 rules across 20
+SEOmator (`@seomator/seo-audit`) is an SEO audit engine: **331 rules across 20
 weighted categories**, shipped as (a) an npm CLI, (b) an Electron desktop app,
 (c) a Claude Code skill. It fetches pages, parses HTML with Cheerio, optionally
 renders with Playwright (Core Web Vitals + rendered DOM), and produces weighted
@@ -91,7 +91,7 @@ This is the checklist for the hint-coverage-expansion rules (see
 6. **Score impact is expected but must be visible**: each new rule dilutes its
    category average, so existing sites' scores will shift. Note this in
    `CHANGELOG.md`. Do not "compensate" by changing category weights.
-7. **Update the hardcoded rule count** (currently "316 rules"; was 287 before the
+7. **Update the hardcoded rule count** (currently "331 rules"; was 287 before the
    hint-coverage expansion) everywhere when rules
    ship: `README.md`, `SKILL.md`, `skill/SKILL.md`, `skill/references/rules.md`,
    `references/rules.md`, `docs/introduction.md`, `docs/SEO-AUDIT-RULES.md`

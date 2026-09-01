@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import { fetchPage, createAuditContext, type FetchResult } from './fetcher.js';
-import type { AuditContext, CoreWebVitals, RenderDiagnostics, SiteContext, SitePageInfo } from '../types.js';
+import type { AssetInfo, AuditContext, CoreWebVitals, DiscoverySource, InboundEdge, RenderDiagnostics, SiteContext, SitePageInfo } from '../types.js';
 import { UrlFilter, type UrlFilterOptions } from './url-filter.js';
 import { RobotsMatcher } from './robots.js';
 import { getUserAgent } from './user-agent.js';
@@ -30,8 +30,18 @@ export interface CrawlProgress {
 export interface PageRenderResult {
   /** Core Web Vitals measured during the render */
   cwv: CoreWebVitals;
+  /**
+   * The DOM after scripts have run.
+   *
+   * The JS-rendering rules compare this against the HTTP response, so without
+   * it every one of them reports "rendered DOM not available" — on a crawl that
+   * did render the page. Optional because a custom renderer need not return it.
+   */
+  html?: string;
   /** Errors and failed requests observed during the render */
   diagnostics?: RenderDiagnostics;
+  /** Per-subresource response data observed during the render */
+  assets?: AssetInfo[];
 }
 
 /**
@@ -95,6 +105,8 @@ export class Crawler {
   private queue: string[] = [];
   /** Click distance from the entry URL, set when a URL is first discovered */
   private depthByUrl: Map<string, number> = new Map();
+  /** How each normalised URL was discovered (link, canonical, redirect, entry) */
+  private discoverySourceByUrl: Map<string, Set<DiscoverySource>> = new Map();
   /** Normalised entry URL, the root of the depth measurement */
   private entryUrl = '';
   private hostname: string = '';
@@ -159,6 +171,7 @@ export class Crawler {
     this.visited.clear();
     this.queue = [];
     this.depthByUrl.clear();
+    this.discoverySourceByUrl.clear();
     this.results = [];
     this.activeCount = 0;
 
@@ -186,6 +199,7 @@ export class Crawler {
     this.depthByUrl.set(normalizedStart, 0);
     this.visited.add(normalizedStart);
     this.queue.push(normalizedStart);
+    this.recordDiscoverySource(normalizedStart, 'entry');
 
     // Process queue with concurrency control
     await this.processQueue();
@@ -279,12 +293,16 @@ export class Crawler {
 
       // Render in a browser if a renderer was provided
       let cwv: CoreWebVitals = {};
+      let renderedHtml: string | undefined;
       let diagnostics: RenderDiagnostics | undefined;
+      let assets: AssetInfo[] | undefined;
       if (this.options.renderPage) {
         try {
           const rendered = await this.options.renderPage(url);
           cwv = rendered.cwv;
+          renderedHtml = rendered.html;
           diagnostics = rendered.diagnostics;
+          assets = rendered.assets;
         } catch {
           // Rendering failed, continue with the HTTP response alone
         }
@@ -292,8 +310,15 @@ export class Crawler {
 
       // Create audit context
       const context = createAuditContext(url, fetchResult, cwv);
+      if (renderedHtml) {
+        context.renderedHtml = renderedHtml;
+        context.rendered$ = cheerio.load(renderedHtml);
+      }
       if (diagnostics) {
         context.renderDiagnostics = diagnostics;
+      }
+      if (assets) {
+        context.assets = assets;
       }
 
       // Add to results
@@ -301,6 +326,9 @@ export class Crawler {
 
       // Discover new URLs from links
       this.discoverUrls(context);
+
+      // Record canonical/redirect discovery (canonical targets also get queued)
+      this.discoverFromPageSignals(context);
     } finally {
       this.activeCount--;
     }
@@ -319,6 +347,7 @@ export class Crawler {
   buildSiteContext(): SiteContext {
     const inboundLinksByUrl = new Map<string, Set<string>>();
     const outboundLinksByUrl = new Map<string, Set<string>>();
+    const inboundEdgesByUrl = new Map<string, InboundEdge[]>();
     const pages = new Map<string, SitePageInfo>();
     let pageCount = 0;
 
@@ -348,6 +377,13 @@ export class Crawler {
           inboundLinksByUrl.set(to, inbound);
         }
         inbound.add(from);
+
+        let edges = inboundEdgesByUrl.get(to);
+        if (!edges) {
+          edges = [];
+          inboundEdgesByUrl.set(to, edges);
+        }
+        edges.push({ from, nofollow: link.isNoFollow, anchor: link.text.trim() });
       }
 
       outboundLinksByUrl.set(from, targets);
@@ -360,6 +396,8 @@ export class Crawler {
       inboundLinksByUrl,
       outboundLinksByUrl,
       pages,
+      discoverySourceByUrl: this.discoverySourceByUrl,
+      inboundEdgesByUrl,
       normalize: (url: string) => this.normalizeUrl(url),
     };
   }
@@ -433,17 +471,7 @@ export class Crawler {
         continue;
       }
 
-      // Skip nofollow links
-      if (link.isNoFollow) {
-        continue;
-      }
-
       const normalizedUrl = this.normalizeUrl(link.href);
-
-      // Skip if already visited or in queue
-      if (this.visited.has(normalizedUrl)) {
-        continue;
-      }
 
       // Verify same hostname (double-check)
       if (!this.isSameDomain(normalizedUrl)) {
@@ -452,6 +480,21 @@ export class Crawler {
 
       // Skip non-HTML resources
       if (this.isNonHtmlResource(normalizedUrl)) {
+        continue;
+      }
+
+      // Found via an anchor — this counts even for nofollow links and URLs the
+      // filters below exclude from crawling: discovered is not the same as
+      // followed. Isolated-URL rules key on the absence of this source.
+      this.recordDiscoverySource(normalizedUrl, 'link');
+
+      // Skip nofollow links
+      if (link.isNoFollow) {
+        continue;
+      }
+
+      // Skip if already visited or in queue
+      if (this.visited.has(normalizedUrl)) {
         continue;
       }
 
@@ -472,6 +515,86 @@ export class Crawler {
       this.depthByUrl.set(normalizedUrl, parentDepth + 1);
       this.queue.push(normalizedUrl);
     }
+  }
+
+  /**
+   * Record discovery sources declared by the page itself: its canonical tag
+   * and, when the fetch tracked them, its redirect hops.
+   *
+   * Internal canonical targets are also queued for crawling — a deliberate,
+   * conservative crawl-scope expansion: a canonical is a strong
+   * page-equivalence signal, and without it the "URL reachable only via
+   * canonical" hints could never fire. Guardrails: http(s) only, same domain,
+   * URL filter and robots.txt applied, and the queue is still capped by
+   * maxPages (workers stop dequeuing once the cap is hit). Redirect targets
+   * are recorded but NOT queued: the fetch already followed the redirect, so
+   * re-fetching the target would duplicate work.
+   */
+  private discoverFromPageSignals(context: AuditContext): void {
+    const canonicalHref = context.$('link[rel="canonical"]').first().attr('href');
+    if (canonicalHref !== undefined) {
+      try {
+        const canonicalUrl = new URL(canonicalHref, context.url).href;
+        if (this.isHttpSameDomain(canonicalUrl) && !this.isNonHtmlResource(canonicalUrl)) {
+          const normalizedCanonical = this.normalizeUrl(canonicalUrl);
+          this.recordDiscoverySource(normalizedCanonical, 'canonical');
+
+          if (
+            !this.visited.has(normalizedCanonical) &&
+            this.urlFilter.shouldCrawl(normalizedCanonical) &&
+            (!this.robots || this.robots.isAllowed(normalizedCanonical))
+          ) {
+            this.visited.add(normalizedCanonical);
+            // A canonical declares page equivalence, so the target sits at the
+            // same click distance as the page that points at it.
+            this.depthByUrl.set(
+              normalizedCanonical,
+              this.depthByUrl.get(this.normalizeUrl(context.url)) ?? 0
+            );
+            this.queue.push(normalizedCanonical);
+          }
+        }
+      } catch {
+        // An unresolvable canonical is a per-page finding, not recorded here.
+      }
+    }
+
+    // redirectChain is not populated by the crawler's fetch today (it follows
+    // redirects transparently), but single-page audits carry it — record the
+    // hops when the data happens to be there.
+    if (context.redirectChain) {
+      for (const hop of context.redirectChain) {
+        if (!this.isHttpSameDomain(hop.url)) continue;
+        this.recordDiscoverySource(this.normalizeUrl(hop.url), 'redirect');
+      }
+    }
+  }
+
+  /**
+   * Check if a URL is http(s) and on the crawled domain
+   */
+  private isHttpSameDomain(url: string): boolean {
+    try {
+      const urlObj = new URL(url);
+      return (
+        (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') &&
+        urlObj.hostname === this.hostname
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Record one discovery source for a normalised URL; sources accumulate.
+   */
+  private recordDiscoverySource(normalizedUrl: string, source: DiscoverySource): void {
+    let sources = this.discoverySourceByUrl.get(normalizedUrl);
+    if (!sources) {
+      sources = new Set<DiscoverySource>();
+      this.discoverySourceByUrl.set(normalizedUrl, sources);
+    }
+    sources.add(source);
   }
 
   /**

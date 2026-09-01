@@ -6,7 +6,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
+### Added
+
+- **robots.txt compliance.** The crawler now parses and obeys robots.txt per
+  RFC 9309: user-agent group selection (most specific group wins), Allow and
+  Disallow with longest-match precedence and Allow breaking ties, `*` and `$`
+  wildcards, comments, and multi-agent groups. No new dependency. `respect_robots`
+  finally does what it has always claimed; set it to `false` to opt out.
+
 ### Fixed
+
+- **Piped JSON output was truncated at 64KB.** `seomator audit --format json | jq`
+  silently lost everything past the pipe buffer (119,040 bytes to a file,
+  65,536 through a pipe, `jq: parse error: Unfinished string at EOF`).
+  `process.exit()` discards whatever is still buffered on stdout, and writes to
+  a pipe are asynchronous where writes to a file are not. Same fix applied to
+  `analyze --json` and `compare --json/--trend`. In `compare` those exits sat
+  inside a `try/finally`, and `process.exit()` skips `finally`, so the database
+  close had never run on the success path.
+- **The crawler ignored robots.txt entirely.** `respect_robots` was declared,
+  defaulted to true, validated, and read by no code — there was no robots
+  parsing in the crawler at all. Crawls fetched disallowed paths while
+  reporting they were being polite.
+- **Empty and non-HTML responses were scored as pages.** Nothing checked what
+  came back before parsing it as HTML, so a zero-byte body scored **84/100**, a
+  `text/plain` response 83, and JSON 83. An empty page scored 84 because 195 of
+  287 rules pass when the thing they check is absent. The auditor now refuses to
+  score a response that is empty, carries a non-HTML content type, or contains
+  no markup. Error pages that return real HTML still audit.
+- **`redirect-loop` and `redirect-broken` always passed.** Both gate on
+  `context.redirectChain`, which no code path has ever populated, so both
+  returned "No redirect chain to check" on every page. At weight 15 each they
+  are the heaviest rules in the category. They now report as unmeasured, since
+  redirects are followed silently and an absent chain means it was never
+  recorded, not that none happened.
 
 - **Checks that took no reading were counted as warnings.** `notMeasured()`
   results carry weight 0 so they are excluded from the score, but every

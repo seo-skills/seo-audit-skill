@@ -2,6 +2,7 @@
 export {
   fetchPage,
   fetchUrl,
+  unauditableReason,
   createAuditContext,
   type FetchResult,
 } from './fetcher.js';

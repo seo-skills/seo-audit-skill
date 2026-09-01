@@ -46,6 +46,49 @@ export interface FetchResult {
  * @param timeout - Request timeout in milliseconds (default: 30000)
  * @returns FetchResult with html, $, headers, statusCode, responseTime
  */
+/** Content types that can meaningfully be audited as a web page. */
+const AUDITABLE_CONTENT_TYPES = ['text/html', 'application/xhtml+xml'];
+
+/**
+ * Reject responses that are not an auditable HTML page.
+ *
+ * Nothing used to check this, so a zero-byte body or a JSON response was parsed
+ * as HTML and scored like any other page — an empty response scored 84/100,
+ * because most rules pass when the thing they check is simply absent. A score
+ * is worse than an error there: it is confidently wrong.
+ *
+ * Callers that audit a page apply this; fetchPage itself does not, because it
+ * is also how rules retrieve robots.txt and other non-HTML resources.
+ *
+ * @param url - The URL that was fetched, for the message
+ * @param contentType - Raw Content-Type header, if the server sent one
+ * @param html - The response body
+ * @returns Why the response cannot be audited, or null when it can
+ */
+export function unauditableReason(
+  url: string,
+  contentType: string | null,
+  html: string
+): string | null {
+  if (html.trim().length === 0) {
+    return `${url} returned an empty response body, so there is nothing to audit`;
+  }
+
+  const type = (contentType ?? '').split(';')[0]!.trim().toLowerCase();
+
+  if (type && !AUDITABLE_CONTENT_TYPES.includes(type)) {
+    return `${url} returned ${type}, which is not an HTML page`;
+  }
+
+  // Some servers omit Content-Type entirely; fall back to looking for markup
+  // rather than rejecting a page that is genuinely HTML.
+  if (!type && !/<\s*(!doctype|html|head|body)\b/i.test(html)) {
+    return `${url} returned no Content-Type and no HTML markup`;
+  }
+
+  return null;
+}
+
 export async function fetchPage(url: string, timeout = 30000): Promise<FetchResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -66,6 +109,8 @@ export async function fetchPage(url: string, timeout = 30000): Promise<FetchResu
 
     const responseTime = performance.now() - startTime;
     const html = await response.text();
+
+
     const $ = cheerio.load(html);
 
     // Convert headers to plain object

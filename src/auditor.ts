@@ -13,6 +13,7 @@ import { getRulesByCategory, resetCrossPageState } from './rules/registry.js';
 import { loadAllRules } from './rules/loader.js';
 import {
   fetchPage,
+  unauditableReason,
   createAuditContext,
   fetchPageWithPlaywright,
   closeBrowser,
@@ -233,6 +234,18 @@ export class Auditor {
 
     // Fetch the page
     const fetchResult = await fetchPage(url, this.options.timeout);
+
+    // Refuse to score something that is not an auditable page. Most rules pass
+    // when the thing they check is absent, so an empty body used to score
+    // 84/100 and a JSON response 83 — confidently wrong is worse than an error.
+    const unauditable = unauditableReason(
+      url,
+      fetchResult.headers['content-type'] ?? null,
+      fetchResult.html
+    );
+    if (unauditable) {
+      throw new Error(unauditable);
+    }
 
     // Get Core Web Vitals and rendered DOM if enabled
     let cwv: CoreWebVitals = {};

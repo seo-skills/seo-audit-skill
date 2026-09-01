@@ -11,7 +11,7 @@ export const categories: CategoryDefinition[] = [
     id: 'core',
     name: 'Core',
     description: 'Essential SEO: meta tags, canonical, H1, indexing directives, title uniqueness',
-    weight: 12,
+    weight: 11,
   },
   {
     id: 'technical',
@@ -23,7 +23,7 @@ export const categories: CategoryDefinition[] = [
     id: 'perf',
     name: 'Performance',
     description: 'Core Web Vitals, compression, caching, minification, and performance optimization',
-    weight: 12,
+    weight: 10,
   },
   {
     id: 'links',
@@ -59,7 +59,7 @@ export const categories: CategoryDefinition[] = [
     id: 'a11y',
     name: 'Accessibility',
     description: 'Checks for WCAG compliance, screen reader support, and keyboard navigation',
-    weight: 4,
+    weight: 7,
   },
   {
     id: 'content',

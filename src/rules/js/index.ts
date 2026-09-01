@@ -36,6 +36,7 @@ import { ssrCheckRule } from './ssr-check.js';
 
 // Render-time diagnostics (require a browser render)
 import { consoleErrorsRule } from './console-errors.js';
+import { documentWriteRule } from './document-write.js';
 import { failedRequestsRule } from './failed-requests.js';
 
 // Export all rules
@@ -60,6 +61,7 @@ export {
   // Render-time diagnostics
   consoleErrorsRule,
   failedRequestsRule,
+  documentWriteRule,
 };
 
 // Register all rules
@@ -78,3 +80,4 @@ registerRule(blockedResourcesRule);
 registerRule(ssrCheckRule);
 registerRule(consoleErrorsRule);
 registerRule(failedRequestsRule);
+registerRule(documentWriteRule);

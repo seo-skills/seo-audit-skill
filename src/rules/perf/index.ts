@@ -51,6 +51,7 @@ import { pageWeightRule } from './page-weight.js';
 import { jsFileSizeRule } from './js-file-size.js';
 
 // Media
+import { legacyJavascriptRule } from './legacy-javascript.js';
 import { videoForAnimationsRule } from './video-for-animations.js';
 
 // Export all rules
@@ -85,6 +86,7 @@ export {
   jsFileSizeRule,
   // Media
   videoForAnimationsRule,
+  legacyJavascriptRule,
 };
 
 // Register all rules
@@ -110,3 +112,4 @@ registerRule(http2Rule);
 registerRule(pageWeightRule);
 registerRule(jsFileSizeRule);
 registerRule(videoForAnimationsRule);
+registerRule(legacyJavascriptRule);

@@ -28,6 +28,13 @@ import { sslExpiryRule } from './ssl-expiry.js';
 import { cookieFlagsRule, cookieLifetimeRule } from './cookie-flags.js';
 import { sslProtocolRule } from './ssl-protocol.js';
 
+// Best-practices-class header and form checks
+import { coopRule } from './coop.js';
+import { cspXssRule } from './csp-xss.js';
+import { infoDisclosureRule } from './info-disclosure.js';
+import { pasteBlockingRule } from './paste-blocking.js';
+import { trustedTypesRule } from './trusted-types.js';
+
 // Export all rules
 export {
   httpsRule,
@@ -48,6 +55,11 @@ export {
   sslProtocolRule,
   cookieFlagsRule,
   cookieLifetimeRule,
+  coopRule,
+  cspXssRule,
+  infoDisclosureRule,
+  pasteBlockingRule,
+  trustedTypesRule,
 };
 
 // Register all rules
@@ -69,3 +81,8 @@ registerRule(sslExpiryRule);
 registerRule(sslProtocolRule);
 registerRule(cookieFlagsRule);
 registerRule(cookieLifetimeRule);
+registerRule(coopRule);
+registerRule(cspXssRule);
+registerRule(infoDisclosureRule);
+registerRule(pasteBlockingRule);
+registerRule(trustedTypesRule);

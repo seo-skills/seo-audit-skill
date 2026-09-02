@@ -39,6 +39,7 @@ export function getDefaultConfig(): SeomatorConfig {
     output: {
       format: 'console',
       path: '',
+      save: true,
     },
     rule_options: {},
   };

@@ -3,6 +3,7 @@ import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { getGlobalDir, getAuditsDbPath } from '../storage/paths.js';
 
 export interface SelfDoctorOptions {
   verbose: boolean;
@@ -91,27 +92,22 @@ function findChrome(): { found: boolean; path?: string; version?: string } {
  */
 function checkNode(): CheckResult {
   const version = process.version;
-  const major = parseInt(version.slice(1).split('.')[0], 10);
+  const [major, minor] = version.slice(1).split('.').map((n) => parseInt(n, 10));
 
-  if (major >= 18) {
+  // 20.3 is the floor: AbortSignal.any(), which cancellation is built on,
+  // arrived there. Matches `engines` in package.json.
+  if (major > 20 || (major === 20 && minor >= 3)) {
     return {
       name: 'Node.js',
       status: 'pass',
       message: `Node.js ${version} installed`,
     };
-  } else if (major >= 16) {
-    return {
-      name: 'Node.js',
-      status: 'warn',
-      message: `Node.js ${version} (recommend v18+)`,
-    };
-  } else {
-    return {
-      name: 'Node.js',
-      status: 'fail',
-      message: `Node.js ${version} is too old (require v16+)`,
-    };
   }
+  return {
+    name: 'Node.js',
+    status: 'fail',
+    message: `Node.js ${version} is too old (require v20.3+)`,
+  };
 }
 
 /**
@@ -159,22 +155,29 @@ function checkChrome(): CheckResult {
  * Check seomator global directory
  */
 function checkGlobalDir(): CheckResult {
-  const globalDir = path.join(os.homedir(), '.seomator');
+  const globalDir = getGlobalDir();
+  const label = process.env['SEOMATOR_HOME'] ? `$SEOMATOR_HOME (${globalDir})` : '~/.seomator';
   if (fs.existsSync(globalDir)) {
     const stats = fs.statSync(globalDir);
     if (stats.isDirectory()) {
       return {
-        name: 'Global directory',
+        name: 'Data directory',
         status: 'pass',
-        message: '~/.seomator directory exists',
+        message: `${label} exists`,
         details: globalDir,
       };
     }
+    return {
+      name: 'Data directory',
+      status: 'fail',
+      message: `${label} exists but is not a directory`,
+      details: globalDir,
+    };
   }
   return {
-    name: 'Global directory',
+    name: 'Data directory',
     status: 'pass',
-    message: '~/.seomator will be created on first use',
+    message: `${label} will be created on first use`,
     details: globalDir,
   };
 }
@@ -204,24 +207,33 @@ function checkLocalConfig(): CheckResult {
  * Check write permissions
  */
 function checkPermissions(): CheckResult {
-  const globalDir = path.join(os.homedir(), '.seomator');
-  const testDir = fs.existsSync(globalDir) ? globalDir : os.homedir();
+  // Every audit is stored here by default now, so an unwritable data
+  // directory turns every run into a warning. Probe the directory itself, or
+  // its nearest existing parent when it has not been created yet.
+  const globalDir = getGlobalDir();
+  let testDir = globalDir;
+  while (!fs.existsSync(testDir)) {
+    const parent = path.dirname(testDir);
+    if (parent === testDir) break;
+    testDir = parent;
+  }
 
   try {
     const testFile = path.join(testDir, '.seomator-test-' + Date.now());
     fs.writeFileSync(testFile, 'test');
     fs.unlinkSync(testFile);
     return {
-      name: 'Write permissions',
+      name: 'Data directory writable',
       status: 'pass',
-      message: 'Can write to home directory',
+      message: `Can write to ${testDir}`,
+      details: `Audits are stored in ${getAuditsDbPath()}`,
     };
   } catch {
     return {
-      name: 'Write permissions',
+      name: 'Data directory writable',
       status: 'fail',
-      message: 'Cannot write to home directory',
-      details: 'Check file permissions for ~/.seomator',
+      message: `Cannot write to ${testDir}`,
+      details: 'Fix the permissions, or point SEOMATOR_HOME at a writable directory',
     };
   }
 }

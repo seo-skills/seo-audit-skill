@@ -51,6 +51,8 @@ export interface ExternalLinksConfig {
 export interface OutputConfig {
   format: 'console' | 'text' | 'json' | 'html' | 'markdown' | 'llm';
   path: string;
+  /** Store every audit in the audits database. Default true; `--no-save` overrides per run. */
+  save: boolean;
 }
 
 /**

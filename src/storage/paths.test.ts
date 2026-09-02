@@ -14,6 +14,28 @@ import * as path from 'path';
 
 describe('paths', () => {
   describe('getGlobalDir', () => {
+    it('honours SEOMATOR_HOME when set', () => {
+      const previous = process.env['SEOMATOR_HOME'];
+      process.env['SEOMATOR_HOME'] = '/tmp/seomator-home-test';
+      try {
+        expect(getGlobalDir()).toBe('/tmp/seomator-home-test');
+      } finally {
+        if (previous === undefined) delete process.env['SEOMATOR_HOME'];
+        else process.env['SEOMATOR_HOME'] = previous;
+      }
+    });
+
+    it('ignores a blank SEOMATOR_HOME', () => {
+      const previous = process.env['SEOMATOR_HOME'];
+      process.env['SEOMATOR_HOME'] = '   ';
+      try {
+        expect(getGlobalDir()).toBe(path.join(os.homedir(), '.seomator'));
+      } finally {
+        if (previous === undefined) delete process.env['SEOMATOR_HOME'];
+        else process.env['SEOMATOR_HOME'] = previous;
+      }
+    });
+
     it('should return ~/.seomator on Unix', () => {
       const globalDir = getGlobalDir();
       expect(globalDir).toBe(path.join(os.homedir(), '.seomator'));

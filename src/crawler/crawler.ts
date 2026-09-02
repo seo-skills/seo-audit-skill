@@ -281,7 +281,9 @@ export class Crawler {
       // Fetch the page
       let fetchResult: FetchResult;
       try {
-        fetchResult = await fetchPage(url, this.options.timeout);
+        fetchResult = await fetchPage(url, this.options.timeout, {
+          trackRedirects: true,
+        });
       } catch (error) {
         this.results.push({
           url,
@@ -559,11 +561,13 @@ export class Crawler {
       }
     }
 
-    // redirectChain is not populated by the crawler's fetch today (it follows
-    // redirects transparently), but single-page audits carry it — record the
-    // hops when the data happens to be there.
+    // Now that the fetch records the chain, every URL a redirect pointed AT was
+    // discovered by that redirect. The first entry is the URL originally
+    // requested — it was reached some other way (entry, link, sitemap), so
+    // skipping it keeps a page fetched without any redirect from claiming to
+    // have discovered itself.
     if (context.redirectChain) {
-      for (const hop of context.redirectChain) {
+      for (const hop of context.redirectChain.slice(1)) {
         if (!this.isHttpSameDomain(hop.url)) continue;
         this.recordDiscoverySource(this.normalizeUrl(hop.url), 'redirect');
       }

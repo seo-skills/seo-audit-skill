@@ -13,6 +13,7 @@ import type {
   InlineSvgInfo,
   PictureElementInfo,
   CookieInfo,
+  RedirectChainEntry,
 } from '../types.js';
 
 /**
@@ -38,6 +39,17 @@ export interface FetchResult {
    * than "we do not know".
    */
   cookies?: CookieInfo[];
+  /**
+   * Every hop taken to reach this page, in order, when the caller asked for
+   * redirect tracking.
+   *
+   * Optional because tracking costs an extra manual follow loop and only the
+   * page-audit path needs it: the rules that fetch robots.txt and sitemaps
+   * through this function do not. Absent means "not recorded", which is what
+   * `redirect-loop` and `redirect-broken` report as unmeasured — distinct from
+   * an empty chain, which would claim the page was reached directly.
+   */
+  redirectChain?: RedirectChainEntry[];
 }
 
 /**
@@ -89,27 +101,106 @@ export function unauditableReason(
   return null;
 }
 
-export async function fetchPage(url: string, timeout = 30000): Promise<FetchResult> {
+/** Hop limit when following redirects by hand, matching browser behaviour. */
+const MAX_TRACKED_REDIRECTS = 20;
+
+/** Request headers shared by both fetch paths. */
+function pageRequestHeaders(): Record<string, string> {
+  return {
+    'User-Agent': getUserAgent(),
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+  };
+}
+
+/**
+ * Options for {@link fetchPage}
+ */
+export interface FetchPageOptions {
+  /**
+   * Record every hop taken to reach the page.
+   *
+   * Off by default: it costs a manual follow loop, and only the page-audit
+   * path needs the chain. `redirect: 'follow'` discards it, which is why
+   * `redirect-loop` and `redirect-broken` had nothing to read.
+   */
+  trackRedirects?: boolean;
+}
+
+/**
+ * Walk a redirect chain by hand, returning the first non-redirect response.
+ *
+ * Stops early on a URL already seen so the chain still carries the repeat for
+ * `redirect-loop` to find, rather than spending the full hop budget on it.
+ */
+async function fetchFollowingRedirects(
+  url: string,
+  signal: AbortSignal
+): Promise<{ response: Response; chain: RedirectChainEntry[] }> {
+  const chain: RedirectChainEntry[] = [];
+  const seen = new Set<string>();
+  let currentUrl = url;
+
+  for (let hop = 0; hop <= MAX_TRACKED_REDIRECTS; hop++) {
+    const response = await fetch(currentUrl, {
+      method: 'GET',
+      signal,
+      headers: pageRequestHeaders(),
+      redirect: 'manual',
+    });
+
+    chain.push({ url: currentUrl, statusCode: response.status });
+
+    const location =
+      response.status >= 300 && response.status < 400
+        ? response.headers.get('location')
+        : null;
+    if (!location) return { response, chain };
+
+    const nextUrl = new URL(location, currentUrl).href;
+    if (seen.has(nextUrl)) {
+      // A looping URL has no page to audit, and the 3xx body it would hand
+      // back reads as "empty response" — which hides the actual cause. Name
+      // the loop instead, listing the cycle.
+      const cycle = [...chain.map((hop) => hop.url), nextUrl];
+      throw new Error(`${url} redirects in a loop: ${cycle.join(' -> ')}`);
+    }
+    seen.add(currentUrl);
+    currentUrl = nextUrl;
+  }
+
+  throw new Error(`${url} exceeded ${MAX_TRACKED_REDIRECTS} redirects`);
+}
+
+export async function fetchPage(
+  url: string,
+  timeout = 30000,
+  options: FetchPageOptions = {}
+): Promise<FetchResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   const startTime = performance.now();
 
   try {
-    const response = await fetch(url, {
-      method: 'GET',
-      signal: controller.signal,
-      headers: {
-        'User-Agent': getUserAgent(),
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-      },
-      redirect: 'follow',
-    });
+    let response: Response;
+    let redirectChain: RedirectChainEntry[] | undefined;
+
+    if (options.trackRedirects) {
+      const tracked = await fetchFollowingRedirects(url, controller.signal);
+      response = tracked.response;
+      redirectChain = tracked.chain;
+    } else {
+      response = await fetch(url, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: pageRequestHeaders(),
+        redirect: 'follow',
+      });
+    }
 
     const responseTime = performance.now() - startTime;
     const html = await response.text();
-
 
     const $ = cheerio.load(html);
 
@@ -126,6 +217,7 @@ export async function fetchPage(url: string, timeout = 30000): Promise<FetchResu
       statusCode: response.status,
       responseTime: Math.round(responseTime),
       cookies: parseSetCookieHeaders(response.headers),
+      ...(redirectChain && { redirectChain }),
     };
   } finally {
     clearTimeout(timeoutId);
@@ -538,7 +630,7 @@ export function createAuditContext(
   fetchResult: FetchResult,
   cwv: CoreWebVitals = {}
 ): AuditContext {
-  const { html, $, headers, statusCode, responseTime, cookies } = fetchResult;
+  const { html, $, headers, statusCode, responseTime, cookies, redirectChain } = fetchResult;
   const { links, invalidLinks } = extractLinks($, url);
   const specialLinks = extractSpecialLinks($);
 
@@ -559,5 +651,8 @@ export function createAuditContext(
     pictureElements: extractPictureElements($),
     // Passed through as-is: undefined means unknown, [] means none were set.
     ...(cookies !== undefined && { cookies }),
+    // Only present when the caller asked fetchPage to track redirects; the
+    // redirect rules treat its absence as unmeasured rather than "no hops".
+    ...(redirectChain !== undefined && { redirectChain }),
   };
 }

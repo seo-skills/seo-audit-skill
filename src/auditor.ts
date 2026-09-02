@@ -268,8 +268,11 @@ export class Auditor {
     await this.ensureRulesLoaded();
     resetCrossPageState();
 
-    // Fetch the page
-    const fetchResult = await fetchPage(url, this.options.timeout);
+    // Fetch the page, recording the redirect hops so redirect-loop and
+    // redirect-broken have a chain to read.
+    const fetchResult = await fetchPage(url, this.options.timeout, {
+      trackRedirects: true,
+    });
 
     // Refuse to score something that is not an auditable page. Most rules pass
     // when the thing they check is absent, so an empty body used to score

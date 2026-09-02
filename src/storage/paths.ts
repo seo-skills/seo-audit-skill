@@ -2,10 +2,15 @@ import * as os from 'os';
 import * as path from 'path';
 
 /**
- * Get global seomator directory (~/.seomator)
+ * Get global seomator directory.
+ *
+ * `~/.seomator` unless `SEOMATOR_HOME` is set, which relocates the database and
+ * settings for CI runners, read-only home directories, tests, and people who
+ * keep several profiles.
  */
 export function getGlobalDir(): string {
-  return path.join(os.homedir(), '.seomator');
+  const override = process.env['SEOMATOR_HOME']?.trim();
+  return override ? override : path.join(os.homedir(), '.seomator');
 }
 
 // =============================================================================
@@ -129,12 +134,6 @@ export function getReportsDir(baseDir: string): string {
   return path.join(getProjectDir(baseDir), 'reports');
 }
 
-/**
- * Generate a unique ID for crawls/reports
- * Format: YYYY-MM-DD-xxxxxx
- */
-export function generateId(): string {
-  const date = new Date().toISOString().split('T')[0];
-  const hash = Math.random().toString(36).substring(2, 8);
-  return `${date}-${hash}`;
-}
+// The id generator lives with the other hashing helpers; re-exported here so
+// existing imports keep working. Random bytes, not Math.random.
+export { generateId } from './utils/hash.js';

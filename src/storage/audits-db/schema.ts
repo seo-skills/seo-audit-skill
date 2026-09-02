@@ -6,9 +6,12 @@ import type Database from 'better-sqlite3';
  * @param db - better-sqlite3 database instance
  */
 export function initializeAuditsSchema(db: Database.Database): void {
-  // Set pragmas
+  // Set pragmas. busy_timeout is short on purpose: better-sqlite3's busy wait
+  // blocks the whole event loop, so callers that can afford to wait retry
+  // asynchronously instead (see save-audit.ts).
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
+  db.pragma('busy_timeout = 500');
 
   // Audits table - main audit records
   db.prepare(`
@@ -118,6 +121,48 @@ export function initializeAuditsSchema(db: Database.Database): void {
 
   for (const idx of indexes) {
     db.prepare(idx).run();
+  }
+
+  // Columns added after the tables above first shipped. Additive and
+  // idempotent, so an older CLI can keep writing to a newer database.
+  ensureColumn(db, 'audit_results', 'weight', 'INTEGER');
+  ensureColumn(db, 'audits', 'source', 'TEXT');
+  ensureColumn(db, 'audits', 'engine_version', 'TEXT');
+  ensureColumn(db, 'audits', 'run_json', 'TEXT');
+}
+
+/**
+ * Whether a table already has a column.
+ */
+export function hasColumn(db: Database.Database, table: string, column: string): boolean {
+  const rows = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  return rows.some((r) => r.name === column);
+}
+
+/**
+ * Add a column if it is missing.
+ *
+ * Check-then-alter is not atomic across processes: a CLI and the dashboard
+ * opening a fresh file at the same moment can both see the column missing, and
+ * the second ALTER then fails with "duplicate column name". That failure means
+ * the column exists, which is what we wanted, so it is swallowed. Any other
+ * error is real and propagates.
+ *
+ * @param check - The column-exists probe, injectable so the race can be tested
+ */
+export function ensureColumn(
+  db: Database.Database,
+  table: string,
+  column: string,
+  type: string,
+  check: (db: Database.Database, table: string, column: string) => boolean = hasColumn
+): void {
+  if (check(db, table, column)) return;
+  try {
+    db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`).run();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/duplicate column name/i.test(message)) throw error;
   }
 }
 

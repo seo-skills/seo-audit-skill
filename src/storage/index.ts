@@ -8,7 +8,15 @@ export * from './link-cache.js';
 
 // =============================================================================
 // New SQLite storage exports
-export { saveAuditToDatabase, domainOf, type SavedAudit } from './save-audit.js';
+export {
+  saveAuditToDatabase,
+  domainOf,
+  stripUserinfo,
+  withBusyRetry,
+  type SavedAudit,
+  type SaveAuditOptions,
+  type BusyRetryOptions,
+} from './save-audit.js';
 // =============================================================================
 
 // Types for database records
@@ -43,6 +51,13 @@ export {
   AuditsDatabase,
   getAuditsDatabase,
   closeAuditsDatabase,
+  diffRules,
+  rollupByRule,
+  type RuleChange,
+  type RuleDiff,
+  type AuditComparison,
+  type ScoreTrendPoint,
+  type StoredRuleSummary,
   type HydratedAudit,
   type HydratedAuditCategory,
   type HydratedAuditResult,

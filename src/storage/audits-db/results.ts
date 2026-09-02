@@ -8,6 +8,7 @@ import type {
   InsertResultInput,
   InsertCategoryInput,
   RuleResultStatus,
+  StoredRuleSummary,
 } from '../types.js';
 import { hashUrl } from '../utils/hash.js';
 import { parseSqliteUtc } from '../sqlite-time.js';
@@ -46,6 +47,7 @@ function hydrateResult(row: DbAuditResult): HydratedAuditResult {
     message: row.message,
     details: row.details_json ? JSON.parse(row.details_json) : null,
     executedAt: parseSqliteUtc(row.executed_at),
+    weight: row.weight ?? null,
   };
 }
 
@@ -195,8 +197,8 @@ export function insertResult(
       `
     INSERT INTO audit_results (
       audit_id, category_id, rule_id, rule_name,
-      page_url, page_url_hash, status, score, message, details_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      page_url, page_url_hash, status, score, message, details_json, weight
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING *
   `
     )
@@ -210,7 +212,8 @@ export function insertResult(
       input.status,
       input.score,
       input.message,
-      input.details ? JSON.stringify(input.details) : null
+      input.details ? JSON.stringify(input.details) : null,
+      input.weight ?? 1
     ) as DbAuditResult;
 
   return hydrateResult(result);
@@ -234,8 +237,8 @@ export function insertResults(
   const stmt = db.prepare(`
     INSERT INTO audit_results (
       audit_id, category_id, rule_id, rule_name,
-      page_url, page_url_hash, status, score, message, details_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      page_url, page_url_hash, status, score, message, details_json, weight
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertAll = db.transaction((inputs: InsertResultInput[]) => {
@@ -252,7 +255,8 @@ export function insertResults(
         input.status,
         input.score,
         input.message,
-        input.details ? JSON.stringify(input.details) : null
+        input.details ? JSON.stringify(input.details) : null,
+        input.weight ?? 1
       );
       count++;
     }
@@ -313,6 +317,123 @@ export function getResults(
     .all(...params, limit, offset) as DbAuditResult[];
 
   return rows.map(hydrateResult);
+}
+
+/**
+ * Every result row of an audit, in insertion order, with no page cap.
+ *
+ * A 1,000-page crawl stores ~332,000 rows; `getResults()` stops at 1,000 by
+ * default, which silently truncated exports and comparisons. Use this for
+ * export, compare and reconstruction, and `getRuleSummaries()` for display.
+ */
+export function getAllResults(db: Database.Database, auditId: number): HydratedAuditResult[] {
+  const rows = db
+    .prepare('SELECT * FROM audit_results WHERE audit_id = ? ORDER BY id')
+    .all(auditId) as DbAuditResult[];
+  return rows.map(hydrateResult);
+}
+
+/** How a stored row ranks when picking a rule's worst page: unmeasured rows lose to everything */
+const SEVERITY_SQL = `CASE
+  WHEN weight IS NOT NULL AND weight = 0 THEN -1
+  WHEN status = 'fail' THEN 2
+  WHEN status = 'warn' THEN 1
+  ELSE 0
+END`;
+
+/** Sample pages kept per rule in a summary */
+export const RULE_SUMMARY_SAMPLE_PAGES = 5;
+
+/**
+ * Aggregate an audit's results per rule, in SQL.
+ *
+ * Two fixed queries regardless of page count: one GROUP BY for the counts and
+ * one window query for the worst rows. A row with weight 0 was not measured
+ * (the rule could not take a reading on that page); such rows count toward
+ * `totalPages` but never toward the status. A rule whose rows are all
+ * unmeasured comes back with `notMeasured: true`, status 'warn' and score 50,
+ * which is exactly what `notMeasured()` produces live.
+ *
+ * @param db - Database instance
+ * @param auditId - Database audit ID
+ * @returns One summary per rule, in first-seen order
+ */
+export function getRuleSummaries(db: Database.Database, auditId: number): StoredRuleSummary[] {
+  const counts = db
+    .prepare(
+      `
+    SELECT category_id, rule_id, rule_name,
+      COUNT(*) AS total_pages,
+      SUM(CASE WHEN weight IS NOT NULL AND weight = 0 THEN 0 ELSE 1 END) AS measured_pages,
+      SUM(CASE WHEN (weight IS NULL OR weight <> 0) AND status <> 'pass' THEN 1 ELSE 0 END) AS affected_pages,
+      MIN(id) AS first_id
+    FROM audit_results
+    WHERE audit_id = ?
+    GROUP BY category_id, rule_id
+    ORDER BY first_id
+  `
+    )
+    .all(auditId) as Array<{
+    category_id: string;
+    rule_id: string;
+    rule_name: string;
+    total_pages: number;
+    measured_pages: number;
+    affected_pages: number;
+  }>;
+
+  const samples = db
+    .prepare(
+      `
+    WITH ranked AS (
+      SELECT rule_id, page_url, status, score, message, details_json,
+        ROW_NUMBER() OVER (PARTITION BY rule_id ORDER BY (${SEVERITY_SQL}) DESC, id) AS rn
+      FROM audit_results
+      WHERE audit_id = ?
+    )
+    SELECT * FROM ranked WHERE rn <= ? ORDER BY rule_id, rn
+  `
+    )
+    .all(auditId, RULE_SUMMARY_SAMPLE_PAGES) as Array<{
+    rule_id: string;
+    page_url: string;
+    status: RuleResultStatus;
+    score: number;
+    message: string;
+    details_json: string | null;
+    rn: number;
+  }>;
+
+  const samplesByRule = new Map<string, typeof samples>();
+  for (const row of samples) {
+    const list = samplesByRule.get(row.rule_id);
+    if (list) list.push(row);
+    else samplesByRule.set(row.rule_id, [row]);
+  }
+
+  return counts.map((row) => {
+    const ruleSamples = samplesByRule.get(row.rule_id) ?? [];
+    const worst = ruleSamples[0];
+    const notMeasured = row.measured_pages === 0;
+    return {
+      categoryId: row.category_id,
+      ruleId: row.rule_id,
+      ruleName: row.rule_name,
+      status: notMeasured ? 'warn' : (worst?.status ?? 'pass'),
+      score: notMeasured ? 50 : (worst?.score ?? 100),
+      message: worst?.message ?? '',
+      details: worst?.details_json ? (JSON.parse(worst.details_json) as Record<string, unknown>) : null,
+      totalPages: row.total_pages,
+      measuredPages: row.measured_pages,
+      affectedPages: row.affected_pages,
+      notMeasured,
+      samplePages: ruleSamples.map((s) => ({
+        pageUrl: s.page_url,
+        status: s.status,
+        message: s.message,
+      })),
+    };
+  });
 }
 
 /**

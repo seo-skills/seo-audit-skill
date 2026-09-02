@@ -7,8 +7,10 @@ import * as audits from './audits.js';
 import * as results from './results.js';
 import * as issues from './issues.js';
 import * as comparisons from './comparisons.js';
+import type { AuditComparison, ScoreTrendPoint } from './comparisons.js';
 import type {
   HydratedAudit,
+  StoredRuleSummary,
   HydratedAuditCategory,
   HydratedAuditResult,
   HydratedIssue,
@@ -37,33 +39,46 @@ import type {
 export class AuditsDatabase {
   private db: Database.Database;
   private static instance: AuditsDatabase | null = null;
+  /** Where this instance's file lives */
+  readonly path: string;
 
   /**
-   * Open or create the audits database
+   * Open or create an audits database file
    */
-  private constructor() {
-    // Ensure global directory exists
-    const globalDir = getGlobalDir();
-    if (!fs.existsSync(globalDir)) {
-      fs.mkdirSync(globalDir, { recursive: true });
+  private constructor(dbPath: string) {
+    const dir = path.dirname(dbPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
 
-    // Open database
-    const dbPath = getAuditsDbPath();
+    this.path = dbPath;
     this.db = new Database(dbPath);
 
-    // Initialize schema
     initializeAuditsSchema(this.db);
   }
 
   /**
-   * Get the singleton instance
+   * Get the singleton instance at the global path (`$SEOMATOR_HOME/audits.db`)
    */
   static getInstance(): AuditsDatabase {
     if (!AuditsDatabase.instance) {
-      AuditsDatabase.instance = new AuditsDatabase();
+      const globalDir = getGlobalDir();
+      if (!fs.existsSync(globalDir)) {
+        fs.mkdirSync(globalDir, { recursive: true });
+      }
+      AuditsDatabase.instance = new AuditsDatabase(getAuditsDbPath());
     }
     return AuditsDatabase.instance;
+  }
+
+  /**
+   * Open a database at an explicit path, outside the singleton.
+   *
+   * For tests and for tools that need a second connection. The caller owns
+   * it and must `close()` it.
+   */
+  static open(dbPath: string): AuditsDatabase {
+    return new AuditsDatabase(dbPath);
   }
 
   /**
@@ -232,10 +247,24 @@ export class AuditsDatabase {
   }
 
   /**
-   * Get results with filtering
+   * Get results with filtering (capped at 1,000 rows unless `limit` is given)
    */
   getResults(auditId: number, options?: RuleResultQueryOptions): HydratedAuditResult[] {
     return results.getResults(this.db, auditId, options);
+  }
+
+  /**
+   * Every result row of an audit, uncapped. For export, compare and rebuild.
+   */
+  getAllResults(auditId: number): HydratedAuditResult[] {
+    return results.getAllResults(this.db, auditId);
+  }
+
+  /**
+   * One aggregated summary per rule, computed in SQL. For display.
+   */
+  getRuleSummaries(auditId: number): StoredRuleSummary[] {
+    return results.getRuleSummaries(this.db, auditId);
   }
 
   /**
@@ -338,10 +367,17 @@ export class AuditsDatabase {
   // ===========================================================================
 
   /**
-   * Compare two audits
+   * Compute a comparison without storing it
    */
-  compareAudits(currentAuditId: number, previousAuditId: number): HydratedAuditComparison | null {
-    return comparisons.compareAudits(this.db, currentAuditId, previousAuditId);
+  buildComparison(currentAuditId: number, previousAuditId: number): AuditComparison | null {
+    return comparisons.buildComparison(this.db, currentAuditId, previousAuditId);
+  }
+
+  /**
+   * Compute and store a comparison (the save path does this once per audit)
+   */
+  recordComparison(currentAuditId: number, previousAuditId: number): HydratedAuditComparison | null {
+    return comparisons.recordComparison(this.db, currentAuditId, previousAuditId);
   }
 
   /**
@@ -361,7 +397,7 @@ export class AuditsDatabase {
   /**
    * Get score trend for a domain
    */
-  getScoreTrend(domain: string, limit?: number): Array<{ auditId: string; score: number; date: Date }> {
+  getScoreTrend(domain: string, limit?: number): ScoreTrendPoint[] {
     return comparisons.getScoreTrend(this.db, domain, limit);
   }
 }
@@ -380,8 +416,14 @@ export function closeAuditsDatabase(): void {
   AuditsDatabase.closeInstance();
 }
 
+export { diffRules, rollupByRule } from './rule-diff.js';
+export type { RuleChange, RuleDiff } from './rule-diff.js';
+
 // Re-export types
 export type {
+  AuditComparison,
+  ScoreTrendPoint,
+  StoredRuleSummary,
   HydratedAudit,
   HydratedAuditCategory,
   HydratedAuditResult,

@@ -1,7 +1,8 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
-import { getAuditsDatabase, closeAuditsDatabase, domainOf } from '../storage/index.js';
-import type { HydratedAudit, HydratedAuditResult } from '../storage/types.js';
+import { getAuditsDatabase, closeAuditsDatabase, domainOf, diffRules } from '../storage/index.js';
+import type { HydratedAudit } from '../storage/types.js';
+import type { RuleChange } from '../storage/index.js';
 
 export interface CompareOptions {
   /** Compare against this audit id instead of the previous run */
@@ -19,6 +20,19 @@ function formatDelta(delta: number): string {
   if (delta > 0) return chalk.green(`+${delta}`);
   if (delta < 0) return chalk.red(`${delta}`);
   return chalk.dim('0');
+}
+
+/** Glyph for a rule's current status */
+function statusGlyph(status: RuleChange['to']): string {
+  if (status === 'fail') return chalk.red('✗');
+  if (status === 'warn') return chalk.yellow('⚠');
+  return chalk.green('✓');
+}
+
+/** "on 3 of 12 pages" for crawl audits, empty for single-page ones */
+function pageCount(change: RuleChange): string {
+  if (change.totalPages <= 1) return '';
+  return `on ${change.affectedPages} of ${change.totalPages} pages`;
 }
 
 /** A short arrow showing which way a score moved */
@@ -48,69 +62,6 @@ export function formatDate(date: Date): string {
   );
 }
 
-/**
- * Rules that changed status between two audits.
- *
- * Compared by rule id rather than by counting statuses, so a rule that broke
- * and a different one that got fixed do not cancel out in the summary.
- */
-interface RuleChange {
-  ruleId: string;
-  ruleName: string;
-  categoryId: string;
-  from: string;
-  to: string;
-  message: string;
-}
-
-function diffRules(
-  previous: HydratedAuditResult[],
-  current: HydratedAuditResult[]
-): { regressed: RuleChange[]; improved: RuleChange[] } {
-  // A rule can appear once per page in crawl mode; reduce to its worst status
-  // so the diff reports the rule, not every page it touched.
-  const rank: Record<string, number> = { pass: 0, warn: 1, fail: 2 };
-  const worst = (results: HydratedAuditResult[]): Map<string, HydratedAuditResult> => {
-    const map = new Map<string, HydratedAuditResult>();
-    for (const result of results) {
-      const existing = map.get(result.ruleId);
-      if (!existing || (rank[result.status] ?? 0) > (rank[existing.status] ?? 0)) {
-        map.set(result.ruleId, result);
-      }
-    }
-    return map;
-  };
-
-  const before = worst(previous);
-  const after = worst(current);
-
-  const regressed: RuleChange[] = [];
-  const improved: RuleChange[] = [];
-
-  for (const [ruleId, now] of after) {
-    const then = before.get(ruleId);
-    if (!then || then.status === now.status) continue;
-
-    const change: RuleChange = {
-      ruleId,
-      ruleName: now.ruleName,
-      categoryId: now.categoryId,
-      from: then.status,
-      to: now.status,
-      message: now.message,
-    };
-
-    if ((rank[now.status] ?? 0) > (rank[then.status] ?? 0)) {
-      regressed.push(change);
-    } else {
-      improved.push(change);
-    }
-  }
-
-  // Worst regressions first, so the top of the list is what to act on.
-  regressed.sort((a, b) => (rank[b.to] ?? 0) - (rank[a.to] ?? 0));
-  return { regressed, improved };
-}
 
 /** Print the score history for a domain */
 function renderTrend(domain: string, json: boolean): number {
@@ -200,12 +151,15 @@ export async function runCompare(
       }
     }
 
-    const comparison = db.compareAudits(current.id, previous.id);
-    const { regressed, improved } = diffRules(
-      db.getResults(previous.id),
-      db.getResults(current.id)
+    // Reads only: a comparison is computed on demand here and stored once,
+    // by the save path, when the audit is written.
+    const comparison = db.buildComparison(current.id, previous.id);
+    const { regressed, improved, added, removed } = diffRules(
+      db.getAllResults(previous.id),
+      db.getAllResults(current.id)
     );
     const scoreDelta = current.overallScore - previous.overallScore;
+    const engineChanged = comparison?.engineChanged ?? false;
 
     if (options.json) {
       console.log(
@@ -215,9 +169,16 @@ export async function runCompare(
             current: { auditId: current.auditId, score: current.overallScore, date: current.startedAt },
             previous: { auditId: previous.auditId, score: previous.overallScore, date: previous.startedAt },
             scoreDelta,
+            engineChanged,
+            engineVersions: {
+              current: current.engineVersion,
+              previous: previous.engineVersion,
+            },
             categoryDeltas: comparison?.categoryDeltas ?? [],
             regressed,
             improved,
+            added,
+            removed,
           },
           null,
           2
@@ -240,6 +201,13 @@ export async function runCompare(
       console.log(
         `  Overall  ${previous.overallScore} → ${current.overallScore}  ${trendGlyph(scoreDelta)} ${formatDelta(scoreDelta)}`
       );
+      if (engineChanged) {
+        console.log(
+          chalk.yellow(
+            `  Engine changed: ${previous.engineVersion} → ${current.engineVersion}. Some differences may come from rule updates rather than the site.`
+          )
+        );
+      }
       console.log();
 
       const moved = (comparison?.categoryDeltas ?? []).filter((d) => d.delta !== 0);
@@ -291,7 +259,29 @@ export async function runCompare(
         console.log();
       }
 
-      if (regressed.length === 0 && improved.length === 0) {
+      if (added.length > 0) {
+        console.log(chalk.bold(`  New in this audit (${added.length})`));
+        for (const change of added.slice(0, 10)) {
+          console.log(`    ${statusGlyph(change.to)} ${chalk.bold(change.ruleId)} ${chalk.dim(pageCount(change))}`);
+        }
+        if (added.length > 10) {
+          console.log(chalk.dim(`    …and ${added.length - 10} more`));
+        }
+        console.log();
+      }
+
+      if (removed.length > 0) {
+        console.log(chalk.bold(`  No longer measured (${removed.length})`));
+        for (const change of removed.slice(0, 10)) {
+          console.log(`    ${chalk.dim('·')} ${chalk.bold(change.ruleId)} ${chalk.dim(`was ${change.from}`)}`);
+        }
+        if (removed.length > 10) {
+          console.log(chalk.dim(`    …and ${removed.length - 10} more`));
+        }
+        console.log();
+      }
+
+      if (regressed.length === 0 && improved.length === 0 && added.length === 0 && removed.length === 0) {
         console.log(chalk.dim('  No rules changed status.'));
         console.log();
       }

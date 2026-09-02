@@ -3,7 +3,8 @@ import type {
   DbAudit,
   HydratedAudit,
   AuditSummary,
-  AuditStatus,
+  AuditSource,
+  AuditRunOptions,
   AuditQueryOptions,
   CreateAuditInput,
 } from '../types.js';
@@ -30,13 +31,16 @@ function hydrateAudit(row: DbAudit): HydratedAudit {
     startedAt: parseSqliteUtc(row.started_at),
     completedAt: row.completed_at ? parseSqliteUtc(row.completed_at) : null,
     status: row.status,
+    source: (row.source as AuditSource | null) ?? null,
+    engineVersion: row.engine_version ?? null,
+    run: row.run_json ? (JSON.parse(row.run_json) as AuditRunOptions) : null,
   };
 }
 
 /**
  * Create audit summary from row
  */
-function toAuditSummary(row: DbAudit): AuditSummary {
+export function toAuditSummary(row: DbAudit): AuditSummary {
   return {
     id: row.id,
     auditId: row.audit_id,
@@ -51,6 +55,8 @@ function toAuditSummary(row: DbAudit): AuditSummary {
     startedAt: parseSqliteUtc(row.started_at),
     completedAt: row.completed_at ? parseSqliteUtc(row.completed_at) : null,
     status: row.status,
+    source: (row.source as AuditSource | null) ?? null,
+    engineVersion: row.engine_version ?? null,
   };
 }
 
@@ -70,8 +76,8 @@ export function createAudit(
       `
     INSERT INTO audits (
       audit_id, domain, project_name, crawl_id, start_url,
-      overall_score, config_json
-    ) VALUES (?, ?, ?, ?, ?, 0, ?)
+      overall_score, config_json, source, engine_version, run_json
+    ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
     RETURNING *
   `
     )
@@ -81,7 +87,10 @@ export function createAudit(
       input.projectName ?? null,
       input.crawlId ?? null,
       input.startUrl,
-      input.config ? JSON.stringify(input.config) : null
+      input.config ? JSON.stringify(input.config) : null,
+      input.source ?? null,
+      input.engineVersion ?? null,
+      input.run ? JSON.stringify(input.run) : null
     ) as DbAudit;
 
   return hydrateAudit(result);
@@ -139,7 +148,7 @@ export function getLatestAudit(
       `
     SELECT * FROM audits
     WHERE domain = ? AND status = 'completed'
-    ORDER BY started_at DESC
+    ORDER BY started_at DESC, id DESC
     LIMIT 1
   `
     )
@@ -149,11 +158,16 @@ export function getLatestAudit(
 }
 
 /**
- * Get the previous audit for comparison
+ * Get the audit that ran before a given one, for comparison.
+ *
+ * "Before" means earlier by (started_at, id), so it works for a historical
+ * audit too — the old query returned the newest audit with a different id,
+ * which for anything but the latest run was a later one. The id tie-break
+ * keeps back-to-back runs within the same second in a stable order.
  *
  * @param db - Database instance
  * @param domain - Domain name
- * @param beforeAuditId - Get audit before this one
+ * @param beforeAuditId - Get the completed audit before this one
  * @returns Previous audit or null
  */
 export function getPreviousAudit(
@@ -164,13 +178,15 @@ export function getPreviousAudit(
   const row = db
     .prepare(
       `
-    SELECT * FROM audits
-    WHERE domain = ? AND status = 'completed' AND audit_id != ?
-    ORDER BY started_at DESC
+    SELECT a.* FROM audits a
+    JOIN audits b ON b.audit_id = ?
+    WHERE a.domain = ? AND a.status = 'completed' AND a.id != b.id
+      AND (a.started_at < b.started_at OR (a.started_at = b.started_at AND a.id < b.id))
+    ORDER BY a.started_at DESC, a.id DESC
     LIMIT 1
   `
     )
-    .get(domain, beforeAuditId) as DbAudit | undefined;
+    .get(beforeAuditId, domain) as DbAudit | undefined;
 
   return row ? hydrateAudit(row) : null;
 }
@@ -233,7 +249,7 @@ export function listAudits(
       `
     SELECT * FROM audits
     ${whereClause}
-    ORDER BY started_at DESC
+    ORDER BY started_at DESC, id DESC
     LIMIT ? OFFSET ?
   `
     )

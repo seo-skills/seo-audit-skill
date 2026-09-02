@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The real SEOmator mark ships through the desktop app.** The app icon was a
+  generic dark "S" and the in-app header drew a gradient square with the letter
+  S beside the product name — placeholders for artwork the project already
+  owned. The lockup, its white variant, and the square mark now live in
+  `electron/resources/brand/`; `npm run gen:icons` renders the 1024px app icon
+  from the mark so the SVG stays the source of truth, and `--check` fails when
+  the icon falls behind it. A `Logo` component paints the wordmark in
+  `currentColor`, so one component serves both themes. The renderer gained a
+  favicon and development runs a Dock icon. A blanket `*.png` in `.gitignore`
+  had been excluding `electron/resources/icon.png` since it was created, so the
+  icon had never been committed and a clone would package without one.
+
+- **The window toolbar reads as native chrome rather than a web navbar.**
+  Frosted material over the scrolling content with a hairline separator and no
+  drop shadow; 52px tall, the height of a macOS unified toolbar, with traffic
+  lights re-centred and clearance raised from 78px to 92px so the brand mark
+  stops crowding them; a segmented control in place of the accent-filled pill
+  for Audit/History; and stroked sun/moon glyphs instead of the ☀/☾ text
+  characters, which picked up the emoji font and sat on the text baseline.
+
 - **Fix-suggestion coverage is held by a test.** `FIX_SUGGESTIONS` covered all
   332 rules, but nothing enforced it and `getFixSuggestion()` answers an
   unknown id with a generic sentence rather than failing — so a new rule would

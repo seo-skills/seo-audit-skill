@@ -1540,8 +1540,13 @@ function generateStyles(): string {
       .score-circle {
         margin: 0 auto;
       }
+      /* Five stats in a nowrap row are 11px wider than the card on a 375px
+         screen, so "332 Total" broke out past the card's right border. Same
+         remedy as .category-header below. */
       .score-stats {
         justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px 16px;
       }
       .main {
         padding: 16px;

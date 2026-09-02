@@ -1,5 +1,6 @@
 import type { AssetInfo, AuditContext, RuleResult } from '../../types.js';
-import { defineRule, pass, warn } from '../define-rule.js';
+import { defineRule, pass, warn, notMeasured } from '../define-rule.js';
+import { assetContentLength, partitionBySizeKnown, unsizedReason } from './asset-size.js';
 
 // Reference hint: performance/minify-javascript
 
@@ -49,27 +50,16 @@ function countBlockCommentBytes(text: string): number {
 }
 
 /**
- * Encoded size from the content-length header, or -1 when absent.
+ * External scripts whose minification is worth judging: served OK, and from a
+ * URL without a `.min.` marker. Size decides which of these are actually
+ * suspect, and size is only readable when `content-length` is set.
  */
-function assetContentLength(asset: AssetInfo): number {
-  const raw = asset.headers['content-length'];
-  if (!raw) return -1;
-  const parsed = parseInt(raw, 10);
-  return Number.isNaN(parsed) ? -1 : parsed;
-}
-
-/**
- * External scripts that look unminified, on headers alone: larger than the
- * threshold and served from a URL without a `.min.` marker. Heuristic only —
- * a file can be minified without the marker, and vice versa.
- */
-function findUnminifiedExternalScripts(assets: AssetInfo[]): AssetInfo[] {
+function findCandidateScripts(assets: AssetInfo[]): AssetInfo[] {
   return assets.filter(
     (a) =>
       a.resourceType === 'script' &&
       a.statusCode >= 200 &&
       a.statusCode < 300 &&
-      assetContentLength(a) > EXTERNAL_THRESHOLDS.minBytesToCheck &&
       !a.url.split('?')[0].toLowerCase().includes('.min.')
   );
 }
@@ -174,8 +164,24 @@ export const minifyJsRule = defineRule({
     const { assets } = context;
     if (!assets) return inlineResult;
 
-    const suspects = findUnminifiedExternalScripts(assets);
-    if (suspects.length === 0) return inlineResult;
+    const { sized, unsized } = partitionBySizeKnown(findCandidateScripts(assets));
+    const suspects = sized.filter(
+      (a) => (assetContentLength(a) ?? 0) > EXTERNAL_THRESHOLDS.minBytesToCheck
+    );
+
+    if (suspects.length === 0) {
+      // No suspect is provable and some candidates could not be sized. The
+      // inline verdict alone would read as a clean bill of health for scripts
+      // this audit never examined.
+      if (unsized.length > 0 && inlineResult.status === 'pass') {
+        return notMeasured(
+          'perf-minify-js',
+          `Could not check external script minification — ${unsizedReason(unsized.length, 'script')}. ${inlineResult.message}`,
+          { ...inlineResult.details, unsizedCount: unsized.length, unsized: unsized.map((a) => a.url) }
+        );
+      }
+      return inlineResult;
+    }
 
     const listed = suspects.slice(0, EXTERNAL_THRESHOLDS.maxListed).map((a) => a.url);
     const suffix =
@@ -185,10 +191,12 @@ export const minifyJsRule = defineRule({
     const suspectMessage =
       `${suspects.length} external script(s) appear unminified ` +
       `(heuristic: >${EXTERNAL_THRESHOLDS.minBytesToCheck} bytes and URL lacks ".min." — asset bodies are not inspected): ` +
-      `${listed.join(', ')}${suffix}`;
+      `${listed.join(', ')}${suffix}` +
+      (unsized.length > 0 ? `; additionally, ${unsizedReason(unsized.length, 'script')}` : '');
     const details = {
       ...inlineResult.details,
       externalSuspects: suspects.map((a) => a.url),
+      unsizedCount: unsized.length,
     };
 
     if (inlineResult.status !== 'pass') {

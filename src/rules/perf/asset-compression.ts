@@ -1,5 +1,6 @@
 import type { AssetInfo, AuditContext } from '../../types.js';
 import { defineRule, pass, warn, notMeasured } from '../define-rule.js';
+import { assetContentLength, partitionBySizeKnown, unsizedReason } from './asset-size.js';
 
 // Reference hint: performance/enable-text-compression
 
@@ -35,17 +36,6 @@ function isCompressed(asset: AssetInfo): boolean {
 }
 
 /**
- * Encoded size from the content-length header, or -1 when absent
- * (chunked responses carry none).
- */
-function contentLength(asset: AssetInfo): number {
-  const raw = asset.headers['content-length'];
-  if (!raw) return -1;
-  const parsed = parseInt(raw, 10);
-  return Number.isNaN(parsed) ? -1 : parsed;
-}
-
-/**
  * Rule: Check that text-based assets are served with compression
  *
  * Text resources (CSS, JavaScript, JSON, SVG) compress well and should be
@@ -71,35 +61,48 @@ export const assetCompressionRule = defineRule({
       );
     }
 
-    const uncompressed = assets
-      .filter(
-        (a) =>
-          a.statusCode >= 200 &&
-          a.statusCode < 300 &&
-          isTextAsset(a) &&
-          !isCompressed(a) &&
-          contentLength(a) > THRESHOLDS.minSizeBytes
-      )
-      .sort((a, b) => contentLength(b) - contentLength(a));
+    // Every uncompressed text asset is a candidate; only its size decides
+    // whether it is worth flagging, and that size is often unreadable.
+    const candidates = assets.filter(
+      (a) => a.statusCode >= 200 && a.statusCode < 300 && isTextAsset(a) && !isCompressed(a)
+    );
+    const { sized, unsized } = partitionBySizeKnown(candidates);
+
+    const uncompressed = sized
+      .filter((a) => (assetContentLength(a) ?? 0) > THRESHOLDS.minSizeBytes)
+      .sort((a, b) => (assetContentLength(b) ?? 0) - (assetContentLength(a) ?? 0));
 
     const details: Record<string, unknown> = {
       assetCount: assets.length,
       uncompressedCount: uncompressed.length,
+      unsizedCount: unsized.length,
       thresholds: THRESHOLDS,
     };
 
     if (uncompressed.length > 0) {
       const listed = uncompressed
         .slice(0, THRESHOLDS.maxListed)
-        .map((a) => `${a.url} (${contentLength(a)} bytes)`);
+        .map((a) => `${a.url} (${assetContentLength(a)} bytes)`);
       const suffix =
         uncompressed.length > THRESHOLDS.maxListed
           ? `, and ${uncompressed.length - THRESHOLDS.maxListed} more`
           : '';
+      const unsizedNote =
+        unsized.length > 0 ? `; additionally, ${unsizedReason(unsized.length, 'text asset')}` : '';
       return warn(
         'perf-asset-compression',
-        `${uncompressed.length} text asset(s) served without compression: ${listed.join(', ')}${suffix}`,
+        `${uncompressed.length} text asset(s) served without compression: ${listed.join(', ')}${suffix}${unsizedNote}`,
         { ...details, uncompressed: uncompressed.map((a) => a.url) }
+      );
+    }
+
+    // No offender is provable, but uncompressed assets of unknown size remain:
+    // claiming they are all fine would be asserting what was never read.
+    if (unsized.length > 0) {
+      return notMeasured(
+        'perf-asset-compression',
+        `Could not confirm text compression — ${unsizedReason(unsized.length, 'uncompressed text asset')}`,
+        { ...details, unsized: unsized.map((a) => a.url) }
       );
     }
 

@@ -1,5 +1,6 @@
 import type { AssetInfo, AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail, notMeasured } from '../define-rule.js';
+import { assetContentLength, partitionBySizeKnown, unsizedReason } from './asset-size.js';
 
 // Reference hints: performance/efficiently-encode-images,
 // performance/transferred-image-size-is-over-100kb
@@ -29,16 +30,6 @@ function isLegacyFormat(asset: AssetInfo): boolean {
   const contentType = (asset.headers['content-type'] || '').split(';')[0].trim();
   if (LEGACY_CONTENT_TYPES.has(contentType)) return true;
   return LEGACY_EXTENSION.test(asset.url.split('?')[0]);
-}
-
-/**
- * Encoded size from the content-length header, or -1 when absent.
- */
-function contentLength(asset: AssetInfo): number {
-  const raw = asset.headers['content-length'];
-  if (!raw) return -1;
-  const parsed = parseInt(raw, 10);
-  return Number.isNaN(parsed) ? -1 : parsed;
 }
 
 /**
@@ -73,14 +64,17 @@ export const imageEncodingRule = defineRule({
     );
 
     const legacy = images.filter(isLegacyFormat);
-    const oversized = images
-      .filter((a) => contentLength(a) > THRESHOLDS.oversizedBytes)
-      .sort((a, b) => contentLength(b) - contentLength(a));
+    // Only images carrying a content-length can be judged on transfer size.
+    const { sized: sizedImages, unsized: unsizedImages } = partitionBySizeKnown(images);
+    const oversized = sizedImages
+      .filter((a) => (assetContentLength(a) ?? 0) > THRESHOLDS.oversizedBytes)
+      .sort((a, b) => (assetContentLength(b) ?? 0) - (assetContentLength(a) ?? 0));
 
     const details: Record<string, unknown> = {
       imageCount: images.length,
       legacyCount: legacy.length,
       oversizedCount: oversized.length,
+      unsizedCount: unsizedImages.length,
       thresholds: THRESHOLDS,
     };
 
@@ -91,7 +85,7 @@ export const imageEncodingRule = defineRule({
     const listUrls = (list: AssetInfo[], withSize: boolean) => {
       const listed = list
         .slice(0, THRESHOLDS.maxListed)
-        .map((a) => (withSize ? `${a.url} (${Math.round(contentLength(a) / 1024)}KB)` : a.url));
+        .map((a) => (withSize ? `${a.url} (${Math.round((assetContentLength(a) ?? 0) / 1024)}KB)` : a.url));
       const suffix = list.length > THRESHOLDS.maxListed ? `, and ${list.length - THRESHOLDS.maxListed} more` : '';
       return listed.join(', ') + suffix;
     };
@@ -115,6 +109,16 @@ export const imageEncodingRule = defineRule({
         'perf-image-encoding',
         `${oversized.length} image(s) transferred over 100KB: ${listUrls(oversized, true)}`,
         { ...details, oversized: oversized.map((a) => a.url) }
+      );
+    }
+
+    // Formats checked out, but transfer size — half of what this rule claims —
+    // could not be read for some images, so "reasonably sized" is unearned.
+    if (unsizedImages.length > 0) {
+      return notMeasured(
+        'perf-image-encoding',
+        `No legacy image formats found, but transfer size could not be confirmed — ${unsizedReason(unsizedImages.length, 'image')}`,
+        { ...details, unsized: unsizedImages.map((a) => a.url) }
       );
     }
 

@@ -71,6 +71,8 @@ export function AuditPage() {
   const totalFail = result?.categoryResults.reduce((n, c) => n + c.failCount, 0) ?? 0;
   const totalWarn = result?.categoryResults.reduce((n, c) => n + c.warnCount, 0) ?? 0;
   const totalPass = result?.categoryResults.reduce((n, c) => n + c.passCount, 0) ?? 0;
+  const totalNotMeasured =
+    result?.categoryResults.reduce((n, c) => n + (c.notMeasuredCount ?? 0), 0) ?? 0;
 
   return (
     <div className="flex min-h-screen">
@@ -149,7 +151,12 @@ export function AuditPage() {
                       {result.crawledPages > 1 && ` across ${result.crawledPages} pages`}
                     </p>
                   </div>
-                  <ScoreStats passCount={totalPass} warnCount={totalWarn} failCount={totalFail} />
+                  <ScoreStats
+                    passCount={totalPass}
+                    warnCount={totalWarn}
+                    failCount={totalFail}
+                    notMeasuredCount={totalNotMeasured}
+                  />
                 </div>
               </div>
 

@@ -41,6 +41,10 @@ coverage/
 # Generated reports & screenshots
 seo-report-*.html
 *.png
+# ...but the app icon is a build resource, not a screenshot: electron-builder
+# stamps the bundle from it, so a clone without it packages with the default
+# Electron icon. Regenerate with `npm run gen:icons`.
+!electron/resources/icon.png
 
 # Playwright MCP data
 .playwright-mcp/

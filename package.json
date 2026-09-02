@@ -31,6 +31,7 @@
     "electron:dist:win": "electron-builder install-app-deps && npm run electron:build && electron-builder --win",
     "prepublishOnly": "npm run typecheck && npm run build && npm run check:docs",
     "sync:docs": "node scripts/sync-docs.mjs",
+    "gen:icons": "node scripts/gen-icons.mjs",
     "check:docs": "node scripts/sync-docs.mjs --check"
   },
   "keywords": [

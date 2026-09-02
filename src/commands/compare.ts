@@ -28,8 +28,24 @@ function trendGlyph(delta: number): string {
   return chalk.dim('=');
 }
 
-function formatDate(date: Date): string {
-  return date.toISOString().slice(0, 16).replace('T', ' ');
+/**
+ * Render an audit timestamp in the reader's own timezone.
+ *
+ * `toISOString()` renders UTC, and printed bare it reads as local time: an
+ * audit run at 18:04 in UTC+3 came out as "15:04", three hours before the
+ * command that produced it. Every other surface — `report --list`, the HTML
+ * report, the Markdown report — uses local time, so this was the one clock in
+ * the CLI that disagreed with the rest.
+ *
+ * @param date - The instant to render
+ * @returns 'YYYY-MM-DD HH:MM' in local time
+ */
+export function formatDate(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
+    `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
 }
 
 /**

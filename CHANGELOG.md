@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Fix-suggestion coverage is held by a test.** `FIX_SUGGESTIONS` covered all
+  332 rules, but nothing enforced it and `getFixSuggestion()` answers an
+  unknown id with a generic sentence rather than failing — so a new rule would
+  have shipped "Review and fix this issue based on SEO best practices" into the
+  HTML and LLM reports silently. The suite now checks both directions: no rule
+  without a suggestion, no suggestion for a deleted rule.
+
 - **`npm run sync:docs` derives the counts the docs advertise.** The rule count,
   category count, per-category counts, and the skill manifest's version are now
   rewritten from the live registry and `package.json` rather than typed by hand.
@@ -44,6 +51,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   drops below it as reference.
 
 ### Fixed
+
+- **Four performance rules passed on assets they never sized.** Asset bodies
+  are never captured, so `perf-asset-compression`, `perf-minify-css`,
+  `perf-minify-js` and `perf-image-encoding` judge size from the
+  `content-length` header. Each folded the size test into one `filter()`, so an
+  asset without the header dropped out of the offender list exactly like an
+  asset under the threshold, and the rule returned `pass()` — a positive claim
+  ("All sizable text assets are served with compression") about files it never
+  read. Chunked transfer-encoding and HTTP/2 framing omit the header on most
+  real sites: 29 of 30 stylesheets and scripts on seomator.com and 89 of 92 on
+  vercel.com arrive without one. A shared `asset-size.ts` now distinguishes
+  "small" from "unknown", and the rules report `notMeasured()` when an
+  unreadable size is all that stands between them and an offender. Partial
+  readings survive: sized offenders are still flagged, with the unsized
+  remainder disclosed alongside them.
+
+- **`redirect-loop` and `redirect-broken` could never fire.**
+  `context.redirectChain` was declared in `types.ts` and read by both rules,
+  but written by no code path — `fetchUrlWithRedirects()` is implemented,
+  exported and called from nowhere, while `fetchPage()` used
+  `redirect: 'follow'`, which discards the hops. Both rules returned
+  "redirect chain was not recorded" on every page in every mode: two of the 332
+  rules could not report a finding. `fetchPage` now takes an opt-in
+  `trackRedirects` that follows the chain by hand and records each hop, off by
+  default so the fifteen robots.txt and sitemap call sites keep the existing
+  path. A looping URL names its own cycle instead of failing as "empty response
+  body". This also activates the crawler's redirect discovery-source tracking,
+  written against the same never-populated field.
+
+- **`compare` printed UTC timestamps as though they were local.** `formatDate`
+  rendered with `toISOString()` and sliced off the `Z`, so an audit run at
+  18:04 on a UTC+3 machine displayed as `15:04` in both the two-run diff and
+  `--trend` — three hours before the command that produced it. Every other
+  surface (`report --list`, the HTML and Markdown reports) renders local time.
+  The storage layer parses these columns correctly; the offset was
+  reintroduced at the display boundary.
+
+- **The terminal footer and LLM `<summary>` dropped the not-measured count.**
+  The closing line of a 332-rule audit read "217 passed • 34 warnings • 24
+  failed", accounting for 275 rules with no hint the other 57 existed — the
+  total was already computed a few lines above and simply unused. Both
+  summaries now carry all four counts, which add up to the rule total, as the
+  HTML report always has.
+
+- **The desktop app advertised 251 rules while the engine had 332.** The
+  empty state hardcoded the v3.0.0 count, so the first thing a user saw
+  understated the engine by 81 rules; `check:docs` never caught it because
+  `sync-docs.mjs` only scans `SKILL.md` and `README.md`. The app now counts
+  the registry over a new `app:get-info` IPC channel, the way the CLI banner
+  does, so there is no literal left to drift. Its overall-score card also
+  gained the not-measured counter, which had the same gap as the terminal
+  footer.
+
+- **The HTML report's stat row broke out of its card at 375px.**
+  `.score-stats` is a nowrap flex row of five stats measuring 329px inside a
+  card whose content box ends at 359, so "332 Total" crossed the right border.
+  The mobile query set `justify-content: center`, which does nothing for a row
+  that overflows; it now wraps, as `.category-header` already did.
 
 - **Every JavaScript-rendering rule was unmeasured in crawl mode.** All eleven
   rendered-DOM rules (`js-rendered-title`, `-description`, `-h1`, `-canonical`,

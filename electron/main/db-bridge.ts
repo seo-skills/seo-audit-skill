@@ -15,12 +15,26 @@ import {
   type ScoreTrendPoint,
   type AuditDetailIpc,
   type RuleMetadataIpc,
+  type AppInfoIpc,
 } from '../shared/ipc-types.js';
-import { getRuleById } from '@core/rules/registry.js';
+import { getRuleById, getRuleCount } from '@core/rules/registry.js';
+import { categories } from '@core/categories/index.js';
+import { getVersion } from '@core/version.js';
 import { getFixSuggestion } from '@core/reporters/fix-suggestions.js';
 import type { AuditResult, CategoryResult, RuleResult } from '@core/types.js';
 
 export function registerDbHandlers(): void {
+  // Counted from the registry the way the CLI banner does it, so the numbers
+  // the app advertises cannot fall behind the rules it actually runs.
+  ipcMain.handle(
+    IPC_CHANNELS.APP_GET_INFO,
+    (): AppInfoIpc => ({
+      ruleCount: getRuleCount(),
+      categoryCount: categories.length,
+      version: getVersion(),
+    })
+  );
+
   ipcMain.handle(
     IPC_CHANNELS.DB_LIST_AUDITS,
     (_event, args?: DbListAuditsArgs): AuditSummaryIpc[] => {

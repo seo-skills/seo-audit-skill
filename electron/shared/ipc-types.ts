@@ -103,6 +103,22 @@ export interface AuditDetailIpc {
   ruleMetadata: Record<string, RuleMetadataIpc>;
 }
 
+/**
+ * Facts about the running build that the renderer would otherwise hardcode.
+ *
+ * The rule registry lives only in the main process, so the renderer cannot
+ * count rules itself. It used to print a literal instead, which drifted 81
+ * rules behind the engine between releases.
+ */
+export interface AppInfoIpc {
+  /** Rules registered in this build */
+  ruleCount: number;
+  /** Categories those rules are grouped into */
+  categoryCount: number;
+  /** Package version */
+  version: string;
+}
+
 // ─── Channel Map ────────────────────────────────────────────────────────────
 
 export const IPC_CHANNELS = {
@@ -123,4 +139,5 @@ export const IPC_CHANNELS = {
   DB_GET_SCORE_TREND: 'db:get-score-trend',
   DB_GET_AUDITED_DOMAINS: 'db:get-audited-domains',
   DB_GET_AUDIT_DETAIL: 'db:get-audit-detail',
+  APP_GET_INFO: 'app:get-info',
 } as const;

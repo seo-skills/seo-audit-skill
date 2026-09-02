@@ -19,6 +19,7 @@ import type {
   AuditSummaryIpc,
   ScoreTrendPoint,
   AuditDetailIpc,
+  AppInfoIpc,
 } from '../shared/ipc-types.js';
 
 export interface ElectronAPI {
@@ -39,6 +40,9 @@ export interface ElectronAPI {
   getScoreTrend: (args: DbScoreTrendArgs) => Promise<ScoreTrendPoint[]>;
   getAuditedDomains: () => Promise<string[]>;
   getAuditDetail: (auditId: string) => Promise<AuditDetailIpc | null>;
+
+  // Build facts
+  getAppInfo: () => Promise<AppInfoIpc>;
 }
 
 function createEventSubscriber<T>(channel: string) {
@@ -69,6 +73,9 @@ const electronAPI: ElectronAPI = {
   getScoreTrend: (args) => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_SCORE_TREND, args),
   getAuditedDomains: () => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_AUDITED_DOMAINS),
   getAuditDetail: (auditId) => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_AUDIT_DETAIL, auditId),
+
+  // Build facts
+  getAppInfo: () => ipcRenderer.invoke(IPC_CHANNELS.APP_GET_INFO),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);

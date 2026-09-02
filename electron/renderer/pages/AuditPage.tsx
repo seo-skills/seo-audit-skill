@@ -4,6 +4,7 @@
 
 import { useState, useCallback } from 'react';
 import { useAudit } from '../hooks/useAudit.js';
+import { useAppInfo } from '../hooks/useAppInfo.js';
 import { AuditRunner } from '../components/AuditRunner.js';
 import { ProgressStream } from '../components/ProgressStream.js';
 import { ScoreCircle } from '../components/ScoreCircle.js';
@@ -16,6 +17,7 @@ import { Sidebar } from '../components/Sidebar.js';
 
 export function AuditPage() {
   const { status, progress, result, ruleMetadata, error, run, cancel, reset } = useAudit();
+  const appInfo = useAppInfo();
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
@@ -235,18 +237,22 @@ export function AuditPage() {
                 Enter a URL above to analyze your site
               </p>
               <div className="flex items-center justify-center gap-2">
-                <span
-                  className="text-xs px-2.5 py-1 rounded-full font-medium"
-                  style={{ backgroundColor: 'var(--color-accent-light)', color: 'var(--color-accent)' }}
-                >
-                  251 Rules
-                </span>
-                <span
-                  className="text-xs px-2.5 py-1 rounded-full font-medium"
-                  style={{ backgroundColor: 'var(--color-info-bg)', color: 'var(--color-info)' }}
-                >
-                  20 Categories
-                </span>
+                {appInfo && (
+                  <span
+                    className="text-xs px-2.5 py-1 rounded-full font-medium"
+                    style={{ backgroundColor: 'var(--color-accent-light)', color: 'var(--color-accent)' }}
+                  >
+                    {appInfo.ruleCount} Rules
+                  </span>
+                )}
+                {appInfo && (
+                  <span
+                    className="text-xs px-2.5 py-1 rounded-full font-medium"
+                    style={{ backgroundColor: 'var(--color-info-bg)', color: 'var(--color-info)' }}
+                  >
+                    {appInfo.categoryCount} Categories
+                  </span>
+                )}
                 <span
                   className="text-xs px-2.5 py-1 rounded-full font-medium"
                   style={{ backgroundColor: 'var(--color-pass-bg)', color: 'var(--color-pass)' }}

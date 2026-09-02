@@ -359,12 +359,18 @@ export function renderTerminalReport(result: AuditResult): void {
     }
   }
 
-  // Summary footer
+  // Summary footer. Carries the not-measured count too: without it the closing
+  // line read "217 passed • 34 warnings • 24 failed" for a 332-rule audit, and
+  // the 57 checks that never ran simply vanished from the last thing the user
+  // sees. The HTML report has always shown all four numbers.
   console.log(renderSeparator(50));
   console.log(
     `${chalk.green(`${totalPassed} passed`)} ${chalk.gray('•')} ` +
     `${chalk.yellow(`${totalWarnings} warnings`)} ${chalk.gray('•')} ` +
-    `${chalk.red(`${totalFailures} failed`)}`
+    `${chalk.red(`${totalFailures} failed`)}` +
+    (totalNotMeasured > 0
+      ? ` ${chalk.gray('•')} ${chalk.gray(`${totalNotMeasured} not measured`)}`
+      : '')
   );
   console.log(renderSeparator(50));
   console.log();

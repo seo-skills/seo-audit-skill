@@ -149,7 +149,16 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
   const totalPassed = result.categoryResults.reduce((sum, cat) => sum + cat.passCount, 0);
   const totalWarnings = result.categoryResults.reduce((sum, cat) => sum + cat.warnCount, 0);
   const totalFailures = result.categoryResults.reduce((sum, cat) => sum + cat.failCount, 0);
-  lines.push(`${t1}<summary passed="${totalPassed}" warnings="${totalWarnings}" failures="${totalFailures}"/>${nl}`);
+  // `notMeasured` completes the accounting: without it the three counts fall
+  // short of the rule total, and a model reading this report has no way to see
+  // that the shortfall is checks that never ran rather than checks that passed.
+  const totalNotMeasured = result.categoryResults.reduce(
+    (sum, cat) => sum + (cat.notMeasuredCount ?? 0),
+    0
+  );
+  lines.push(
+    `${t1}<summary passed="${totalPassed}" warnings="${totalWarnings}" failures="${totalFailures}" notMeasured="${totalNotMeasured}"/>${nl}`
+  );
 
   // Categories (compact format)
   lines.push(`${t1}<categories>${nl}`);

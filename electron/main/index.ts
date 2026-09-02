@@ -40,7 +40,8 @@ function createWindow(): void {
     // Windows and Linux read the window icon at runtime; macOS uses the bundle.
     ...(devIcon && { icon: devIcon }),
     titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 16 },
+    // Centres the 12px lights in the 52px toolbar: 52/2 - 12/2 = 20.
+    trafficLightPosition: { x: 16, y: 20 },
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       contextIsolation: true,

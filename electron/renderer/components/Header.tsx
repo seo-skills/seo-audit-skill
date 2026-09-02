@@ -1,9 +1,14 @@
 /**
- * Fixed header with logo, audited URL info, and theme toggle.
- * Left padding accounts for macOS traffic light buttons.
+ * The window toolbar: brand, view switcher, audited URL, appearance toggle.
+ *
+ * Shaped after a macOS unified toolbar rather than a web navbar — frosted
+ * material over the scrolling content, a hairline separator instead of a drop
+ * shadow, a segmented control for the view switch, and left padding that
+ * clears the traffic lights.
  */
 
 import { useTheme } from '../hooks/useTheme.js';
+import { Logo } from './Logo.js';
 
 interface HeaderProps {
   url?: string | null;
@@ -17,41 +22,31 @@ export function Header({ url, crawledPages, activeView, onViewChange }: HeaderPr
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 h-[var(--header-height)] bg-[var(--color-bg-elevated)] border-b border-[var(--color-border)] z-50 flex items-center pl-[var(--traffic-light-width)] pr-5 gap-4 drag-region"
-      style={{ boxShadow: 'var(--shadow-sm)' }}
+      className="toolbar drag-region fixed top-0 left-0 right-0 h-[var(--header-height)] z-50 flex items-center pl-[var(--traffic-light-width)] pr-3 gap-3"
     >
-      {/* Brand */}
-      <div className="flex items-center gap-2.5 shrink-0">
-        <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs"
-          style={{ background: 'linear-gradient(135deg, var(--color-accent), #3b82f6)' }}
-        >
-          S
-        </div>
-        <span className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>
-          SEOmator
-        </span>
+      {/* Brand. The lockup names the product, so no text beside it; its
+          wordmark is painted in currentColor and follows the theme. */}
+      <div className="flex items-center shrink-0" style={{ color: 'var(--color-text)' }}>
+        <Logo height={20} />
       </div>
 
-      {/* Separator */}
-      <div className="w-px h-5 shrink-0" style={{ backgroundColor: 'var(--color-border)' }} />
-
-      {/* Nav tabs */}
-      <nav className="flex gap-1 no-drag shrink-0">
-        <NavTab
+      {/* View switcher */}
+      <nav className="segmented no-drag shrink-0 ml-1" role="tablist" aria-label="View">
+        <Segment
           label="Audit"
           active={activeView === 'audit'}
           onClick={() => onViewChange('audit')}
         />
-        <NavTab
+        <Segment
           label="History"
           active={activeView === 'history'}
           onClick={() => onViewChange('history')}
         />
       </nav>
 
-      {/* URL info */}
-      <div className="flex-1 flex items-center gap-2.5 min-w-0 no-drag">
+      {/* Audited document. Centred like a native window title, and allowed to
+          truncate rather than push the controls around. */}
+      <div className="flex-1 flex items-center justify-center gap-2 min-w-0 px-2">
         {url && (
           <>
             <span
@@ -76,32 +71,52 @@ export function Header({ url, crawledPages, activeView, onViewChange }: HeaderPr
         )}
       </div>
 
-      {/* Theme toggle */}
+      {/* Appearance */}
       <button
         onClick={toggle}
-        className="no-drag w-8 h-8 flex items-center justify-center rounded-md hover:bg-[var(--color-bg-hover)] transition-colors shrink-0"
-        title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+        className="toolbar-button no-drag shrink-0"
+        title={`Switch to ${theme === 'light' ? 'dark' : 'light'} appearance`}
+        aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} appearance`}
       >
-        <span className="text-base">{theme === 'light' ? '\u263E' : '\u2600'}</span>
+        {theme === 'light' ? <MoonIcon /> : <SunIcon />}
       </button>
     </header>
   );
 }
 
-function NavTab({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function Segment({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button
+      role="tab"
+      aria-selected={active}
       onClick={onClick}
-      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-        active
-          ? 'bg-[var(--color-accent-light)]'
-          : 'hover:bg-[var(--color-bg-hover)]'
-      }`}
-      style={{
-        color: active ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-      }}
+      className={`segment ${active ? 'segment-active' : ''}`}
     >
       {label}
     </button>
+  );
+}
+
+/**
+ * Stroked 16px glyphs, drawn in currentColor.
+ *
+ * The toggle previously rendered the ☀/☾ text characters, which pick up the
+ * emoji font and sit on the text baseline — the giveaway that a control was
+ * typed rather than drawn.
+ */
+function MoonIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
+    </svg>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
   );
 }

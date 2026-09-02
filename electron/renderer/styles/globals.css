@@ -34,10 +34,21 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
 
-  --header-height: 64px;
+  /* A macOS unified toolbar is ~52px, not the 64px a web header reaches for. */
+  --header-height: 52px;
   --sidebar-width: 260px;
   --content-max-width: 1200px;
-  --traffic-light-width: 78px;
+  /* Traffic lights sit at x:16 and run ~58px wide, so content clears them at
+     ~92px. At 78px the logo crowded the green button. */
+  --traffic-light-width: 92px;
+
+  /* Toolbar material. Native toolbars are translucent over the content that
+     scrolls beneath them, with a hairline separator and no drop shadow. */
+  --toolbar-bg: rgba(255, 255, 255, 0.72);
+  --toolbar-border: rgba(0, 0, 0, 0.10);
+  --segment-track: rgba(0, 0, 0, 0.05);
+  --segment-active: #ffffff;
+  --segment-shadow: 0 1px 2px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
 
   --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
@@ -70,6 +81,12 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.6);
   --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.7);
+
+  --toolbar-bg: rgba(24, 24, 27, 0.72);
+  --toolbar-border: rgba(255, 255, 255, 0.10);
+  --segment-track: rgba(255, 255, 255, 0.06);
+  --segment-active: rgba(255, 255, 255, 0.16);
+  --segment-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(255, 255, 255, 0.08);
 }
 
 /* ─── Base Resets (layered so Tailwind utilities can override) ──────────── */
@@ -96,6 +113,71 @@
 }
 .no-drag {
   -webkit-app-region: no-drag;
+}
+
+/* ─── Native toolbar ───────────────────────────────────────────────────────
+   Frosted material rather than a solid bar: content scrolling underneath
+   shows through, which is what makes a titlebar read as part of the window
+   chrome instead of as a web page header. The separator is a hairline — at
+   1px with a shadow it looked like a web navbar sitting on top of the page. */
+.toolbar {
+  background: var(--toolbar-bg);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 0.5px solid var(--toolbar-border);
+}
+
+/* ─── Segmented control ────────────────────────────────────────────────────
+   The macOS view switcher: one recessed track, the selected item raised on
+   its own surface. A filled accent pill is a web pattern and was the loudest
+   non-native element in the toolbar. */
+.segmented {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--segment-track);
+}
+
+.segment {
+  padding: 3px 12px;
+  border-radius: 5px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.segment:hover:not(.segment-active) {
+  color: var(--color-text);
+}
+
+.segment-active {
+  background: var(--segment-active);
+  color: var(--color-text);
+  box-shadow: var(--segment-shadow);
+}
+
+/* ─── Toolbar icon button ──────────────────────────────────────────────── */
+.toolbar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.toolbar-button:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+}
+
+.toolbar-button:active {
+  background: var(--color-bg-active);
 }
 
 /* ─── Scrollbar Styling ────────────────────────────────────────────────── */

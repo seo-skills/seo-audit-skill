@@ -52,18 +52,21 @@ interface Grouping {
  *
  * "Title is 51 chars" and "Title is 62 chars" are the same finding; without
  * this they group separately and the report is long again for a subtler reason.
- * Same substitutions as the terminal reporter, which this will eventually share.
+ *
+ * This was a list of noun patterns — `X chars`, `X words`, `X images`, `X
+ * links`, `Xpx`, `Xms`, `XKB` — which only covers the units someone thought of.
+ * On a real crawl `technical-trailing-slash` printed five times, because its
+ * message counts URLs and a percentage: "16 URLs with slash, 2 without (11%
+ * inconsistency)", then 14, 6, 21 and 8. One finding took five entries and five
+ * of the agent report's fifty slots.
+ *
+ * Any number that is not part of a word is a quantity, so any number that is
+ * not part of a word is normalised. The lookbehind is what keeps `H1` and `H2`
+ * — and `IPv4`, and `og:image` — as the distinct things they are, rather than
+ * collapsing "Missing H1" and "Missing H2" into one finding.
  */
-function normalizeMessage(message: string): string {
-  return message
-    .replace(/\d+ chars?/g, 'X chars')
-    .replace(/\d+ words?/g, 'X words')
-    .replace(/\d+ images?/g, 'X images')
-    .replace(/\d+ links?/g, 'X links')
-    .replace(/\d+px/g, 'Xpx')
-    .replace(/\d+ms/g, 'Xms')
-    .replace(/\d+KB/g, 'XKB')
-    .replace(/\d+\.\d+s/g, 'X.Xs');
+export function normalizeMessage(message: string): string {
+  return message.replace(/(?<![A-Za-z0-9])\d+(?:\.\d+)?/g, 'N');
 }
 
 function pageOf(result: RuleResult): string | null {

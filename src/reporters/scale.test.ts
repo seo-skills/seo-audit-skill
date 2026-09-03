@@ -82,7 +82,9 @@ describe('a 1,000-page crawl stays within budget', () => {
   }, 120_000);
 
   it('renders the agent report under 250 KB', () => {
-    // Was 1.44 MB — a report meant to fit in a model's context.
+    // Was 1.44 MB — a report meant to fit in a model's context. The size came
+    // from listing each finding once per page, not from the finding count, so
+    // the fix is dedupe; the cap only bounds the pathological case.
     expect(renderLlmReport(result).length).toBeLessThan(250 * 1024);
   }, 120_000);
 

@@ -234,6 +234,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the twenty category rows re-announced the entire section. It is now a single
   status line that changes only when the phase or the count does.
 
+- **One finding is listed once, however its message is worded.** Message
+  grouping normalised a hand-maintained list of units — `X chars`, `X words`,
+  `X images`, `X links`, `Xpx`, `Xms`, `XKB` — which only covers what someone
+  thought of. On a real crawl `technical-trailing-slash` printed **five times**,
+  because its message counts URLs and a percentage: "16 URLs with slash, 2
+  without (11% inconsistency)", then 14, 6, 21 and 8. One finding took five
+  entries and five of the agent report's slots. Any number that is not part of a
+  word is now treated as a quantity, so `H1` and `H2` stay the distinct findings
+  they are while those five collapse to one. The terminal and the shared grouper
+  had separate copies of this; there is one now.
+
+- **The agent report stops truncating real audits.** The 50-finding cap was
+  chosen when a 1,000-page crawl produced 1.4 MB — but that size came from
+  listing each finding once per page, not from the number of findings. With the
+  duplication fixed, 50 was simply too low: an eight-page personal blog produced
+  77 findings and 27 were dropped. The cap is 150, which is a bound on the
+  pathological case rather than a curation — curation is what the ordering is
+  for, since an agent can stop reading a ranked list but cannot recover what was
+  truncated. That blog's 77 findings now arrive complete, in 60 KB.
+
 - **A 1,000-page crawl is a budget now, not a hope.** Nothing asserted what the
   reporters do at scale, and the 8-page fixture hides all of it, because every
   cost is per-rule-per-page on a live crawl. Measured for the first time, a

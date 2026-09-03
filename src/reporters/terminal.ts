@@ -10,6 +10,7 @@ import {
 } from './banner.js';
 import { isNotMeasured } from '../rules/define-rule.js';
 import { rulePriority } from '../rules/priority.js';
+import { normalizeMessage } from './findings.js';
 import { getRuleById } from '../rules/registry.js';
 
 /**
@@ -80,21 +81,6 @@ function getPageUrl(result: RuleResult): string | null {
   return null;
 }
 
-/**
- * Normalize a message for grouping (strip variable parts)
- */
-function normalizeMessage(message: string): string {
-  // Remove specific numbers that vary (like "20 chars" -> "X chars")
-  return message
-    .replace(/\d+ chars?/g, 'X chars')
-    .replace(/\d+ words?/g, 'X words')
-    .replace(/\d+ images?/g, 'X images')
-    .replace(/\d+ links?/g, 'X links')
-    .replace(/\d+px/g, 'Xpx')
-    .replace(/\d+ms/g, 'Xms')
-    .replace(/\d+KB/g, 'XKB')
-    .replace(/\d+\.\d+s/g, 'X.Xs');
-}
 
 /**
  * Group issues by category, rule, and message

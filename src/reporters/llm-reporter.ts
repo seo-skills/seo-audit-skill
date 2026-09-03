@@ -121,12 +121,19 @@ interface IssueData {
 /**
  * How many findings the report carries.
  *
- * A 1,000-page crawl can produce thousands; a model asked to act on them runs
- * out of context long before it runs out of list. Findings are ranked by
- * impact, so the cap drops the least important, and `<issues>` states how many
- * were left out so nothing reads as complete when it is not.
+ * This was 50, chosen when a 1,000-page crawl produced a 1.4MB report — but
+ * that size came from listing every finding once per page, not from the number
+ * of findings. With that fixed, 50 was simply too low: an eight-page personal
+ * blog produced 77 real findings and 27 of them were dropped.
+ *
+ * The cap is a bound on the pathological case, not a curation. Curation is what
+ * the ordering is for: findings arrive ranked by impact, so an agent can stop
+ * reading whenever it has enough — and it cannot recover what was truncated
+ * away. At roughly 700 bytes each, 150 findings is about 105KB (~26k tokens),
+ * which covers every audit a 332-rule engine can realistically produce while
+ * still refusing to grow without limit.
  */
-const MAX_ISSUES = 50;
+export const MAX_ISSUES = 150;
 
 /**
  * Render audit result in LLM-optimized XML format

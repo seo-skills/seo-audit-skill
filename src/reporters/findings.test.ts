@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import '../rules/loader.js';
 import { collectFindings } from './findings.js';
 import { renderMarkdownReport } from './markdown-reporter.js';
-import { renderLlmReport } from './llm-reporter.js';
+import { renderLlmReport, MAX_ISSUES } from './llm-reporter.js';
 import type { AuditResult, RuleResult, CategoryResult } from '../types.js';
 
 const PAGES = ['https://e.com/', 'https://e.com/a', 'https://e.com/b'];
@@ -123,14 +123,18 @@ describe('llm report', () => {
   });
 
   it('caps a long list and says how much it left out', () => {
-    // 60 distinct rules, one page each.
-    const many = Array.from({ length: 60 }, (_, i) => ({
+    // Derived from the cap rather than hardcoded: this test asserted 50 and
+    // silently became a test of nothing when the cap moved to 150.
+    const total = MAX_ISSUES + 10;
+    const many = Array.from({ length: total }, (_, i) => ({
       ...res(`perf-rule-${i}`, PAGES[0]),
-      message: `Problem number ${i} of kind alpha`,
+      // Distinct rule ids, so normalising the number in the message does not
+      // fold them into one finding.
+      message: `Problem of kind alpha`,
     }));
     const xml = renderLlmReport(crawl(many));
-    expect((xml.match(/<issue /g) ?? []).length).toBe(50);
-    expect(xml).toContain('total="60"');
+    expect((xml.match(/<issue /g) ?? []).length).toBe(MAX_ISSUES);
+    expect(xml).toContain(`total="${total}"`);
     expect(xml).toContain('omitted="10"');
   });
 

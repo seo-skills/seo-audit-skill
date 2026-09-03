@@ -11,6 +11,7 @@ import { toAuditSummary } from '../storage/audits-db/audits.js';
 import { diffRules } from '../storage/audits-db/rule-diff.js';
 import { categories as categoryDefinitions } from '../categories/index.js';
 import { getRuleById } from '../rules/registry.js';
+import { rulePriority } from '../rules/priority.js';
 import { getFixSuggestion } from '../reporters/fix-suggestions.js';
 import type { AuditResult, CategoryResult } from '../types.js';
 import {
@@ -104,6 +105,13 @@ export function getAuditDetail(db: AuditsDatabase, auditId: string): AuditDetail
     const entry: RuleSummary = {
       ruleId: s.ruleId,
       ruleName: s.ruleName,
+      priority: rulePriority({
+        ruleId: s.ruleId,
+        categoryId: s.categoryId,
+        status: s.status,
+        affectedPages: s.affectedPages,
+        measuredPages: s.measuredPages,
+      }),
       status: s.status,
       message: s.message,
       score: s.score,

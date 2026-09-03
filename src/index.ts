@@ -41,6 +41,12 @@ export type {
   OnCrawlProgressCallback,
 } from './auditor.js';
 
+// What to fix first. Server-side only by design: the weights it reads exist
+// only after the whole rule registry has loaded, so this must not be pulled
+// into a browser bundle — surfaces receive the computed number instead.
+export { rulePriority, byPriority } from './rules/priority.js';
+export type { PriorityInput } from './rules/priority.js';
+
 // One score, one verdict, shared by every surface. A consumer rendering an
 // audit should derive its grade and label here rather than re-deriving them.
 export { scoreToVerdict, verdictCssVar } from './verdict.js';

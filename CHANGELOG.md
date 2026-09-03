@@ -43,6 +43,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdict, so a score cannot be green on one surface and amber on another.
 - The LLM report emits `<not-measured>` alongside `<passed>`, so an agent can
   tell "we checked and it is fine" from "we could not check".
+- **`rulePriority()` — what to fix first.** An audit produces 332 findings and
+  no surface could say which mattered; the HTML report ordered by severity and
+  then by registry order, so a weight-1 warning sat above a weight-25 one. No
+  new data was needed: the registry already carries a rule weight (13 distinct
+  values) and every category a weight, and `rule x category x severity x share
+  of pages affected` ranks the lot. On a real 8-page audit that turns 332 rules
+  into 46 actionable ones led by render-blocking resources and lazy-loading
+  above the fold. Unmeasured and passing rules rank 0, so the top of a report
+  is never "we did not check this". The number travels on `RuleSummary`;
+  surfaces never compute it, because the weights behind it exist only once the
+  whole rule registry has loaded.
 - `getResultCounts()` returns a fourth bucket, and the four now sum to the
   total. Bucketing by status alone left `pass + warn + fail` quietly short.
 

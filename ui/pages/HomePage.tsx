@@ -48,6 +48,13 @@ export function HomePage() {
     return <PageError kind="server-gone" onRetry={refresh} />;
   }
 
+  // A restarted server mints a new token; this tab still holds the old cookie.
+  // Retrying the same fetch can never succeed — only a reload picks the new one
+  // up, because the cookie is set on the document response.
+  if (domains.stale || audits.stale) {
+    return <PageError kind="stale-session" />;
+  }
+
   // A failed read is not an empty database. Without this branch the page told a
   // user whose read had failed that they had no audits yet and invited them to
   // run their first one — while the audits they already had sat unread.

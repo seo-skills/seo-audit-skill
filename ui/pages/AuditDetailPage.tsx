@@ -111,6 +111,7 @@ export function AuditDetailPage() {
   }, [id, navigate, reads]);
 
   if (detail.serverGone) return <PageError kind="server-gone" onRetry={detail.reload} />;
+  if (detail.stale) return <PageError kind="stale-session" />;
   if (!detail.loading && !detail.data) return <PageError kind="not-found" />;
   if (!detail.data) {
     return (

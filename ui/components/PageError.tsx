@@ -10,7 +10,7 @@
 import { Link } from 'react-router-dom';
 
 interface PageErrorProps {
-  kind: 'server-gone' | 'not-found' | 'read-failed';
+  kind: 'server-gone' | 'not-found' | 'read-failed' | 'stale-session';
   /** Overrides the heading; some "not found" cases are not failures */
   title?: string;
   message?: string;
@@ -19,14 +19,18 @@ interface PageErrorProps {
 
 export function PageError({ kind, title, message, onRetry }: PageErrorProps) {
   const defaultTitle =
-    kind === 'server-gone'
+    kind === 'stale-session'
+      ? 'The dashboard was restarted'
+      : kind === 'server-gone'
       ? 'The dashboard server stopped'
       : kind === 'read-failed'
         ? 'Could not load your audits'
         : 'Not found';
 
   const defaultMessage =
-    kind === 'server-gone'
+    kind === 'stale-session'
+      ? 'It is running, but this tab is holding the previous session. Reloading reconnects it.'
+      : kind === 'server-gone'
       ? 'Start it again with `seomator serve`, then retry.'
       : kind === 'read-failed'
         ? 'The database is there but the read failed. Retrying often works; if it does not, the file may be locked by another process.'
@@ -46,7 +50,17 @@ export function PageError({ kind, title, message, onRetry }: PageErrorProps) {
           {message ?? defaultMessage}
         </p>
         <div className="flex items-center justify-center gap-2">
-          {onRetry && (
+          {kind === 'stale-session' ? (
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="px-3 py-1.5 text-sm rounded-md font-medium"
+              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
+            >
+              Reload
+            </button>
+          ) : (
+            onRetry && (
             <button
               type="button"
               onClick={onRetry}
@@ -55,6 +69,7 @@ export function PageError({ kind, title, message, onRetry }: PageErrorProps) {
             >
               Retry
             </button>
+            )
           )}
           <Link
             to="/"

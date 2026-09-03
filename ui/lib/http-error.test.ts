@@ -43,3 +43,28 @@ describe('HttpApiError', () => {
     expect(message ? 'handled' : 'silently ignored').toBe('handled');
   });
 });
+
+/**
+ * A restarted `seomator serve` mints a new per-launch token. A tab that was
+ * already open still holds the old cookie, so every API call 401s while the
+ * document request would happily set the new one. That distinction decides
+ * which action the UI can offer: retrying the same fetch repeats the same 401
+ * forever, and only a reload picks up a fresh cookie.
+ */
+describe('a stale session is not a generic read failure', () => {
+  it('is identifiable by status, not by message', () => {
+    const stale = new HttpApiError(401, { code: 'unauthorized', message: 'Bad token' });
+    expect(stale.status).toBe(401);
+  });
+
+  it('is distinguishable from the failures that Retry can fix', () => {
+    const retryable = [500, 502, 503].map((s) => new HttpApiError(s, undefined));
+    for (const error of retryable) {
+      expect(error.status).not.toBe(401);
+    }
+  });
+
+  it('still carries a message a person can read', () => {
+    expect(new HttpApiError(401, undefined).message).toContain('401');
+  });
+});

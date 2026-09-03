@@ -7,13 +7,25 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { ServerUnreachableError } from './http-api.js';
+import { HttpApiError, ServerUnreachableError } from './http-api.js';
 
 export interface AsyncState<T> {
   data: T | null;
   error: string | null;
   /** True when the failure was the server going away, not a bad request */
   serverGone: boolean;
+  /**
+   * True when the server rejected our token.
+   *
+   * This is what a restarted `seomator serve` looks like to a page that was
+   * already open: a new per-launch token is minted, the browser still holds the
+   * old cookie, and every API call 401s. The document request would set the new
+   * cookie — but the page is not requesting the document, it is requesting the
+   * API, so retrying the same fetch fails identically forever. Only a reload
+   * fixes it, and the UI has to say so rather than offering a Retry that cannot
+   * work.
+   */
+  stale: boolean;
   loading: boolean;
   reload: () => void;
 }
@@ -25,6 +37,7 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[]): AsyncState
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [serverGone, setServerGone] = useState(false);
+  const [stale, setStale] = useState(false);
   const [loading, setLoading] = useState(true);
   const [nonce, setNonce] = useState(0);
 
@@ -39,10 +52,12 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[]): AsyncState
         setData(value);
         setError(null);
         setServerGone(false);
+        setStale(false);
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
         setServerGone(cause instanceof ServerUnreachableError);
+        setStale(cause instanceof HttpApiError && cause.status === 401);
         // Never store an empty string: callers test `if (error)`, and a falsy
         // error is indistinguishable from no error at all.
         const message = cause instanceof Error ? cause.message.trim() : '';
@@ -57,7 +72,7 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[]): AsyncState
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, nonce]);
 
-  return { data, error, serverGone, loading, reload };
+  return { data, error, serverGone, stale, loading, reload };
 }
 
 /**

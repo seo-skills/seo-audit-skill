@@ -18,6 +18,7 @@ export function ComparePage() {
   const comparison = useAsync(() => reads.compare(id, against), [id, against]);
 
   if (comparison.serverGone) return <PageError kind="server-gone" onRetry={comparison.reload} />;
+  if (comparison.stale) return <PageError kind="stale-session" />;
   if (comparison.error) {
     // The first audit of a site has nothing to compare against. That is not a
     // failure, so it does not get a failure's heading.

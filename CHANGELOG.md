@@ -185,6 +185,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   under Electron gained the same treatment: a save that fails no longer leaves
   the user believing they have a file they do not have.
 
+- **A restarted server no longer strands an open tab on a Retry that cannot
+  work.** `seomator serve` mints a per-launch token, so restarting it leaves any
+  open tab holding the previous cookie: every API call 401s while the document
+  request would set the new one. The dashboard showed "Could not load your
+  audits — The server returned 401" with a Retry button that re-ran the same
+  fetch with the same stale cookie, failing identically every time. A 401 is now
+  its own state — "The dashboard was restarted" — offering the one action that
+  resolves it.
+
 - **A failed read no longer looks like an empty database.** `HttpApiError` was
   built with `super(failure.message)` from whatever the response body carried.
   Any body that was not the exact error envelope — a bare string, a proxy's HTML

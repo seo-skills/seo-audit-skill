@@ -899,7 +899,7 @@ Yes. The `--format llm` flag outputs token-efficient, injection-hardened XML des
 
 ## Requirements
 
-- **Node.js 20+** (required by better-sqlite3; uses native fetch API)
+- **Node.js 20.3+** (required by better-sqlite3 and `AbortSignal.any()`; uses native fetch API)
 - **Playwright** (for Core Web Vitals and JS rendering analysis)
 
 After installing, run `npx playwright install chromium` to install the browser for CWV measurement.

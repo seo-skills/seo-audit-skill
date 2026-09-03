@@ -19,12 +19,16 @@ export function ComparePage() {
 
   if (comparison.serverGone) return <PageError kind="server-gone" onRetry={comparison.reload} />;
   if (comparison.error) {
+    // The first audit of a site has nothing to compare against. That is not a
+    // failure, so it does not get a failure's heading.
+    const nothingYet = comparison.error.includes('previous');
     return (
       <PageError
         kind="not-found"
+        title={nothingYet ? 'Nothing to compare yet' : undefined}
         message={
-          comparison.error.includes('previous')
-            ? 'There is no earlier audit of this site to compare against yet. Run it again.'
+          nothingYet
+            ? 'This is the only audit of this site so far. Run it again after a change and the difference will show up here.'
             : comparison.error
         }
       />

@@ -7,11 +7,13 @@ import { Link } from 'react-router-dom';
 
 interface PageErrorProps {
   kind: 'server-gone' | 'not-found';
+  /** Overrides the heading; some "not found" cases are not failures */
+  title?: string;
   message?: string;
   onRetry?: () => void;
 }
 
-export function PageError({ kind, message, onRetry }: PageErrorProps) {
+export function PageError({ kind, title, message, onRetry }: PageErrorProps) {
   const serverGone = kind === 'server-gone';
 
   return (
@@ -22,7 +24,7 @@ export function PageError({ kind, message, onRetry }: PageErrorProps) {
         role="alert"
       >
         <p className="text-base font-medium mb-1" style={{ color: 'var(--color-text)' }}>
-          {serverGone ? 'The dashboard server stopped' : 'Not found'}
+          {title ?? (serverGone ? 'The dashboard server stopped' : 'Not found')}
         </p>
         <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>
           {message ??

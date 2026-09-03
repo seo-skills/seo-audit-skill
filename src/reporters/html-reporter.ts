@@ -539,7 +539,7 @@ ${tokensToCss()}
 
     .quiet-rules summary {
       cursor: pointer;
-      padding: 12px 4px;
+      padding: 7px 4px;
       font-size: 13px;
       font-weight: 500;
       color: var(--color-text-muted);
@@ -1077,7 +1077,7 @@ ${tokensToCss()}
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 16px 20px;
+      padding: 10px 20px;
       border-bottom: 1px solid var(--color-border);
       background: var(--color-bg);
     }
@@ -1094,7 +1094,7 @@ ${tokensToCss()}
 
     .issues-table th {
       text-align: left;
-      padding: 12px 16px;
+      padding: 8px 16px;
       font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
@@ -1109,7 +1109,9 @@ ${tokensToCss()}
     }
 
     .issues-table td {
-      padding: 14px 16px;
+      /* Ten of these decide whether the top ten findings reach the first
+         screen: at 14px the tenth row landed at y=980 on a 900px viewport. */
+      padding: 8px 16px;
       border-bottom: 1px solid var(--color-border-subtle);
       font-size: 13px;
     }
@@ -1217,7 +1219,7 @@ ${tokensToCss()}
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 16px 20px;
+      padding: 10px 20px;
       background: var(--color-bg-elevated);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-lg) var(--radius-lg) 0 0;
@@ -1271,7 +1273,7 @@ ${tokensToCss()}
        Rule Cards
        ======================================== */
     .rule-card {
-      padding: 16px 20px;
+      padding: 12px 20px;
       border-bottom: 1px solid var(--color-border-subtle);
       transition: background 0.15s;
     }
@@ -1404,9 +1406,22 @@ ${tokensToCss()}
       margin-bottom: 8px;
     }
 
+    .rule-fix > summary {
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .rule-fix > summary::marker,
+    .rule-fix > summary::-webkit-details-marker { display: none; }
+
     .rule-fix {
-      margin-top: 12px;
-      padding: 12px 16px;
+      margin-top: 8px;
+    }
+
+    /* Open, the advice gets its panel; closed, it costs one line. It was 46px
+       of every card in a report where cards are 83% of the page. */
+    .rule-fix[open] > .rule-fix-text {
+      padding: 10px 14px;
       border-left: 3px solid var(--color-info);
       background: var(--color-bg);
       border-radius: 0 var(--radius-md) var(--radius-md) 0;
@@ -1421,6 +1436,9 @@ ${tokensToCss()}
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--color-info);
+    }
+
+    .rule-fix[open] > .rule-fix-header {
       margin-bottom: 6px;
     }
 
@@ -2127,7 +2145,13 @@ export function renderHtmlReport(result: AuditResult): string {
     b.pageCount - a.pageCount ||
     a.ruleId.localeCompare(b.ruleId);
 
-  const issueTableRows = [...failures.sort(byPriority), ...warnings.sort(byPriority)]
+  // The table and the category sections below rendered the same 46 findings
+  // twice — 3,191px of rows and 12,217px of cards, 90% of a 17,199px page. The
+  // table is a ranked index now: what to fix first, linking down to the detail.
+  const rankedIssues = [...failures.sort(byPriority), ...warnings.sort(byPriority)];
+  const TOP_ISSUES = 10;
+  const issueTableRows = rankedIssues
+    .slice(0, TOP_ISSUES)
     .map((issue) => {
       const urlsCommaSeparated = issue.pages.map(p => p.url).join(',');
       const pageDisplay = issue.pages.length === 0
@@ -2257,20 +2281,33 @@ export function renderHtmlReport(result: AuditResult): string {
       // Generate pages list HTML (collapsible for 4+ pages)
       const pagesHtml = generatePagesListHtml(issue.pages);
 
-      // Show description only if we have one and it's not just the message repeated
-      const showDescription = issue.ruleDescription && issue.ruleDescription !== issue.message;
+      // The rule's generic description ("checks that the page has a title")
+      // sat under the finding's own message ("title is 51 characters"): noise
+      // while scanning, and it was on every one of the cards that make up most
+      // of the page. For a finding with advice it moves inside that advice,
+      // where the reader has stopped scanning and started reading. For a check
+      // that passed there is no advice to hold it, and it is the only context
+      // the card has — so it stays where it was, one line under the result.
+      const description =
+        issue.ruleDescription && issue.ruleDescription !== issue.message
+          ? issue.ruleDescription
+          : '';
+      const descriptionHtml = description
+        ? `<div class="rule-description">${escapeHtml(description)}</div>`
+        : '';
 
       // Fix advice belongs to results that found something wrong. Offering it
       // for a check that took no reading told readers to optimise a metric
       // nobody had measured.
       const fixHtml = issue.status === 'fail' || issue.status === 'warn'
-        ? `<div class="rule-fix">
-            <div class="rule-fix-header">
+        ? `<details class="rule-fix">
+            <summary class="rule-fix-header">
               ${getIcon('lightbulb')}
-              <span>How to Fix</span>
-            </div>
+              <span>How to fix</span>
+            </summary>
+            ${descriptionHtml}
             <div class="rule-fix-text">${escapeHtml(fix)}</div>
-          </div>`
+          </details>`
         : '';
 
       return `
@@ -2284,7 +2321,7 @@ export function renderHtmlReport(result: AuditResult): string {
               </div>
               ${issue.status === 'notmeasured' ? '<div class="rule-notmeasured-tag">Not measured</div>' : ''}
               <div class="rule-message">${escapeHtml(issue.message)}</div>
-              ${showDescription ? `<div class="rule-description">${escapeHtml(issue.ruleDescription)}</div>` : ''}
+              ${fixHtml ? '' : descriptionHtml}
               ${pagesHtml}
               ${fixHtml}
             </div>
@@ -2434,31 +2471,37 @@ export function renderHtmlReport(result: AuditResult): string {
               <span class="score-stat-label">Total</span>
             </div>
           </div>
-          <!-- Category Progress Bars -->
-          <div class="category-progress-section">
-            <div class="category-progress-title">Category Scores</div>
-            <div class="category-progress-list">
-              ${result.categoryResults.map(cat => {
-                const category = getCategoryById(cat.categoryId);
-                const catName = category?.name ?? cat.categoryId;
-                const catColor = getScoreColor(cat.score);
-                return `
-                <a href="#category-${cat.categoryId}" class="category-progress-item">
-                  <span class="category-progress-name">${escapeHtml(catName)}</span>
-                  <div class="category-progress-bar">
-                    <div class="category-progress-fill" style="width: ${cat.score}%; background: ${catColor};"></div>
-                  </div>
-                  <span class="category-progress-value" style="color: ${catColor};">${cat.score}%</span>
-                </a>
-                `;
-              }).join('')}
-            </div>
           </div>
         </div>
       </div>
 
       <!-- Page Snapshot -->
       ${renderPageSnapshot(result.page, result.url)}
+
+      ${failures.length + warnings.length > 0 ? `
+      <!-- Issues Summary Table -->
+      <div class="issues-summary">
+        <div class="issues-summary-header">
+          <span class="issues-summary-title">${
+            rankedIssues.length > TOP_ISSUES
+              ? `Fix these first — top ${TOP_ISSUES} of ${rankedIssues.length}`
+              : `Issues to fix (${rankedIssues.length})`
+          }</span>
+        </div>
+        <table class="issues-table">
+          <thead>
+            <tr>
+              <th>Issue</th>
+              ${isMultiPageReport ? '<th>Page</th>' : ''}
+              <th>Severity</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${issueTableRows}
+          </tbody>
+        </table>
+      </div>
+      ` : ''}
 
       <!-- Filter Tabs -->
       <div class="filter-bar">
@@ -2483,26 +2526,34 @@ export function renderHtmlReport(result: AuditResult): string {
         </div>
       </div>
 
-      ${failures.length + warnings.length > 0 ? `
-      <!-- Issues Summary Table -->
-      <div class="issues-summary">
-        <div class="issues-summary-header">
-          <span class="issues-summary-title">Issues to Fix (${failures.length + warnings.length})</span>
+      <!-- Category Scores -->
+      <!--
+        This sat inside the score card, where its 442px pushed the first
+        finding to y=976 on a 900px screen: a report whose whole job is to say
+        what to fix opened with nothing to fix in view. Scores are orientation,
+        findings are the work, so the findings go first.
+      -->
+          <!-- Category Progress Bars -->
+      <div class="category-progress-section">
+        <div class="category-progress-title">Category Scores</div>
+        <div class="category-progress-list">
+          ${result.categoryResults.map(cat => {
+            const category = getCategoryById(cat.categoryId);
+            const catName = category?.name ?? cat.categoryId;
+            const catColor = getScoreColor(cat.score);
+            return `
+            <a href="#category-${cat.categoryId}" class="category-progress-item">
+              <span class="category-progress-name">${escapeHtml(catName)}</span>
+              <div class="category-progress-bar">
+                <div class="category-progress-fill" style="width: ${cat.score}%; background: ${catColor};"></div>
+              </div>
+              <span class="category-progress-value" style="color: ${catColor};">${cat.score}%</span>
+            </a>
+            `;
+          }).join('')}
         </div>
-        <table class="issues-table">
-          <thead>
-            <tr>
-              <th>Issue</th>
-              ${isMultiPageReport ? '<th>Page</th>' : ''}
-              <th>Severity</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${issueTableRows}
-          </tbody>
-        </table>
+
       </div>
-      ` : ''}
 
       <!-- Category Sections -->
       ${categorySectionsHtml}

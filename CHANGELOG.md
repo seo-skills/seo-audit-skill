@@ -234,6 +234,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the twenty category rows re-announced the entire section. It is now a single
   status line that changes only when the phase or the count does.
 
+- **The report stops printing every finding twice.** The summary table and the
+  category sections below it rendered the same 46 findings — 3,191px of rows and
+  12,217px of cards, 90% of a 17,199px page. The table is a ranked index now
+  (top 10 of 46) and the sections hold the detail. Fix advice folds, the rule's
+  generic description moves inside it rather than sitting under every finding's
+  own message, and the category-score grid moved below the findings: it was
+  442px of orientation pushing the first thing to fix to y=976 on a 900px
+  screen. **17,199px → 10,046px**, with nine of the top ten findings on the
+  first screen where none were before.
+
 - **The HTML report leads with what to fix, and folds away what needs nothing.**
   It rendered all 332 checks expanded, ordered by severity and then by
   registration order, so a weight-1 warning could sit above a weight-25 one and

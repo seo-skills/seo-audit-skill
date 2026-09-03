@@ -6,7 +6,7 @@
  * looking at a finished audit.
  */
 
-import { useCallback, useLayoutEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getHost, getReads } from '../lib/api-client.js';
 import { getAPI } from '../lib/ipc-client.js';
@@ -38,6 +38,7 @@ export function AuditDetailPage() {
   const [busy, setBusy] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [busyFormat, setBusyFormat] = useState<string | null>(null);
 
   const detail = useAsync(() => reads.getAuditDetail(id), [id]);
 
@@ -53,6 +54,12 @@ export function AuditDetailPage() {
   const [pendingReveal, setPendingReveal] = useState<string | null>(null);
 
   const handleIssueClick = useCallback((ruleId: string, categoryId: string) => {
+    // Clearing the filter is part of the same action. The summary table always
+    // lists the top findings regardless of the active filter, so clicking a
+    // warning while filtered to Failures asked the page to reveal a rule the
+    // filter had just removed from the DOM — the jump found nothing and did
+    // nothing, for the same reason the collapsed category used to.
+    setFilter('all');
     setActiveCategory(categoryId);
     setPendingReveal(ruleId);
   }, []);
@@ -70,7 +77,31 @@ export function AuditDetailPage() {
     // Focus follows the eye. Without this the view moved and the keyboard did
     // not, so Tab resumed from the table and a screen reader said nothing.
     element.focus({ preventScroll: true });
+
+    // The URL names what is on screen, so this view can be shared or reloaded
+    // back to the same finding. `replaceState` rather than a router navigation:
+    // revealing a rule is not a new page, and it should not take a Back press
+    // to undo.
+    window.history.replaceState(null, '', `#rule-${pendingReveal}`);
   }, [pendingReveal, activeCategory]);
+
+  // A link straight to a finding — from a shared URL, or a reload — has to do
+  // the same reveal, and the hash alone cannot expand the category holding it.
+  const revealFromHash = useCallback(() => {
+    const ruleId = window.location.hash.replace(/^#rule-/, '');
+    if (!ruleId || ruleId === window.location.hash) return;
+    const category = detail.data?.result.categoryResults.find((c) =>
+      c.results.some((r) => r.ruleId === ruleId)
+    );
+    if (!category) return;
+    setFilter('all');
+    setActiveCategory(category.categoryId);
+    setPendingReveal(ruleId);
+  }, [detail.data]);
+
+  useEffect(() => {
+    revealFromHash();
+  }, [revealFromHash]);
 
   const handleExport = useCallback(
     async (format: 'html' | 'markdown' | 'json' | 'llm') => {
@@ -79,17 +110,24 @@ export function AuditDetailPage() {
         // The desktop app has no download; it asks where to save instead, and
         // that can fail — no permission, no disk, cancelled dialog. Failing
         // silently leaves the user believing they have a file they do not.
-        setBusy(true);
+        setBusyFormat(format);
         try {
           await getAPI()?.exportAudit(id, format);
         } catch (cause) {
           setActionError(cause instanceof Error ? cause.message : 'The export failed.');
         } finally {
-          setBusy(false);
+          setBusyFormat(null);
         }
         return;
       }
+      // A download the browser starts gives no completion event, so there is
+      // nothing honest to report as success. What it can do is stop looking
+      // inert: the button says it is working for long enough to be seen, which
+      // is the whole complaint — clicking Markdown looked like nothing
+      // happened, because on a fast download nothing visible does.
+      setBusyFormat(format);
       window.location.href = reads.exportUrl(id, format);
+      window.setTimeout(() => setBusyFormat(null), 1200);
     },
     [id, reads]
   );
@@ -211,10 +249,12 @@ export function AuditDetailPage() {
                 key={format}
                 type="button"
                 onClick={() => void handleExport(format)}
-                className="px-3 py-1.5 text-sm rounded-md border"
+                disabled={busyFormat !== null}
+                aria-busy={busyFormat === format}
+                className="px-3 py-1.5 text-sm rounded-md border disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]"
                 style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
               >
-                {label}
+                {busyFormat === format ? 'Preparing…' : label}
               </button>
             ))}
             {confirmingDelete ? (
@@ -305,22 +345,74 @@ export function AuditDetailPage() {
               </h2>
               <FilterTabs active={filter} counts={counts} onChange={setFilter} />
             </div>
-            <div className="space-y-1">
-              {result.categoryResults.map((category) => (
-                <CategorySection
-                  key={category.categoryId}
-                  category={category}
-                  filter={filter}
-                  ruleMetadata={ruleMetadata}
-                  defaultExpanded={
-                    activeCategory === category.categoryId || (filter === 'fail' && category.failCount > 0)
-                  }
-                />
-              ))}
-            </div>
+            {/* Every CategorySection returns null when nothing in it matches
+                the filter, which is right per category and left the page as a
+                heading and a row of tabs over empty space. */}
+            {counts[filter] === 0 ? (
+              <NoMatchingChecks filter={filter} onClear={() => setFilter('all')} />
+            ) : (
+              <div className="space-y-1">
+                {result.categoryResults.map((category) => (
+                  <CategorySection
+                    key={category.categoryId}
+                    category={category}
+                    filter={filter}
+                    ruleMetadata={ruleMetadata}
+                    defaultExpanded={
+                      activeCategory === category.categoryId || (filter === 'fail' && category.failCount > 0)
+                    }
+                  />
+                ))}
+              </div>
+            )}
           </section>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** The filter matched nothing — which is often the best news the page can give */
+function NoMatchingChecks({
+  filter,
+  onClear,
+}: {
+  filter: FilterStatus;
+  onClear: () => void;
+}) {
+  // "No failures" is good news and should read like it. "No passing checks" is
+  // not, so the same empty state should not congratulate the reader for it.
+  const good = filter === 'fail' || filter === 'warn';
+  const label =
+    filter === 'fail' ? 'failures' : filter === 'warn' ? 'warnings' : 'passing checks';
+
+  return (
+    <div
+      className="rounded-xl border border-dashed p-10 text-center"
+      style={{
+        borderColor: good ? 'var(--color-pass)' : 'var(--color-border)',
+        backgroundColor: good ? 'var(--color-pass-bg)' : 'transparent',
+      }}
+    >
+      <p
+        className="text-base font-semibold mb-1"
+        style={{ color: good ? 'var(--color-pass)' : 'var(--color-text)' }}
+      >
+        No {label}
+      </p>
+      <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>
+        {good
+          ? 'Nothing in this audit needs attention at that level.'
+          : 'Nothing in this audit matched that filter.'}
+      </p>
+      <button
+        type="button"
+        onClick={onClear}
+        className="px-3 py-1.5 text-sm rounded-md font-medium border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]"
+        style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+      >
+        Show all checks
+      </button>
     </div>
   );
 }

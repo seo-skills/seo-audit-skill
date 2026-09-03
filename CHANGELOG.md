@@ -234,6 +234,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the twenty category rows re-announced the entire section. It is now a single
   status line that changes only when the phase or the count does.
 
+- **A filter that matches nothing says so.** Each `CategorySection` returns null
+  when nothing in it matches — right per category, and with all twenty doing it
+  the page was a heading and a row of filter tabs over empty space. It now names
+  what matched nothing, and "no failures" reads as the good news it is rather
+  than getting the same treatment as "no passing checks".
+
+- **Revealing a finding is one complete action.** Clicking an issue expanded its
+  category, scrolled and moved focus — but the summary table lists the top
+  findings regardless of the active filter, so clicking a warning while filtered
+  to Failures asked the page to reveal a rule the filter had just removed from
+  the DOM. The jump found nothing and did nothing, for exactly the reason the
+  collapsed category used to. The filter clears as part of the same action, and
+  the URL now names the revealed finding, so the view can be shared or reloaded
+  straight back to it.
+
+- **Export says it is working.** Clicking Markdown looked like nothing happened,
+  because on a fast download nothing visible does. The button reports
+  "Preparing…" and its siblings disable while it runs. A browser download gives
+  no completion event, so nothing claims success that cannot be known — under
+  Electron, where the save is awaited, a real failure is still reported.
+
 - **One finding is listed once, however its message is worded.** Message
   grouping normalised a hand-maintained list of units — `X chars`, `X words`,
   `X images`, `X links`, `Xpx`, `Xms`, `XKB` — which only covers what someone

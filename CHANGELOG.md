@@ -101,6 +101,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Along the way 8 of 13 text/background pairs failed WCAG AA; all 18 pairs now
   clear 4.5:1 in both themes, and a test computes the ratios.
 
+- **A running audit says how long it has taken and how long is left.** An
+  eight-page audit takes about four and a half minutes and the UI said nothing
+  about time, so a slow run was indistinguishable from a stuck one. Elapsed is
+  always shown. The projection appears only when it is real: measured from the
+  first completed page (not the run's start, which folds in the crawl and the
+  browser launch), over at least two completions, never during the crawl, and
+  computed between completions rather than against the clock — dividing by
+  `now` makes the estimate climb while a page is in flight, which on a real
+  four-page crawl read 76s, 86, 97, 107, 117, 127 while nothing was wrong. Past
+  its own estimate it is withdrawn rather than floored at "0s left".
+
 - **A trend needs three points.** Two audits drew a straight segment between
   them, which reads as a direction while being a single comparison. The chart
   now asks for three, and below that says how many more audits are needed —

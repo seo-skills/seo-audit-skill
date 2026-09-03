@@ -6,7 +6,9 @@
  * itself is visible instead of the page sitting still until scoring starts.
  */
 
+import { useEffect, useState } from 'react';
 import type { RunState } from '../../electron/shared/ipc-types.js';
+import { runTiming, formatDuration } from '../lib/eta.js';
 
 interface ProgressStreamProps {
   run: RunState;
@@ -37,6 +39,15 @@ const ALL_CATEGORIES = [
 ];
 
 export function ProgressStream({ run }: ProgressStreamProps) {
+  // Elapsed has to advance between server events, which arrive per page — on a
+  // slow page that is tens of seconds of a frozen clock, which is exactly when
+  // a reader starts wondering whether the run has died.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   const scores = new Map(run.categories.map((c) => [c.categoryId, c.score]));
   const completedCount = scores.size;
   const crawling = run.phase === 'crawling' && run.crawl !== null;
@@ -48,6 +59,16 @@ export function ProgressStream({ run }: ProgressStreamProps) {
     : ['Auditing…', completedCount, ALL_CATEGORIES.length];
 
   const currentUrl = crawling ? run.crawl?.currentUrl : run.pages.currentUrl;
+
+  const timing = runTiming({
+    startedAt: run.startedAt,
+    firstPageAt: run.firstPageAt,
+    lastPageAt: run.lastPageAt,
+    completed: run.pages.completed,
+    total: run.pages.total,
+    crawling,
+    now,
+  });
 
   return (
     <div className="space-y-4">
@@ -62,6 +83,8 @@ export function ProgressStream({ run }: ProgressStreamProps) {
         {crawling
           ? `Crawling, ${value} of ${total} pages found`
           : `Auditing, ${value} of ${total} categories complete`}
+        {/* Deliberately no elapsed time here: it changes every second, and a
+            live region that fires every second is unusable. */}
       </p>
 
       {/* Progress bar */}
@@ -70,10 +93,11 @@ export function ProgressStream({ run }: ProgressStreamProps) {
           <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
             {label}
           </span>
-          <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            {crawling
-              ? `${value} / ${total} pages`
-              : `${value} / ${total} categories`}
+          <span className="text-sm tabular-nums" style={{ color: 'var(--color-text-muted)' }}>
+            {crawling ? `${value} / ${total} pages` : `${value} / ${total} categories`}
+            {' · '}
+            {formatDuration(timing.elapsedSeconds)}
+            {timing.remainingSeconds !== null && ` · about ${formatDuration(timing.remainingSeconds)} left`}
           </span>
         </div>
         <div className="h-2 rounded-full bg-[var(--color-border)]">

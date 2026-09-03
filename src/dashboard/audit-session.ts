@@ -110,6 +110,27 @@ export interface RunState {
   } | null;
   /** Page scoring */
   pages: { completed: number; total: number; currentUrl: string | null };
+  /**
+   * When the first page finished scoring.
+   *
+   * A projection measured from `startedAt` would fold in the crawl and the
+   * browser launch, both of which are one-off costs, and would overstate the
+   * remaining time for the whole run. Measuring from the first completed page
+   * over the pages completed since gives the steady-state rate.
+   *
+   * Server-side because SSE hands a late client a snapshot, not a history: a
+   * browser that connects halfway through has no way to time what it missed.
+   */
+  firstPageAt: string | null;
+  /**
+   * When the most recent page finished.
+   *
+   * The rate has to be measured over completed work only. Dividing by `now`
+   * instead inflates it for as long as the current page is in flight, so the
+   * projection counts *up* between completions — 76 seconds remaining becoming
+   * 127 while nothing was wrong. A countdown that grows is worse than none.
+   */
+  lastPageAt: string | null;
   categories: CategoryProgress[];
   recentRules: Array<{ ruleId: string; ruleName: string; status: RuleResult['status']; message: string }>;
   /** Set once the finished audit has been stored */
@@ -206,6 +227,8 @@ const IDLE_STATE: RunState = {
   finishedAt: null,
   crawl: null,
   pages: { completed: 0, total: 0, currentUrl: null },
+  firstPageAt: null,
+  lastPageAt: null,
   categories: [],
   recentRules: [],
   auditId: null,
@@ -372,6 +395,8 @@ export class AuditSession {
           }
         : null,
       pages: { completed: 0, total: normalized.crawl ? 0 : 1, currentUrl: null },
+      firstPageAt: null,
+      lastPageAt: null,
     });
 
     // Assigned before any await, so the slot is held from here on.
@@ -480,6 +505,10 @@ export class AuditSession {
         this.patch({
           phase: 'auditing',
           pages: { completed: pageNumber, total: totalPages, currentUrl: stripUserinfo(pageUrl) },
+          // First stamped once; last on every completion, so the rate is
+          // measured between completions and not against a moving clock.
+          lastPageAt: new Date().toISOString(),
+          ...(this.state.firstPageAt === null && { firstPageAt: new Date().toISOString() }),
         });
       },
     });

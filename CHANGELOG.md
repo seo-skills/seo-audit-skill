@@ -87,6 +87,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is zero scores 0; that now reads "Not scored" rather than reporting the site
   as catastrophic.
 
+- **Score badges render their background again.** `getScoreColor()` returns a
+  CSS custom property, so the three call sites that built a tint by appending a
+  hex alpha suffix produced `var(--color-pass)15` — not a colour, silently
+  dropped. The audit list, the score circle, the category headers and the HTML
+  report all drew their badge with no background. `verdictStyle()` now returns
+  the foreground and its paired background together.
+
+- **Six surfaces share one palette and one grade scale.** Colours are defined
+  once in `src/design/tokens.ts`; the HTML reporter inlines them and the
+  dashboard and Electron read a generated stylesheet. The report kept a private
+  90/70/50 scale, so a score of 85 drew green everywhere else and amber there.
+  Along the way 8 of 13 text/background pairs failed WCAG AA; all 18 pairs now
+  clear 4.5:1 in both themes, and a test computes the ratios.
+
+- **The HTML report no longer offers a page filter it cannot honour.** It built
+  its page list by scraping `pageUrl` out of rule details. That is exact for a
+  live crawl, where every result carries its own page, and wrong for a stored
+  audit, which keeps one row per rule with a capped sample of pages. An
+  eight-page crawl exported from the dashboard showed "8 pages" in its header,
+  offered seven in "Filter by Page", and returned one or two rules for whichever
+  page you picked; the page missing from every sample was unreachable.
+  `AuditResult` now carries `coverage` — the pages covered and whether the
+  results are per-page or aggregated — so the report renders a real filter when
+  it has per-page results and lists the audited pages when it does not.
+
 ## [3.5.0] - 2026-09-03
 
 ### Added

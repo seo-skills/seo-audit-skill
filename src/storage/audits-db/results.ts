@@ -564,3 +564,26 @@ export function getFailedRules(
     failCount: r.fail_count,
   }));
 }
+
+/**
+ * Every page this audit stored results for.
+ *
+ * The HTML report used to reconstruct its page list by scraping `pageUrl` out
+ * of rule details. Aggregation keeps only a capped sample per rule, so a page
+ * whose findings all landed outside that sample vanished from the list
+ * entirely: an eight-page crawl advertised eight pages in its header and
+ * offered seven in its filter.
+ */
+export function getAuditPages(db: Database.Database, auditId: number): string[] {
+  const rows = db
+    .prepare(
+      `SELECT page_url, MIN(id) AS first_seen
+         FROM audit_results
+        WHERE audit_id = ?
+          AND page_url IS NOT NULL
+        GROUP BY page_url
+        ORDER BY first_seen`
+    )
+    .all(auditId) as Array<{ page_url: string }>;
+  return rows.map((r) => r.page_url);
+}

@@ -666,6 +666,26 @@ export interface AuditRunOptions {
   timeout: number;
 }
 
+/**
+ * What an audit covered, and how `categoryResults` is shaped.
+ *
+ * The two shapes are not interchangeable and the reporter cannot tell them
+ * apart by inspection. A live crawl keeps one result per rule per page, so a
+ * per-page filter is exact. A stored audit is aggregated to one result per
+ * rule carrying page counts and a capped sample, so a per-page filter can only
+ * see the sampled pages: it silently omitted whole pages from its list and
+ * returned almost nothing for the pages it did offer.
+ */
+export interface AuditCoverage {
+  /** Every page URL the audit covered, in crawl order. */
+  pages: string[];
+  /**
+   * `per-page` when `categoryResults` holds one result per rule per page.
+   * `aggregated` when it holds one result per rule with page counts.
+   */
+  detail: 'per-page' | 'aggregated';
+}
+
 export interface AuditResult {
   /** See {@link AUDIT_SCHEMA_VERSION}. Absent on payloads from 3.5.0 and earlier. */
   schemaVersion?: number;
@@ -690,6 +710,13 @@ export interface AuditResult {
   timestamp: string;
   /** Number of pages crawled (if crawl mode enabled) */
   crawledPages: number;
+  /**
+   * The pages covered and the shape of `categoryResults`.
+   *
+   * Optional: audits stored before 3.6.0 do not carry it, and a reader that
+   * lacks it must not assume per-page detail.
+   */
+  coverage?: AuditCoverage;
   /**
    * Page-level signals for the report's previews and outline.
    *

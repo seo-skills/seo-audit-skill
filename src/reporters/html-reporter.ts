@@ -484,6 +484,53 @@ ${tokensToCss()}
       color: var(--color-pass);
     }
 
+    /* Pages covered, when the results are aggregated and cannot be filtered */
+    .pages-covered summary {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text);
+      cursor: pointer;
+      padding: 8px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-bg);
+      list-style: none;
+    }
+
+    .pages-covered summary::marker,
+    .pages-covered summary::-webkit-details-marker { display: none; }
+
+    .pages-covered summary::before {
+      content: '▶';
+      font-size: 9px;
+      color: var(--color-text-muted);
+      margin-right: 8px;
+      display: inline-block;
+    }
+
+    .pages-covered[open] summary::before { content: '▼'; }
+
+    .pages-covered ul {
+      list-style: none;
+      margin: 6px 0 0;
+      padding: 0 0 0 12px;
+    }
+
+    .pages-covered li { margin: 0; }
+
+    .pages-covered a {
+      display: block;
+      padding: 5px 0;
+      font-size: 12px;
+      color: var(--color-text-muted);
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .pages-covered a:hover { color: var(--color-accent); }
+
     /* URL Filter in sidebar */
     .url-filter {
       padding: 0 12px;
@@ -1897,7 +1944,16 @@ export function renderHtmlReport(result: AuditResult): string {
   const passes = allAggregatedIssues.filter(i => i.status === 'pass');
   const notMeasured = allAggregatedIssues.filter(i => i.status === 'notmeasured');
   const totalChecks = allAggregatedIssues.length;
-  const uniqueUrls = Array.from(allUrls).sort();
+  // Prefer the audit's own page list. Scraping URLs back out of rule details
+  // only ever recovers pages that some rule happened to name, so a page with no
+  // attributable finding disappeared: an eight-page crawl listed seven.
+  const coverage = result.coverage;
+  const uniqueUrls = coverage ? [...coverage.pages] : Array.from(allUrls).sort();
+
+  // A per-page filter is only honest when every rule result carries its own
+  // page. Aggregated results keep one row per rule with a capped sample of
+  // pages, so filtering by page would hide most of what it claims to show.
+  const canFilterByPage = coverage ? coverage.detail === 'per-page' : true;
 
   // Drives every per-rule page link. Read from the URLs the rules actually
   // reported rather than from `crawledPages`, so a crawl that resolved to one
@@ -1939,9 +1995,21 @@ export function renderHtmlReport(result: AuditResult): string {
     }).join('');
 
   // Generate URL filter options
-  const urlFilterOptions = uniqueUrls.length > 1
-    ? `<option value="all">All Pages (${uniqueUrls.length})</option>
+  const urlFilterOptions = uniqueUrls.length > 1 && canFilterByPage
+    ? `<option value="all">All pages (${uniqueUrls.length})</option>
        ${uniqueUrls.map(url => `<option value="${escapeHtml(url)}">${escapeHtml(getShortUrl(url))}</option>`).join('')}`
+    : '';
+
+  // When the results are aggregated the pages are still worth showing — every
+  // rule below reports how many of them it affected — but they cannot be
+  // filtered on, so they are presented as the list they are.
+  const pagesCovered = uniqueUrls.length > 1 && !canFilterByPage
+    ? `<details class="pages-covered">
+         <summary>${uniqueUrls.length} pages audited</summary>
+         <ul>
+           ${uniqueUrls.map(url => `<li><a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(getShortUrl(url))}</a></li>`).join('')}
+         </ul>
+       </details>`
     : '';
 
   // Generate sidebar links
@@ -2105,7 +2173,7 @@ export function renderHtmlReport(result: AuditResult): string {
         ${getIcon('pages')}
         <span>${
           isMultiPageReport
-            ? `${result.crawledPages} pages`
+            ? `${uniqueUrls.length} pages`
             : escapeHtml(getShortUrl(result.url))
         }</span>
       </div>
@@ -2121,14 +2189,14 @@ export function renderHtmlReport(result: AuditResult): string {
 
   <!-- Sidebar Navigation -->
   <nav class="sidebar">
-    ${uniqueUrls.length > 1 ? `
+    ${urlFilterOptions ? `
     <div class="url-filter">
-      <label class="url-filter-label">Filter by Page</label>
+      <label class="url-filter-label" for="url-filter">Filter by page</label>
       <select id="url-filter" class="url-filter-select">
         ${urlFilterOptions}
       </select>
     </div>
-    ` : ''}
+    ` : pagesCovered ? `<div class="url-filter">${pagesCovered}</div>` : ''}
     <div class="sidebar-section">
       <div class="sidebar-title">Categories</div>
       <ul class="sidebar-nav">

@@ -268,6 +268,13 @@ export class AuditsDatabase {
   }
 
   /**
+   * Every page this audit stored results for, in first-seen order.
+   */
+  getAuditPages(auditId: number): string[] {
+    return results.getAuditPages(this.db, auditId);
+  }
+
+  /**
    * Get results by rule
    */
   getResultsByRule(auditId: number, ruleId: string): HydratedAuditResult[] {

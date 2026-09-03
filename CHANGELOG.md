@@ -101,6 +101,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Along the way 8 of 13 text/background pairs failed WCAG AA; all 18 pairs now
   clear 4.5:1 in both themes, and a test computes the ratios.
 
+- **The terminal ranks issues too.** It groups by category, which is right for a
+  terminal, but inside a category issues were left in the order their rules
+  happened to register, so a weight-1 warning could print above a weight-25 one
+  — on the surface most people actually read. All four surfaces now answer
+  "what first?" the same way. Unmeasured checks sink below real findings and no
+  longer draw the yellow warning triangle one line under the label
+  "(not measured)".
+
 - **Clicking an issue opens the rule it names.** `CategorySection` initialised
   its expansion with `useState(defaultExpanded)`, and `useState` reads its
   argument on the first render only — so a section already on screen ignored

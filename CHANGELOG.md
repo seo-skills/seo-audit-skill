@@ -101,6 +101,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Along the way 8 of 13 text/background pairs failed WCAG AA; all 18 pairs now
   clear 4.5:1 in both themes, and a test computes the ratios.
 
+- **Solid buttons are readable in dark mode.** The run, cancel, delete and
+  filter buttons set a themed background and a hardcoded white foreground. In
+  the light theme those backgrounds are a dark blue, amber and red, so white
+  read at 7.00:1, 7.09:1 and 6.47:1. In the dark theme they are a bright blue,
+  amber and red, and the same white read at 2.50:1, **1.67:1** and 2.77:1 — the
+  Cancel button was very nearly invisible. They use `--color-on-accent`, which
+  flips with the theme: 7.49:1, 11.22:1 and 6.77:1 in dark, unchanged in light.
+  A test now rejects hex literals and fixed white/black utilities anywhere in
+  `ui/` outside the token definitions and the brand mark.
+
 - **Deleting an audit asks first, and says so when it fails.** Delete removed a
   stored audit permanently on a single click with no confirmation, and its
   handler had no failure path — a refused delete reset the button and said

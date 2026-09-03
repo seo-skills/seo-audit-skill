@@ -164,6 +164,11 @@ export const TEXT_PAIRS: readonly TextPair[] = [
   { fg: 'color-neutral', bg: 'color-neutral-bg' },
   { fg: 'color-accent', bg: 'color-bg-elevated' },
   { fg: 'color-on-accent', bg: 'color-accent' },
+  // Solid warn and fail buttons. These carried a hardcoded `#fff`, which is
+  // right over the light theme's dark amber and red and close to invisible over
+  // the dark theme's bright ones.
+  { fg: 'color-on-accent', bg: 'color-warn' },
+  { fg: 'color-on-accent', bg: 'color-fail' },
 ];
 
 /** Custom-property declarations for one theme, without the wrapping selector */

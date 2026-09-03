@@ -136,7 +136,7 @@ export function RunPage() {
               <a
                 href={exportUrl}
                 className="px-3 py-1.5 text-sm rounded-md font-medium"
-                style={{ backgroundColor: 'var(--color-warn)', color: '#fff' }}
+                style={{ backgroundColor: 'var(--color-warn)', color: 'var(--color-on-accent)' }}
               >
                 Export HTML
               </a>
@@ -173,7 +173,7 @@ export function RunPage() {
             type="button"
             onClick={reset}
             className="px-3 py-1.5 text-sm rounded-md font-medium shrink-0"
-            style={{ backgroundColor: 'var(--color-fail)', color: '#fff' }}
+            style={{ backgroundColor: 'var(--color-fail)', color: 'var(--color-on-accent)' }}
           >
             Try again
           </button>

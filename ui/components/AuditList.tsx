@@ -2,7 +2,7 @@
  * Table of past audits from the database.
  */
 
-import type { AuditSummaryDto } from '../../shared/ipc-types.js';
+import type { AuditSummaryDto } from '../../electron/shared/ipc-types.js';
 import { getScoreColor, formatDate } from '../lib/format.js';
 
 interface AuditListProps {

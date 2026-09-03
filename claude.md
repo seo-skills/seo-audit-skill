@@ -15,7 +15,7 @@ The `package.json` serves **both** the npm CLI package and the Electron desktop 
 | Field | Value | Why |
 |-------|-------|-----|
 | `main` | `./dist-electron/main/index.js` | **Electron reads this** to find the main process entry. DO NOT change to `./dist/cli.js` or Electron will execute Commander CLI instead of launching the app window. |
-| `exports` | `./dist/cli.js` | **npm/Node.js consumers use this** for programmatic imports. Takes priority over `main` in modern Node.js. |
+| `exports` | `./dist/index.js` | **npm/Node.js consumers use this** for programmatic imports (`import { Auditor } from '@seomator/seo-audit'`). Takes priority over `main` in modern Node.js. |
 | `bin` | `./dist/cli.js` | **npm CLI users use this** (`seomator` command). |
 | `files` | `["dist"]` | **Only `dist/` ships to npm.** This is the firewall — `electron/`, `dist-electron/`, `scripts/` never reach npm users. |
 
@@ -36,7 +36,7 @@ The `package.json` serves **both** the npm CLI package and the Electron desktop 
 5. `npm publish --access public`
 6. The `prepublishOnly` script auto-runs `npm run build` before publish
 
-Published as `@seomator/seo-audit` on npm. Current version: **3.2.0**.
+Published as `@seomator/seo-audit` on npm. Current version: **3.3.0**.
 
 ### better-sqlite3 Native Module ABI
 
@@ -136,7 +136,7 @@ core(11%), perf(10%), links(8%), images(8%), security(8%), a11y(7%), technical(7
 
 ### Key Directories
 
-- `src/rules/` - 261 audit rules in 20 category subdirectories
+- `src/rules/` - 332 audit rules in 20 category subdirectories
 - `src/categories/` - Category definitions with weights
 - `src/commands/` - CLI command handlers (audit, crawl, init, config, db, etc.)
 - `src/crawler/` - HTTP fetcher, queue-based crawler, URL normalization
@@ -146,7 +146,7 @@ core(11%), perf(10%), links(8%), images(8%), security(8%), a11y(7%), technical(7
 - `electron/` - Electron desktop app (does NOT modify `src/`)
   - `electron/main/` - Main process: BrowserWindow, IPC handlers, audit/db bridges
   - `electron/preload/` - contextBridge exposing typed `electronAPI`
-  - `electron/renderer/` - React UI: pages, components, hooks, stores
+  - `ui/` - React UI shared by the desktop app and the web dashboard: pages, components, hooks, stores
   - `electron/shared/` - IPC type definitions shared between main and renderer
 
 ### Electron Desktop App Architecture

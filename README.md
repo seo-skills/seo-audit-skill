@@ -156,7 +156,13 @@ Run SEO audit on a URL.
 | `--refresh` | `-r` | Ignore cache, fetch fresh | false |
 | `--resume` | - | Resume interrupted crawl | false |
 | `--config <path>` | - | Config file path | - |
-| `--save` | - | Save report to .seomator/reports/ | false |
+| `--no-save` | - | Do not store this audit in your history | - |
+| `--json-report` | - | Also write the legacy JSON report to .seomator/reports/ | false |
+
+Audits are stored in `~/.seomator/audits.db` by default, which is what
+`seomator report`, `seomator compare` and the desktop app read. Set
+`SEOMATOR_HOME` to keep that data elsewhere, or `[output] save = false` in
+`seomator.toml` to opt a project out.
 
 ### `seomator init`
 
@@ -186,27 +192,29 @@ Run rules on stored crawl data.
 
 ```bash
 seomator analyze                           # Analyze latest crawl
-seomator analyze --latest --save           # Analyze and save
+seomator analyze --latest                  # Stored in your history by default
 seomator analyze 2026-01-23-abc123         # Specific crawl
 ```
 
 ### `seomator report [query]`
 
-View and query past reports.
+View and query past audits. Reads your history, falling back to the legacy
+JSON reports under `.seomator/reports/`.
 
 ```bash
-seomator report --list                     # List all reports
+seomator report --list                     # List stored audits
 seomator report --project mysite           # Filter by project
+seomator report 2026-09-02-a1b2c3          # Show one audit
 ```
 
 ### `seomator compare [domain]`
 
 Compare the latest audit of a site against a previous one, so you can see what
-a deploy changed. Requires at least two audits saved with `--save`.
+a deploy changed. Requires at least two stored audits of the same domain.
 
 ```bash
-seomator audit https://example.com --save    # run before the deploy
-seomator audit https://example.com --save    # run after
+seomator audit https://example.com           # run before the deploy
+seomator audit https://example.com           # run after
 
 seomator compare example.com                 # diff the two most recent runs
 seomator compare example.com --trend         # score history for the domain

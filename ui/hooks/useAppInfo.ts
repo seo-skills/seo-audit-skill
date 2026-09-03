@@ -13,7 +13,7 @@
 
 import { useEffect, useState } from 'react';
 import { getAPI } from '../lib/ipc-client.js';
-import type { AppInfoIpc } from '../../shared/ipc-types.js';
+import type { AppInfoIpc } from '../../electron/shared/ipc-types.js';
 
 export function useAppInfo(): AppInfoIpc | null {
   const [info, setInfo] = useState<AppInfoIpc | null>(null);

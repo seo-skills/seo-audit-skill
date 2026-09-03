@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getAPI } from '../lib/ipc-client.js';
-import type { AuditSummaryDto, ScoreTrendPointDto } from '../../shared/ipc-types.js';
+import type { AuditSummaryDto, ScoreTrendPointDto } from '../../electron/shared/ipc-types.js';
 
 export function useAuditHistory() {
   const [audits, setAudits] = useState<AuditSummaryDto[]>([]);

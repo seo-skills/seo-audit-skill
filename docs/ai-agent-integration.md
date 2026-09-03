@@ -156,8 +156,8 @@ seomator audit https://example.com --format llm | claude
 Or run the audit and export later:
 
 ```bash
-# Run audit (stores results)
-seomator audit https://example.com --save
+# Run audit (stored automatically)
+seomator audit https://example.com
 
 # Export and pipe to Claude
 seomator report --latest --format llm | claude

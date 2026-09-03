@@ -9,8 +9,8 @@
  */
 
 import { create } from 'zustand';
-import type { AuditResult } from '../../../src/types.js';
-import type { RunError, RunState, RuleMetadata } from '../../shared/ipc-types.js';
+import type { AuditResult } from '../../src/types.js';
+import type { RunError, RunState, RuleMetadata } from '../../electron/shared/ipc-types.js';
 
 export type AuditStatus = RunState['status'];
 

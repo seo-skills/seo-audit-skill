@@ -27,18 +27,22 @@ export default defineConfig({
       },
     },
   },
+  // The renderer lives in `ui/`, outside `electron/`, because the web
+  // dashboard serves the same React app. Electron is one host of it, not its
+  // owner.
   renderer: {
-    root: resolve(__dirname, 'renderer'),
+    root: resolve(__dirname, '../ui'),
     build: {
       outDir: resolve(__dirname, '../dist-electron/renderer'),
       rollupOptions: {
-        input: resolve(__dirname, 'renderer/index.html'),
+        input: resolve(__dirname, '../ui/index.html'),
       },
     },
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@renderer': resolve(__dirname, 'renderer'),
+        '@renderer': resolve(__dirname, '../ui'),
+        '@core': resolve(__dirname, '../src'),
       },
     },
   },

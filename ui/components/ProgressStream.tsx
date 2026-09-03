@@ -6,7 +6,7 @@
  * itself is visible instead of the page sitting still until scoring starts.
  */
 
-import type { RunState } from '../../shared/ipc-types.js';
+import type { RunState } from '../../electron/shared/ipc-types.js';
 
 interface ProgressStreamProps {
   run: RunState;

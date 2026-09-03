@@ -2,8 +2,8 @@
  * Sortable table of fail+warn issues across all categories.
  */
 
-import type { AuditResult } from '../../../src/types.js';
-import type { RuleMetadata } from '../../shared/ipc-types.js';
+import type { AuditResult } from '../../src/types.js';
+import type { RuleMetadata } from '../../electron/shared/ipc-types.js';
 import { formatRuleIdAsName, getStatusColorClass, getStatusIcon } from '../lib/format.js';
 
 const CATEGORY_NAMES: Record<string, string> = {

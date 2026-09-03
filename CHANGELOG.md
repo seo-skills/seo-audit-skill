@@ -6,7 +6,80 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
+### Changed
+
+- **Every audit is stored by default.** `--save` defaulted to off, so for
+  almost everyone the history database was empty and `seomator compare` had
+  nothing to compare — the schema, the comparison engine and the trend queries
+  all existed and were never fed. `audit` and `analyze` now write to
+  `~/.seomator/audits.db` unless the run passes `--no-save` or the project sets
+  `[output] save = false`. `--json-report` writes the old per-project JSON file;
+  `--save` still does the same for one more minor and prints a deprecation
+  notice (removed in 3.6.0). A storage failure is always reported, with the
+  path and a pointer to `seomator self doctor`, and never costs you the report.
+  `SEOMATOR_HOME` relocates the data directory.
+
+- **`seomator compare` no longer writes to the database when you read it.**
+  Comparing two audits inserted a comparison row every time it ran. The
+  computation is now pure and the row is written once, by the save path. It
+  also reports rules that appeared or disappeared between runs, and warns when
+  the two audits came from different engine versions, so a score change is not
+  mistaken for a site change.
+
+- **"The previous audit" now means the audit before this one.** It meant "the
+  newest audit that isn't this one", so comparing anything but the latest run
+  compared it against a later one. Runs in the same second are ordered
+  consistently.
+
+- **A stored audit is now as complete as a live one.** Reading one back capped
+  at 1,000 result rows, which silently truncated any crawl past three pages,
+  and lost the marker that says a check could not take a reading, so every
+  unmeasured check came back as a warning. Audits now record each rule's weight
+  and are read back aggregated per rule in SQL: one row per rule with its worst
+  page, its counts and sample pages, at the same cost for one page or a
+  thousand.
+
+- **Audits record where they came from.** Each stores its source (cli,
+  dashboard, desktop, api), the engine version that produced it, and the
+  options it ran with. Credentials in an audited URL are stripped before
+  storage.
+
+- **The desktop app runs audits through the same code the CLI does.** It never
+  stored a result, its cancel button only stopped the UI listening while the
+  audit carried on in the background, and its progress list grew by one row per
+  category per page. It now uses the shared run controller: results are stored,
+  cancel actually cancels, and progress stays bounded. The React renderer moved
+  from `electron/renderer/` to `ui/`, since the web dashboard will serve the
+  same app.
+
+- **Node.js 20.3 is now the minimum**, up from 20.0, for `AbortSignal.any()`.
+  `seomator self doctor` checks for it and also checks that the data directory
+  is writable.
+
+- **The finding leads each rule card in the HTML report.** The measured result
+  ("LCP is 0.44s") was 13px muted grey below the rule's generic definition, so
+  the two loudest lines on every card were text identical on every audit of
+  every site. The result now renders first at full contrast; the definition
+  drops below it as reference.
+
 ### Added
+
+- **Cancelling an audit actually stops it.** Ctrl-C, or Cancel in the desktop
+  app, now aborts the page fetches, link and redirect checks, robots.txt and
+  sitemap requests, and the browser render, rather than leaving them running to
+  completion in the background. The CLI exits 130 and stores nothing partial.
+
+- **A crawl now shows its progress while it crawls.** The bar sat at 0 of N for
+  the entire crawl and then filled in a second, because nothing was reported
+  until scoring began. Discovery and scoring are now separate, monotonic
+  phases.
+
+- **Audit failures say what went wrong and what to do.** Errors carry a code
+  (`dns`, `timeout`, `non-html`, `http-error`, `playwright-missing`,
+  `no-pages`, `aborted`) and a hint. `--format json` includes both.
+
+- **`seomator report` reads your audit history** rather than only the legacy
+  JSON files, and shows a single stored audit with `seomator report <id>`.
 
 - **The real SEOmator mark ships through the desktop app.** The app icon was a
   generic dark "S" and the in-app header drew a gradient square with the letter
@@ -61,14 +134,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Disallow with longest-match precedence and Allow breaking ties, `*` and `$`
   wildcards, comments, and multi-agent groups. No new dependency. `respect_robots`
   finally does what it has always claimed; set it to `false` to opt out.
-
-### Changed
-
-- **The finding leads each rule card in the HTML report.** The measured result
-  ("LCP is 0.44s") was 13px muted grey below the rule's generic definition, so
-  the two loudest lines on every card were text identical on every audit of
-  every site. The result now renders first at full contrast; the definition
-  drops below it as reference.
 
 ### Fixed
 

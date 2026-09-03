@@ -6,8 +6,8 @@
  */
 
 import { useState } from 'react';
-import type { RuleResult } from '../../../src/types.js';
-import type { RuleMetadata } from '../../shared/ipc-types.js';
+import type { RuleResult } from '../../src/types.js';
+import type { RuleMetadata } from '../../electron/shared/ipc-types.js';
 import { formatRuleIdAsName, getStatusIcon, getStatusColorClass } from '../lib/format.js';
 import { getFixSuggestion } from '../lib/fix-suggestions.js';
 

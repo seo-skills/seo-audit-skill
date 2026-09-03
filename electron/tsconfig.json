@@ -11,12 +11,14 @@
     "jsx": "react-jsx",
     "paths": {
       "@core/*": ["../src/*"],
-      "@renderer/*": ["./renderer/*"]
+      "@renderer/*": ["../ui/*"]
     }
   },
   "include": [
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.tsx",
+    "../ui/**/*.ts",
+    "../ui/**/*.tsx"
   ],
   "exclude": ["node_modules"]
 }

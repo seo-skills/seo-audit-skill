@@ -9,7 +9,7 @@
 import { useEffect, useCallback } from 'react';
 import { getAPI } from '../lib/ipc-client.js';
 import { useAuditStore } from '../stores/audit-store.js';
-import type { AuditRunArgs } from '../../shared/ipc-types.js';
+import type { AuditRunArgs } from '../../electron/shared/ipc-types.js';
 
 export function useAudit() {
   const store = useAuditStore();

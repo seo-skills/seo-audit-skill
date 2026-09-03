@@ -11,7 +11,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import type { ScoreTrendPointDto } from '../../shared/ipc-types.js';
+import type { ScoreTrendPointDto } from '../../electron/shared/ipc-types.js';
 
 interface ScoreTrendProps {
   data: ScoreTrendPointDto[];

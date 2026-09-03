@@ -152,7 +152,14 @@ CREATE TABLE frontier (
 
 ## Audits Database Schema
 
-Located at `~/.seomator/audits.db`
+Located at `~/.seomator/audits.db`, or `$SEOMATOR_HOME/audits.db` when that
+variable is set.
+
+Every audit is written here by default since 3.4.0. `--no-save` skips it for
+one run, and `[output] save = false` in `seomator.toml` skips it for a project.
+The write is one transaction: the audit row, its categories, every per-page
+rule row, the completion stats and the comparison against the previous audit
+all land together or not at all.
 
 ### Tables
 
@@ -176,9 +183,17 @@ CREATE TABLE audits (
     config_json TEXT,
     started_at TEXT DEFAULT (datetime('now')),
     completed_at TEXT,
-    status TEXT DEFAULT 'running'       -- running|completed|failed
+    status TEXT DEFAULT 'running',      -- running|completed|failed
+    -- Provenance, added in 3.4.0. NULL on rows written by earlier versions.
+    source TEXT,                        -- cli|dashboard|desktop|api
+    engine_version TEXT,                -- package version that produced the audit
+    run_json TEXT                       -- the options the audit ran with
 );
 ```
+
+`engine_version` is what lets a comparison say whether a score moved because
+the site changed or because the rules did. A NULL reads as "unknown", never as
+"changed".
 
 #### `audit_categories`
 Category-level results.
@@ -214,9 +229,22 @@ CREATE TABLE audit_results (
     score INTEGER NOT NULL,
     message TEXT NOT NULL,
     details_json TEXT,
-    executed_at TEXT DEFAULT (datetime('now'))
+    executed_at TEXT DEFAULT (datetime('now')),
+    -- Added in 3.4.0. 0 marks a check that could not take a reading on this
+    -- page; NULL on rows written by earlier versions, read as 1.
+    weight INTEGER
 );
 ```
+
+The `weight` column is what keeps a stored audit honest. A rule that reports
+`notMeasured()` scores 50 with weight 0 so it counts toward neither the score
+nor the warning count; without the column, reading the audit back turned every
+unmeasured check into a warning.
+
+A 1,000-page crawl writes ~332,000 rows here, so reads are aggregated in SQL
+(`getRuleSummaries()`) rather than by loading the table: one row per rule with
+its worst page, its counts and up to five sample pages. `getAllResults()`
+returns everything uncapped, for export and comparison.
 
 #### `issues`
 Aggregated issues for reporting.

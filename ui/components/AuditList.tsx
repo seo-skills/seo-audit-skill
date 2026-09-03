@@ -52,13 +52,17 @@ export function AuditList({ audits, loading, linkTo }: AuditListProps) {
             return (
               <tr
                 key={audit.auditId}
-                className="border-t border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-hover)] transition-colors"
+                className="row-link cursor-pointer border-t border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-hover)] transition-colors"
               >
                 <td className="p-0" style={{ color: 'var(--color-text-secondary)' }}>
-                  {/* The link fills the first cell and carries the row's
-                      focus, so the whole row is reachable by keyboard without
-                      making every cell a tab stop. */}
-                  <Link to={linkTo(audit.auditId)} className="block p-3 focus-visible:outline-2 focus-visible:outline-[var(--color-accent)]">
+                  {/* One link, stretched over the whole row by `.row-link`, so
+                      every part of the row navigates while keyboard focus stays
+                      a single tab stop and cmd-click still opens a new tab. */}
+                  <Link
+                    to={linkTo(audit.auditId)}
+                    aria-label={`Audit of ${audit.startUrl} on ${formatDate(audit.startedAt)}, score ${Math.round(audit.overallScore)}`}
+                    className="row-link-target block p-3 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--color-accent)]"
+                  >
                     {formatDate(audit.startedAt)}
                   </Link>
                 </td>

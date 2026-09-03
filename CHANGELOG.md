@@ -185,6 +185,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   under Electron gained the same treatment: a save that fails no longer leaves
   the user believing they have a file they do not have.
 
+- **A history row is clickable across its whole width.** Only the date text was
+  a link. The URL, the score, the page count, all three result columns and the
+  chevron pointing right were dead — eleven-twelfths of a row that looks
+  clickable, with an arrow at the end promising navigation it was not wired to.
+  The row now navigates anywhere, through a single stretched link, so keyboard
+  focus stays one tab stop and cmd-click still opens a new tab.
+
 - **A restarted server no longer strands an open tab on a Retry that cannot
   work.** `seomator serve` mints a per-launch token, so restarting it leaves any
   open tab holding the previous cookie: every API call 401s while the document

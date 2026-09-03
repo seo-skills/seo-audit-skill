@@ -57,6 +57,36 @@
   background: var(--segment-track);
 }
 
+/*
+ * A whole table row that navigates, through one real link.
+ *
+ * The row carried a `<Link>` around the date text alone, so eleven-twelfths of
+ * a row that looks clickable — URL, score, counts, and a chevron pointing right
+ * — did nothing. The chevron was the worst of it: an affordance promising
+ * navigation that was not wired to anything.
+ *
+ * The link's ::after is stretched over the row instead of adding a click
+ * handler to the <tr>. That keeps one anchor, so keyboard focus, cmd-click,
+ * middle-click and "open in new tab" all behave the way a link should, none of
+ * which a JS row handler gives you.
+ */
+.row-link {
+  position: relative;
+}
+
+.row-link .row-link-target::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+/* Anything genuinely interactive inside the row has to sit above the overlay. */
+.row-link a:not(.row-link-target),
+.row-link button {
+  position: relative;
+  z-index: 1;
+}
+
 .segment {
   /* 25px tall was under the 32px minimum target, and 12.5px belonged to no
      scale. min-height states the target size rather than leaving it to fall

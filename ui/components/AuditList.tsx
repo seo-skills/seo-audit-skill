@@ -41,7 +41,9 @@ export function AuditList({ audits, loading, linkTo }: AuditListProps) {
             <th className="text-left p-3 font-medium" style={{ color: 'var(--color-text-secondary)' }}>URL</th>
             <th className="text-center p-3 font-medium" style={{ color: 'var(--color-text-secondary)' }}>Score</th>
             <th className="text-center p-3 font-medium" style={{ color: 'var(--color-text-secondary)' }}>Pages</th>
-            <th className="text-center p-3 font-medium" style={{ color: 'var(--color-text-secondary)' }}>Results</th>
+            <th className="text-right p-3 font-medium" style={{ color: 'var(--color-fail)' }}>Failed</th>
+            <th className="text-right p-3 font-medium" style={{ color: 'var(--color-warn)' }}>Warnings</th>
+            <th className="text-right p-3 font-medium" style={{ color: 'var(--color-pass)' }}>Passed</th>
             <th className="w-10 p-3"></th>
           </tr>
         </thead>
@@ -56,7 +58,7 @@ export function AuditList({ audits, loading, linkTo }: AuditListProps) {
                   {/* The link fills the first cell and carries the row's
                       focus, so the whole row is reachable by keyboard without
                       making every cell a tab stop. */}
-                  <Link to={linkTo(audit.auditId)} className="block p-3 focus:outline-2 focus:outline-[var(--color-accent)]">
+                  <Link to={linkTo(audit.auditId)} className="block p-3 focus-visible:outline-2 focus-visible:outline-[var(--color-accent)]">
                     {formatDate(audit.startedAt)}
                   </Link>
                 </td>
@@ -74,22 +76,18 @@ export function AuditList({ audits, loading, linkTo }: AuditListProps) {
                 <td className="p-3 text-center" style={{ color: 'var(--color-text-muted)' }}>
                   {audit.pagesAudited}
                 </td>
-                <td className="p-3 text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    {audit.failedCount > 0 && (
-                      <span className="text-xs" style={{ color: 'var(--color-fail)' }}>
-                        {audit.failedCount}F
-                      </span>
-                    )}
-                    {audit.warningCount > 0 && (
-                      <span className="text-xs" style={{ color: 'var(--color-warn)' }}>
-                        {audit.warningCount}W
-                      </span>
-                    )}
-                    <span className="text-xs" style={{ color: 'var(--color-pass)' }}>
-                      {audit.passedCount}P
-                    </span>
-                  </div>
+                {/* Three columns under three headers, so the number is read
+                    against a word rather than a suffix letter and a colour.
+                    A zero shows as a dash: absent is a result, and an empty
+                    cell reads as missing data. */}
+                <td className="p-3 text-right tabular-nums" style={{ color: audit.failedCount > 0 ? 'var(--color-fail)' : 'var(--color-text-muted)' }}>
+                  {audit.failedCount > 0 ? audit.failedCount : '—'}
+                </td>
+                <td className="p-3 text-right tabular-nums" style={{ color: audit.warningCount > 0 ? 'var(--color-warn)' : 'var(--color-text-muted)' }}>
+                  {audit.warningCount > 0 ? audit.warningCount : '—'}
+                </td>
+                <td className="p-3 text-right tabular-nums" style={{ color: 'var(--color-pass)' }}>
+                  {audit.passedCount}
                 </td>
                 <td className="p-3 text-center" style={{ color: 'var(--color-text-muted)' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

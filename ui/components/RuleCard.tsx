@@ -108,7 +108,7 @@ export function RuleCard({ rule, metadata }: RuleCardProps) {
 
   return (
     <div
-      className="border border-[var(--color-border-subtle)] rounded-lg p-4 hover:bg-[var(--color-bg-hover)] transition-colors focus:outline-2 focus:outline-offset-2 focus:outline-[var(--color-accent)]"
+      className="border border-[var(--color-border-subtle)] rounded-lg p-4 hover:bg-[var(--color-bg-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]"
       id={`rule-${rule.ruleId}`}
       // Not a tab stop, but focusable when the page jumps here from the issues
       // table. Without it the scroll moved the view and left focus behind in

@@ -128,7 +128,7 @@ export function IssuesTable({ result, ruleMetadata, onIssueClick }: IssuesTableP
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onIssueClick?.(issue.ruleId, issue.categoryId); }}
-                  className="flex items-center gap-2 text-left w-full rounded focus:outline-2 focus:outline-offset-2 focus:outline-[var(--color-accent)]"
+                  className="flex items-center gap-2 text-left w-full rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]"
                 >
                   <span className={`font-bold ${getStatusColorClass(issue.status)}`}>
                     {getStatusIcon(issue.status)}

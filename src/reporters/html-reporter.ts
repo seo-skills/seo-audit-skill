@@ -1,5 +1,6 @@
 import type { PageSnapshot, AuditResult, CategoryResult, RuleResult } from '../types.js';
-import { scoreToVerdict } from '../verdict.js';
+import { scoreToVerdict, verdictStyle } from '../verdict.js';
+import { toCss as tokensToCss } from '../design/tokens.js';
 import { getCategoryById } from '../categories/index.js';
 import { getFixSuggestion } from './fix-suggestions.js';
 import { getRuleById } from '../rules/registry.js';
@@ -144,13 +145,23 @@ function aggregateIssuesByRule(
 }
 
 /**
- * Get color class for score
+ * Colour for a score, from the one shared bucket set.
+ *
+ * This used to carry its own 90/70/50 thresholds, so a score of 85 drew green
+ * in the terminal and the dashboard (verdict bucket B) and amber here. The
+ * scale lives in `src/verdict.ts` and nowhere else.
  */
 function getScoreColor(score: number): string {
-  if (score >= 90) return 'var(--color-pass)';
-  if (score >= 70) return 'var(--color-warn)';
-  if (score >= 50) return 'var(--color-orange)';
-  return 'var(--color-fail)';
+  return verdictStyle(score).color;
+}
+
+/**
+ * Paired background for a score badge. Never build this by appending an alpha
+ * suffix to `getScoreColor()` — that yields `var(--color-pass)20`, which is
+ * dropped silently and leaves the badge with no background at all.
+ */
+function getScoreBackground(score: number): string {
+  return verdictStyle(score).backgroundColor;
 }
 
 /**
@@ -210,85 +221,13 @@ function getShortUrl(url: string): string {
 function generateStyles(): string {
   return `
     /* ========================================
-       CSS Custom Properties (Theme System)
-       ======================================== */
-    :root {
-      /* Light theme (default) */
-      --color-bg: #f8fafc;
-      --color-bg-elevated: #ffffff;
-      --color-bg-hover: #f1f5f9;
-      --color-bg-active: #e2e8f0;
-      --color-border: #e2e8f0;
-      --color-border-subtle: #f1f5f9;
-      --color-text: #0f172a;
-      --color-text-secondary: #475569;
-      --color-text-muted: #94a3b8;
-
-      /* Status colors */
-      --color-pass: #10b981;
-      --color-pass-bg: #d1fae5;
-      --color-warn: #f59e0b;
-      --color-warn-bg: #fef3c7;
-      --color-orange: #f97316;
-      --color-fail: #ef4444;
-      --color-fail-bg: #fee2e2;
-      --color-info: #3b82f6;
-      --color-info-bg: #dbeafe;
-      /* "No reading taken" is its own state — deliberately colourless so it
-         never competes with the three that mean something about the site. */
-      --color-neutral: #64748b;
-      --color-neutral-bg: #e2e8f0;
-
-      /* Brand accent color */
-      --color-accent: #064ada;
-      --color-accent-hover: #0540b8;
-      --color-accent-light: rgba(6, 74, 218, 0.1);
-
-      /* Shadows */
-      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-
-      /* Spacing & Layout */
-      --header-height: 64px;
-      --sidebar-width: 260px;
-      --content-max-width: 1200px;
-
-      /* Typography */
-      --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
-
-      /* Border radius */
-      --radius-sm: 4px;
-      --radius-md: 8px;
-      --radius-lg: 12px;
-      --radius-full: 9999px;
-    }
-
-    /* Dark theme - True black */
-    [data-theme="dark"] {
-      --color-bg: #000000;
-      --color-bg-elevated: #0a0a0a;
-      --color-bg-hover: #161616;
-      --color-bg-active: #1f1f1f;
-      --color-border: #1a1a1a;
-      --color-border-subtle: #111111;
-      --color-text: #ffffff;
-      --color-text-secondary: #a3a3a3;
-      --color-text-muted: #525252;
-
-      --color-pass-bg: rgba(16, 185, 129, 0.12);
-      --color-warn-bg: rgba(245, 158, 11, 0.12);
-      --color-fail-bg: rgba(239, 68, 68, 0.12);
-      --color-info-bg: rgba(59, 130, 246, 0.12);
-      --color-neutral: #8b949e;
-      --color-neutral-bg: rgba(139, 148, 158, 0.14);
-      --color-accent-light: rgba(6, 74, 218, 0.2);
-
-      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-      --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.6);
-      --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.7);
-    }
+       Design tokens — generated, not written here
+       ========================================
+       These used to be declared inline, and the copy in the dashboard had
+       already drifted: this file painted pure black (#000000) for the dark
+       background where the app painted zinc (#09090b), and the two disagreed
+       on every raised surface. One source now: src/design/tokens.ts. */
+${tokensToCss()}
 
     /* ========================================
        Base Styles
@@ -2121,7 +2060,7 @@ export function renderHtmlReport(result: AuditResult): string {
         <div class="category-header">
           <div class="category-title">
             <span class="category-name">${escapeHtml(categoryName)}</span>
-            <span class="category-score" style="background: ${categoryColor}20; color: ${categoryColor}">${cat.score}/100</span>
+            <span class="category-score" style="background: ${getScoreBackground(cat.score)}; color: ${categoryColor}">${cat.score}/100</span>
           </div>
           <div class="category-stats">
             <span class="category-stat pass">${cat.passCount} passed</span>
@@ -2147,7 +2086,6 @@ export function renderHtmlReport(result: AuditResult): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SEO Audit Report - ${escapeHtml(result.url)}</title>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>${generateStyles()}</style>
 </head>
 <body>

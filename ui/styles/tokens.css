@@ -1,0 +1,127 @@
+/*
+ * GENERATED FILE — do not edit.
+ *
+ * Source: src/design/tokens.ts   Regenerate: npm run gen:tokens
+ *
+ * Emitted unlayered on purpose: the @theme block in tailwind.css aliases these
+ * custom properties to themselves, which resolves only because unlayered CSS
+ * outranks cascade layers.
+ */
+:root {
+  --color-bg: #f8fafc;
+  --color-bg-elevated: #ffffff;
+  --color-bg-hover: #f1f5f9;
+  --color-bg-active: #e2e8f0;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #f1f5f9;
+  --color-text: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-pass: #047857;
+  --color-pass-bg: #d1fae5;
+  --color-warn: #92400e;
+  --color-warn-bg: #fef3c7;
+  --color-orange: #c2410c;
+  --color-orange-bg: #ffedd5;
+  --color-fail: #b91c1c;
+  --color-fail-bg: #fee2e2;
+  --color-info: #1d4ed8;
+  --color-info-bg: #dbeafe;
+  --color-neutral: #475569;
+  --color-neutral-bg: #f1f5f9;
+  --color-accent: #064ada;
+  --color-accent-hover: #0540b8;
+  --color-accent-light: rgba(6, 74, 218, 0.1);
+  --color-on-accent: #ffffff;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --toolbar-bg: rgba(255, 255, 255, 0.72);
+  --toolbar-border: rgba(0, 0, 0, 0.10);
+  --segment-track: rgba(0, 0, 0, 0.05);
+  --segment-active: #ffffff;
+  --segment-shadow: 0 1px 2px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  --header-height: 52px;
+  --sidebar-width: 260px;
+  --content-max-width: 1200px;
+  --traffic-light-width: 92px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+[data-theme='dark'] {
+  --color-bg: #09090b;
+  --color-bg-elevated: #18181b;
+  --color-bg-hover: #27272a;
+  --color-bg-active: #3f3f46;
+  --color-border: #27272a;
+  --color-border-subtle: #1e1e22;
+  --color-text: #fafafa;
+  --color-text-secondary: #a1a1aa;
+  --color-text-muted: #8b8b94;
+  --color-pass: #34d399;
+  --color-pass-bg: rgba(16, 185, 129, 0.12);
+  --color-warn: #fbbf24;
+  --color-warn-bg: rgba(245, 158, 11, 0.12);
+  --color-orange: #fb923c;
+  --color-orange-bg: rgba(249, 115, 22, 0.12);
+  --color-fail: #f87171;
+  --color-fail-bg: rgba(239, 68, 68, 0.12);
+  --color-info: #60a5fa;
+  --color-info-bg: rgba(59, 130, 246, 0.12);
+  --color-neutral: #a1a1aa;
+  --color-neutral-bg: rgba(161, 161, 170, 0.14);
+  --color-accent: #7ba3f5;
+  --color-accent-hover: #a5c0f8;
+  --color-accent-light: rgba(6, 74, 218, 0.2);
+  --color-on-accent: #0b1220;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.7);
+  --toolbar-bg: rgba(24, 24, 27, 0.72);
+  --toolbar-border: rgba(255, 255, 255, 0.10);
+  --segment-track: rgba(255, 255, 255, 0.06);
+  --segment-active: rgba(255, 255, 255, 0.16);
+  --segment-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-bg: #09090b;
+    --color-bg-elevated: #18181b;
+    --color-bg-hover: #27272a;
+    --color-bg-active: #3f3f46;
+    --color-border: #27272a;
+    --color-border-subtle: #1e1e22;
+    --color-text: #fafafa;
+    --color-text-secondary: #a1a1aa;
+    --color-text-muted: #8b8b94;
+    --color-pass: #34d399;
+    --color-pass-bg: rgba(16, 185, 129, 0.12);
+    --color-warn: #fbbf24;
+    --color-warn-bg: rgba(245, 158, 11, 0.12);
+    --color-orange: #fb923c;
+    --color-orange-bg: rgba(249, 115, 22, 0.12);
+    --color-fail: #f87171;
+    --color-fail-bg: rgba(239, 68, 68, 0.12);
+    --color-info: #60a5fa;
+    --color-info-bg: rgba(59, 130, 246, 0.12);
+    --color-neutral: #a1a1aa;
+    --color-neutral-bg: rgba(161, 161, 170, 0.14);
+    --color-accent: #7ba3f5;
+    --color-accent-hover: #a5c0f8;
+    --color-accent-light: rgba(6, 74, 218, 0.2);
+    --color-on-accent: #0b1220;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.7);
+    --toolbar-bg: rgba(24, 24, 27, 0.72);
+    --toolbar-border: rgba(255, 255, 255, 0.10);
+    --segment-track: rgba(255, 255, 255, 0.06);
+    --segment-active: rgba(255, 255, 255, 0.16);
+    --segment-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+  }
+}

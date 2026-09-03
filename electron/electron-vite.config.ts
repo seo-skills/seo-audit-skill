@@ -1,5 +1,7 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 import react from '@vitejs/plugin-react';
+// @ts-expect-error -- plain .mjs plugin, no types needed
+import { designTokens } from '../scripts/vite-plugin-tokens.mjs';
 import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'path';
 
@@ -38,7 +40,7 @@ export default defineConfig({
         input: resolve(__dirname, '../ui/index.html'),
       },
     },
-    plugins: [react(), tailwindcss()],
+    plugins: [designTokens(), react(), tailwindcss()],
     resolve: {
       alias: {
         '@renderer': resolve(__dirname, '../ui'),

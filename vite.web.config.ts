@@ -1,5 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+// @ts-expect-error -- plain .mjs plugin, no types needed
+import { designTokens } from './scripts/vite-plugin-tokens.mjs';
 import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'path';
 
@@ -13,7 +15,7 @@ import { resolve } from 'path';
 export default defineConfig({
   root: resolve(__dirname, 'ui'),
   base: '/',
-  plugins: [react(), tailwindcss()],
+  plugins: [designTokens(), react(), tailwindcss()],
   resolve: {
     alias: {
       '@renderer': resolve(__dirname, 'ui'),

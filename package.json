@@ -31,9 +31,11 @@
     "electron:dist": "electron-builder install-app-deps && npm run electron:build && electron-builder",
     "electron:dist:mac": "electron-builder install-app-deps && npm run electron:build && electron-builder --mac",
     "electron:dist:win": "electron-builder install-app-deps && npm run electron:build && electron-builder --win",
-    "prepublishOnly": "npm run typecheck && npm run build && npm run check:docs",
+    "prepublishOnly": "npm run typecheck && npm run build && npm run check:docs && npm run check:tokens",
     "sync:docs": "node scripts/sync-docs.mjs",
     "gen:icons": "node scripts/gen-icons.mjs",
+    "gen:tokens": "node scripts/gen-tokens.mjs",
+    "check:tokens": "node scripts/gen-tokens.mjs --check",
     "check:docs": "node scripts/sync-docs.mjs --check",
     "web:build": "vite build -c vite.web.config.ts",
     "web:dev": "concurrently -n api,web -c blue,green \"node --watch dist/cli.js serve --port 7360 --no-open\" \"vite -c vite.web.config.ts\""

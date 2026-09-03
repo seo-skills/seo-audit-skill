@@ -4,7 +4,7 @@
 
 import { Link } from 'react-router-dom';
 import type { AuditSummaryDto } from '../../electron/shared/ipc-types.js';
-import { getScoreColor, formatDate } from '../lib/format.js';
+import { formatDate, verdictStyle } from '../lib/format.js';
 
 interface AuditListProps {
   audits: AuditSummaryDto[];
@@ -47,7 +47,6 @@ export function AuditList({ audits, loading, linkTo }: AuditListProps) {
         </thead>
         <tbody>
           {audits.map((audit) => {
-            const scoreColor = getScoreColor(audit.overallScore);
             return (
               <tr
                 key={audit.auditId}
@@ -67,7 +66,7 @@ export function AuditList({ audits, loading, linkTo }: AuditListProps) {
                 <td className="p-3 text-center">
                   <span
                     className="text-sm font-bold px-2 py-0.5 rounded-full"
-                    style={{ color: scoreColor, backgroundColor: `${scoreColor}15` }}
+                    style={verdictStyle(audit.overallScore)}
                   >
                     {Math.round(audit.overallScore)}
                   </span>

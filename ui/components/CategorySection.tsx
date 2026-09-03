@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import type { CategoryResult } from '../../src/types.js';
 import type { RuleMetadata } from '../../electron/shared/ipc-types.js';
-import { getScoreColor } from '../lib/format.js';
+import { getScoreColor, verdictStyle } from '../lib/format.js';
 import { RuleCard } from './RuleCard.js';
 import type { FilterStatus } from './FilterTabs.js';
 
@@ -67,7 +67,7 @@ export function CategorySection({ category, filter, ruleMetadata, defaultExpande
           </span>
           <span
             className="text-xs px-2 py-0.5 rounded-full font-bold"
-            style={{ color, backgroundColor: `${color}15` }}
+            style={verdictStyle(category.score)}
           >
             {Math.round(category.score)}
           </span>

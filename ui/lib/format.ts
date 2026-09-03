@@ -6,7 +6,7 @@
  * came to be graded D in the terminal and F in the LLM report.
  */
 
-import { scoreToVerdict, verdictCssVar } from '@core/verdict.js';
+import { scoreToVerdict, verdictCssVar, verdictStyle } from '@core/verdict.js';
 import type { RuleStatus } from '@core/types.js';
 
 export function getScoreColor(score: number): string {
@@ -15,19 +15,14 @@ export function getScoreColor(score: number): string {
   return verdictCssVar(scoreToVerdict(score).colorToken);
 }
 
-export function getScoreColorClass(score: number): string {
-  if (score >= 90) return 'text-pass';
-  if (score >= 70) return 'text-warn';
-  if (score >= 50) return 'text-[var(--color-orange)]';
-  return 'text-fail';
-}
-
-export function getScoreBgClass(score: number): string {
-  if (score >= 90) return 'bg-pass-bg';
-  if (score >= 70) return 'bg-warn-bg';
-  if (score >= 50) return 'bg-[var(--color-warn-bg)]';
-  return 'bg-fail-bg';
-}
+/**
+ * Foreground + background for a score badge, as a ready-to-spread style object.
+ *
+ * Callers must not derive the tint from `getScoreColor()`: that returns
+ * `var(--color-pass)`, and `` `${color}15` `` appends to the string rather than
+ * to a hex value, producing `var(--color-pass)15` — dropped by the browser.
+ */
+export { verdictStyle };
 
 export function getScoreLabel(score: number): string {
   return scoreToVerdict(score).label;

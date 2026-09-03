@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderLlmReport } from './llm-reporter.js';
+import { renderLlmReport, renderLlmError } from './llm-reporter.js';
 import type { AuditResult } from '../types.js';
 
 function buildResult(overrides: Partial<AuditResult> = {}): AuditResult {
@@ -166,5 +166,50 @@ describe('renderLlmReport — security envelope', () => {
     expect(closes).toHaveLength(1);
     // The injected literal got escaped, not interpreted as a tag.
     expect(msgBlock).toContain('&lt;/untrusted-deadbeef&gt;');
+  });
+});
+
+/**
+ * `--format llm` exists so a program can read stdout. Two things broke that:
+ * progress output printed into the middle of the document on every run, and a
+ * failure wrote only to stderr, leaving stdout empty — which parses the same as
+ * a clean audit, i.e. not at all, but reads to a caller as "nothing wrong".
+ */
+describe('renderLlmError', () => {
+  const xml = renderLlmError({
+    url: 'https://example.com',
+    code: 'dns',
+    message: 'Could not resolve the hostname',
+    hint: 'Check the hostname for typos.',
+  });
+
+  it('is well-formed and uses the same root element as a report', () => {
+    expect(xml.trimStart().startsWith('<seo-audit ')).toBe(true);
+    expect(xml.trimEnd().endsWith('</seo-audit>')).toBe(true);
+  });
+
+  it('states failure rather than leaving it to be inferred', () => {
+    expect(xml).toContain('ok="false"');
+    expect(xml).toContain('code="dns"');
+  });
+
+  it('carries the message and hint', () => {
+    expect(xml).toContain('<message>Could not resolve the hostname</message>');
+    expect(xml).toContain('<hint>Check the hostname for typos.</hint>');
+  });
+
+  it('omits the hint element when there is no hint', () => {
+    const bare = renderLlmError({ url: 'https://e.com', code: 'timeout', message: 'Timed out' });
+    expect(bare).not.toContain('<hint>');
+  });
+
+  it('escapes a url that would otherwise break the document', () => {
+    const nasty = renderLlmError({
+      url: 'https://e.com/?a=1&b="2"><script>',
+      code: 'x',
+      message: 'y',
+    });
+    expect(nasty).not.toContain('<script>');
+    expect(nasty).toContain('&amp;');
   });
 });

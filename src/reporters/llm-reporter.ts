@@ -278,3 +278,33 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
 export function outputLlmReport(result: AuditResult): void {
   console.log(renderLlmReport(result));
 }
+
+/**
+ * What `--format llm` prints when the audit could not run.
+ *
+ * The failure path wrote a human message to stderr and left stdout empty, so an
+ * agent that captured stdout — which is what `--format llm` exists for — saw an
+ * empty string. That is indistinguishable from a site with no findings and from
+ * the tool crashing. The exit code said 2, but a caller reading a stream has no
+ * reason to look there before parsing.
+ *
+ * Same root element as a real report, so one parser handles both, and an
+ * explicit `ok="false"` so success is never inferred from the absence of an
+ * error.
+ */
+export function renderLlmError(failure: {
+  url: string;
+  code: string;
+  message: string;
+  hint?: string;
+}): string {
+  const date = new Date().toISOString();
+  return (
+    `<seo-audit schema="${AUDIT_SCHEMA_VERSION}" ok="false" url="${escapeXml(failure.url)}" date="${date}">\n` +
+    `  <error code="${escapeXml(failure.code)}">\n` +
+    `    <message>${escapeXml(failure.message)}</message>\n` +
+    (failure.hint ? `    <hint>${escapeXml(failure.hint)}</hint>\n` : '') +
+    `  </error>\n` +
+    `</seo-audit>\n`
+  );
+}

@@ -101,6 +101,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Along the way 8 of 13 text/background pairs failed WCAG AA; all 18 pairs now
   clear 4.5:1 in both themes, and a test computes the ratios.
 
+- **`--format llm` output is parseable.** The format exists so a program can
+  read stdout, and two things prevented that. Progress display was suppressed
+  for `--format json` but not for `--format llm`, so every run printed
+  "✗ Core …" lines before `<seo-audit>` and the output was not XML at all.
+  And a failed audit wrote only to stderr, leaving stdout empty — which a caller
+  reads as an audit with nothing to report. Progress now treats both document
+  formats alike (including under `--verbose`), and a failure emits a
+  `<seo-audit ok="false">` envelope carrying the code, message and hint.
+
 - **The markdown and LLM reports say a thing once.** A crawl produces one rule
   result per rule per page, and both reporters rendered them raw: a forty-page
   site with one render-blocking script got forty identical `### ` sections and

@@ -5,8 +5,24 @@
  * them, which is the reason the dashboard exists at all.
  */
 
+import { useState } from 'react';
 import type { DomainSummary } from '../../electron/shared/ipc-types.js';
 import { getScoreColor } from '../lib/format.js';
+
+/**
+ * How many sites show before the rest are folded away.
+ *
+ * The strip used to be one horizontally scrolling row. On macOS the scrollbar
+ * is an overlay that appears only while scrolling, so with seven sites the only
+ * standing cue that more existed was a card clipped mid-edge — and reaching
+ * them needed shift+wheel. 279px of navigation was hidden at 1440px wide and
+ * 1089px (76%) on a phone.
+ *
+ * Wrapping fixes the hiding; it does not fix the growth, because every site
+ * ever audited joins this row permanently. So it wraps *and* stops, and the
+ * remainder is one click away rather than one undiscoverable gesture.
+ */
+const VISIBLE_DOMAINS = 6;
 
 interface DomainStripProps {
   domains: DomainSummary[];
@@ -49,10 +65,21 @@ function Delta({ value }: { value: number | null }) {
 }
 
 export function DomainStrip({ domains, selected, onSelect }: DomainStripProps) {
+  const [showAll, setShowAll] = useState(false);
+
+  // The selected site is always shown, even when it sits past the cap —
+  // otherwise picking a site from the full list would make it disappear.
+  const selectedIndex = domains.findIndex((d) => d.domain === selected);
+  const cap = showAll
+    ? domains.length
+    : Math.max(VISIBLE_DOMAINS, selectedIndex + 1);
+  const shown = domains.slice(0, cap);
+  const hidden = domains.length - shown.length;
+
   if (domains.length === 0) return null;
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Audited sites">
+    <div className="flex flex-wrap gap-2 pb-1" role="group" aria-label="Audited sites">
       <button
         type="button"
         onClick={() => onSelect(null)}
@@ -67,7 +94,7 @@ export function DomainStrip({ domains, selected, onSelect }: DomainStripProps) {
         All sites
       </button>
 
-      {domains.map((domain) => {
+      {shown.map((domain) => {
         const active = selected === domain.domain;
         return (
           <button
@@ -99,6 +126,28 @@ export function DomainStrip({ domains, selected, onSelect }: DomainStripProps) {
           </button>
         );
       })}
+
+      {hidden > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="shrink-0 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+        >
+          {hidden} more {hidden === 1 ? 'site' : 'sites'}
+        </button>
+      )}
+
+      {showAll && domains.length > VISIBLE_DOMAINS && (
+        <button
+          type="button"
+          onClick={() => setShowAll(false)}
+          className="shrink-0 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+        >
+          Show fewer
+        </button>
+      )}
     </div>
   );
 }

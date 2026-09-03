@@ -2,7 +2,9 @@
 
 # PRD — One verdict, one ordering, six surfaces
 
-**Status:** v2, reviewed by `/autoplan` (CEO → Design → DX → Eng)
+**Status:** **APPROVED as-is, 2026-09-03.** Reviewed by `/autoplan` (CEO → Design → DX → Eng);
+both challenges in §12 were accepted, so all six surfaces are in scope and the data-model
+release precedes the visual one.
 **Author's direction (verbatim):** "the design and ui ux is so bad we need to improve
 it on ui side and also electron app side and static html sides"
 
@@ -413,11 +415,20 @@ search does not catch it. Add to §4: *for each surface,
 | Rule + category weights | the registry | Source of `rulePriority()` |
 | Not-measured accounting | `notMeasuredCount`, `isNotMeasured()` | Promote to a real status |
 
-## 12. Challenges to the author's direction — for decision
+## 12. Challenges to the author's direction — both ACCEPTED (2026-09-03)
 
 Both models, in both the CEO and DX phases, independently recommended changing the
-direction the author gave. Neither is auto-decided. The author's original direction is
-the default; the models have to make the case.
+direction the author gave. Neither was auto-decided; both were put to the author at the
+final gate and **both were accepted**. Consequences, now binding on the plan:
+
+- **UC-1 accepted** → the terminal (`terminal.ts`, `progress.ts`, `banner.ts`) and the
+  machine reporters (markdown, LLM) are in scope. §1's six-surface table is the scope,
+  not the three the direction named.
+- **UC-2 accepted** → Release 1 is the data-model pass and Release 2 is the visual one,
+  in that order. The visual complaint that started this work is answered in Release 2,
+  and is cheap there because Release 1 did the semantics.
+
+The original text of both challenges is preserved below, unedited.
 
 ### UC-1 — Put the terminal and the machine reporters in scope
 

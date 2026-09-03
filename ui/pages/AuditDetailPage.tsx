@@ -148,6 +148,13 @@ export function AuditDetailPage() {
           {/* Actions */}
           <div className="flex flex-wrap items-center gap-2">
             <Link
+              to={`/run?url=${encodeURIComponent(audit.startUrl)}`}
+              className="px-3 py-1.5 text-sm rounded-md font-medium text-white"
+              style={{ backgroundColor: 'var(--color-accent)' }}
+            >
+              Run again
+            </Link>
+            <Link
               to={`/compare/${audit.auditId}`}
               className="px-3 py-1.5 text-sm rounded-md font-medium border"
               style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}

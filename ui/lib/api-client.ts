@@ -7,8 +7,8 @@
  */
 
 import { getAPI as getElectronAPI } from './ipc-client.js';
-import { httpApi } from './http-api.js';
-import type { AppInfoIpc, AuditDetail, AuditSummaryDto, DbListAuditsArgs, DbScoreTrendArgs, DomainSummary, ScoreTrendPointDto, StoredComparison } from '../../electron/shared/ipc-types.js';
+import { httpApi, httpRuns, subscribeToRun } from './http-api.js';
+import type { AppInfoIpc, AuditDetail, AuditRunArgs, AuditSummaryDto, DbListAuditsArgs, DbScoreTrendArgs, DomainSummary, RunState, ScoreTrendPointDto, StoredComparison } from '../../electron/shared/ipc-types.js';
 
 export type Host = 'electron' | 'web';
 
@@ -33,6 +33,51 @@ export interface DashboardReads {
   compare(auditId: string, against?: string): Promise<StoredComparison>;
   deleteAudit(auditId: string): Promise<void>;
   exportUrl(auditId: string, format: 'html' | 'markdown' | 'json' | 'llm'): string;
+}
+
+/** Starting and watching a run, in whichever transport this host provides */
+export interface DashboardRuns {
+  start(args: AuditRunArgs): Promise<void>;
+  cancel(): Promise<void>;
+  getState(): Promise<RunState | null>;
+  /** Called with every state change; returns unsubscribe */
+  subscribe(onState: (state: RunState) => void): () => void;
+  /** Store a finished run whose first save failed */
+  retrySave(runId: string): Promise<{ auditId: string }>;
+  /** Where to download an unsaved run, or null when the host cannot */
+  exportUrl(runId: string, format: string): string | null;
+}
+
+export function getRuns(): DashboardRuns {
+  const electron = getElectronAPI();
+  if (electron === null) {
+    return {
+      start: async (args) => {
+        await httpRuns.start(args);
+      },
+      cancel: () => httpRuns.cancel(),
+      getState: () => httpRuns.getState(),
+      subscribe: (onState) => subscribeToRun(onState),
+      retrySave: (runId) => httpRuns.retrySave(runId),
+      exportUrl: (runId, format) => httpRuns.exportUrl(runId, format),
+    };
+  }
+
+  return {
+    start: async (args) => {
+      const outcome = await electron.runAudit(args);
+      if (!outcome.started && outcome.error) throw new Error(outcome.error.message);
+    },
+    cancel: async () => {
+      await electron.cancelAudit();
+    },
+    getState: () => electron.getAuditState(),
+    subscribe: (onState) => electron.onAuditState(onState),
+    // The desktop app saves through its own bridge, and has no unsaved-run
+    // export: it writes the file with a save dialog instead.
+    retrySave: () => Promise.reject(new Error('Retry save is not available in the desktop app yet.')),
+    exportUrl: () => null,
+  };
 }
 
 export function getReads(): DashboardReads {

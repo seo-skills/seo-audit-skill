@@ -11,6 +11,8 @@
  */
 
 import type {
+  AuditRunArgs,
+  RunState,
   AppInfoIpc,
   AuditDetail,
   AuditSummaryDto,
@@ -124,3 +126,91 @@ export const httpApi = {
 };
 
 export type HttpApi = typeof httpApi;
+
+/** Starting, watching and cancelling a run over HTTP */
+export const httpRuns = {
+  start: async (args: AuditRunArgs): Promise<{ runId: string; run: RunState }> =>
+    request('/api/runs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(args),
+    }),
+
+  cancel: async (): Promise<void> => {
+    await request('/api/runs/current', { method: 'DELETE' });
+  },
+
+  getState: async (): Promise<RunState | null> => {
+    const { run } = await request<{ run: RunState | null }>('/api/runs/current');
+    return run;
+  },
+
+  /** A finished run's detail, for a result the server could not store */
+  getResult: (runId: string) => request<unknown>(`/api/runs/${encodeURIComponent(runId)}/result`),
+
+  retrySave: (runId: string): Promise<{ auditId: string }> =>
+    request(`/api/runs/${encodeURIComponent(runId)}/save`, { method: 'POST' }),
+
+  exportUrl: (runId: string, format: string): string =>
+    `/api/runs/${encodeURIComponent(runId)}/export?format=${format}`,
+};
+
+/**
+ * Watch the run over Server-Sent Events, one stream per *visible* tab.
+ *
+ * Node's http is HTTP/1.1 and browsers allow six connections per host, so a
+ * few background tabs each holding a stream would starve the dashboard's own
+ * fetches. A hidden tab closes its stream; a tab that comes back opens one and
+ * gets a fresh snapshot, which is why no replay buffer is needed.
+ *
+ * @param onState - Called with every state, including the snapshot on connect
+ * @returns Unsubscribe
+ */
+export function subscribeToRun(
+  onState: (state: RunState) => void,
+  primitives: {
+    EventSource?: typeof globalThis.EventSource;
+    document?: Pick<Document, 'addEventListener' | 'removeEventListener' | 'visibilityState'>;
+  } = {}
+): () => void {
+  const Source = primitives.EventSource ?? globalThis.EventSource;
+  const doc = primitives.document ?? globalThis.document;
+  if (!Source || !doc) return () => {};
+
+  let source: EventSource | null = null;
+
+  const open = (): void => {
+    if (source) return;
+    source = new Source('/api/events', { withCredentials: true });
+    const handle = (event: MessageEvent): void => {
+      try {
+        onState(JSON.parse(event.data) as RunState);
+      } catch {
+        // A malformed frame is not worth tearing the stream down for.
+      }
+    };
+    // `snapshot` on connect, `state` on every change; both carry a RunState.
+    source.addEventListener('snapshot', handle as EventListener);
+    source.addEventListener('state', handle as EventListener);
+    // `error` is EventSource's transport event; it reconnects on its own, so
+    // there is nothing to do here but let it.
+  };
+
+  const close = (): void => {
+    source?.close();
+    source = null;
+  };
+
+  const onVisibility = (): void => {
+    if (doc.visibilityState === 'hidden') close();
+    else open();
+  };
+
+  doc.addEventListener('visibilitychange', onVisibility);
+  if (doc.visibilityState !== 'hidden') open();
+
+  return () => {
+    doc.removeEventListener('visibilitychange', onVisibility);
+    close();
+  };
+}

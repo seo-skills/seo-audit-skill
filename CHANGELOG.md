@@ -101,6 +101,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Along the way 8 of 13 text/background pairs failed WCAG AA; all 18 pairs now
   clear 4.5:1 in both themes, and a test computes the ratios.
 
+- **The markdown and LLM reports say a thing once.** A crawl produces one rule
+  result per rule per page, and both reporters rendered them raw: a forty-page
+  site with one render-blocking script got forty identical `### ` sections and
+  forty `<issue>` elements. For the LLM report that is forty times the tokens
+  for one problem, and a model reading it has every reason to conclude there are
+  forty problems. Both now group by rule and message through a shared
+  `collectFindings()`, carry page attribution ("affects 3 of 8 pages" and the
+  URLs), and order by the same ranking the HTML report uses.
+
+- **The LLM report admits when it is truncated.** It emitted every finding, so a
+  large crawl overran the context of the model meant to read it. It now carries
+  the fifty highest-impact findings and states `total` and `omitted` on the
+  `<issues>` element, because a truncated list with no marker reads as a
+  complete one.
+
 - **Solid buttons are readable in dark mode.** The run, cancel, delete and
   filter buttons set a themed background and a hardcoded white foreground. In
   the light theme those backgrounds are a dark blue, amber and red, so white

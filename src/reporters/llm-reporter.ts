@@ -18,6 +18,7 @@
 import { randomBytes } from 'node:crypto';
 import { scoreToVerdict } from '../verdict.js';
 import { isNotMeasured } from '../rules/define-rule.js';
+import { collectFindings } from './findings.js';
 import { AUDIT_SCHEMA_VERSION } from '../types.js';
 import type { AuditResult } from '../types.js';
 import { getFixSuggestion } from './fix-suggestions.js';
@@ -110,7 +111,22 @@ interface IssueData {
   cat: string;
   msg: string;
   details?: Record<string, unknown>;
+  /** Pages this was seen on, capped when rendered */
+  pages: string[];
+  /** Pages affected, and how many the rule could be measured on */
+  pageCount: number;
+  measuredPages: number;
 }
+
+/**
+ * How many findings the report carries.
+ *
+ * A 1,000-page crawl can produce thousands; a model asked to act on them runs
+ * out of context long before it runs out of list. Findings are ranked by
+ * impact, so the cap drops the least important, and `<issues>` states how many
+ * were left out so nothing reads as complete when it is not.
+ */
+const MAX_ISSUES = 50;
 
 /**
  * Render audit result in LLM-optimized XML format
@@ -167,47 +183,62 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
   }
   lines.push(`${t1}</categories>${nl}`);
 
-  // Collect issues and passed rules
-  const issues: IssueData[] = [];
+  // Grouped and ranked. A crawl emits one rule result per rule per page, so
+  // this used to carry one <issue> per page: forty copies of one problem on a
+  // forty-page site, which is forty times the tokens and reads to a model as
+  // forty separate problems.
+  //
+  // Three-way, not two. An earlier `else` filed anything that was not fail/warn
+  // under <passed>, so a model was told that checks which never ran had passed
+  // — and could propose fixes for measurements the audit never took.
+  const findings = collectFindings(result);
+  const notMeasured = findings.filter((f) => f.status === 'not-measured').map((f) => f.ruleId);
   const passed: string[] = [];
-  const notMeasured: string[] = [];
-
   for (const cat of result.categoryResults) {
     for (const r of cat.results) {
-      // Three-way, not two. The old `else` filed anything that was not
-      // fail/warn under <passed>, so a model reading this report was told that
-      // checks which never ran had passed — and could then propose fixes for
-      // measurements the audit never took.
-      if (isNotMeasured(r)) {
-        notMeasured.push(r.ruleId);
-      } else if (r.status === 'fail' || r.status === 'warn') {
-        issues.push({
-          severity: getSeverity(r.status),
-          rule: r.ruleId,
-          cat: cat.categoryId,
-          msg: r.message,
-          details: r.details,
-        });
-      } else {
-        passed.push(r.ruleId);
-      }
+      if (!isNotMeasured(r) && r.status === 'pass') passed.push(r.ruleId);
     }
   }
 
-  // Sort issues: critical first, then warning
-  issues.sort((a, b) => {
-    if (a.severity === 'critical' && b.severity !== 'critical') return -1;
-    if (a.severity !== 'critical' && b.severity === 'critical') return 1;
-    return 0;
-  });
+  const ranked = findings.filter((f) => f.status === 'fail' || f.status === 'warn');
+
+  // A model reading a truncated list with no marker will treat it as the whole
+  // list. Cap it, and say plainly how much was left out.
+  const omitted = Math.max(0, ranked.length - MAX_ISSUES);
+  const issues: IssueData[] = ranked.slice(0, MAX_ISSUES).map((f) => ({
+    severity: getSeverity(f.status === 'fail' ? 'fail' : 'warn'),
+    rule: f.ruleId,
+    cat: f.categoryId,
+    msg: f.message,
+    details: f.details,
+    pages: f.pages,
+    pageCount: f.pageCount,
+    measuredPages: f.measuredPages,
+  }));
 
   // Issues section. Rule messages and details may quote site content, so they
   // are wrapped in nonce-stamped delimiters; fix suggestions are tool-authored
   // and rendered as plain XML.
   if (issues.length > 0) {
-    lines.push(`${t1}<issues>${nl}`);
+    lines.push(
+      `${t1}<issues count="${issues.length}" total="${ranked.length}"` +
+        (omitted > 0 ? ` omitted="${omitted}" note="ranked by impact; lowest-impact omitted"` : '') +
+        `>${nl}`
+    );
     for (const issue of issues) {
-      lines.push(`${t2}<issue severity="${issue.severity}" rule="${issue.rule}" cat="${issue.cat}">${nl}`);
+      const scope =
+        issue.pageCount > 0 && issue.measuredPages > 1
+          ? ` pages="${issue.pageCount}" of="${issue.measuredPages}"`
+          : '';
+      lines.push(
+        `${t2}<issue severity="${issue.severity}" rule="${issue.rule}" cat="${issue.cat}"${scope}>${nl}`
+      );
+      if (issue.pages.length > 0) {
+        // URLs are the audit's own, not site-authored text, so they are plain.
+        lines.push(
+          `${t3}<on>${issue.pages.slice(0, 5).map(escapeXml).join(' ')}</on>${nl}`
+        );
+      }
       lines.push(`${t3}<msg>${wrapUntrusted(issue.msg, nonce)}</msg>${nl}`);
 
       const fix = getFixSuggestion(issue.rule);

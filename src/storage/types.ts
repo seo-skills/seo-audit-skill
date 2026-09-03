@@ -7,7 +7,11 @@
  * - *Options: Query/filter options for list operations
  */
 
-import type { RuleStatus } from '../types.js';
+import type { RuleStatus, AuditRunOptions } from '../types.js';
+
+// The run options belong to the result, not to its persistence; re-exported so
+// existing storage imports keep working.
+export type { AuditRunOptions };
 import type { PartialSeomatorConfig } from '../config/schema.js';
 
 // =============================================================================
@@ -270,16 +274,6 @@ export type AuditSource = 'cli' | 'dashboard' | 'desktop' | 'api';
  * The options an audit ran with, recorded so a run can be repeated the same
  * way and so a stored audit can explain itself.
  */
-export interface AuditRunOptions {
-  crawl: boolean;
-  maxPages: number;
-  concurrency: number;
-  measureCwv: boolean;
-  mobile: boolean;
-  simulateInteraction: boolean;
-  categories: string[];
-  timeout: number;
-}
 
 /**
  * Audit record - represents a complete SEO audit

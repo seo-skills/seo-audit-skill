@@ -9,6 +9,7 @@ import type {
   AssetInfo,
   SiteContext,
   SitemapFetchResult,
+  AuditRunOptions,
 } from './types.js';
 import { categories, getCategoryById } from './categories/index.js';
 import { getRulesByCategory, resetCrossPageState } from './rules/registry.js';
@@ -403,7 +404,8 @@ export class Auditor {
       this.categoriesToAudit,
       timestamp,
       1,
-      buildPageSnapshot(context)
+      buildPageSnapshot(context),
+      this.runOptions(false, 1, 1)
     );
   }
 
@@ -502,7 +504,9 @@ export class Auditor {
       allCategoryResults,
       this.categoriesToAudit,
       timestamp,
-      crawledPages.length
+      crawledPages.length,
+      undefined,
+      this.runOptions(true, maxPages, concurrency)
     );
   }
 
@@ -630,6 +634,27 @@ export class Auditor {
     }
 
     return results;
+  }
+
+  /**
+   * The options this audit ran with, recorded on the result.
+   *
+   * Two scores are only comparable if they were measured the same way, and
+   * the CLI and the desktop app do not default the same: `--no-cwv` is
+   * opt-out, while the GUI's Core Web Vitals toggle is off. Both write to the
+   * same history.
+   */
+  private runOptions(crawl: boolean, maxPages: number, concurrency: number): AuditRunOptions {
+    return {
+      crawl,
+      maxPages,
+      concurrency,
+      measureCwv: this.options.measureCwv,
+      mobile: this.options.mobileParity,
+      simulateInteraction: this.options.simulateInteraction,
+      categories: this.options.categories,
+      timeout: this.options.timeout,
+    };
   }
 
   /**

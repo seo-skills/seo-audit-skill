@@ -48,6 +48,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`compare` no longer blames the site for a measurement-mode change.** The
+  CLI measures Core Web Vitals by default and the desktop app does not, and both
+  write to the same history — so comparing a desktop baseline against a CLI run
+  showed a score drop, a category down 12 points and 23 "new" rules, none of
+  which had anything to do with the site. `--fail-on-regression` failed CI on
+  it. The run options were already stored from 3.4.0; nothing read them. Now
+  `AuditResult` carries them, `compare` reports any difference, and a difference
+  that can move the score on its own suppresses the regression exit code with an
+  explanation. A genuine regression on a like-for-like pair still exits 1.
+
 - **An unmeasured check is no longer promoted into the issues table.**
   `generateIssuesFromResults` filed every weight-0 row as a warning-severity
   issue with a priority score.

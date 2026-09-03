@@ -4,6 +4,7 @@ import type {
   CategoryDefinition,
   AuditResult,
   PageSnapshot,
+  AuditRunOptions,
 } from './types.js';
 import { AUDIT_SCHEMA_VERSION } from './types.js';
 import { isNotMeasured } from './rules/define-rule.js';
@@ -153,6 +154,8 @@ export function buildCategoryResult(
  * @param categories - Category definitions for weight calculation
  * @param timestamp - ISO timestamp of when audit was performed
  * @param crawledPages - Optional number of pages crawled (default: 1)
+ * @param page - Optional page snapshot for the report's previews
+ * @param run - Optional record of how the audit was measured
  * @returns Complete AuditResult
  */
 export function buildAuditResult(
@@ -161,7 +164,8 @@ export function buildAuditResult(
   categories: CategoryDefinition[],
   timestamp: string,
   crawledPages = 1,
-  page?: PageSnapshot
+  page?: PageSnapshot,
+  run?: AuditRunOptions
 ): AuditResult {
   return {
     schemaVersion: AUDIT_SCHEMA_VERSION,
@@ -171,5 +175,6 @@ export function buildAuditResult(
     timestamp,
     crawledPages,
     ...(page && { page }),
+    ...(run && { run }),
   };
 }

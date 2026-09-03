@@ -647,9 +647,39 @@ export interface PageSnapshot {
  */
 export const AUDIT_SCHEMA_VERSION = 2;
 
+/**
+ * The options an audit actually ran with.
+ *
+ * Lives here rather than in the storage layer because it belongs to the
+ * result, not to how the result is persisted: two audits of the same site are
+ * only comparable if they were measured the same way, and every surface needs
+ * to be able to say so.
+ */
+export interface AuditRunOptions {
+  crawl: boolean;
+  maxPages: number;
+  concurrency: number;
+  measureCwv: boolean;
+  mobile: boolean;
+  simulateInteraction: boolean;
+  categories: string[];
+  timeout: number;
+}
+
 export interface AuditResult {
   /** See {@link AUDIT_SCHEMA_VERSION}. Absent on payloads from 3.5.0 and earlier. */
   schemaVersion?: number;
+  /**
+   * How this audit was measured.
+   *
+   * Without it, a score is not comparable to another score. The CLI measures
+   * Core Web Vitals by default and the desktop app does not, both write to the
+   * same history, and `compare --fail-on-regression` could therefore fail a
+   * build whose only change was which surface produced the baseline.
+   *
+   * Optional because audits stored before 3.6.0 do not carry it.
+   */
+  run?: AuditRunOptions;
   /** URL that was audited */
   url: string;
   /** Overall score (0-100) */

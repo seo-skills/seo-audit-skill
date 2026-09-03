@@ -36,6 +36,8 @@ export function AuditDetailPage() {
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const detail = useAsync(() => reads.getAuditDetail(id), [id]);
 
@@ -54,9 +56,19 @@ export function AuditDetailPage() {
 
   const handleExport = useCallback(
     async (format: 'html' | 'markdown' | 'json' | 'llm') => {
+      setActionError(null);
       if (getHost() === 'electron') {
-        // The desktop app has no download; it asks where to save instead.
-        await getAPI()?.exportAudit(id, format);
+        // The desktop app has no download; it asks where to save instead, and
+        // that can fail — no permission, no disk, cancelled dialog. Failing
+        // silently leaves the user believing they have a file they do not.
+        setBusy(true);
+        try {
+          await getAPI()?.exportAudit(id, format);
+        } catch (cause) {
+          setActionError(cause instanceof Error ? cause.message : 'The export failed.');
+        } finally {
+          setBusy(false);
+        }
         return;
       }
       window.location.href = reads.exportUrl(id, format);
@@ -66,9 +78,15 @@ export function AuditDetailPage() {
 
   const handleDelete = useCallback(async () => {
     setBusy(true);
+    setActionError(null);
     try {
       await reads.deleteAudit(id);
       navigate('/', { replace: true });
+    } catch (cause) {
+      // The audit is still there. Say so, rather than resetting the button and
+      // leaving the user to guess whether it worked.
+      setActionError(cause instanceof Error ? cause.message : 'The audit could not be deleted.');
+      setConfirmingDelete(false);
     } finally {
       setBusy(false);
     }
@@ -180,16 +198,57 @@ export function AuditDetailPage() {
                 {label}
               </button>
             ))}
-            <button
-              type="button"
-              onClick={() => void handleDelete()}
-              disabled={busy}
-              className="px-3 py-1.5 text-sm rounded-md border ml-auto disabled:opacity-50"
-              style={{ borderColor: 'var(--color-fail)', color: 'var(--color-fail)' }}
-            >
-              Delete
-            </button>
+            {confirmingDelete ? (
+              <span className="flex items-center gap-2 ml-auto">
+                <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                  Delete this audit permanently?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void handleDelete()}
+                  disabled={busy}
+                  autoFocus
+                  className="px-3 py-1.5 text-sm rounded-md font-medium disabled:opacity-50"
+                  style={{ backgroundColor: 'var(--color-fail)', color: 'var(--color-on-accent)' }}
+                >
+                  {busy ? 'Deleting…' : 'Delete'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(false)}
+                  disabled={busy}
+                  className="px-3 py-1.5 text-sm rounded-md border disabled:opacity-50"
+                  style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                >
+                  Keep
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                disabled={busy}
+                className="px-3 py-1.5 text-sm rounded-md border ml-auto disabled:opacity-50"
+                style={{ borderColor: 'var(--color-fail)', color: 'var(--color-fail)' }}
+              >
+                Delete
+              </button>
+            )}
           </div>
+
+          {actionError && (
+            <div
+              role="alert"
+              className="px-3 py-2 rounded-md border text-sm"
+              style={{
+                borderColor: 'var(--color-fail)',
+                backgroundColor: 'var(--color-fail-bg)',
+                color: 'var(--color-fail)',
+              }}
+            >
+              {actionError}
+            </div>
+          )}
 
           <section
             className="p-5 rounded-xl border"

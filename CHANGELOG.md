@@ -101,6 +101,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Along the way 8 of 13 text/background pairs failed WCAG AA; all 18 pairs now
   clear 4.5:1 in both themes, and a test computes the ratios.
 
+- **Deleting an audit asks first, and says so when it fails.** Delete removed a
+  stored audit permanently on a single click with no confirmation, and its
+  handler had no failure path — a refused delete reset the button and said
+  nothing, leaving the audit in place and the user unsure whether it had gone.
+  It now confirms inline (not `confirm()`, which blocks the renderer under
+  Electron), and a failure names the reason and keeps you on the page. Export
+  under Electron gained the same treatment: a save that fails no longer leaves
+  the user believing they have a file they do not have.
+
 - **A failed read no longer looks like an empty database.** `HttpApiError` was
   built with `super(failure.message)` from whatever the response body carried.
   Any body that was not the exact error envelope — a bare string, a proxy's HTML

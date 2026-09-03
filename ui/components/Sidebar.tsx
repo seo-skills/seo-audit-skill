@@ -24,7 +24,11 @@ interface SidebarProps {
 export function Sidebar({ categories, activeCategory, onCategoryClick }: SidebarProps) {
   return (
     <aside
-      className="fixed left-0 top-[var(--header-height)] bottom-0 w-[var(--sidebar-width)] border-r border-[var(--color-border)] bg-[var(--color-bg-elevated)] overflow-y-auto p-3"
+      // A fixed 240px rail beside the content does not fit under 1024px: it
+      // pushed the detail page 443px off a phone screen. Below that width the
+      // categories ride along the top instead, in the CategoryRow.
+      className="hidden lg:block fixed left-0 top-[var(--header-height)] bottom-0 w-[var(--sidebar-width)] border-r border-[var(--color-border)] bg-[var(--color-bg-elevated)] overflow-y-auto p-3"
+      aria-label="Categories"
     >
       <div className="text-xs font-semibold uppercase tracking-wider mb-3 px-2" style={{ color: 'var(--color-text-muted)' }}>
         Categories

@@ -22,7 +22,9 @@ export function ScoreStats({
   notMeasuredCount = 0,
 }: ScoreStatsProps) {
   return (
-    <div className="flex gap-4">
+    // Four counters do not fit across a phone; without wrapping, "Not
+    // measured" painted outside the viewport where nobody could read it.
+    <div className="flex flex-wrap gap-x-4 gap-y-2">
       <StatBadge count={failCount} label="Failed" colorVar="--color-fail" bgVar="--color-fail-bg" />
       <StatBadge count={warnCount} label="Warnings" colorVar="--color-warn" bgVar="--color-warn-bg" />
       <StatBadge count={passCount} label="Passed" colorVar="--color-pass" bgVar="--color-pass-bg" />

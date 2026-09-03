@@ -19,7 +19,7 @@ const FILTERS: { key: FilterStatus; label: string; color?: string }[] = [
 
 export function FilterTabs({ active, counts, onChange }: FilterTabsProps) {
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       {FILTERS.map(({ key, label, color }) => {
         const isActive = active === key;
         return (

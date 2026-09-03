@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import type { AuditResult } from '../../src/types.js';
 import type { RuleMetadata } from '../../electron/shared/ipc-types.js';
-import { formatRuleIdAsName, getStatusColorClass, getStatusIcon } from '../lib/format.js';
+import { formatRuleIdAsName, getStatusColorClass, getStatusIcon, safeHref } from '../lib/format.js';
 
 const CATEGORY_NAMES: Record<string, string> = {
   core: 'Core SEO', technical: 'Technical SEO', perf: 'Performance',
@@ -89,7 +89,9 @@ export function IssuesTable({ result, ruleMetadata, onIssueClick }: IssuesTableP
   const hidden = issues.length - shown.length;
 
   return (
-    <div className="rounded-lg border border-[var(--color-border)] overflow-hidden">
+    // The table keeps its column widths, so on a narrow screen it scrolls
+    // inside this box rather than widening the page.
+    <div className="rounded-lg border border-[var(--color-border)] overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-[var(--color-bg-hover)]">
@@ -122,7 +124,7 @@ export function IssuesTable({ result, ruleMetadata, onIssueClick }: IssuesTableP
               <td className="p-3" style={{ color: 'var(--color-text-secondary)' }}>
                 {issue.pageUrl ? (
                   <a
-                    href={issue.pageUrl}
+                    href={safeHref(issue.pageUrl)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs font-mono hover:underline"

@@ -626,7 +626,22 @@ export interface PageSnapshot {
   };
 }
 
+/**
+ * Version of the shape `--format json` and the programmatic API emit.
+ *
+ * `renderJsonReport` is a bare `JSON.stringify` of `AuditResult`, so this type
+ * *is* the public contract. Without a version a consumer cannot tell a 3.5.0
+ * payload from a 3.6.0 one, and every semantic change below — a new status
+ * value, a moved grade boundary, reordered findings — is a silent break.
+ *
+ * Bump on any change a consumer could notice. 1 is the shape shipped through
+ * 3.5.0, so a payload with no `schemaVersion` should be read as 1.
+ */
+export const AUDIT_SCHEMA_VERSION = 2;
+
 export interface AuditResult {
+  /** See {@link AUDIT_SCHEMA_VERSION}. Absent on payloads from 3.5.0 and earlier. */
+  schemaVersion?: number;
   /** URL that was audited */
   url: string;
   /** Overall score (0-100) */

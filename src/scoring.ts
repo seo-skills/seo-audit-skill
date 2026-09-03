@@ -5,6 +5,7 @@ import type {
   AuditResult,
   PageSnapshot,
 } from './types.js';
+import { AUDIT_SCHEMA_VERSION } from './types.js';
 import { isNotMeasured } from './rules/define-rule.js';
 
 /**
@@ -159,6 +160,7 @@ export function buildAuditResult(
   page?: PageSnapshot
 ): AuditResult {
   return {
+    schemaVersion: AUDIT_SCHEMA_VERSION,
     url,
     overallScore: calculateOverallScore(categoryResults, categories),
     categoryResults,

@@ -1,13 +1,17 @@
 /**
- * Formatting utilities extracted from src/reporters/html-reporter.ts
- * Used across all dashboard components for consistent score display.
+ * Formatting helpers for the dashboard.
+ *
+ * The score-to-verdict mapping is NOT here: it lives in `src/verdict.ts` and is
+ * shared with every reporter, because three copies of it is how the same score
+ * came to be graded D in the terminal and F in the LLM report.
  */
 
+import { scoreToVerdict, verdictCssVar } from '@core/verdict.js';
+
 export function getScoreColor(score: number): string {
-  if (score >= 90) return 'var(--color-pass)';
-  if (score >= 70) return 'var(--color-warn)';
-  if (score >= 50) return 'var(--color-orange)';
-  return 'var(--color-fail)';
+  // Derived from the shared verdict, so a score cannot be green here and amber
+  // in the report. Returns a CSS var, never a literal.
+  return verdictCssVar(scoreToVerdict(score).colorToken);
 }
 
 export function getScoreColorClass(score: number): string {
@@ -25,10 +29,7 @@ export function getScoreBgClass(score: number): string {
 }
 
 export function getScoreLabel(score: number): string {
-  if (score >= 90) return 'Excellent';
-  if (score >= 70) return 'Good';
-  if (score >= 50) return 'Needs Work';
-  return 'Poor';
+  return scoreToVerdict(score).label;
 }
 
 export function formatRuleIdAsName(ruleId: string): string {

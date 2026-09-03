@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { scoreToVerdict, type VerdictToken } from '../verdict.js';
 import { getVersion } from '../version.js';
 
 /**
@@ -40,25 +41,28 @@ export interface LetterGradeResult {
 }
 
 /**
- * Get letter grade for a score
- * @param score - Score from 0-100
+ * Get letter grade for a score.
+ *
+ * The buckets live in `src/verdict.ts` now; this only maps the shared token to
+ * a chalk colour. Previously this function *was* one of three disagreeing
+ * grade scales.
+ *
+ * @param score - Score from 0-100, or null when nothing could be measured
  * @returns Letter grade and color function
  */
-export function getLetterGrade(score: number): LetterGradeResult {
-  if (score >= 90) {
-    return { grade: 'A', color: chalk.green };
-  }
-  if (score >= 80) {
-    return { grade: 'B', color: chalk.green };
-  }
-  if (score >= 70) {
-    return { grade: 'C', color: chalk.yellow };
-  }
-  if (score >= 50) {
-    return { grade: 'D', color: chalk.hex('#FFA500') }; // Orange
-  }
-  return { grade: 'F', color: chalk.red };
+export function getLetterGrade(score: number | null): LetterGradeResult {
+  const verdict = scoreToVerdict(score);
+  return { grade: verdict.grade, color: TOKEN_COLORS[verdict.colorToken] };
 }
+
+/** The one place a verdict token becomes a terminal colour */
+const TOKEN_COLORS: Record<VerdictToken, (text: string) => string> = {
+  pass: chalk.green,
+  warn: chalk.yellow,
+  orange: chalk.hex('#FFA500'),
+  fail: chalk.red,
+  neutral: chalk.gray,
+};
 
 /**
  * Format score with letter grade
@@ -130,11 +134,10 @@ export function renderCompactBar(percentage: number): string {
 /**
  * Get color function based on score
  */
-export function getScoreColor(score: number): (text: string) => string {
-  if (score >= 90) return chalk.green;
-  if (score >= 70) return chalk.yellow;
-  if (score >= 50) return chalk.hex('#FFA500'); // Orange
-  return chalk.red;
+export function getScoreColor(score: number | null): (text: string) => string {
+  // Derived from the same buckets as the grade, so a score cannot be green
+  // here and amber in the report — colour used to be a fourth grade scale.
+  return TOKEN_COLORS[scoreToVerdict(score).colorToken];
 }
 
 /**

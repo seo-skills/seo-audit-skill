@@ -16,19 +16,14 @@
  */
 
 import { randomBytes } from 'node:crypto';
+import { scoreToVerdict } from '../verdict.js';
+import { AUDIT_SCHEMA_VERSION } from '../types.js';
 import type { AuditResult } from '../types.js';
 import { getFixSuggestion } from './fix-suggestions.js';
 
 /**
  * Get letter grade from score
  */
-function getGrade(score: number): string {
-  if (score >= 90) return 'A';
-  if (score >= 80) return 'B';
-  if (score >= 70) return 'C';
-  if (score >= 60) return 'D';
-  return 'F';
-}
 
 /**
  * Map rule status to severity
@@ -137,7 +132,7 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
 
   // Root element with summary attributes + nonce
   lines.push(
-    `<seo-audit url="${escapeXml(result.url)}" score="${result.overallScore}" grade="${getGrade(result.overallScore)}" pages="${result.crawledPages}" date="${date}" nonce="${nonce}">${nl}`
+    `<seo-audit schema="${result.schemaVersion ?? AUDIT_SCHEMA_VERSION}" url="${escapeXml(result.url)}" score="${result.overallScore}" grade="${scoreToVerdict(result.overallScore).grade}" pages="${result.crawledPages}" date="${date}" nonce="${nonce}">${nl}`
   );
 
   // Security notice — instructs the consuming LLM how to treat untrusted blocks.

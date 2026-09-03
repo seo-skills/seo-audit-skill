@@ -41,6 +41,12 @@ export type {
   OnCrawlProgressCallback,
 } from './auditor.js';
 
+// One score, one verdict, shared by every surface. A consumer rendering an
+// audit should derive its grade and label here rather than re-deriving them.
+export { scoreToVerdict, verdictCssVar } from './verdict.js';
+export type { Verdict, VerdictToken } from './verdict.js';
+export { AUDIT_SCHEMA_VERSION } from './types.js';
+
 // `audit()` rejects with these, so a consumer that catches needs to name them.
 // `AuditAbortedError` is what an aborted `signal` produces; every other
 // failure arrives as an `AuditError` carrying a code and often a hint.

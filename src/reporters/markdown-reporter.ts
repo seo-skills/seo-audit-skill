@@ -1,4 +1,5 @@
 import type { AuditResult, RuleResult } from '../types.js';
+import { scoreToVerdict } from '../verdict.js';
 import { getCategoryById } from '../categories/index.js';
 
 /**
@@ -14,12 +15,6 @@ function getScoreEmoji(score: number): string {
 /**
  * Get score label
  */
-function getScoreLabel(score: number): string {
-  if (score >= 90) return 'Excellent';
-  if (score >= 70) return 'Good';
-  if (score >= 50) return 'Needs Work';
-  return 'Poor';
-}
 
 /**
  * Get status icon
@@ -69,7 +64,7 @@ export function renderMarkdownReport(result: AuditResult): string {
   lines.push('');
   lines.push(`| Score | Rating |`);
   lines.push(`|-------|--------|`);
-  lines.push(`| **${result.overallScore}/100** ${getScoreEmoji(result.overallScore)} | ${getScoreLabel(result.overallScore)} |`);
+  lines.push(`| **${result.overallScore}/100** ${getScoreEmoji(result.overallScore)} | ${scoreToVerdict(result.overallScore).label} |`);
   lines.push('');
   lines.push(result.overallScore >= 70
     ? '> :white_check_mark: **Audit passed** (score >= 70)'

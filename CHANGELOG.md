@@ -81,6 +81,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`seomator report` reads your audit history** rather than only the legacy
   JSON files, and shows a single stored audit with `seomator report <id>`.
 
+- **The programmatic API exposes the new surface**: the typed errors
+  (`AuditError`, `AuditAbortedError`, `classifyError`), the watchable
+  `AuditSession`, the audits database, and the shared read queries
+  (`listAudits`, `getAuditDetail`, `listDomains`, `getTrend`, `compareStored`,
+  `diffRules`) with their result types.
+
 - **The real SEOmator mark ships through the desktop app.** The app icon was a
   generic dark "S" and the in-app header drew a gradient square with the letter
   S beside the product name — placeholders for artwork the project already

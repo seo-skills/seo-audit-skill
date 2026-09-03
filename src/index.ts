@@ -38,7 +38,59 @@ export type {
   OnCategoryCompleteCallback,
   OnRuleCompleteCallback,
   OnPageCompleteCallback,
+  OnCrawlProgressCallback,
 } from './auditor.js';
+
+// `audit()` rejects with these, so a consumer that catches needs to name them.
+// `AuditAbortedError` is what an aborted `signal` produces; every other
+// failure arrives as an `AuditError` carrying a code and often a hint.
+export {
+  AuditError,
+  AuditAbortedError,
+  classifyError,
+  isAbortError,
+} from './errors.js';
+export type { AuditErrorCode } from './errors.js';
+
+// A watchable run: start, cancel, and subscribe to one bounded state object.
+// This is what the desktop app and the local dashboard are built on.
+export { AuditSession, normalizeRunArgs } from './dashboard/audit-session.js';
+export type {
+  AuditRunArgs,
+  Capabilities,
+  CategoryProgress,
+  NormalizedRunArgs,
+  RunError,
+  RunOutcome,
+  RunPhase,
+  RunState,
+  RunStatus,
+} from './dashboard/audit-session.js';
+
+// Stored audits: the database, the read queries every surface shares, and the
+// transport-neutral shapes they return.
+export { AuditsDatabase, getAuditsDatabase, closeAuditsDatabase } from './storage/audits-db/index.js';
+export { saveAuditToDatabase } from './storage/save-audit.js';
+export { diffRules } from './storage/audits-db/rule-diff.js';
+export {
+  compareStored,
+  getAuditDetail,
+  getTrend,
+  listAudits,
+  listDomains,
+} from './dashboard/queries.js';
+export type {
+  AuditDetail,
+  AuditMetaDto,
+  AuditSummaryDto,
+  DomainSummary,
+  RuleMetadata,
+  RuleSummary,
+  ScoreTrendPointDto,
+  StoredComparison,
+} from './dashboard/contract.js';
+export type { RuleChange, RuleDiff } from './storage/audits-db/rule-diff.js';
+export type { AuditRunOptions, AuditSource } from './storage/types.js';
 
 export type {
   AuditResult,

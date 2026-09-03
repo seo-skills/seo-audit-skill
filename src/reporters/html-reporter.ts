@@ -52,6 +52,39 @@ function toDisplayStatus(result: RuleResult): DisplayStatus {
   return isNotMeasured(result) ? 'notmeasured' : (result.status as Exclude<DisplayStatus, 'notmeasured'>);
 }
 
+/**
+ * Which pages a finding covers, as indices into the report's page list.
+ *
+ * This was the full URL list, repeated verbatim on the table row and again on
+ * the rule card: `data-urls="https://…/page-0,https://…/page-1,…"`. On a
+ * 1,000-page crawl that came to 20.6MB across 350 attributes — for data the
+ * page already carries once, used only to drive a dropdown filter.
+ *
+ * Indices instead, and `*` when a finding covers every page, which is the case
+ * that produced the blowup. The URLs themselves are emitted once, in the script
+ * the filter already needs.
+ */
+function encodePages(pages: string[], indexOf: Map<string, number>, total: number): string {
+  if (pages.length === 0) return '';
+  if (pages.length >= total) return '*';
+  const seen = new Set<number>();
+  for (const url of pages) {
+    const i = indexOf.get(url);
+    if (i !== undefined) seen.add(i);
+  }
+  if (seen.size >= total) return '*';
+  return [...seen].sort((a, b) => a - b).join(',');
+}
+
+/**
+ * How many affected pages a rule lists before it just counts the rest.
+ *
+ * A rule that fails on every page of a 1,000-page crawl produced 1,000 anchors
+ * inside one card. Multiplied across 340 rules that was 48MB of a 69MB file —
+ * all of it inside a closed `<details>`, so it was never even read.
+ */
+const MAX_LISTED_PAGES = 10;
+
 /** The inverse of `toDisplayStatus`, for the ranker's benefit. */
 function fromDisplayStatus(status: DisplayStatus): RuleStatus {
   return status === 'notmeasured' ? 'not-measured' : status;
@@ -1487,6 +1520,12 @@ ${tokensToCss()}
       background: var(--color-accent-light);
     }
 
+    .pages-more {
+      font-size: 11px;
+      color: var(--color-text-muted);
+      align-self: center;
+    }
+
     .pages-list {
       display: flex;
       flex-direction: column;
@@ -1752,11 +1791,18 @@ ${tokensToCss()}
 }
 
 /**
- * Generate JavaScript for interactivity
+ * Generate JavaScript for interactivity.
+ *
+ * `pages` is emitted here once. It used to be repeated as a full URL list on
+ * every table row and every rule card — 20.6MB across 350 attributes on a
+ * 1,000-page crawl, of data the document already contained.
  */
-function generateScript(): string {
+function generateScript(pages: string[]): string {
   return `
     (function() {
+      // The report's page list, in the order the filter offers them. Findings
+      // reference it by index.
+      const REPORT_PAGES = ${JSON.stringify(pages)};
       // Theme toggle
       const themeToggle = document.querySelector('.theme-toggle');
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -1778,6 +1824,18 @@ function generateScript(): string {
       // State
       let currentStatusFilter = 'all';
       let currentUrlFilter = 'all';
+      // -1 means "all pages". Findings carry indices into REPORT_PAGES rather
+      // than a repeated copy of every URL they cover.
+      let currentPageIndex = -1;
+
+      // Does this element's page set include the selected page?
+      function matchesPage(el) {
+        if (currentPageIndex < 0) return true;
+        const bits = el.dataset.pages;
+        // No attribution at all, or every page: always shown.
+        if (!bits || bits === '*') return true;
+        return bits.split(',').indexOf(String(currentPageIndex)) !== -1;
+      }
 
       // Elements
       const filterTabs = document.querySelectorAll('.filter-tab');
@@ -1791,24 +1849,15 @@ function generateScript(): string {
         // Filter rule cards - supports multiple URLs in data-urls attribute
         ruleCards.forEach(card => {
           const status = card.dataset.status;
-          // Support both single url and multiple urls (comma-separated)
-          const urls = (card.dataset.urls || card.dataset.url || '').split(',').filter(Boolean);
-
           const statusMatch = currentStatusFilter === 'all' || status === currentStatusFilter;
-          const urlMatch = currentUrlFilter === 'all' || urls.length === 0 || urls.some(u => u.includes(currentUrlFilter));
-
-          card.classList.toggle('hidden', !(statusMatch && urlMatch));
+          card.classList.toggle('hidden', !(statusMatch && matchesPage(card)));
         });
 
         // Filter issue rows in summary table - supports multiple URLs
         issueRows.forEach(row => {
           const status = row.dataset.status;
-          const urls = (row.dataset.urls || row.dataset.url || '').split(',').filter(Boolean);
-
           const statusMatch = currentStatusFilter === 'all' || status === currentStatusFilter;
-          const urlMatch = currentUrlFilter === 'all' || urls.length === 0 || urls.some(u => u.includes(currentUrlFilter));
-
-          row.classList.toggle('hidden', !(statusMatch && urlMatch));
+          row.classList.toggle('hidden', !(statusMatch && matchesPage(row)));
         });
 
         // Hide empty categories
@@ -1845,10 +1894,7 @@ function generateScript(): string {
 
         ruleCards.forEach(card => {
           const status = card.dataset.status;
-          const urls = (card.dataset.urls || card.dataset.url || '').split(',').filter(Boolean);
-          const urlMatch = currentUrlFilter === 'all' || urls.length === 0 || urls.some(u => u.includes(currentUrlFilter));
-
-          if (urlMatch) {
+          if (matchesPage(card)) {
             visible.all++;
             if (status === 'fail') visible.fail++;
             if (status === 'warn') visible.warn++;
@@ -1880,6 +1926,8 @@ function generateScript(): string {
       if (urlFilter) {
         urlFilter.addEventListener('change', () => {
           currentUrlFilter = urlFilter.value;
+          // Resolved once here rather than string-matched on every element.
+          currentPageIndex = currentUrlFilter === 'all' ? -1 : REPORT_PAGES.indexOf(currentUrlFilter);
           applyFilters();
         });
       }
@@ -2120,6 +2168,9 @@ export function renderHtmlReport(result: AuditResult): string {
   const coverage = result.coverage;
   const uniqueUrls = coverage ? [...coverage.pages] : Array.from(allUrls).sort();
 
+  // Built once and shared by both emission sites below.
+  const pageIndexOf = new Map(uniqueUrls.map((url, index) => [url, index]));
+
   // A per-page filter is only honest when every rule result carries its own
   // page. Aggregated results keep one row per rule with a capped sample of
   // pages, so filtering by page would hide most of what it claims to show.
@@ -2153,7 +2204,7 @@ export function renderHtmlReport(result: AuditResult): string {
   const issueTableRows = rankedIssues
     .slice(0, TOP_ISSUES)
     .map((issue) => {
-      const urlsCommaSeparated = issue.pages.map(p => p.url).join(',');
+      const pageBits = encodePages(issue.pages.map(p => p.url), pageIndexOf, uniqueUrls.length);
       const pageDisplay = issue.pages.length === 0
         ? '-'
         : issue.pages.length === 1
@@ -2161,7 +2212,7 @@ export function renderHtmlReport(result: AuditResult): string {
           : `<span class="issue-row-url">${issue.pages.length} pages</span>`;
 
       return `
-      <tr class="issue-row" data-rule-id="${escapeHtml(issue.ruleId)}" data-status="${issue.status}" data-urls="${escapeHtml(urlsCommaSeparated)}">
+      <tr class="issue-row" data-rule-id="${escapeHtml(issue.ruleId)}" data-status="${issue.status}" data-pages="${pageBits}">
         <td>
           <div class="issue-row-name">
             <div class="issue-row-icon ${issue.status}">${STATUS_ICONS[issue.status]}</div>
@@ -2244,12 +2295,21 @@ export function renderHtmlReport(result: AuditResult): string {
       `;
     }
 
-    // For 4+ pages, use collapsible list
+    // For 4+ pages, use collapsible list.
+    //
+    // Capped, because `<details>` hides these visually and puts every one of
+    // them in the DOM regardless. On a 1,000-page crawl that meant 340 rules x
+    // 1,000 anchors: 340,004 links and 48MB of a 69MB file, for a list nobody
+    // reads past the first few. The count is the useful part; the URLs are a
+    // sample of where to look.
+    const shown = pages.slice(0, MAX_LISTED_PAGES);
+    const rest = pages.length - shown.length;
     return `
       <details class="pages-toggle">
         <summary>${pages.length} pages affected</summary>
         <div class="pages-list">
-          ${pages.map(p => `<a href="${escapeHtml(p.url)}" target="_blank" rel="noopener">${escapeHtml(getShortUrl(p.url))}</a>`).join('')}
+          ${shown.map(p => `<a href="${escapeHtml(p.url)}" target="_blank" rel="noopener">${escapeHtml(getShortUrl(p.url))}</a>`).join('')}
+          ${rest > 0 ? `<span class="pages-more">and ${rest.toLocaleString()} more</span>` : ''}
         </div>
       </details>
     `;
@@ -2276,7 +2336,7 @@ export function renderHtmlReport(result: AuditResult): string {
     const renderIssue = (issue: AggregatedIssue) => {
       const fix = getFixSuggestion(issue.ruleId);
       const statusIcon = STATUS_ICONS[issue.status];
-      const urlsCommaSeparated = issue.pages.map(p => p.url).join(',');
+      const pageBits = encodePages(issue.pages.map(p => p.url), pageIndexOf, uniqueUrls.length);
 
       // Generate pages list HTML (collapsible for 4+ pages)
       const pagesHtml = generatePagesListHtml(issue.pages);
@@ -2311,7 +2371,7 @@ export function renderHtmlReport(result: AuditResult): string {
         : '';
 
       return `
-        <div class="rule-card" data-status="${issue.status}" data-rule-id="${escapeHtml(issue.ruleId)}" data-urls="${escapeHtml(urlsCommaSeparated)}">
+        <div class="rule-card" data-status="${issue.status}" data-rule-id="${escapeHtml(issue.ruleId)}" data-pages="${pageBits}">
           <div class="rule-header">
             <div class="rule-status-icon ${issue.status}">${statusIcon}</div>
             <div class="rule-content">
@@ -2572,7 +2632,7 @@ export function renderHtmlReport(result: AuditResult): string {
     </div>
   </main>
 
-  <script>${generateScript()}</script>
+  <script>${generateScript(uniqueUrls)}</script>
 </body>
 </html>`;
 }

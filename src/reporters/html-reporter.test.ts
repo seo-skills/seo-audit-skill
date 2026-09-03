@@ -74,7 +74,7 @@ function buildResult(overrides: Partial<AuditResult> = {}): AuditResult {
 describe('renderHtmlReport — unmeasured checks are not warnings', () => {
   it('gives a weight-0 result its own display status rather than amber', () => {
     const out = renderHtmlReport(buildResult());
-    expect(out).toContain('data-rule-id="cwv-inp" data-urls');
+    expect(out).toContain('data-rule-id="cwv-inp"');
     expect(out).toMatch(/data-status="notmeasured" data-rule-id="cwv-inp"/);
     // The real warning keeps its amber status.
     expect(out).toMatch(/data-status="warn" data-rule-id="perf-page-weight"/);

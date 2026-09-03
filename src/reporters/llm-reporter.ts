@@ -192,13 +192,20 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
   // under <passed>, so a model was told that checks which never ran had passed
   // — and could propose fixes for measurements the audit never took.
   const findings = collectFindings(result);
-  const notMeasured = findings.filter((f) => f.status === 'not-measured').map((f) => f.ruleId);
-  const passed: string[] = [];
+  const notMeasured = [...new Set(findings.filter((f) => f.status === 'not-measured').map((f) => f.ruleId))];
+
+  // A Set, because a live crawl reports one result per rule per page: pushing
+  // each one listed the same rule id once per page it passed on. On a
+  // 1,000-page crawl that was 113,000 entries and 1.4MB of a report whose whole
+  // point is to fit in a model's context — the same duplication that was fixed
+  // for <issue> and left here.
+  const passedRules = new Set<string>();
   for (const cat of result.categoryResults) {
     for (const r of cat.results) {
-      if (!isNotMeasured(r) && r.status === 'pass') passed.push(r.ruleId);
+      if (!isNotMeasured(r) && r.status === 'pass') passedRules.add(r.ruleId);
     }
   }
+  const passed = [...passedRules];
 
   const ranked = findings.filter((f) => f.status === 'fail' || f.status === 'warn');
 

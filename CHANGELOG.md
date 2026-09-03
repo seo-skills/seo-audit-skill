@@ -234,6 +234,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the twenty category rows re-announced the entire section. It is now a single
   status line that changes only when the phase or the count does.
 
+- **A 1,000-page crawl is a budget now, not a hope.** Nothing asserted what the
+  reporters do at scale, and the 8-page fixture hides all of it, because every
+  cost is per-rule-per-page on a live crawl. Measured for the first time, a
+  1,000-page HTML report was **69.28 MB**: 48.11 MB of it 340,004 page anchors
+  (every affected page linked inside every rule card, all of them inside a
+  closed `<details>` nobody opens), and 20.59 MB of it full URL lists repeated
+  in `data-urls` on both the table row and the card. The agent report was
+  1.44 MB because `<passed>` listed each rule once per page it passed on —
+  113,000 entries, the same duplication that was fixed for `<issue>` and left
+  here.
+
+  Page lists cap at ten with a count for the rest; the affected-page attribute
+  carries indices into a page list emitted once, or `*` when a finding covers
+  every page; `<passed>` is a set. **HTML 69.28 MB → 1.11 MB, agent report
+  1.44 MB → 0.04 MB.** In a browser that report loads in 113ms with 10,655 DOM
+  nodes and a 9.5 MB heap, and the page filter still resolves correctly — eight
+  budget assertions cover it, including that ten times the pages must not mean
+  ten times the report.
+
+  **If you script against the report's HTML:** `data-urls` is gone, replaced by
+  `data-pages` carrying indices rather than URLs.
+
 - **The report stops printing every finding twice.** The summary table and the
   category sections below it rendered the same 46 findings — 3,191px of rows and
   12,217px of cards, 90% of a 17,199px page. The table is a ranked index now

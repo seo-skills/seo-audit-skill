@@ -141,10 +141,26 @@
     top: 0.5rem;
   }
 
-  /* Anything that animates does so only for people who want it to. */
-  @media (prefers-reduced-motion: reduce) {
-    .skip-link {
-      transition: none;
-    }
+}
+
+/*
+ * Anything that animates does so only for people who want it to.
+ *
+ * This claim used to sit above a rule that disabled exactly one transition, on
+ * the skip link. Every other transition in the app — the progress bar, card
+ * hovers, the score circle, every Tailwind `transition-*` utility — kept
+ * running for someone who had asked their system for less motion.
+ *
+ * Unlayered and `!important` so it wins over Tailwind's utilities, which is the
+ * whole point: the utilities are what apply the motion.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

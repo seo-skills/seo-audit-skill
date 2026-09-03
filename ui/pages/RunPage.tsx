@@ -94,7 +94,6 @@ export function RunPage() {
         <section
           className="p-5 rounded-xl border"
           style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}
-          aria-live="polite"
           aria-busy="true"
         >
           <ProgressStream run={run} />

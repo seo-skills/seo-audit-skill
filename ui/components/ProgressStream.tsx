@@ -51,6 +51,19 @@ export function ProgressStream({ run }: ProgressStreamProps) {
 
   return (
     <div className="space-y-4">
+      {/*
+        The live region is this line and not the panel around it. With
+        `aria-live` on the whole section a screen reader re-announced every
+        element in it — progress bar, current URL, all twenty category rows —
+        each time any one of them changed, which during a crawl is hundreds of
+        times. This text changes only when the phase or the count does.
+      */}
+      <p className="sr-only" aria-live="polite">
+        {crawling
+          ? `Crawling, ${value} of ${total} pages found`
+          : `Auditing, ${value} of ${total} categories complete`}
+      </p>
+
       {/* Progress bar */}
       <div>
         <div className="flex justify-between mb-1">

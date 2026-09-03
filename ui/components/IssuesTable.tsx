@@ -113,15 +113,23 @@ export function IssuesTable({ result, ruleMetadata, onIssueClick }: IssuesTableP
               className="border-t border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-hover)] cursor-pointer transition-colors"
             >
               <td className="p-3">
-                <div className="flex items-center gap-2">
+                {/* The row's click handler is a mouse convenience. The button
+                    is what makes the issue reachable at all by keyboard, and it
+                    carries the focus ring for the whole row — one tab stop per
+                    row rather than one per cell. Same shape as AuditList. */}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onIssueClick?.(issue.ruleId, issue.categoryId); }}
+                  className="flex items-center gap-2 text-left w-full rounded focus:outline-2 focus:outline-offset-2 focus:outline-[var(--color-accent)]"
+                >
                   <span className={`font-bold ${getStatusColorClass(issue.status)}`}>
                     {getStatusIcon(issue.status)}
                   </span>
-                  <div>
-                    <div className="font-medium" style={{ color: 'var(--color-text)' }}>{issue.ruleName}</div>
-                    <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{issue.categoryName}</div>
-                  </div>
-                </div>
+                  <span>
+                    <span className="font-medium block" style={{ color: 'var(--color-text)' }}>{issue.ruleName}</span>
+                    <span className="text-xs block" style={{ color: 'var(--color-text-muted)' }}>{issue.categoryName}</span>
+                  </span>
+                </button>
               </td>
               <td className="p-3" style={{ color: 'var(--color-text-secondary)' }}>
                 {issue.pageUrl ? (

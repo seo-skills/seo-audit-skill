@@ -206,7 +206,10 @@ function Toggle({
   return (
     <label
       title={title}
-      className="flex items-center gap-2 text-xs font-medium cursor-pointer px-3 py-1.5 rounded-lg border transition-colors"
+      // The input is `sr-only`: still focusable, but invisible. Without
+      // focus-within the label shows nothing when it has keyboard focus, so a
+      // keyboard user tabbing through the run options cannot see where they are.
+      className="flex items-center gap-2 text-xs font-medium cursor-pointer px-3 py-1.5 rounded-lg border transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--color-accent)]"
       style={{
         color: checked ? 'var(--color-accent)' : 'var(--color-text-muted)',
         borderColor: checked ? 'var(--color-accent)' : 'var(--color-border)',

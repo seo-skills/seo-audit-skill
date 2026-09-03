@@ -101,6 +101,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Along the way 8 of 13 text/background pairs failed WCAG AA; all 18 pairs now
   clear 4.5:1 in both themes, and a test computes the ratios.
 
+- **Reduced motion is honoured.** A `prefers-reduced-motion` block existed in
+  the dashboard under a comment claiming "anything that animates does so only
+  for people who want it to", and disabled exactly one transition — the skip
+  link. Everything else kept moving, and the HTML report had no such rule at
+  all. Both surfaces now stop animation and transition globally.
+
+- **The issues table is reachable by keyboard.** Rows carried a click handler
+  and nothing else, so the drill-down into a rule existed only for a mouse.
+  Each row now leads with a focusable button — one tab stop per row, matching
+  the audit list — and the run options show a focus ring, which their
+  screen-reader-only checkboxes previously swallowed.
+
+- **A running audit no longer floods a screen reader.** `aria-live` wrapped the
+  whole progress panel, so every change to the bar, the current URL or any of
+  the twenty category rows re-announced the entire section. It is now a single
+  status line that changes only when the phase or the count does.
+
 - **The HTML report leads with what to fix, and folds away what needs nothing.**
   It rendered all 332 checks expanded, ordered by severity and then by
   registration order, so a weight-1 warning could sit above a weight-25 one and

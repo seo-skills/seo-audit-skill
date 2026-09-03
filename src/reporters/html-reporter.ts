@@ -1705,6 +1705,19 @@ ${tokensToCss()}
     /* ========================================
        Print Styles
        ======================================== */
+    /* The report animates the score ring and every hover; honour a reader who
+       has asked their system for less motion. There was no such rule at all. */
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
     @media print {
       .header, .sidebar, .filter-bar, .theme-toggle {
         display: none !important;

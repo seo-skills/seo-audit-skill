@@ -379,7 +379,7 @@ describe('viewportContentRule', () => {
     `;
     const context = createContext(html);
     const result = await viewportContentRule.run(context);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('not-measured');
     expect(result.weight).toBe(0);
   });
 

@@ -7,6 +7,7 @@
  * - *Options: Query/filter options for list operations
  */
 
+import type { RuleStatus } from '../types.js';
 import type { PartialSeomatorConfig } from '../config/schema.js';
 
 // =============================================================================
@@ -388,9 +389,13 @@ export interface HydratedAuditCategory {
 }
 
 /**
- * Rule result status
+ * Rule result status.
+ *
+ * Re-exported from the engine rather than declared again: two independent
+ * copies of this union is how a new status value could cross the storage
+ * boundary through a cast without the type checker noticing.
  */
-export type RuleResultStatus = 'pass' | 'warn' | 'fail';
+export type RuleResultStatus = RuleStatus;
 
 /**
  * Per-rule, per-page audit result record

@@ -1,9 +1,17 @@
 import type { CheerioAPI } from 'cheerio';
 
 /**
- * Rule execution status
+ * Rule execution status.
+ *
+ * `not-measured` is a real status rather than a sentinel. It used to be encoded
+ * as `status: 'warn'` with `weight: 0`, recovered by testing the weight — so
+ * every consumer that branched on status alone (the markdown and LLM reporters
+ * among them) reported checks that never ran as genuine warnings.
+ *
+ * Note for anyone reading stored history: three encodings exist in the
+ * database. See `isNotMeasured()`.
  */
-export type RuleStatus = 'pass' | 'warn' | 'fail';
+export type RuleStatus = 'pass' | 'warn' | 'fail' | 'not-measured';
 
 /**
  * Category definition for organizing audit rules

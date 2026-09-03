@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import type { AuditResult, CategoryResult, RuleResult } from '../types.js';
+import type { AuditResult, CategoryResult, RuleResult, RuleStatus } from '../types.js';
 import { getCategoryById } from '../categories/index.js';
 import {
   getLetterGrade,
@@ -17,7 +17,7 @@ import { getRuleById } from '../rules/registry.js';
 interface GroupedIssue {
   ruleId: string;
   ruleName: string;
-  status: 'warn' | 'fail';
+  status: RuleStatus;
   message: string;
   /** Carried through so unmeasured checks can be labelled as such, not as warnings. */
   weight?: number;
@@ -96,6 +96,9 @@ function normalizeMessage(message: string): string {
  */
 function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
   const categoryMap = new Map<string, CategoryIssues>();
+  // `${categoryId}:${ruleId}:${normalizedMessage}` -> the group, so a group is
+  // found in constant time instead of by re-normalising every candidate.
+  const groupsByKey = new Map<string, GroupedIssue>();
 
   for (const categoryResult of result.categoryResults) {
     const category = getCategoryById(categoryResult.categoryId);
@@ -127,13 +130,15 @@ function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
         categoryIssues.warningCount++;
       }
 
-      // Find existing issue group or create new one
-      const normalizedMsg = normalizeMessage(ruleResult.message);
-      const groupKey = `${ruleResult.ruleId}:${normalizedMsg}`;
+      // Find existing issue group or create new one.
+      //
+      // Keyed through a Map rather than a linear `find` that re-normalised
+      // every candidate message on every comparison: that was O(n*m) with
+      // eight regex replaces per step — invisible on an 8-page audit, roughly
+      // 10^8 regex applications on a 1,000-page crawl.
+      const groupKey = `${categoryResult.categoryId}:${ruleResult.ruleId}:${normalizeMessage(ruleResult.message)}`;
 
-      let existingIssue = categoryIssues.issues.find(
-        (i) => `${i.ruleId}:${normalizeMessage(i.message)}` === groupKey
-      );
+      let existingIssue = groupsByKey.get(groupKey);
 
       if (!existingIssue) {
         existingIssue = {
@@ -146,6 +151,7 @@ function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
           details: [],
         };
         categoryIssues.issues.push(existingIssue);
+        groupsByKey.set(groupKey, existingIssue);
       }
 
       // Add page URL if available

@@ -79,7 +79,7 @@ describe('Technical Rules', () => {
         $: undefined as unknown as AuditContext['$'],
       });
       const result = await emptyHtmlRule.run(context);
-      expect(result.status).toBe('warn');
+      expect(result.status).toBe('not-measured');
       expect(result.weight).toBe(0);
     });
   });
@@ -146,7 +146,7 @@ describe('Technical Rules', () => {
         $: undefined as unknown as AuditContext['$'],
       });
       const result = await formGetMethodRule.run(context);
-      expect(result.status).toBe('warn');
+      expect(result.status).toBe('not-measured');
       expect(result.weight).toBe(0);
     });
   });
@@ -203,7 +203,7 @@ describe('Technical Rules', () => {
         $: undefined as unknown as AuditContext['$'],
       });
       const result = await duplicateGtmRule.run(context);
-      expect(result.status).toBe('warn');
+      expect(result.status).toBe('not-measured');
       expect(result.weight).toBe(0);
     });
   });
@@ -290,7 +290,7 @@ describe('Technical Rules', () => {
         $: undefined as unknown as AuditContext['$'],
       });
       const result = await duplicateGaRule.run(context);
-      expect(result.status).toBe('warn');
+      expect(result.status).toBe('not-measured');
       expect(result.weight).toBe(0);
     });
   });

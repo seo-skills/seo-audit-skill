@@ -4,6 +4,61 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [Unreleased]
+
+### Breaking
+
+- **`RuleStatus` gains a fourth value, `not-measured`.** A check that could not
+  take a reading used to be encoded as `status: 'warn'` with `weight: 0`, and
+  recovered by testing the weight. Consumers that branched on status alone —
+  the markdown and LLM reporters among them — reported checks that never ran as
+  genuine warnings, and the LLM report filed them under `<passed>`, so a model
+  could propose fixes for measurements the audit never took.
+
+  **If you script against the output:** a predicate like
+  `results.filter(r => r.status === 'warn')` now returns fewer rows. The rows
+  did not disappear; they are `'not-measured'`. `weight === 0` is still set on
+  every one of them, so a predicate keyed on weight keeps working unchanged —
+  that is deliberate, and it is also what lets an older build read a database
+  written by a newer one.
+
+  `AuditResult` now carries `schemaVersion: 2`, and `<seo-audit>` a `schema="2"`
+  attribute. A payload with no version is version 1.
+
+- **The score-to-grade scale is one scale.** It was three. A score of 55 printed
+  **D** in the terminal and **F** in the report handed to an LLM. The boundary
+  settles at **D ≥ 50**, matching the terminal, which is the default output. If
+  you gate a deploy on `grade != "F"` from `--format llm`, scores of 50–59 now
+  read D where they used to read F — re-run your baseline.
+
+- **70–79 now reads "Fair" where it read "Good".** Letter grades had five
+  buckets and word labels had four; unifying them needs a fifth word. This
+  changes the label on every dashboard card, HTML report and markdown summary in
+  that band.
+
+### Added
+
+- `scoreToVerdict()` in `src/verdict.ts`, exported from the package entry: one
+  bucket set returning `{ grade, label, colorToken }`. Colour is part of the
+  verdict, so a score cannot be green on one surface and amber on another.
+- The LLM report emits `<not-measured>` alongside `<passed>`, so an agent can
+  tell "we checked and it is fine" from "we could not check".
+- `getResultCounts()` returns a fourth bucket, and the four now sum to the
+  total. Bucketing by status alone left `pass + warn + fail` quietly short.
+
+### Fixed
+
+- **An unmeasured check is no longer promoted into the issues table.**
+  `generateIssuesFromResults` filed every weight-0 row as a warning-severity
+  issue with a priority score.
+- **The terminal's issue grouping is no longer quadratic.** It re-normalised
+  every candidate message on every comparison — eight regex replaces per step,
+  invisible on an 8-page audit and roughly 10⁸ applications on a 1,000-page
+  crawl. Keyed through a Map now.
+- **"Nothing could be measured" stops grading F.** An audit whose total weight
+  is zero scores 0; that now reads "Not scored" rather than reporting the site
+  as catastrophic.
+
 ## [3.5.0] - 2026-09-03
 
 ### Added

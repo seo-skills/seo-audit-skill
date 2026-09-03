@@ -100,7 +100,9 @@ export function warn(
  * @param ruleId - The rule identifier
  * @param message - Human-readable explanation of why there is no reading
  * @param details - Optional additional details
- * @returns RuleResult with status 'warn' and weight 0 (excluded from scoring)
+ * @returns RuleResult with status 'not-measured' and weight 0 (excluded from
+ *          scoring). The weight is kept alongside the status so that an older
+ *          build reading a newer database still recognises the row.
  */
 export function notMeasured(
   ruleId: string,
@@ -109,8 +111,12 @@ export function notMeasured(
 ): RuleResult {
   return {
     ruleId,
-    status: 'warn',
+    status: 'not-measured',
     message,
+    // Kept at 50 deliberately. `audit_results.score` is INTEGER NOT NULL, and
+    // the GUI defaults Core Web Vitals off, so every desktop audit carries
+    // unmeasured rows — a null here would fail the insert on every save. The
+    // status carries the meaning; the number does not have to.
     score: 50,
     weight: 0,
     ...(details && { details }),
@@ -120,19 +126,28 @@ export function notMeasured(
 /**
  * Whether a result came from a check that could not take a reading.
  *
- * Weight 0 is the marker: it is precisely the fact that the result is excluded
- * from the category average, so "unmeasured" and "unweighted" are one fact
- * rather than two that could drift apart. `notMeasured()` above is the only
- * producer of weight 0 — every registered rule declares a positive weight.
+ * Three encodings exist and all three must read correctly, because stored
+ * audits outlive the code that wrote them:
  *
- * Reporters use this to count and label such results separately, so a category
- * does not present "score 100, 13 warnings" for checks that never ran.
+ * | Encoding | Written by    | status         | weight | Means        |
+ * |----------|---------------|----------------|--------|--------------|
+ * | A        | before 3.4.0  | 'warn'         | NULL   | **measured** |
+ * | B        | 3.4.0 – 3.5.0 | 'warn'         | 0      | not measured |
+ * | C        | 3.6.0 onward  | 'not-measured' | 0      | not measured |
+ *
+ * Encoding A predates the weight column; every check in those audits was a
+ * real result, and re-reading them as unmeasured would rewrite history. A
+ * predicate keying on status alone would do exactly that to encodings A and B.
+ *
+ * `weight === 0` is kept in the test on purpose, and `notMeasured()` keeps
+ * writing it: an older build reading a database written by a newer one still
+ * recognises the row.
  *
  * @param result - The rule result to classify
  * @returns True when the result carries no reading
  */
-export function isNotMeasured(result: Pick<RuleResult, 'weight'>): boolean {
-  return result.weight === 0;
+export function isNotMeasured(result: Pick<RuleResult, 'status' | 'weight'>): boolean {
+  return result.status === 'not-measured' || result.weight === 0;
 }
 
 /**

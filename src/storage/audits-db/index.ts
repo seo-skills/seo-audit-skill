@@ -298,7 +298,7 @@ export class AuditsDatabase {
   /**
    * Get result counts
    */
-  getResultCounts(auditId: number): { pass: number; warn: number; fail: number; total: number } {
+  getResultCounts(auditId: number): { pass: number; warn: number; fail: number; notMeasured: number; total: number } {
     return results.getResultCounts(this.db, auditId);
   }
 

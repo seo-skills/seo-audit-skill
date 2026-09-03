@@ -333,9 +333,21 @@ export function getAllResults(db: Database.Database, auditId: number): HydratedA
   return rows.map(hydrateResult);
 }
 
+/**
+ * Whether a stored row carries no reading, across all three encodings.
+ *
+ * A: `status='warn', weight=NULL` (pre-3.4.0) — **measured**, and stays so.
+ * B: `status='warn', weight=0`    (3.4.0-3.5.0)
+ * C: `status='not-measured'`      (3.6.0 onward)
+ *
+ * `weight = 0` is NULL for encoding A under SQL's three-valued logic, so A
+ * falls through to measured without needing an explicit guard.
+ */
+const NOT_MEASURED_SQL = `(weight = 0 OR status = 'not-measured')`;
+
 /** How a stored row ranks when picking a rule's worst page: unmeasured rows lose to everything */
 const SEVERITY_SQL = `CASE
-  WHEN weight IS NOT NULL AND weight = 0 THEN -1
+  WHEN ${NOT_MEASURED_SQL} THEN -1
   WHEN status = 'fail' THEN 2
   WHEN status = 'warn' THEN 1
   ELSE 0
@@ -364,8 +376,8 @@ export function getRuleSummaries(db: Database.Database, auditId: number): Stored
       `
     SELECT category_id, rule_id, rule_name,
       COUNT(*) AS total_pages,
-      SUM(CASE WHEN weight IS NOT NULL AND weight = 0 THEN 0 ELSE 1 END) AS measured_pages,
-      SUM(CASE WHEN (weight IS NULL OR weight <> 0) AND status <> 'pass' THEN 1 ELSE 0 END) AS affected_pages,
+      SUM(CASE WHEN ${NOT_MEASURED_SQL} THEN 0 ELSE 1 END) AS measured_pages,
+      SUM(CASE WHEN NOT ${NOT_MEASURED_SQL} AND status <> 'pass' THEN 1 ELSE 0 END) AS affected_pages,
       MIN(id) AS first_id
     FROM audit_results
     WHERE audit_id = ?
@@ -386,7 +398,8 @@ export function getRuleSummaries(db: Database.Database, auditId: number): Stored
     .prepare(
       `
     WITH ranked AS (
-      SELECT rule_id, page_url, status, score, message, details_json,
+      SELECT rule_id, page_url, score, message, details_json,
+        CASE WHEN ${NOT_MEASURED_SQL} THEN 'not-measured' ELSE status END AS status,
         ROW_NUMBER() OVER (PARTITION BY rule_id ORDER BY (${SEVERITY_SQL}) DESC, id) AS rn
       FROM audit_results
       WHERE audit_id = ?
@@ -504,20 +517,24 @@ export function getFailedResults(
 export function getResultCounts(
   db: Database.Database,
   auditId: number
-): { pass: number; warn: number; fail: number; total: number } {
+): { pass: number; warn: number; fail: number; notMeasured: number; total: number } {
+  // Four buckets, and they sum. Bucketing by status alone left unmeasured rows
+  // counted as warnings under the old encoding and unaccounted for under the
+  // new one, so `pass + warn + fail` quietly fell short of `total`.
   const result = db
     .prepare(
       `
     SELECT
-      SUM(CASE WHEN status = 'pass' THEN 1 ELSE 0 END) as pass,
-      SUM(CASE WHEN status = 'warn' THEN 1 ELSE 0 END) as warn,
-      SUM(CASE WHEN status = 'fail' THEN 1 ELSE 0 END) as fail,
+      SUM(CASE WHEN ${NOT_MEASURED_SQL} THEN 0 WHEN status = 'pass' THEN 1 ELSE 0 END) as pass,
+      SUM(CASE WHEN ${NOT_MEASURED_SQL} THEN 0 WHEN status = 'warn' THEN 1 ELSE 0 END) as warn,
+      SUM(CASE WHEN ${NOT_MEASURED_SQL} THEN 0 WHEN status = 'fail' THEN 1 ELSE 0 END) as fail,
+      SUM(CASE WHEN ${NOT_MEASURED_SQL} THEN 1 ELSE 0 END) as notMeasured,
       COUNT(*) as total
     FROM audit_results
     WHERE audit_id = ?
   `
     )
-    .get(auditId) as { pass: number; warn: number; fail: number; total: number };
+    .get(auditId) as { pass: number; warn: number; fail: number; notMeasured: number; total: number };
 
   return result;
 }

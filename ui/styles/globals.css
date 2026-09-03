@@ -24,6 +24,13 @@
   --color-fail: #ef4444;
   --color-fail-bg: #fee2e2;
   --color-info: #3b82f6;
+  /* Unmeasured checks: neither good news nor bad, so neither green nor amber.
+     #475569 rather than the lighter slate, because this colour is used as text
+     ON its own tint as well as on the card — 7.58:1 on white and 7.02:1 on the
+     tint, where the lighter value managed only 4.34:1 and failed AA in the
+     place it is most often read. */
+  --color-neutral: #475569;
+  --color-neutral-bg: #f1f5f9;
   --color-info-bg: #dbeafe;
 
   --color-accent: #064ada;
@@ -70,6 +77,8 @@
 
   --color-text: #fafafa;
   --color-text-secondary: #a1a1aa;
+  --color-neutral: #a1a1aa;
+  --color-neutral-bg: rgba(161, 161, 170, 0.14);
   --color-text-muted: #71717a;
 
   --color-pass-bg: rgba(16, 185, 129, 0.12);

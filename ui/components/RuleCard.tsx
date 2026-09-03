@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import type { RuleResult } from '../../src/types.js';
 import type { RuleMetadata } from '../../electron/shared/ipc-types.js';
-import { formatRuleIdAsName, getStatusIcon, getStatusColorClass, safeHref } from '../lib/format.js';
+import { formatRuleIdAsName, getStatusIcon, getStatusColorClass, safeHref, statusTokens } from '../lib/format.js';
 import { getFixSuggestion } from '../lib/fix-suggestions.js';
 
 interface RuleCardProps {
@@ -116,8 +116,8 @@ export function RuleCard({ rule, metadata }: RuleCardProps) {
         <div
           className="w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5"
           style={{
-            color: rule.status === 'pass' ? 'var(--color-pass)' : rule.status === 'warn' ? 'var(--color-warn)' : 'var(--color-fail)',
-            backgroundColor: rule.status === 'pass' ? 'var(--color-pass-bg)' : rule.status === 'warn' ? 'var(--color-warn-bg)' : 'var(--color-fail-bg)',
+            color: statusTokens(rule.status).color,
+            backgroundColor: statusTokens(rule.status).background,
           }}
         >
           {icon}

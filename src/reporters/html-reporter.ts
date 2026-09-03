@@ -38,7 +38,9 @@ const STATUS_ICONS: Record<DisplayStatus, string> = {
  * `scoring.ts` and the terminal reporter read it.
  */
 function toDisplayStatus(result: RuleResult): DisplayStatus {
-  return isNotMeasured(result) ? 'notmeasured' : result.status;
+  // `isNotMeasured` covers the new status and both legacy encodings, so the
+  // remaining values really are the three measured ones.
+  return isNotMeasured(result) ? 'notmeasured' : (result.status as Exclude<DisplayStatus, 'notmeasured'>);
 }
 
 /**

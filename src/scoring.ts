@@ -15,6 +15,7 @@ const STATUS_SCORES = {
   pass: 100,
   warn: 50,
   fail: 0,
+  'not-measured': 50,
 } as const;
 
 /**
@@ -39,6 +40,9 @@ export function calculateCategoryScore(results: RuleResult[]): number {
   let totalWeight = 0;
 
   for (const result of results) {
+    // Weight 0 makes the contribution zero either way, so the score of an
+    // unmeasured result never reaches the average. Mapped explicitly so the
+    // record stays exhaustive over RuleStatus.
     const statusScore = STATUS_SCORES[result.status];
     const weight = result.weight ?? 1;
     totalScore += statusScore * weight;

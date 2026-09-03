@@ -15,9 +15,18 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
   that the registry contradicts today (11 / 10 / 7) and that `rulePriority()` will
   contradict explicitly. Resolve to one copy, extend the sync patterns, wire
   `check:docs` into CI.
-- **The installed skill clone** at `~/.claude/skills/seo-audit/SKILL.md` advertises 287
+- ~~**The installed skill clone** at `~/.claude/skills/seo-audit/SKILL.md` advertises 287
   rules. `check:docs` cannot reach it. Decide: sync it, or state that the clone is out
-  of scope and stop it drifting silently.
+  of scope and stop it drifting silently.~~
+  **Fixed 2026-09-03** (outside `/qa`, on request). The clone is a separate git checkout
+  of this same repo (`~/.agents/skills/seo-audit`, symlinked from
+  `~/.claude/skills/seo-audit`), 24 commits behind `origin/main` — `git pull --ff-only`
+  brought it to `af5e851`, matching this repo's `main`. Both `SKILL.md` and
+  `skill/SKILL.md` in that clone now say 332. `check:docs` still cannot reach it — this
+  was a manual pull, not a mechanism, so it can drift again. The root cause (item above)
+  is unrelated and still open: that clone's own root `SKILL.md` and `skill/SKILL.md`
+  still say "Runs 261 audit rules" at line ~450, same as this repo's copies — the
+  `/qa` pass on 2026-09-03 confirmed this is still live, untouched by this fix.
 
 ### P2 — CLI correctness, outside the design blast radius
 

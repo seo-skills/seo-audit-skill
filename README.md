@@ -164,6 +164,27 @@ Audits are stored in `~/.seomator/audits.db` by default, which is what
 `SEOMATOR_HOME` to keep that data elsewhere, or `[output] save = false` in
 `seomator.toml` to opt a project out.
 
+### `seomator serve`
+
+Run the local dashboard: every audit you have run, in your browser.
+
+```bash
+seomator serve                   # opens http://127.0.0.1:7360
+seomator serve --port 0          # pick a free port
+seomator serve --no-open         # do not open a browser
+```
+
+It reads the same `~/.seomator/audits.db` the CLI writes, binds to loopback
+only, and makes no outbound requests. Every `/api` request needs the per-launch
+token, which is printed once and written to `~/.seomator/serve.json` for agents:
+
+```bash
+TOKEN=$(jq -r .token ~/.seomator/serve.json)
+curl -s -H "X-SEOmator-Token: $TOKEN" http://127.0.0.1:7360/api/audits | jq
+```
+
+Full reference: [docs/WEB-DASHBOARD.md](docs/WEB-DASHBOARD.md).
+
 ### `seomator init`
 
 Create a `seomator.toml` config file.

@@ -3,7 +3,9 @@ import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { fileURLToPath } from 'url';
 import { getGlobalDir, getAuditsDbPath } from '../storage/paths.js';
+import { findWebAssets } from '../dashboard/static.js';
 
 export interface SelfDoctorOptions {
   verbose: boolean;
@@ -183,6 +185,37 @@ function checkGlobalDir(): CheckResult {
 }
 
 /**
+ * Check the dashboard's static assets.
+ *
+ * They ship in the package as `dist/web`. A source checkout builds them, so
+ * their absence there is a note rather than a problem.
+ */
+function checkWebAssets(): CheckResult {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const distDir = path.basename(here) === 'commands' ? path.resolve(here, '../../dist') : here;
+  const { root, available } = findWebAssets(distDir);
+
+  if (available) {
+    return {
+      name: 'Dashboard assets',
+      status: 'pass',
+      message: '`seomator serve` has a UI to serve',
+      details: root,
+    };
+  }
+
+  const sourceCheckout = fs.existsSync(path.resolve(distDir, '../src'));
+  return {
+    name: 'Dashboard assets',
+    status: sourceCheckout ? 'warn' : 'fail',
+    message: sourceCheckout
+      ? 'Not built — `seomator serve` will answer /api only'
+      : 'Missing from this install',
+    details: sourceCheckout ? 'Run `npm run build`' : `Reinstall: npm install -g @seomator/seo-audit`,
+  };
+}
+
+/**
  * Check local config file
  */
 function checkLocalConfig(): CheckResult {
@@ -281,6 +314,7 @@ export async function runSelfDoctor(options: SelfDoctorOptions): Promise<void> {
     checkGlobalDir(),
     checkLocalConfig(),
     checkPermissions(),
+    checkWebAssets(),
   ];
 
   for (const check of checks) {

@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
-import { fetchPage, createAuditContext, type FetchResult } from './fetcher.js';
+import { fetchPage as defaultFetchPage, createAuditContext, type FetchPageOptions, type FetchResult } from './fetcher.js';
+import { rethrowIfAborted, throwIfAborted } from '../errors.js';
 import type { AssetInfo, AuditContext, CoreWebVitals, DiscoverySource, InboundEdge, RenderDiagnostics, SiteContext, SitePageInfo } from '../types.js';
 import { UrlFilter, type UrlFilterOptions } from './url-filter.js';
 import { RobotsMatcher } from './robots.js';
@@ -11,17 +12,24 @@ import { getUserAgent } from './user-agent.js';
 export type CrawlProgressCallback = (progress: CrawlProgress) => void;
 
 /**
- * Progress information during crawl
+ * Progress information during crawl.
+ *
+ * `crawled` and `discovered` never decrease, so a progress bar built on them
+ * cannot run backwards as workers finish out of order.
  */
 export interface CrawlProgress {
   /** Number of URLs crawled so far */
   crawled: number;
-  /** Total URLs in queue (crawled + pending) */
+  /** Crawled plus queued plus in-flight, capped at maxPages */
   total: number;
   /** Currently processing URL */
   currentUrl: string;
-  /** Number of URLs discovered */
+  /** Number of distinct URLs discovered so far */
   discovered: number;
+  /** The crawl's page ceiling */
+  maxPages: number;
+  /** True on the final callback, after the queue has drained */
+  done: boolean;
 }
 
 /**
@@ -54,8 +62,17 @@ export interface CrawlerOptions {
   concurrency: number;
   /** Request timeout in milliseconds */
   timeout: number;
-  /** Progress callback */
+  /** Progress callback, fired as pages start and once when the crawl ends */
   onProgress?: CrawlProgressCallback;
+  /** Called with each URL as its fetch begins */
+  onPageStart?: (url: string) => void;
+  /** Cancels the crawl: in-flight fetches abort and no new ones start */
+  signal?: AbortSignal;
+  /**
+   * Fetches one page. Defaults to the HTTP fetcher; injectable so tests can
+   * observe in-flight requests without a network.
+   */
+  fetchPage?: (url: string, timeout: number, options?: FetchPageOptions) => Promise<FetchResult>;
   /**
    * Renders a URL in a browser, returning what only a real render can observe.
    * Optional: when absent, pages are audited from their HTTP response alone.
@@ -123,6 +140,9 @@ export class Crawler {
       concurrency: options.concurrency ?? 3,
       timeout: options.timeout ?? 30000,
       onProgress: options.onProgress,
+      onPageStart: options.onPageStart,
+      signal: options.signal,
+      fetchPage: options.fetchPage ?? defaultFetchPage,
       renderPage: options.renderPage,
       urlFilter: options.urlFilter,
       respectRobots: options.respectRobots ?? true,
@@ -142,16 +162,20 @@ export class Crawler {
     this.robots = null;
     if (!this.options.respectRobots) return;
 
+    const signal = this.options.signal;
     try {
       const robotsUrl = new URL('/robots.txt', startUrl).href;
+      const timeout = AbortSignal.timeout(this.options.timeout);
       const response = await fetch(robotsUrl, {
         headers: { 'User-Agent': getUserAgent() },
-        signal: AbortSignal.timeout(this.options.timeout),
+        signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
       });
       if (!response.ok) return;
       this.robots = new RobotsMatcher(await response.text(), getUserAgent());
-    } catch {
-      // Unreachable robots.txt is not a reason to refuse to crawl.
+    } catch (error) {
+      // Unreachable robots.txt is not a reason to refuse to crawl — but a
+      // cancelled one is a cancelled crawl.
+      rethrowIfAborted(error, signal);
     }
   }
 
@@ -191,6 +215,7 @@ export class Crawler {
       throw new Error(`Invalid start URL: ${startUrl}`);
     }
 
+    throwIfAborted(this.options.signal);
     await this.loadRobots(startUrl);
 
     // Normalize and add start URL to queue
@@ -204,6 +229,7 @@ export class Crawler {
     // Process queue with concurrency control
     await this.processQueue();
 
+    this.reportProgress('', true);
     return this.results;
   }
 
@@ -227,6 +253,8 @@ export class Crawler {
    */
   private async worker(): Promise<void> {
     while (true) {
+      throwIfAborted(this.options.signal);
+
       // Check if we've hit the max pages limit
       if (this.results.length >= this.options.maxPages) {
         break;
@@ -277,14 +305,18 @@ export class Crawler {
     try {
       // Report progress
       this.reportProgress(url);
+      this.options.onPageStart?.(url);
 
       // Fetch the page
       let fetchResult: FetchResult;
       try {
-        fetchResult = await fetchPage(url, this.options.timeout, {
+        fetchResult = await this.options.fetchPage!(url, this.options.timeout, {
           trackRedirects: true,
+          ...(this.options.signal && { signal: this.options.signal }),
         });
       } catch (error) {
+        // A page that failed to load is a finding; a cancelled run is not.
+        rethrowIfAborted(error, this.options.signal);
         this.results.push({
           url,
           context: this.createEmptyContext(url),
@@ -305,13 +337,17 @@ export class Crawler {
           renderedHtml = rendered.html;
           diagnostics = rendered.diagnostics;
           assets = rendered.assets;
-        } catch {
+        } catch (error) {
+          rethrowIfAborted(error, this.options.signal);
           // Rendering failed, continue with the HTTP response alone
         }
       }
 
       // Create audit context
       const context = createAuditContext(url, fetchResult, cwv);
+      if (this.options.signal) {
+        context.signal = this.options.signal;
+      }
       if (renderedHtml) {
         context.renderedHtml = renderedHtml;
         context.rendered$ = cheerio.load(renderedHtml);
@@ -644,15 +680,25 @@ export class Crawler {
   /**
    * Report progress via callback
    */
-  private reportProgress(currentUrl: string): void {
-    if (this.options.onProgress) {
-      this.options.onProgress({
-        crawled: this.results.length,
-        total: this.results.length + this.queue.length + this.activeCount,
-        currentUrl,
-        discovered: this.visited.size,
-      });
-    }
+  private reportProgress(currentUrl: string, done = false): void {
+    if (!this.options.onProgress) return;
+
+    const crawled = this.results.length;
+    // Never advertise more pages than the crawl will actually audit, and never
+    // let the target shrink below what has already been done.
+    const total = Math.max(
+      crawled,
+      Math.min(crawled + this.queue.length + this.activeCount, this.options.maxPages)
+    );
+
+    this.options.onProgress({
+      crawled,
+      total,
+      currentUrl,
+      discovered: this.visited.size,
+      maxPages: this.options.maxPages,
+      done,
+    });
   }
 
   /**

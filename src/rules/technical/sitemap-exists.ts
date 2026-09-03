@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
 import { fetchUrl, fetchPage } from '../../crawler/fetcher.js';
+import { rethrowIfAborted } from '../../errors.js';
 
 /**
  * Extracts the base URL (origin) from a full URL
@@ -54,19 +55,22 @@ export const sitemapExistsRule = defineRule({
 
     // Check default /sitemap.xml location
     try {
-      const statusCode = await fetchUrl(sitemapUrl);
+      const statusCode = await fetchUrl(sitemapUrl, 10000, context.signal);
       checkedLocations.push(sitemapUrl);
 
       if (statusCode === 200) {
         foundSitemaps.push(sitemapUrl);
       }
-    } catch {
+    } catch (error) {
+      rethrowIfAborted(error, context.signal);
       // Continue to check robots.txt
     }
 
     // Check robots.txt for sitemap references
     try {
-      const robotsResult = await fetchPage(robotsTxtUrl);
+      const robotsResult = await fetchPage(robotsTxtUrl, 30000, {
+        ...(context.signal && { signal: context.signal }),
+      });
       if (robotsResult.statusCode === 200) {
         const sitemapsInRobots = extractSitemapUrlsFromRobotsTxt(robotsResult.html);
 
@@ -75,17 +79,19 @@ export const sitemapExistsRule = defineRule({
             checkedLocations.push(sitemapUrlFromRobots);
 
             try {
-              const statusCode = await fetchUrl(sitemapUrlFromRobots);
+              const statusCode = await fetchUrl(sitemapUrlFromRobots, 10000, context.signal);
               if (statusCode === 200) {
                 foundSitemaps.push(sitemapUrlFromRobots);
               }
-            } catch {
+            } catch (error) {
+              rethrowIfAborted(error, context.signal);
               // Sitemap URL from robots.txt is not accessible
             }
           }
         }
       }
-    } catch {
+    } catch (error) {
+      rethrowIfAborted(error, context.signal);
       // Could not check robots.txt
     }
 

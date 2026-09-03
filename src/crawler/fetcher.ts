@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import { getUserAgent } from './user-agent.js';
+import { AuditError, rethrowIfAborted, throwIfAborted } from '../errors.js';
 import { parseSetCookieHeaders } from './cookies.js';
 import type { CheerioAPI } from 'cheerio';
 import type {
@@ -125,6 +126,25 @@ export interface FetchPageOptions {
    * `redirect-loop` and `redirect-broken` had nothing to read.
    */
   trackRedirects?: boolean;
+  /** Cancels the request; the run's signal, combined with the timeout */
+  signal?: AbortSignal;
+}
+
+/**
+ * A request signal that fires on the caller's cancellation or the timeout,
+ * whichever comes first. The timer is cleared by `dispose()`.
+ */
+export function requestSignal(
+  timeout: number,
+  signal?: AbortSignal
+): { signal: AbortSignal; timedOut: () => boolean; dispose: () => void } {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  return {
+    signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
+    timedOut: () => controller.signal.aborted,
+    dispose: () => clearTimeout(timeoutId),
+  };
 }
 
 /**
@@ -177,8 +197,8 @@ export async function fetchPage(
   timeout = 30000,
   options: FetchPageOptions = {}
 ): Promise<FetchResult> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  throwIfAborted(options.signal);
+  const request = requestSignal(timeout, options.signal);
 
   const startTime = performance.now();
 
@@ -187,13 +207,13 @@ export async function fetchPage(
     let redirectChain: RedirectChainEntry[] | undefined;
 
     if (options.trackRedirects) {
-      const tracked = await fetchFollowingRedirects(url, controller.signal);
+      const tracked = await fetchFollowingRedirects(url, request.signal);
       response = tracked.response;
       redirectChain = tracked.chain;
     } else {
       response = await fetch(url, {
         method: 'GET',
-        signal: controller.signal,
+        signal: request.signal,
         headers: pageRequestHeaders(),
         redirect: 'follow',
       });
@@ -219,8 +239,16 @@ export async function fetchPage(
       cookies: parseSetCookieHeaders(response.headers),
       ...(redirectChain && { redirectChain }),
     };
+  } catch (error) {
+    // A cancelled run and a slow server both surface as AbortError; tell them
+    // apart here so callers never mistake a cancellation for a timeout.
+    rethrowIfAborted(error, options.signal);
+    if (request.timedOut()) {
+      throw new AuditError('timeout', `${url} did not respond within ${timeout} ms`, { cause: error });
+    }
+    throw error;
   } finally {
-    clearTimeout(timeoutId);
+    request.dispose();
   }
 }
 
@@ -228,16 +256,17 @@ export async function fetchPage(
  * Fetch URL with HEAD request for link checking
  * @param url - URL to check
  * @param timeout - Request timeout in milliseconds (default: 10000)
- * @returns HTTP status code
+ * @param signal - The run's cancellation signal; a cancelled check throws
+ * @returns HTTP status code, or 0 for a timeout or network error
  */
-export async function fetchUrl(url: string, timeout = 10000): Promise<number> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
+export async function fetchUrl(url: string, timeout = 10000, signal?: AbortSignal): Promise<number> {
+  throwIfAborted(signal);
+  const request = requestSignal(timeout, signal);
 
   try {
     const response = await fetch(url, {
       method: 'HEAD',
-      signal: controller.signal,
+      signal: request.signal,
       headers: {
         'User-Agent': getUserAgent(),
       },
@@ -246,13 +275,10 @@ export async function fetchUrl(url: string, timeout = 10000): Promise<number> {
 
     return response.status;
   } catch (error) {
-    // Return 0 for network errors, timeouts, etc.
-    if (error instanceof Error && error.name === 'AbortError') {
-      return 0; // Timeout
-    }
-    return 0; // Network error
+    rethrowIfAborted(error, signal);
+    return 0; // Timeout or network error
   } finally {
-    clearTimeout(timeoutId);
+    request.dispose();
   }
 }
 
@@ -555,27 +581,28 @@ export interface RedirectResult {
 export async function fetchUrlWithRedirects(
   url: string,
   timeout = 10000,
-  maxRedirects = 5
+  maxRedirects = 5,
+  signal?: AbortSignal
 ): Promise<RedirectResult> {
   const chain: string[] = [url];
   let currentUrl = url;
   let redirectCount = 0;
 
   while (redirectCount < maxRedirects) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    throwIfAborted(signal);
+    const request = requestSignal(timeout, signal);
 
     try {
       const response = await fetch(currentUrl, {
         method: 'HEAD',
-        signal: controller.signal,
+        signal: request.signal,
         headers: {
           'User-Agent': getUserAgent(),
         },
         redirect: 'manual', // Don't auto-follow redirects
       });
 
-      clearTimeout(timeoutId);
+      request.dispose();
 
       // Check for redirect status codes
       if (response.status >= 300 && response.status < 400) {
@@ -598,7 +625,8 @@ export async function fetchUrlWithRedirects(
         chain,
       };
     } catch (error) {
-      clearTimeout(timeoutId);
+      request.dispose();
+      rethrowIfAborted(error, signal);
       // Return current state on error
       return {
         finalUrl: currentUrl,

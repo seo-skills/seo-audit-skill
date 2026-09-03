@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail } from '../define-rule.js';
 import { fetchUrl } from '../../crawler/fetcher.js';
+import { rethrowIfAborted } from '../../errors.js';
 
 /**
  * Maximum images to check for performance
@@ -30,11 +31,12 @@ export const brokenRule = defineRule({
     await Promise.all(
       imagesToCheck.map(async (img) => {
         try {
-          const status = await fetchUrl(img.src, 5000);
+          const status = await fetchUrl(img.src, 5000, context.signal);
           if (status === 404 || status === 410) {
             brokenImages.push({ src: img.src, status });
           }
-        } catch {
+        } catch (error) {
+          rethrowIfAborted(error, context.signal);
           // Skip on network errors
         }
       })

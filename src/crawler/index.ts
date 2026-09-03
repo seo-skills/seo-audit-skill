@@ -2,9 +2,13 @@
 export {
   fetchPage,
   fetchUrl,
+  fetchUrlWithRedirects,
+  requestSignal,
   unauditableReason,
   createAuditContext,
   type FetchResult,
+  type FetchPageOptions,
+  type RedirectResult,
 } from './fetcher.js';
 
 // Playwright fetcher exports

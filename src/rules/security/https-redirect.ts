@@ -1,21 +1,24 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
 import { getUserAgent } from '../../crawler/user-agent.js';
+import { requestSignal } from '../../crawler/fetcher.js';
+import { rethrowIfAborted, throwIfAborted } from '../../errors.js';
 
 /**
  * Makes a fetch request without following redirects to check redirect behavior
  */
 async function checkRedirect(
   url: string,
-  timeout = 10000
+  timeout = 10000,
+  signal?: AbortSignal
 ): Promise<{ statusCode: number; location: string | null }> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  throwIfAborted(signal);
+  const request = requestSignal(timeout, signal);
 
   try {
     const response = await fetch(url, {
       method: 'HEAD',
-      signal: controller.signal,
+      signal: request.signal,
       headers: {
         'User-Agent': getUserAgent(),
       },
@@ -25,12 +28,10 @@ async function checkRedirect(
     const location = response.headers.get('location');
     return { statusCode: response.status, location };
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      return { statusCode: 0, location: null }; // Timeout
-    }
-    return { statusCode: 0, location: null }; // Network error
+    rethrowIfAborted(error, signal);
+    return { statusCode: 0, location: null }; // Timeout or network error
   } finally {
-    clearTimeout(timeoutId);
+    request.dispose();
   }
 }
 
@@ -54,7 +55,7 @@ export const httpsRedirectRule = defineRule({
       const httpUrl = `http://${urlObj.host}${urlObj.pathname}${urlObj.search}`;
       const expectedHttpsUrl = `https://${urlObj.host}${urlObj.pathname}${urlObj.search}`;
 
-      const { statusCode, location } = await checkRedirect(httpUrl);
+      const { statusCode, location } = await checkRedirect(httpUrl, 10000, context.signal);
 
       const details = {
         httpUrl,
@@ -121,6 +122,7 @@ export const httpsRedirectRule = defineRule({
         details
       );
     } catch (error) {
+      rethrowIfAborted(error, context.signal);
       const message = error instanceof Error ? error.message : String(error);
       return fail(
         'security-https-redirect',

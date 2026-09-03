@@ -21,10 +21,12 @@ import {
   closeBrowser,
   Crawler,
   type CrawledPage,
+  type CrawlProgress,
   type PlaywrightFetchResult,
   type RenderOptions,
 } from './crawler/index.js';
 import { buildPageSnapshot } from './page-snapshot.js';
+import { AuditError, rethrowIfAborted, throwIfAborted } from './errors.js';
 import { getUserAgent } from './crawler/user-agent.js';
 import { fetchSitemap } from './crawler/sitemap.js';
 import {
@@ -63,6 +65,14 @@ export type OnPageCompleteCallback = (
   pageNumber: number,
   totalPages: number
 ) => void;
+
+/**
+ * Callback for crawl discovery progress, before any page is scored.
+ *
+ * A crawl spends most of its time here, and until now the CLI showed a bar
+ * that only moved once the crawl had already finished.
+ */
+export type OnCrawlProgressCallback = (progress: CrawlProgress) => void;
 
 /**
  * Mark every sitemap URL as sitemap-discovered on the shared site graph.
@@ -130,14 +140,24 @@ export interface AuditorOptions {
   onRuleComplete?: OnRuleCompleteCallback;
   /** Callback when a page completes (crawl mode) */
   onPageComplete?: OnPageCompleteCallback;
+  /** Callback as the crawl discovers and fetches pages (crawl mode) */
+  onCrawlProgress?: OnCrawlProgressCallback;
+  /** Callback as each page's fetch begins (crawl mode) */
+  onPageStart?: (url: string) => void;
+  /**
+   * Cancels the run. Every fetch, render and page loop checks it, so an
+   * aborted audit stops within a request rather than running to completion in
+   * the background. The call rejects with an `AuditAbortedError`.
+   */
+  signal?: AbortSignal;
 }
 
 /**
  * Resolved options with defaults applied.
  * browserFetcher stays optional because it has no default.
  */
-type ResolvedAuditorOptions = Required<Omit<AuditorOptions, 'browserFetcher'>> &
-  Pick<AuditorOptions, 'browserFetcher'>;
+type ResolvedAuditorOptions = Required<Omit<AuditorOptions, 'browserFetcher' | 'signal'>> &
+  Pick<AuditorOptions, 'browserFetcher' | 'signal'>;
 
 /**
  * Main Auditor class for running SEO audits
@@ -157,10 +177,13 @@ export class Auditor {
       // Defaults to true so a programmatic crawl is polite unless asked not to be.
       respectRobots: options.respectRobots ?? true,
       browserFetcher: options.browserFetcher,
+      signal: options.signal,
       onCategoryStart: options.onCategoryStart ?? (() => {}),
       onCategoryComplete: options.onCategoryComplete ?? (() => {}),
       onRuleComplete: options.onRuleComplete ?? (() => {}),
       onPageComplete: options.onPageComplete ?? (() => {}),
+      onCrawlProgress: options.onCrawlProgress ?? (() => {}),
+      onPageStart: options.onPageStart ?? (() => {}),
     };
 
     // Determine which categories to audit
@@ -196,6 +219,8 @@ export class Auditor {
    * Fetch robots.txt content for a site
    */
   private async fetchRobotsTxt(url: string): Promise<string | undefined> {
+    const signal = this.options.signal;
+    throwIfAborted(signal);
     try {
       const urlObj = new URL(url);
       const robotsUrl = `${urlObj.protocol}//${urlObj.host}/robots.txt`;
@@ -203,7 +228,7 @@ export class Auditor {
       const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
         const response = await fetch(robotsUrl, {
-          signal: controller.signal,
+          signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
           headers: {
             'User-Agent': getUserAgent(),
           },
@@ -215,8 +240,9 @@ export class Auditor {
       } finally {
         clearTimeout(timeoutId);
       }
-    } catch {
+    } catch (error) {
       // Robots.txt fetch failed, continue without it
+      rethrowIfAborted(error, signal);
     }
     return undefined;
   }
@@ -232,7 +258,7 @@ export class Auditor {
     url: string,
     robotsTxtContent?: string
   ): Promise<SitemapFetchResult> {
-    return fetchSitemap(url, robotsTxtContent);
+    return fetchSitemap(url, robotsTxtContent, this.options.signal);
   }
 
   /**
@@ -265,6 +291,7 @@ export class Auditor {
    * @returns AuditResult for the page
    */
   async audit(url: string): Promise<AuditResult> {
+    throwIfAborted(this.options.signal);
     await this.ensureRulesLoaded();
     resetCrossPageState();
 
@@ -272,6 +299,7 @@ export class Auditor {
     // redirect-broken have a chain to read.
     const fetchResult = await fetchPage(url, this.options.timeout, {
       trackRedirects: true,
+      ...(this.options.signal && { signal: this.options.signal }),
     });
 
     // Refuse to score something that is not an auditable page. Most rules pass
@@ -283,7 +311,7 @@ export class Auditor {
       fetchResult.html
     );
     if (unauditable) {
-      throw new Error(unauditable);
+      throw new AuditError('non-html', unauditable);
     }
 
     // Get Core Web Vitals and rendered DOM if enabled
@@ -299,6 +327,7 @@ export class Auditor {
       try {
         const pwResult = await fetcher(url, this.options.timeout, {
           simulateInteraction: this.options.simulateInteraction,
+          ...(this.options.signal && { signal: this.options.signal }),
         });
         cwv = pwResult.cwv;
         renderDiagnostics = pwResult.diagnostics;
@@ -317,17 +346,20 @@ export class Auditor {
           try {
             const mobileResult = await fetchPageWithPlaywright(url, this.options.timeout, {
               mobile: true,
+              ...(this.options.signal && { signal: this.options.signal }),
             });
             if (mobileResult.html) {
               mobileHtml = mobileResult.html;
               const cheerio = await import('cheerio');
               mobile$ = cheerio.load(mobileHtml);
             }
-          } catch {
+          } catch (error) {
+            rethrowIfAborted(error, this.options.signal);
             // Mobile render failed; parity rules report unmeasured
           }
         }
-      } catch {
+      } catch (error) {
+        rethrowIfAborted(error, this.options.signal);
         // CWV measurement failed, continue without it
       } finally {
         // Clean up Playwright browser (only when not using an injected fetcher)
@@ -339,6 +371,9 @@ export class Auditor {
 
     // Create audit context
     const context = createAuditContext(url, fetchResult, cwv);
+    if (this.options.signal) {
+      context.signal = this.options.signal;
+    }
 
     // Enrich with robots.txt, sitemap, and rendered DOM
     await this.enrichContext(context, url);
@@ -384,6 +419,7 @@ export class Auditor {
     maxPages = 10,
     concurrency = 3
   ): Promise<AuditResult> {
+    throwIfAborted(this.options.signal);
     await this.ensureRulesLoaded();
     resetCrossPageState();
 
@@ -398,10 +434,15 @@ export class Auditor {
       concurrency,
       timeout: this.options.timeout,
       respectRobots: this.options.respectRobots,
+      ...(this.options.signal && { signal: this.options.signal }),
+      onProgress: (progress) => this.options.onCrawlProgress(progress),
+      onPageStart: (pageUrl) => this.options.onPageStart(pageUrl),
       renderPage: this.options.measureCwv
         ? async (pageUrl: string) => {
             try {
-              const result = await fetcher(pageUrl, this.options.timeout);
+              const result = await fetcher(pageUrl, this.options.timeout, {
+                ...(this.options.signal && { signal: this.options.signal }),
+              });
               // `html` is what the JS-rendering rules read. Leaving it out here
               // is what made all eleven of them report "rendered DOM not
               // available" on every page of every crawl.
@@ -411,19 +452,27 @@ export class Auditor {
                 diagnostics: result.diagnostics,
                 assets: result.assets,
               };
-            } catch {
+            } catch (error) {
+              rethrowIfAborted(error, this.options.signal);
               return { cwv: {} };
             }
           }
         : undefined,
     });
 
-    // Crawl the site
-    const crawledPages = await crawler.crawl(url, maxPages, concurrency);
+    // Crawl the site. The browser is closed whatever happens, including a
+    // cancellation: a leaked Chromium outlives the process that started it.
+    let crawledPages: CrawledPage[];
+    try {
+      crawledPages = await crawler.crawl(url, maxPages, concurrency);
+    } finally {
+      if (this.options.measureCwv && !this.options.browserFetcher) {
+        await closeBrowser();
+      }
+    }
 
-    // Close Playwright browser if CWV was measured (only when not using an injected fetcher)
-    if (this.options.measureCwv && !this.options.browserFetcher) {
-      await closeBrowser();
+    if (crawledPages.length === 0) {
+      throw new AuditError('no-pages', `The crawl of ${url} found no pages to audit`);
     }
 
     // Build the site graph once, then share it by reference with every page so
@@ -436,6 +485,9 @@ export class Auditor {
       if (crawledPage.context) {
         crawledPage.context.robotsTxtContent = robotsTxtContent;
         crawledPage.context.site = site;
+        if (this.options.signal) {
+          crawledPage.context.signal = this.options.signal;
+        }
         this.applySitemapData(crawledPage.context, sitemapData);
       }
     }
@@ -479,6 +531,7 @@ export class Auditor {
 
     let pageNumber = 0;
     for (const crawledPage of crawledPages) {
+      throwIfAborted(this.options.signal);
       pageNumber++;
 
       // Skip pages with errors
@@ -520,6 +573,8 @@ export class Auditor {
     const results: CategoryResult[] = [];
 
     for (const category of this.categoriesToAudit) {
+      throwIfAborted(this.options.signal);
+
       // Notify start
       this.options.onCategoryStart(category.id, category.name);
 
@@ -546,6 +601,10 @@ export class Auditor {
           ruleResults.push(resultWithMeta);
           this.options.onRuleComplete(rule.id, rule.name, resultWithMeta);
         } catch (error) {
+          // A cancelled run is not a rule failure: stop rather than scoring
+          // 332 rules as "execution failed".
+          rethrowIfAborted(error, this.options.signal);
+
           // Rule threw an error, treat as fail
           const errorResult: RuleResult = {
             ruleId: rule.id,

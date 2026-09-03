@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
 import { fetchUrl } from '../../crawler/fetcher.js';
+import { rethrowIfAborted } from '../../errors.js';
 
 /**
  * Gets the www and non-www versions of a URL
@@ -92,14 +93,16 @@ export const wwwRedirectRule = defineRule({
     };
 
     try {
-      results.wwwStatus = await fetchUrl(wwwUrl);
-    } catch {
+      results.wwwStatus = await fetchUrl(wwwUrl, 10000, context.signal);
+    } catch (error) {
+      rethrowIfAborted(error, context.signal);
       results.wwwStatus = 0;
     }
 
     try {
-      results.nonWwwStatus = await fetchUrl(nonWwwUrl);
-    } catch {
+      results.nonWwwStatus = await fetchUrl(nonWwwUrl, 10000, context.signal);
+    } catch (error) {
+      rethrowIfAborted(error, context.signal);
       results.nonWwwStatus = 0;
     }
 

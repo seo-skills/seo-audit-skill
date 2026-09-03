@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail } from '../define-rule.js';
 import { fetchUrl } from '../../crawler/fetcher.js';
+import { rethrowIfAborted } from '../../errors.js';
 
 /**
  * Rule: Check that internal links return 200 (fail if 404/5xx)
@@ -28,7 +29,7 @@ export const brokenInternalRule = defineRule({
     // Check each internal link
     for (const link of internalLinks) {
       try {
-        const statusCode = await fetchUrl(link.href);
+        const statusCode = await fetchUrl(link.href, 10000, context.signal);
 
         if (statusCode === 404 || statusCode >= 500 || statusCode === 0) {
           brokenLinks.push({
@@ -36,7 +37,8 @@ export const brokenInternalRule = defineRule({
             statusCode,
           });
         }
-      } catch {
+      } catch (error) {
+        rethrowIfAborted(error, context.signal);
         brokenLinks.push({
           href: link.href,
           statusCode: 0,

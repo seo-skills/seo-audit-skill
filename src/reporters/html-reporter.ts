@@ -1,5 +1,13 @@
-import type { PageSnapshot, AuditResult, CategoryResult, RuleResult } from '../types.js';
+import type {
+  PageSnapshot,
+  AuditResult,
+  CategoryResult,
+  RuleResult,
+  RuleStatus,
+} from '../types.js';
+import type { RuleSummary } from '../dashboard/contract.js';
 import { scoreToVerdict, verdictStyle } from '../verdict.js';
+import { rulePriority } from '../rules/priority.js';
 import { toCss as tokensToCss } from '../design/tokens.js';
 import { getCategoryById } from '../categories/index.js';
 import { getFixSuggestion } from './fix-suggestions.js';
@@ -44,6 +52,11 @@ function toDisplayStatus(result: RuleResult): DisplayStatus {
   return isNotMeasured(result) ? 'notmeasured' : (result.status as Exclude<DisplayStatus, 'notmeasured'>);
 }
 
+/** The inverse of `toDisplayStatus`, for the ranker's benefit. */
+function fromDisplayStatus(status: DisplayStatus): RuleStatus {
+  return status === 'notmeasured' ? 'not-measured' : status;
+}
+
 /**
  * Aggregated issue structure for grouping same-rule occurrences
  */
@@ -57,6 +70,13 @@ interface AggregatedIssue {
   ruleDescription: string;
   pages: Array<{ url: string; details: Record<string, unknown> }>;
   pageCount: number;
+  /**
+   * How much attention this finding deserves relative to the others in this
+   * audit. Ordering by severity alone put a weight-1 warning above a weight-25
+   * one, which is most of why a reader had to scroll a 54,000-pixel report to
+   * find out what to fix first.
+   */
+  priority: number;
 }
 
 /**
@@ -127,7 +147,8 @@ function aggregateIssuesByRule(
           ruleName: metadata?.name ?? formatRuleIdAsName(r.ruleId),
           ruleDescription: metadata?.description ?? '',
           pages: [],
-          pageCount: 0
+          pageCount: 0,
+          priority: 0,
         });
       }
 
@@ -136,9 +157,35 @@ function aggregateIssuesByRule(
         group.pages.push({ url, details: r.details || {} });
       }
       group.pageCount++;
+
+      // A stored audit arrives as `RuleSummary`, already ranked server-side
+      // against the full page counts. Prefer that over anything derived here.
+      const stored = (r as Partial<RuleSummary>).priority;
+      if (typeof stored === 'number') group.priority = stored;
     }
 
-    aggregatedByCategory.set(cat.categoryId, Array.from(ruleGroups.values()));
+    const groups = Array.from(ruleGroups.values());
+
+    // A live audit has one result per rule per page and no precomputed rank, so
+    // derive the same number: the share of measured pages this status covers.
+    const measuredByRule = new Map<string, number>();
+    for (const g of groups) {
+      if (g.status === 'notmeasured') continue;
+      measuredByRule.set(g.ruleId, (measuredByRule.get(g.ruleId) ?? 0) + g.pageCount);
+    }
+    for (const g of groups) {
+      if (g.priority) continue;
+      const measuredPages = measuredByRule.get(g.ruleId) ?? 0;
+      g.priority = rulePriority({
+        ruleId: g.ruleId,
+        categoryId: cat.categoryId,
+        status: fromDisplayStatus(g.status),
+        affectedPages: g.pageCount,
+        measuredPages,
+      });
+    }
+
+    aggregatedByCategory.set(cat.categoryId, groups);
   }
 
   return aggregatedByCategory;
@@ -482,6 +529,41 @@ ${tokensToCss()}
     .sidebar-link-count.pass {
       background: var(--color-pass-bg);
       color: var(--color-pass);
+    }
+
+    /* Checks that need no action, folded out of the way */
+    .quiet-rules {
+      margin-top: 8px;
+      border-top: 1px solid var(--color-border);
+    }
+
+    .quiet-rules summary {
+      cursor: pointer;
+      padding: 12px 4px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      list-style: none;
+    }
+
+    .quiet-rules summary::marker,
+    .quiet-rules summary::-webkit-details-marker { display: none; }
+
+    .quiet-rules summary::before {
+      content: '▶';
+      font-size: 9px;
+      margin-right: 8px;
+      display: inline-block;
+    }
+
+    .quiet-rules[open] summary::before { content: '▼'; }
+
+    .quiet-rules summary:hover { color: var(--color-text); }
+
+    .quiet-rules summary:focus-visible {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+      border-radius: var(--radius-sm);
     }
 
     /* Pages covered, when the results are aggregated and cannot be filtered */
@@ -1494,11 +1576,55 @@ ${tokensToCss()}
        Responsive
        ======================================== */
     @media (max-width: 1024px) {
+      /* The sidebar used to be display:none here, which left a report that can
+         run to 17,000 pixels with no way to reach a category except scrolling.
+         It becomes a scrollable strip above the content instead: same links,
+         same DOM, no JavaScript. */
       .sidebar {
+        position: static;
+        width: auto;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--color-border);
+        overflow: visible;
+        padding: 12px 0 0;
+        /* The header stays fixed, so a static sidebar starts at y=0 and its
+           first rows render behind it. */
+        margin-top: var(--header-height);
+      }
+      .sidebar-section {
+        margin-bottom: 12px;
+        padding: 0;
+      }
+      .sidebar-nav {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        padding: 0 16px 12px;
+        scrollbar-width: thin;
+      }
+      .sidebar-link {
+        white-space: nowrap;
+        padding: 8px 12px;
+        border: 1px solid var(--color-border);
+      }
+      /* The category glyph earns no room on a phone; the name and its counter
+         are what make the link scannable. */
+      .sidebar-link-icon {
         display: none;
       }
+      .sidebar-title {
+        padding: 0 16px 6px;
+      }
+      /* Filter and page list are full-width controls here, not a rail. */
+      .url-filter {
+        padding: 0 16px;
+      }
       .main {
+        /* The sidebar now carries the header offset in normal flow; keeping it
+           here too would leave a header-sized gap between the two. */
         margin-left: 0;
+        margin-top: 0;
       }
     }
 
@@ -1658,6 +1784,19 @@ function generateScript(): string {
         categorySections.forEach(section => {
           const visibleRules = section.querySelectorAll('.rule-card:not(.hidden)');
           section.style.display = visibleRules.length === 0 ? 'none' : 'block';
+        });
+
+        // The fold must never hide what the reader explicitly asked to see:
+        // filtering to Passed with the passed checks folded away would show an
+        // empty report. Selecting 'All' leaves the fold as the reader left it.
+        document.querySelectorAll('details.quiet-rules').forEach(fold => {
+          const visible = fold.querySelectorAll('.rule-card:not(.hidden)').length;
+          fold.style.display = visible === 0 ? 'none' : '';
+          if (currentStatusFilter === 'pass' || currentStatusFilter === 'notmeasured') {
+            fold.open = true;
+          } else if (currentStatusFilter !== 'all') {
+            fold.open = false;
+          }
         });
 
         // Update counts in filter tabs
@@ -1965,8 +2104,17 @@ export function renderHtmlReport(result: AuditResult): string {
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference - (result.overallScore / 100) * circumference;
 
-  // Generate issues table rows (failures and warnings only) - now using aggregated data
-  const issueTableRows = [...failures, ...warnings]
+  // Generate issues table rows (failures and warnings only) - now using
+  // aggregated data, ordered by what actually deserves attention first.
+  // Severity still leads, because a failure outranks a warning whatever its
+  // weight; within a severity the ranker decides, so a weight-25 finding no
+  // longer sits below a weight-1 one that happens to register earlier.
+  const byPriority = (a: AggregatedIssue, b: AggregatedIssue) =>
+    b.priority - a.priority ||
+    b.pageCount - a.pageCount ||
+    a.ruleId.localeCompare(b.ruleId);
+
+  const issueTableRows = [...failures.sort(byPriority), ...warnings.sort(byPriority)]
     .map((issue) => {
       const urlsCommaSeparated = issue.pages.map(p => p.url).join(',');
       const pageDisplay = issue.pages.length === 0
@@ -2079,7 +2227,16 @@ export function renderHtmlReport(result: AuditResult): string {
     // Get aggregated issues for this category
     const aggregatedIssues = aggregatedByCategory.get(cat.categoryId) || [];
 
-    const rulesHtml = aggregatedIssues.map(issue => {
+    // What the reader came for goes first, ranked; what passed or was never
+    // measured is kept but folded away. Rendering all 332 rules expanded is
+    // what made this report 54,000 pixels tall, and the 278 that passed are
+    // the part nobody scrolls to.
+    const actionable = aggregatedIssues
+      .filter(i => i.status === 'fail' || i.status === 'warn')
+      .sort(byPriority);
+    const quiet = aggregatedIssues.filter(i => i.status === 'pass' || i.status === 'notmeasured');
+
+    const renderIssue = (issue: AggregatedIssue) => {
       const fix = getFixSuggestion(issue.ruleId);
       const statusIcon = STATUS_ICONS[issue.status];
       const urlsCommaSeparated = issue.pages.map(p => p.url).join(',');
@@ -2121,7 +2278,20 @@ export function renderHtmlReport(result: AuditResult): string {
           </div>
         </div>
       `;
-    }).join('');
+    };
+
+    const actionableHtml = actionable.map(renderIssue).join('');
+
+    // `<details>` rather than a class toggle, so the fold works with no
+    // JavaScript and the browser handles find-in-page inside it.
+    const quietHtml = quiet.length
+      ? `<details class="quiet-rules">
+           <summary>${quiet.length} ${quiet.length === 1 ? 'check that needs' : 'checks that need'} no action</summary>
+           <div class="quiet-rules-body">${quiet.map(renderIssue).join('')}</div>
+         </details>`
+      : '';
+
+    const rulesHtml = actionableHtml + quietHtml;
 
     return `
       <section class="category-section" id="category-${cat.categoryId}">

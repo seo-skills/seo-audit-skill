@@ -101,6 +101,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Along the way 8 of 13 text/background pairs failed WCAG AA; all 18 pairs now
   clear 4.5:1 in both themes, and a test computes the ratios.
 
+- **The HTML report leads with what to fix, and folds away what needs nothing.**
+  It rendered all 332 checks expanded, ordered by severity and then by
+  registration order, so a weight-1 warning could sit above a weight-25 one and
+  the 278 checks that passed took up most of a 54,675-pixel page. Findings are
+  now ranked by `rulePriority()` within each severity, and the passed and
+  unmeasured checks fold into a per-category disclosure. The page is 17,147
+  pixels; nothing was removed, and filtering to Passed opens the fold.
+
+- **The HTML report has category navigation on a phone again.** The sidebar was
+  `display: none` below 1024px, which left a report that can run to 17,000
+  pixels with no way to reach a category except scrolling. It becomes a
+  scrollable strip of category links above the content.
+
 - **The HTML report no longer offers a page filter it cannot honour.** It built
   its page list by scraping `pageUrl` out of rule details. That is exact for a
   live crawl, where every result carries its own page, and wrong for a stored

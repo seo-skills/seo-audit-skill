@@ -169,7 +169,7 @@ export function AuditDetailPage() {
             <ScoreCircle score={result.overallScore} size={140} />
             <div className="space-y-3 min-w-0">
               <div>
-                <h1 className="text-lg font-semibold truncate" style={{ color: 'var(--color-text)' }}>
+                <h1 className="text-xl font-semibold truncate" style={{ color: 'var(--color-text)' }}>
                   {audit.startUrl}
                 </h1>
                 <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
@@ -272,7 +272,7 @@ export function AuditDetailPage() {
             className="p-5 rounded-xl border"
             style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}
           >
-            <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
+            <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
               Category scores
             </h2>
             <CategoryGrid
@@ -287,7 +287,7 @@ export function AuditDetailPage() {
               className="p-5 rounded-xl border"
               style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}
             >
-              <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
+              <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
                 Issues to fix
               </h2>
               <IssuesTable result={result} ruleMetadata={ruleMetadata} onIssueClick={handleIssueClick} />
@@ -299,7 +299,7 @@ export function AuditDetailPage() {
             style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+              <h2 className="text-base font-semibold" style={{ color: 'var(--color-text)' }}>
                 Detailed results
               </h2>
               <FilterTabs active={filter} counts={counts} onChange={setFilter} />

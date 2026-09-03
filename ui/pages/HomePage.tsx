@@ -77,7 +77,7 @@ export function HomePage() {
           style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}
           aria-labelledby="trend-heading"
         >
-          <h2 id="trend-heading" className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
+          <h2 id="trend-heading" className="text-base font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
             {domain}
           </h2>
           <TrendChart points={trend.data ?? []} />
@@ -86,9 +86,9 @@ export function HomePage() {
 
       <section aria-labelledby="audits-heading">
         <div className="flex items-baseline justify-between mb-3">
-          <h2 id="audits-heading" className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+          <h1 id="audits-heading" className="text-xl font-semibold" style={{ color: 'var(--color-text)' }}>
             {domain ? `Audits of ${domain}` : 'Recent audits'}
-          </h2>
+          </h1>
           {audits.data && audits.data.length > 0 && (
             <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
               {audits.data.length} shown

@@ -58,9 +58,15 @@
 }
 
 .segment {
-  padding: 3px 12px;
-  border-radius: 5px;
-  font-size: 12.5px;
+  /* 25px tall was under the 32px minimum target, and 12.5px belonged to no
+     scale. min-height states the target size rather than leaving it to fall
+     out of padding plus line-height. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1.5;
   color: var(--color-text-secondary);
@@ -82,8 +88,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  /* 28px was under the 32px minimum; the icon inside stays the same size. */
+  width: 32px;
+  height: 32px;
   border-radius: 6px;
   color: var(--color-text-secondary);
   transition: background 120ms ease, color 120ms ease;

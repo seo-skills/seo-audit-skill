@@ -10,12 +10,26 @@ import { ipcMain } from 'electron';
 import { AuditsDatabase } from '@core/storage/audits-db/index.js';
 import { getAuditsDbPath } from '@core/storage/paths.js';
 import {
+  compareStored,
   getAuditDetail,
   getTrend,
   listAudits,
   listDomains,
 } from '@core/dashboard/queries.js';
-import type { AuditDetail, AuditSummaryDto, DomainSummary, ScoreTrendPointDto } from '@core/dashboard/contract.js';
+import {
+  renderHtmlReport,
+  renderMarkdownReport,
+  renderLlmReport,
+} from '@core/reporters/index.js';
+import { dialog } from 'electron';
+import * as fs from 'fs';
+import type {
+  AuditDetail,
+  AuditSummaryDto,
+  DomainSummary,
+  ScoreTrendPointDto,
+  StoredComparison,
+} from '@core/dashboard/contract.js';
 import {
   IPC_CHANNELS,
   type DbListAuditsArgs,
@@ -69,5 +83,43 @@ export function registerDbHandlers(): void {
     IPC_CHANNELS.DB_GET_AUDIT_DETAIL,
     (_event, auditId: string): AuditDetail | null =>
       getAuditDetail(AuditsDatabase.getInstance(), auditId)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.DB_COMPARE,
+    (_event, auditId: string, against?: string): StoredComparison | null =>
+      compareStored(AuditsDatabase.getInstance(), auditId, against)
+  );
+
+  ipcMain.handle(IPC_CHANNELS.DB_DELETE_AUDIT, (_event, auditId: string): boolean =>
+    AuditsDatabase.getInstance().deleteAudit(auditId)
+  );
+
+  // The one place the two hosts genuinely differ: the browser downloads an
+  // export through a URL, while the desktop app has to ask where to put it.
+  ipcMain.handle(
+    IPC_CHANNELS.DB_EXPORT_AUDIT,
+    async (_event, auditId: string, format: 'html' | 'markdown' | 'json' | 'llm'): Promise<string | null> => {
+      const detail = getAuditDetail(AuditsDatabase.getInstance(), auditId);
+      if (!detail) return null;
+
+      const extension = format === 'markdown' ? 'md' : format === 'llm' ? 'txt' : format;
+      const { canceled, filePath } = await dialog.showSaveDialog({
+        defaultPath: `seo-report-${auditId}.${extension}`,
+      });
+      if (canceled || !filePath) return null;
+
+      const body =
+        format === 'html'
+          ? renderHtmlReport(detail.result)
+          : format === 'markdown'
+            ? renderMarkdownReport(detail.result)
+            : format === 'llm'
+              ? renderLlmReport(detail.result)
+              : JSON.stringify(detail, null, 2);
+
+      fs.writeFileSync(filePath, body, 'utf8');
+      return filePath;
+    }
   );
 }

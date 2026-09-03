@@ -17,7 +17,9 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "npm run clean && npm run build:cli && npm run web:build",
+    "clean": "node scripts/clean.mjs",
+    "build:cli": "tsup",
     "typecheck": "tsc --noEmit",
     "dev": "tsup --watch",
     "test": "vitest",
@@ -32,7 +34,9 @@
     "prepublishOnly": "npm run typecheck && npm run build && npm run check:docs",
     "sync:docs": "node scripts/sync-docs.mjs",
     "gen:icons": "node scripts/gen-icons.mjs",
-    "check:docs": "node scripts/sync-docs.mjs --check"
+    "check:docs": "node scripts/sync-docs.mjs --check",
+    "web:build": "vite build -c vite.web.config.ts",
+    "web:dev": "concurrently -n api,web -c blue,green \"node --watch dist/cli.js serve --port 7360 --no-open\" \"vite -c vite.web.config.ts\""
   },
   "keywords": [
     "seo",
@@ -90,6 +94,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
+    "concurrently": "^10.0.5",
     "domhandler": "^5.0.3",
     "electron": "^40.4.0",
     "electron-builder": "^26.7.0",
@@ -97,7 +102,6 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.0",
-    "recharts": "^3.7.0",
     "shadcn": "^3.7.0",
     "tailwindcss": "^4.1.18",
     "tsup": "^8.3.5",

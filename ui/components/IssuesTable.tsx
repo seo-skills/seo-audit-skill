@@ -1,7 +1,13 @@
 /**
- * Sortable table of fail+warn issues across all categories.
+ * Every failing and warning rule, worst first.
+ *
+ * A real audit produces well over a hundred of these, and rendering them all
+ * turned this table into a nine-thousand-pixel wall that buried the score and
+ * the category grid above it. It shows the worst ones and opens the rest on
+ * request, which is how many of them anyone reads in one sitting anyway.
  */
 
+import { useState } from 'react';
 import type { AuditResult } from '../../src/types.js';
 import type { RuleMetadata } from '../../electron/shared/ipc-types.js';
 import { formatRuleIdAsName, getStatusColorClass, getStatusIcon } from '../lib/format.js';
@@ -22,6 +28,9 @@ interface IssuesTableProps {
   onIssueClick?: (ruleId: string, categoryId: string) => void;
 }
 
+/** How many issues are shown before the rest are collapsed */
+const VISIBLE_ISSUES = 12;
+
 interface IssueRow {
   ruleId: string;
   ruleName: string;
@@ -34,6 +43,8 @@ interface IssueRow {
 }
 
 export function IssuesTable({ result, ruleMetadata, onIssueClick }: IssuesTableProps) {
+  const [showAll, setShowAll] = useState(false);
+
   // Aggregate issues across categories
   const issues: IssueRow[] = [];
   for (const cat of result.categoryResults) {
@@ -74,6 +85,9 @@ export function IssuesTable({ result, ruleMetadata, onIssueClick }: IssuesTableP
     );
   }
 
+  const shown = showAll ? issues : issues.slice(0, VISIBLE_ISSUES);
+  const hidden = issues.length - shown.length;
+
   return (
     <div className="rounded-lg border border-[var(--color-border)] overflow-hidden">
       <table className="w-full text-sm">
@@ -88,7 +102,7 @@ export function IssuesTable({ result, ruleMetadata, onIssueClick }: IssuesTableP
           </tr>
         </thead>
         <tbody>
-          {issues.map((issue) => (
+          {shown.map((issue) => (
             <tr
               key={`${issue.categoryId}-${issue.ruleId}`}
               onClick={() => onIssueClick?.(issue.ruleId, issue.categoryId)}
@@ -141,6 +155,27 @@ export function IssuesTable({ result, ruleMetadata, onIssueClick }: IssuesTableP
           ))}
         </tbody>
       </table>
+
+      {hidden > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="w-full p-3 text-sm border-t border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-hover)] transition-colors"
+          style={{ color: 'var(--color-accent)' }}
+        >
+          Show {hidden} more {hidden === 1 ? 'issue' : 'issues'}
+        </button>
+      )}
+      {showAll && issues.length > VISIBLE_ISSUES && (
+        <button
+          type="button"
+          onClick={() => setShowAll(false)}
+          className="w-full p-3 text-sm border-t border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-hover)] transition-colors"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
+          Show fewer
+        </button>
+      )}
     </div>
   );
 }

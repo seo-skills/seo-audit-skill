@@ -17,13 +17,26 @@ interface TrendChartProps {
 
 const PADDING = { top: 12, right: 12, bottom: 22, left: 30 };
 
+/**
+ * The fewest points that can show a direction rather than assert one.
+ * The threshold lives here alone: a page that repeats it hides the section and
+ * with it the message explaining why there is no trend yet.
+ */
+export const MIN_TREND_POINTS = 3;
+
 export function TrendChart({ points, height = 160, onSelect }: TrendChartProps) {
   const gradientId = useId();
 
-  if (points.length < 2) {
+  // Two points draw a straight segment between them, which reads as a trend
+  // while being a single comparison — and the direction of that one line is
+  // exactly what a reader takes away. Three is the fewest that can show a shape.
+  if (points.length < MIN_TREND_POINTS) {
+    const remaining = MIN_TREND_POINTS - points.length;
     return (
       <p className="text-sm py-6 text-center" style={{ color: 'var(--color-text-muted)' }}>
-        Two audits of this site are needed before a trend means anything.
+        {points.length === 0
+          ? 'No audits of this site yet.'
+          : `${remaining} more ${remaining === 1 ? 'audit' : 'audits'} of this site and the trend will mean something.`}
       </p>
     );
   }

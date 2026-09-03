@@ -80,9 +80,17 @@ export function IssuesTable({ result, ruleMetadata, onIssueClick }: IssuesTableP
   });
 
   if (issues.length === 0) {
+    // A clean audit is a result, not an absence. Rendered as muted grey text it
+    // was indistinguishable from a panel that had failed to load.
     return (
-      <div className="text-center py-8" style={{ color: 'var(--color-text-muted)' }}>
-        No issues found
+      <div
+        className="text-center py-8 rounded-lg"
+        style={{ backgroundColor: 'var(--color-pass-bg)', color: 'var(--color-pass)' }}
+      >
+        <p className="text-base font-semibold">Nothing to fix</p>
+        <p className="text-sm mt-1">
+          Every check that could be measured passed.
+        </p>
       </div>
     );
   }

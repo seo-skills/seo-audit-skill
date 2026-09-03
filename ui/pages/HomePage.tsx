@@ -68,7 +68,10 @@ export function HomePage() {
         <DomainStrip domains={domains.data} selected={domain} onSelect={selectDomain} />
       )}
 
-      {domain && (trend.data?.length ?? 0) > 1 && (
+      {/* The chart owns the threshold. Duplicating it here hid the section
+          entirely below three points, so the message explaining why there is
+          no trend yet could never be seen. */}
+      {domain && (trend.data?.length ?? 0) > 0 && (
         <section
           className="p-5 rounded-xl border"
           style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}

@@ -101,6 +101,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Along the way 8 of 13 text/background pairs failed WCAG AA; all 18 pairs now
   clear 4.5:1 in both themes, and a test computes the ratios.
 
+- **A trend needs three points.** Two audits drew a straight segment between
+  them, which reads as a direction while being a single comparison. The chart
+  now asks for three, and below that says how many more audits are needed —
+  a message that could not previously appear, because the page repeated the
+  threshold and hid the whole section.
+
+- **A clean audit reads as a result.** Zero issues rendered as "No issues found"
+  in muted grey, indistinguishable from a panel that had failed to load. It is
+  now a success state that says every measurable check passed.
+
 - **`--format llm` output is parseable.** The format exists so a program can
   read stdout, and two things prevented that. Progress display was suppressed
   for `--format json` but not for `--format llm`, so every run printed

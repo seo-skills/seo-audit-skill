@@ -9,37 +9,38 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/ipc-types.js';
 import type {
   AuditRunArgs,
-  AuditProgressCategoryStart,
-  AuditProgressCategoryComplete,
-  AuditProgressRuleComplete,
-  AuditProgressPageComplete,
+  AuditStartResult,
   AuditCompletePayload,
+  AuditDetail,
+  AuditSummaryDto,
+  AppInfoIpc,
   DbListAuditsArgs,
   DbScoreTrendArgs,
-  AuditSummaryIpc,
-  ScoreTrendPoint,
-  AuditDetailIpc,
-  AppInfoIpc,
+  DomainSummary,
+  RunError,
+  RunState,
+  ScoreTrendPointDto,
 } from '../shared/ipc-types.js';
 
 export interface ElectronAPI {
   // Audit actions
-  runAudit: (args: AuditRunArgs) => void;
-  cancelAudit: () => void;
+  runAudit: (args: AuditRunArgs) => Promise<AuditStartResult>;
+  cancelAudit: () => Promise<boolean>;
+  /** The run state as it stands now, for a window that opened mid-run */
+  getAuditState: () => Promise<RunState>;
 
   // Audit event listeners (returns unsubscribe function)
-  onCategoryStart: (cb: (data: AuditProgressCategoryStart) => void) => () => void;
-  onCategoryComplete: (cb: (data: AuditProgressCategoryComplete) => void) => () => void;
-  onRuleComplete: (cb: (data: AuditProgressRuleComplete) => void) => () => void;
-  onPageComplete: (cb: (data: AuditProgressPageComplete) => void) => () => void;
+  /** Fires on every change with the whole run state */
+  onAuditState: (cb: (state: RunState) => void) => () => void;
   onAuditComplete: (cb: (payload: AuditCompletePayload) => void) => () => void;
-  onAuditError: (cb: (message: string) => void) => () => void;
+  onAuditError: (cb: (error: RunError) => void) => () => void;
 
   // Database queries
-  listAudits: (args?: DbListAuditsArgs) => Promise<AuditSummaryIpc[]>;
-  getScoreTrend: (args: DbScoreTrendArgs) => Promise<ScoreTrendPoint[]>;
+  listAudits: (args?: DbListAuditsArgs) => Promise<AuditSummaryDto[]>;
+  getScoreTrend: (args: DbScoreTrendArgs) => Promise<ScoreTrendPointDto[]>;
   getAuditedDomains: () => Promise<string[]>;
-  getAuditDetail: (auditId: string) => Promise<AuditDetailIpc | null>;
+  listDomains: () => Promise<DomainSummary[]>;
+  getAuditDetail: (auditId: string) => Promise<AuditDetail | null>;
 
   // Build facts
   getAppInfo: () => Promise<AppInfoIpc>;
@@ -57,14 +58,12 @@ function createEventSubscriber<T>(channel: string) {
 
 const electronAPI: ElectronAPI = {
   // Audit actions
-  runAudit: (args) => ipcRenderer.send(IPC_CHANNELS.AUDIT_RUN, args),
-  cancelAudit: () => ipcRenderer.send(IPC_CHANNELS.AUDIT_CANCEL),
+  runAudit: (args) => ipcRenderer.invoke(IPC_CHANNELS.AUDIT_RUN, args),
+  cancelAudit: () => ipcRenderer.invoke(IPC_CHANNELS.AUDIT_CANCEL),
+  getAuditState: () => ipcRenderer.invoke(IPC_CHANNELS.AUDIT_GET_STATE),
 
   // Audit event subscriptions
-  onCategoryStart: createEventSubscriber(IPC_CHANNELS.AUDIT_CATEGORY_START),
-  onCategoryComplete: createEventSubscriber(IPC_CHANNELS.AUDIT_CATEGORY_COMPLETE),
-  onRuleComplete: createEventSubscriber(IPC_CHANNELS.AUDIT_RULE_COMPLETE),
-  onPageComplete: createEventSubscriber(IPC_CHANNELS.AUDIT_PAGE_COMPLETE),
+  onAuditState: createEventSubscriber(IPC_CHANNELS.AUDIT_STATE),
   onAuditComplete: createEventSubscriber(IPC_CHANNELS.AUDIT_COMPLETE),
   onAuditError: createEventSubscriber(IPC_CHANNELS.AUDIT_ERROR),
 
@@ -72,6 +71,7 @@ const electronAPI: ElectronAPI = {
   listAudits: (args) => ipcRenderer.invoke(IPC_CHANNELS.DB_LIST_AUDITS, args),
   getScoreTrend: (args) => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_SCORE_TREND, args),
   getAuditedDomains: () => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_AUDITED_DOMAINS),
+  listDomains: () => ipcRenderer.invoke(IPC_CHANNELS.DB_LIST_DOMAINS),
   getAuditDetail: (auditId) => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_AUDIT_DETAIL, auditId),
 
   // Build facts

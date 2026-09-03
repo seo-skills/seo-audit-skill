@@ -2,11 +2,11 @@
  * Table of past audits from the database.
  */
 
-import type { AuditSummaryIpc } from '../../shared/ipc-types.js';
+import type { AuditSummaryDto } from '../../shared/ipc-types.js';
 import { getScoreColor, formatDate } from '../lib/format.js';
 
 interface AuditListProps {
-  audits: AuditSummaryIpc[];
+  audits: AuditSummaryDto[];
   loading: boolean;
   onAuditClick?: (auditId: string) => void;
 }

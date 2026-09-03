@@ -1,134 +1,98 @@
 /**
- * Audit Bridge — connects the Auditor class to Electron IPC.
+ * Audit Bridge — runs audits through the shared AuditSession and streams its
+ * state to the renderer.
  *
- * The existing Auditor class already uses a callback interface
- * (onCategoryStart, onCategoryComplete, etc.), so we simply wire
- * those callbacks to BrowserWindow.webContents.send() calls.
+ * The session owns the run: one at a time, bounded state, real cancellation
+ * and persistence. This file is only the transport, which is why it no longer
+ * tracks an auditor or an abort controller of its own.
  */
 
 import { BrowserWindow, ipcMain } from 'electron';
-import { Auditor } from '@core/auditor.js';
-import type { AuditResult } from '@core/types.js';
-import { getRuleById } from '@core/rules/registry.js';
-import { getFixSuggestion } from '@core/reporters/fix-suggestions.js';
-import { IPC_CHANNELS, type AuditRunArgs, type AuditCompletePayload, type RuleMetadataIpc } from '../shared/ipc-types.js';
+import { AuditSession, type AuditRunArgs, type Capabilities } from '@core/dashboard/audit-session.js';
+import { classifyError } from '@core/errors.js';
+import {
+  IPC_CHANNELS,
+  type AuditCompletePayload,
+  type AuditStartResult,
+} from '../shared/ipc-types.js';
 import { fetchPageWithBrowserWindow } from './electron-fetcher.js';
 
-/** Build a map of ruleId -> { name, description } from the rule registry */
-function buildRuleMetadata(result: AuditResult): Record<string, RuleMetadataIpc> {
-  const metadata: Record<string, RuleMetadataIpc> = {};
-  for (const cat of result.categoryResults) {
-    for (const r of cat.results) {
-      if (!metadata[r.ruleId]) {
-        const rule = getRuleById(r.ruleId);
-        metadata[r.ruleId] = {
-          name: rule?.name ?? r.ruleId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-          description: rule?.description ?? '',
-          fix: getFixSuggestion(r.ruleId),
-        };
-      }
-    }
+/**
+ * What the desktop build can do.
+ *
+ * Pages render in a BrowserWindow rather than under Playwright: that gives
+ * Core Web Vitals and a rendered DOM, but it has no mobile emulation and no
+ * synthetic interaction, so those two are reported as unavailable rather than
+ * offered as settings that would quietly do nothing.
+ */
+export const DESKTOP_CAPABILITIES: Capabilities = {
+  browserRender: true,
+  mobileParity: false,
+  simulateInteraction: false,
+  persistence: true,
+};
+
+let session: AuditSession | null = null;
+
+/** The session for this app instance, created on first use */
+export function getAuditSession(): AuditSession {
+  if (!session) {
+    session = new AuditSession({
+      source: 'desktop',
+      capabilities: DESKTOP_CAPABILITIES,
+      auditorOptions: { browserFetcher: fetchPageWithBrowserWindow },
+    });
   }
-  return metadata;
+  return session;
 }
 
-let currentAuditor: Auditor | null = null;
-let abortController: AbortController | null = null;
-
 export function registerAuditHandlers(getWindow: () => BrowserWindow | null): void {
-  ipcMain.on(IPC_CHANNELS.AUDIT_RUN, async (_event, args: AuditRunArgs) => {
-    const win = getWindow();
-    if (!win) return;
+  const auditSession = getAuditSession();
 
-    // Prevent concurrent audits
-    if (currentAuditor) {
-      win.webContents.send(IPC_CHANNELS.AUDIT_ERROR, 'An audit is already running');
-      return;
+  // One subscription for the app's lifetime: every state change goes to
+  // whichever window is open, so a window reopened mid-run is correct at once.
+  auditSession.subscribe((state) => {
+    getWindow()?.webContents.send(IPC_CHANNELS.AUDIT_STATE, state);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.AUDIT_RUN, async (_event, args: AuditRunArgs): Promise<AuditStartResult> => {
+    let run: ReturnType<AuditSession['start']>;
+    try {
+      run = auditSession.start(args);
+    } catch (error) {
+      // Rejected before the run began: already running, or a bad request.
+      const audited = classifyError(error);
+      return {
+        started: false,
+        error: { code: audited.code, message: audited.message, ...(audited.hint && { hint: audited.hint }) },
+      };
     }
 
-    abortController = new AbortController();
-
-    try {
-      currentAuditor = new Auditor({
-        measureCwv: args.options.measureCwv ?? false,
-        categories: args.options.categories ?? [],
-        browserFetcher: fetchPageWithBrowserWindow,
-
-        onCategoryStart: (categoryId, categoryName) => {
-          if (!abortController?.signal.aborted) {
-            win.webContents.send(IPC_CHANNELS.AUDIT_CATEGORY_START, {
-              categoryId,
-              categoryName,
-            });
-          }
-        },
-
-        onCategoryComplete: (categoryId, categoryName, result) => {
-          if (!abortController?.signal.aborted) {
-            win.webContents.send(IPC_CHANNELS.AUDIT_CATEGORY_COMPLETE, {
-              categoryId,
-              categoryName,
-              result,
-            });
-          }
-        },
-
-        onRuleComplete: (ruleId, ruleName, result) => {
-          if (!abortController?.signal.aborted) {
-            win.webContents.send(IPC_CHANNELS.AUDIT_RULE_COMPLETE, {
-              ruleId,
-              ruleName,
-              result,
-            });
-          }
-        },
-
-        onPageComplete: (url, pageNumber, totalPages) => {
-          if (!abortController?.signal.aborted) {
-            win.webContents.send(IPC_CHANNELS.AUDIT_PAGE_COMPLETE, {
-              url,
-              pageNumber,
-              totalPages,
-            });
-          }
-        },
+    // Deliberately not awaited: the renderer follows the run through the
+    // state stream, and this handler answers as soon as the run has started.
+    void run
+      .then((outcome) => {
+        const payload: AuditCompletePayload = {
+          result: outcome.result,
+          ruleMetadata: outcome.ruleMetadata,
+          auditId: outcome.saved?.auditId ?? null,
+          ...(outcome.saveError && { saveError: outcome.saveError }),
+        };
+        getWindow()?.webContents.send(IPC_CHANNELS.AUDIT_COMPLETE, payload);
+      })
+      .catch(() => {
+        // The session has already put the failure into the state stream,
+        // including whether it was a cancellation.
+        const state = auditSession.getState();
+        if (state.error) {
+          getWindow()?.webContents.send(IPC_CHANNELS.AUDIT_ERROR, state.error);
+        }
       });
 
-      let result: AuditResult;
-
-      if (args.options.crawl) {
-        result = await currentAuditor.auditWithCrawl(
-          args.url,
-          args.options.maxPages ?? 10,
-          args.options.concurrency ?? 3,
-        );
-      } else {
-        result = await currentAuditor.audit(args.url);
-      }
-
-      if (!abortController?.signal.aborted) {
-        const payload: AuditCompletePayload = {
-          result,
-          ruleMetadata: buildRuleMetadata(result),
-        };
-        win.webContents.send(IPC_CHANNELS.AUDIT_COMPLETE, payload);
-      }
-    } catch (error) {
-      if (!abortController?.signal.aborted) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        win.webContents.send(IPC_CHANNELS.AUDIT_ERROR, message);
-      }
-    } finally {
-      currentAuditor = null;
-      abortController = null;
-    }
+    return { started: true };
   });
 
-  ipcMain.on(IPC_CHANNELS.AUDIT_CANCEL, () => {
-    if (abortController) {
-      abortController.abort();
-      currentAuditor = null;
-      abortController = null;
-    }
-  });
+  ipcMain.handle(IPC_CHANNELS.AUDIT_CANCEL, (): boolean => auditSession.cancel());
+
+  ipcMain.handle(IPC_CHANNELS.AUDIT_GET_STATE, () => auditSession.getState());
 }

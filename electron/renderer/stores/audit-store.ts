@@ -1,146 +1,83 @@
 /**
  * Zustand store for the current audit session.
  *
- * State machine: idle -> running -> complete | error
- * Progress events stream in from the main process via IPC.
+ * The main process owns the run through the shared AuditSession and streams
+ * its whole state on every change, so this store mirrors that state rather
+ * than accumulating events. That is what keeps a crawl's category list at one
+ * row per category: it used to append one entry per category per page, so a
+ * 50-page crawl rendered 1,000 rows and a progress bar past 100%.
  */
 
 import { create } from 'zustand';
-import type { AuditResult, CategoryResult } from '../../../src/types.js';
-import type { RuleMetadataIpc } from '../../shared/ipc-types.js';
+import type { AuditResult } from '../../../src/types.js';
+import type { RunError, RunState, RuleMetadata } from '../../shared/ipc-types.js';
 
-export type AuditStatus = 'idle' | 'running' | 'complete' | 'error';
+export type AuditStatus = RunState['status'];
 
-export interface CompletedCategory {
-  categoryId: string;
-  categoryName: string;
-  result: CategoryResult;
-}
-
-export interface AuditProgress {
-  completedCategories: CompletedCategory[];
-  currentCategory: string | null;
-  currentCategoryName: string | null;
-  completedRules: number;
-  currentPage: number;
-  totalPages: number;
-}
+/** The run state before anything has been started */
+export const IDLE_RUN_STATE: RunState = {
+  status: 'idle',
+  runId: null,
+  url: null,
+  args: null,
+  phase: 'starting',
+  startedAt: null,
+  finishedAt: null,
+  crawl: null,
+  pages: { completed: 0, total: 0, currentUrl: null },
+  categories: [],
+  recentRules: [],
+  auditId: null,
+  error: null,
+};
 
 interface AuditState {
-  status: AuditStatus;
-  url: string | null;
-  progress: AuditProgress;
+  /** Mirrors the main process's run state */
+  run: RunState;
   result: AuditResult | null;
-  ruleMetadata: Record<string, RuleMetadataIpc>;
-  error: string | null;
+  ruleMetadata: Record<string, RuleMetadata>;
+  /** Set when a finished audit could not be stored */
+  saveError: string | null;
 
   // Actions
-  startAudit: (url: string) => void;
-  setCategoryStart: (categoryId: string, categoryName: string) => void;
-  setCategoryComplete: (categoryId: string, categoryName: string, result: CategoryResult) => void;
-  addRuleComplete: () => void;
-  setPageComplete: (page: number, total: number) => void;
-  setComplete: (result: AuditResult, ruleMetadata: Record<string, RuleMetadataIpc>) => void;
-  setError: (message: string) => void;
-  loadHistorical: (url: string, result: AuditResult, ruleMetadata: Record<string, RuleMetadataIpc>) => void;
+  setRunState: (state: RunState) => void;
+  setComplete: (
+    result: AuditResult,
+    ruleMetadata: Record<string, RuleMetadata>,
+    saveError?: string
+  ) => void;
+  setError: (error: RunError) => void;
+  loadHistorical: (url: string, result: AuditResult, ruleMetadata: Record<string, RuleMetadata>) => void;
   reset: () => void;
 }
 
-const initialProgress: AuditProgress = {
-  completedCategories: [],
-  currentCategory: null,
-  currentCategoryName: null,
-  completedRules: 0,
-  currentPage: 0,
-  totalPages: 0,
-};
-
 export const useAuditStore = create<AuditState>((set) => ({
-  status: 'idle',
-  url: null,
-  progress: { ...initialProgress },
+  run: IDLE_RUN_STATE,
   result: null,
   ruleMetadata: {},
-  error: null,
+  saveError: null,
 
-  startAudit: (url) =>
-    set({
-      status: 'running',
-      url,
-      progress: { ...initialProgress },
-      result: null,
-      error: null,
-    }),
+  setRunState: (state) =>
+    set((current) =>
+      // A fresh run clears the previous result so the page cannot show an old
+      // score beside a running audit.
+      state.status === 'running' && state.runId !== current.run.runId
+        ? { run: state, result: null, saveError: null }
+        : { run: state }
+    ),
 
-  setCategoryStart: (categoryId, categoryName) =>
-    set((state) => ({
-      progress: {
-        ...state.progress,
-        currentCategory: categoryId,
-        currentCategoryName: categoryName,
-      },
-    })),
+  setComplete: (result, ruleMetadata, saveError) =>
+    set({ result, ruleMetadata, saveError: saveError ?? null }),
 
-  setCategoryComplete: (categoryId, categoryName, result) =>
-    set((state) => ({
-      progress: {
-        ...state.progress,
-        completedCategories: [
-          ...state.progress.completedCategories,
-          { categoryId, categoryName, result },
-        ],
-        currentCategory: null,
-        currentCategoryName: null,
-      },
-    })),
-
-  addRuleComplete: () =>
-    set((state) => ({
-      progress: {
-        ...state.progress,
-        completedRules: state.progress.completedRules + 1,
-      },
-    })),
-
-  setPageComplete: (page, total) =>
-    set((state) => ({
-      progress: {
-        ...state.progress,
-        currentPage: page,
-        totalPages: total,
-      },
-    })),
-
-  setComplete: (result, ruleMetadata) =>
-    set({
-      status: 'complete',
-      result,
-      ruleMetadata,
-    }),
-
-  setError: (message) =>
-    set({
-      status: 'error',
-      error: message,
-    }),
+  setError: (error) => set((current) => ({ run: { ...current.run, status: 'error', error } })),
 
   loadHistorical: (url, result, ruleMetadata) =>
     set({
-      status: 'complete',
-      url,
-      progress: { ...initialProgress },
+      run: { ...IDLE_RUN_STATE, status: 'complete', url, phase: 'done' },
       result,
       ruleMetadata,
-      error: null,
+      saveError: null,
     }),
 
-  reset: () =>
-    set({
-      status: 'idle',
-      url: null,
-      progress: { ...initialProgress },
-      result: null,
-      ruleMetadata: {},
-      error: null,
-    }),
+  reset: () => set({ run: IDLE_RUN_STATE, result: null, ruleMetadata: {}, saveError: null }),
 }));

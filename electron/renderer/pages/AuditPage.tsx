@@ -16,7 +16,7 @@ import { CategorySection } from '../components/CategorySection.js';
 import { Sidebar } from '../components/Sidebar.js';
 
 export function AuditPage() {
-  const { status, progress, result, ruleMetadata, error, run, cancel, reset } = useAudit();
+  const { status, run, result, ruleMetadata, error, saveError, runAudit, cancel, reset } = useAudit();
   const appInfo = useAppInfo();
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -25,9 +25,9 @@ export function AuditPage() {
     (url: string, opts: { measureCwv: boolean; crawl: boolean; maxPages: number }) => {
       setFilter('all');
       setActiveCategory(null);
-      run(url, opts);
+      void runAudit(url, opts);
     },
-    [run],
+    [runAudit],
   );
 
   const handleCategoryClick = useCallback((categoryId: string) => {
@@ -101,7 +101,38 @@ export function AuditPage() {
           {/* Running state: progress stream */}
           {status === 'running' && (
             <div className="p-5 rounded-xl bg-[var(--color-bg-elevated)] border border-[var(--color-border)]" style={{ boxShadow: 'var(--shadow-sm)' }}>
-              <ProgressStream progress={progress} />
+              <ProgressStream run={run} />
+            </div>
+          )}
+
+          {/* Cancelled: not a failure, so it does not get the red treatment */}
+          {status === 'cancelled' && (
+            <div
+              className="p-4 rounded-lg border flex items-center justify-between"
+              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+            >
+              <p className="text-sm">Audit cancelled.</p>
+              <button
+                onClick={reset}
+                className="px-3 py-1.5 text-sm rounded-md font-medium border"
+                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+              >
+                Start over
+              </button>
+            </div>
+          )}
+
+          {/* The audit finished but could not be stored */}
+          {saveError && (
+            <div
+              className="p-4 rounded-lg border text-sm"
+              style={{
+                backgroundColor: 'var(--color-warn-bg)',
+                borderColor: 'var(--color-warn)',
+                color: 'var(--color-warn)',
+              }}
+            >
+              This audit could not be saved to your history: {saveError}
             </div>
           )}
 
@@ -118,7 +149,10 @@ export function AuditPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Audit failed</p>
-                  <p className="text-sm mt-1">{error}</p>
+                  <p className="text-sm mt-1">{error.message}</p>
+                  {error.hint && (
+                    <p className="text-sm mt-1 opacity-80">{error.hint}</p>
+                  )}
                 </div>
                 <button
                   onClick={reset}

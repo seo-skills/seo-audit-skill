@@ -4,12 +4,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getAPI } from '../lib/ipc-client.js';
-import type { AuditSummaryIpc, ScoreTrendPoint } from '../../shared/ipc-types.js';
+import type { AuditSummaryDto, ScoreTrendPointDto } from '../../shared/ipc-types.js';
 
 export function useAuditHistory() {
-  const [audits, setAudits] = useState<AuditSummaryIpc[]>([]);
+  const [audits, setAudits] = useState<AuditSummaryDto[]>([]);
   const [domains, setDomains] = useState<string[]>([]);
-  const [trend, setTrend] = useState<ScoreTrendPoint[]>([]);
+  const [trend, setTrend] = useState<ScoreTrendPointDto[]>([]);
   const [loading, setLoading] = useState(false);
 
   const loadDomains = useCallback(async () => {

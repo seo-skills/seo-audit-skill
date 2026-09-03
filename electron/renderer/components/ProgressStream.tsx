@@ -1,12 +1,15 @@
 /**
  * Live progress display during an audit.
- * Shows categories with animated checkmarks/spinners as they complete.
+ *
+ * Driven by the run state streamed from the main process, so a crawl shows
+ * one row per category rather than one per category per page, and the crawl
+ * itself is visible instead of the page sitting still until scoring starts.
  */
 
-import type { AuditProgress } from '../stores/audit-store.js';
+import type { RunState } from '../../shared/ipc-types.js';
 
 interface ProgressStreamProps {
-  progress: AuditProgress;
+  run: RunState;
 }
 
 // All 20 category display names in audit order
@@ -33,9 +36,18 @@ const ALL_CATEGORIES = [
   { id: 'geo', name: 'AI/GEO' },
 ];
 
-export function ProgressStream({ progress }: ProgressStreamProps) {
-  const completedIds = new Set(progress.completedCategories.map((c) => c.categoryId));
-  const completedCount = completedIds.size;
+export function ProgressStream({ run }: ProgressStreamProps) {
+  const scores = new Map(run.categories.map((c) => [c.categoryId, c.score]));
+  const completedCount = scores.size;
+  const crawling = run.phase === 'crawling' && run.crawl !== null;
+
+  // During the crawl the meaningful number is pages found; during scoring it
+  // is categories finished.
+  const [label, value, total] = crawling
+    ? ['Crawling…', run.crawl!.crawled, Math.max(run.crawl!.total, 1)]
+    : ['Auditing…', completedCount, ALL_CATEGORIES.length];
+
+  const currentUrl = crawling ? run.crawl?.currentUrl : run.pages.currentUrl;
 
   return (
     <div className="space-y-4">
@@ -43,63 +55,63 @@ export function ProgressStream({ progress }: ProgressStreamProps) {
       <div>
         <div className="flex justify-between mb-1">
           <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
-            Auditing...
+            {label}
           </span>
           <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            {completedCount} / {ALL_CATEGORIES.length} categories
+            {crawling
+              ? `${value} / ${total} pages`
+              : `${value} / ${total} categories`}
           </span>
         </div>
         <div className="h-2 rounded-full bg-[var(--color-border)]">
           <div
             className="h-full rounded-full transition-all duration-300"
             style={{
-              width: `${(completedCount / ALL_CATEGORIES.length) * 100}%`,
+              width: `${Math.min(100, (value / total) * 100)}%`,
               backgroundColor: 'var(--color-accent)',
             }}
           />
         </div>
       </div>
 
-      {/* Page progress (crawl mode) */}
-      {progress.totalPages > 1 && (
+      {/* What is being worked on right now */}
+      {currentUrl && (
+        <div className="text-xs truncate" style={{ color: 'var(--color-text-secondary)' }}>
+          {currentUrl}
+        </div>
+      )}
+
+      {/* Page progress (crawl mode, while scoring) */}
+      {!crawling && run.pages.total > 1 && (
         <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-          Page {progress.currentPage} of {progress.totalPages}
+          Page {run.pages.completed} of {run.pages.total}
         </div>
       )}
 
       {/* Category list */}
       <div className="grid grid-cols-2 gap-x-6 gap-y-1">
         {ALL_CATEGORIES.map(({ id, name }) => {
-          const completed = completedIds.has(id);
-          const isCurrent = progress.currentCategory === id;
+          const score = scores.get(id);
+          const completed = score !== undefined;
 
           return (
             <div key={id} className="flex items-center gap-2 py-1">
               {completed ? (
-                <span className="text-sm" style={{ color: 'var(--color-pass)' }}>{'\u2713'}</span>
-              ) : isCurrent ? (
-                <span className="inline-block w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-accent)', borderTopColor: 'transparent' }} />
+                <span className="text-sm" style={{ color: 'var(--color-pass)' }}>{'✓'}</span>
               ) : (
                 <span className="w-3.5 h-3.5 rounded-full border border-[var(--color-border)]" />
               )}
               <span
                 className="text-sm"
                 style={{
-                  color: completed
-                    ? 'var(--color-text)'
-                    : isCurrent
-                      ? 'var(--color-accent)'
-                      : 'var(--color-text-muted)',
-                  fontWeight: isCurrent ? 500 : 400,
+                  color: completed ? 'var(--color-text)' : 'var(--color-text-muted)',
                 }}
               >
                 {name}
               </span>
               {completed && (
                 <span className="text-xs ml-auto" style={{ color: 'var(--color-text-muted)' }}>
-                  {Math.round(
-                    progress.completedCategories.find((c) => c.categoryId === id)?.result.score ?? 0,
-                  )}
+                  {Math.round(score)}
                 </span>
               )}
             </div>

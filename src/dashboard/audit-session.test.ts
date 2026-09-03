@@ -3,6 +3,7 @@ import { AuditSession, normalizeRunArgs, MAX_RECENT_RULES, DEFAULT_CAPABILITIES 
 import type { RunState } from './audit-session.js';
 import { AuditAbortedError, AuditError } from '../errors.js';
 import type { Auditor, AuditorOptions } from '../auditor.js';
+import type { saveAuditToDatabase } from '../storage/save-audit.js';
 import type { AuditResult } from '../types.js';
 
 const URL_UNDER_TEST = 'https://session.test/';
@@ -216,11 +217,16 @@ describe('AuditSession', () => {
 
   it('stores the finished audit with its provenance and reports the audit id', async () => {
     const fake = makeFakeAuditor();
-    const saveAudit = vi.fn(() => ({ auditId: '2026-09-03-aaa111', id: 1, domain: 'session.test', previousAuditId: null }));
+    const saveAudit: typeof saveAuditToDatabase = vi.fn(() => ({
+      auditId: '2026-09-03-aaa111',
+      id: 1,
+      domain: 'session.test',
+      previousAuditId: null,
+    }));
     const session = new AuditSession({
       source: 'desktop',
       createAuditor: fake.createAuditor,
-      saveAudit: saveAudit as never,
+      saveAudit,
     });
 
     const run = session.start({ url: URL_UNDER_TEST, crawl: true, maxPages: 4 });
@@ -228,7 +234,7 @@ describe('AuditSession', () => {
     const outcome = await run;
 
     expect(saveAudit).toHaveBeenCalledOnce();
-    expect(saveAudit.mock.calls[0]![1]).toMatchObject({
+    expect(vi.mocked(saveAudit).mock.calls[0]?.[1]).toMatchObject({
       source: 'desktop',
       run: { crawl: true, maxPages: 4 },
     });

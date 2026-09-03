@@ -10,12 +10,12 @@ import { useAuditStore } from './stores/audit-store.js';
 
 export function App() {
   const [activeView, setActiveView] = useState<'audit' | 'history'>('audit');
-  const { url, result } = useAuditStore();
+  const { run, result } = useAuditStore();
 
   return (
     <div>
       <Header
-        url={url}
+        url={run.url}
         crawledPages={result?.crawledPages}
         activeView={activeView}
         onViewChange={setActiveView}

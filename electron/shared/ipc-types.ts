@@ -1,106 +1,61 @@
 /**
  * Typed IPC channel contract between main and renderer processes.
  *
+ * The shapes themselves come from `src/dashboard/contract.ts` and the shared
+ * run controller, so the desktop app and the web dashboard show stored audits
+ * through the same types. Only the channel names are Electron's own.
+ *
  * Channels follow a namespace:action pattern:
  * - audit:*  — audit lifecycle events
  * - db:*     — database queries (invoke/handle pattern)
  */
 
-import type { AuditResult, CategoryResult, RuleResult } from '../../src/types.js';
+import type { AuditQueryOptions } from '../../src/storage/types.js';
 
-// ─── Audit Runner Channels ──────────────────────────────────────────────────
+export type {
+  AuditSummaryDto,
+  AuditMetaDto,
+  AuditDetail,
+  DomainSummary,
+  RuleMetadata,
+  RuleSummary,
+  ScoreTrendPointDto,
+  StoredComparison,
+} from '../../src/dashboard/contract.js';
 
-export interface AuditRunArgs {
-  url: string;
-  options: {
-    measureCwv?: boolean;
-    crawl?: boolean;
-    maxPages?: number;
-    concurrency?: number;
-    categories?: string[];
-  };
-}
+export type {
+  AuditRunArgs,
+  Capabilities,
+  CategoryProgress,
+  RunError,
+  RunPhase,
+  RunState,
+  RunStatus,
+} from '../../src/dashboard/audit-session.js';
 
-export interface AuditProgressCategoryStart {
-  categoryId: string;
-  categoryName: string;
-}
+import type { AuditResult } from '../../src/types.js';
+import type { RuleMetadata } from '../../src/dashboard/contract.js';
+import type { Capabilities, RunError } from '../../src/dashboard/audit-session.js';
 
-export interface AuditProgressCategoryComplete {
-  categoryId: string;
-  categoryName: string;
-  result: CategoryResult;
-}
+// ─── Audit Runner ───────────────────────────────────────────────────────────
 
-export interface AuditProgressRuleComplete {
-  ruleId: string;
-  ruleName: string;
-  result: RuleResult;
-}
-
-export interface AuditProgressPageComplete {
-  url: string;
-  pageNumber: number;
-  totalPages: number;
-}
-
-// ─── Audit Complete Payload ─────────────────────────────────────────────────
-
-/** Rule name + description + fix text looked up from the registry in the main process */
-export interface RuleMetadataIpc {
-  name: string;
-  description: string;
-  /** Actionable fix text from the CLI's fix-suggestions map */
-  fix: string;
-}
-
-/** Sent with audit:complete — includes rule metadata for the renderer */
+/** Sent with audit:complete once the run has finished and been stored */
 export interface AuditCompletePayload {
   result: AuditResult;
-  ruleMetadata: Record<string, RuleMetadataIpc>;
+  ruleMetadata: Record<string, RuleMetadata>;
+  /** The stored audit's id, or null when it was not stored */
+  auditId: string | null;
+  /** Why the finished audit could not be stored, when that happened */
+  saveError?: string;
 }
 
 // ─── Database Query Types ───────────────────────────────────────────────────
 
-export interface DbListAuditsArgs {
-  domain?: string;
-  limit?: number;
-  offset?: number;
-}
+export type DbListAuditsArgs = Pick<AuditQueryOptions, 'domain' | 'limit' | 'offset'>;
 
 export interface DbScoreTrendArgs {
   domain: string;
   limit?: number;
-}
-
-export interface AuditSummaryIpc {
-  id: number;
-  auditId: string;
-  domain: string;
-  projectName: string | null;
-  startUrl: string;
-  overallScore: number;
-  pagesAudited: number;
-  passedCount: number;
-  warningCount: number;
-  failedCount: number;
-  startedAt: string;
-  completedAt: string | null;
-  status: string;
-}
-
-export interface ScoreTrendPoint {
-  auditId: string;
-  score: number;
-  date: string;
-}
-
-// ─── Audit Detail (historical) ──────────────────────────────────────────────
-
-/** Full audit detail reconstructed from the database for historical viewing */
-export interface AuditDetailIpc {
-  result: AuditResult;
-  ruleMetadata: Record<string, RuleMetadataIpc>;
 }
 
 /**
@@ -117,20 +72,34 @@ export interface AppInfoIpc {
   categoryCount: number;
   /** Package version */
   version: string;
+  /**
+   * What this build can actually do. The desktop app renders pages in a
+   * BrowserWindow rather than Playwright, which cannot emulate a mobile
+   * viewport or drive a synthetic interaction, so the UI hides those options
+   * instead of offering settings that would silently do nothing.
+   */
+  capabilities: Capabilities;
+  /** Where audits are stored, for the settings and error messages */
+  dataDirectory: string;
+}
+
+/** What `audit:run` answers with, so the renderer learns why a start failed */
+export interface AuditStartResult {
+  started: boolean;
+  error?: RunError;
 }
 
 // ─── Channel Map ────────────────────────────────────────────────────────────
 
 export const IPC_CHANNELS = {
-  // Renderer -> Main (one-way sends)
+  // Renderer <-> Main (invoke/handle)
   AUDIT_RUN: 'audit:run',
   AUDIT_CANCEL: 'audit:cancel',
+  AUDIT_GET_STATE: 'audit:get-state',
 
   // Main -> Renderer (streaming events)
-  AUDIT_CATEGORY_START: 'audit:progress:category-start',
-  AUDIT_CATEGORY_COMPLETE: 'audit:progress:category-complete',
-  AUDIT_RULE_COMPLETE: 'audit:progress:rule-complete',
-  AUDIT_PAGE_COMPLETE: 'audit:progress:page-complete',
+  /** The whole run state on every change; replaces the per-event channels */
+  AUDIT_STATE: 'audit:state',
   AUDIT_COMPLETE: 'audit:complete',
   AUDIT_ERROR: 'audit:error',
 
@@ -139,5 +108,6 @@ export const IPC_CHANNELS = {
   DB_GET_SCORE_TREND: 'db:get-score-trend',
   DB_GET_AUDITED_DOMAINS: 'db:get-audited-domains',
   DB_GET_AUDIT_DETAIL: 'db:get-audit-detail',
+  DB_LIST_DOMAINS: 'db:list-domains',
   APP_GET_INFO: 'app:get-info',
 } as const;

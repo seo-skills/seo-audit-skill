@@ -3,7 +3,7 @@
  */
 
 import type { AuditResult } from '../../../src/types.js';
-import type { RuleMetadataIpc } from '../../shared/ipc-types.js';
+import type { RuleMetadata } from '../../shared/ipc-types.js';
 import { formatRuleIdAsName, getStatusColorClass, getStatusIcon } from '../lib/format.js';
 
 const CATEGORY_NAMES: Record<string, string> = {
@@ -18,7 +18,7 @@ const CATEGORY_NAMES: Record<string, string> = {
 
 interface IssuesTableProps {
   result: AuditResult;
-  ruleMetadata?: Record<string, RuleMetadataIpc>;
+  ruleMetadata?: Record<string, RuleMetadata>;
   onIssueClick?: (ruleId: string, categoryId: string) => void;
 }
 

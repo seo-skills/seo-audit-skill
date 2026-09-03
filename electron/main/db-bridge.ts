@@ -1,27 +1,31 @@
 /**
- * Database Bridge — exposes AuditsDatabase queries over IPC.
+ * Database Bridge — exposes the stored-audit queries over IPC.
  *
- * Uses the invoke/handle pattern for request-response queries.
- * The AuditsDatabase is a singleton that stores data in ~/.seomator/audits.db.
+ * The queries themselves live in `src/dashboard/queries.ts`, shared with the
+ * web dashboard, so both surfaces show the same audit the same way. This file
+ * is the transport.
  */
 
 import { ipcMain } from 'electron';
 import { AuditsDatabase } from '@core/storage/audits-db/index.js';
+import { getAuditsDbPath } from '@core/storage/paths.js';
+import {
+  getAuditDetail,
+  getTrend,
+  listAudits,
+  listDomains,
+} from '@core/dashboard/queries.js';
+import type { AuditDetail, AuditSummaryDto, DomainSummary, ScoreTrendPointDto } from '@core/dashboard/contract.js';
 import {
   IPC_CHANNELS,
   type DbListAuditsArgs,
   type DbScoreTrendArgs,
-  type AuditSummaryIpc,
-  type ScoreTrendPoint,
-  type AuditDetailIpc,
-  type RuleMetadataIpc,
   type AppInfoIpc,
 } from '../shared/ipc-types.js';
-import { getRuleById, getRuleCount } from '@core/rules/registry.js';
+import { getRuleCount } from '@core/rules/registry.js';
 import { categories } from '@core/categories/index.js';
 import { getVersion } from '@core/version.js';
-import { getFixSuggestion } from '@core/reporters/fix-suggestions.js';
-import type { AuditResult, CategoryResult, RuleResult } from '@core/types.js';
+import { DESKTOP_CAPABILITIES } from './audit-bridge.js';
 
 export function registerDbHandlers(): void {
   // Counted from the registry the way the CLI banner does it, so the numbers
@@ -32,119 +36,38 @@ export function registerDbHandlers(): void {
       ruleCount: getRuleCount(),
       categoryCount: categories.length,
       version: getVersion(),
+      capabilities: DESKTOP_CAPABILITIES,
+      dataDirectory: getAuditsDbPath(),
     })
   );
 
   ipcMain.handle(
     IPC_CHANNELS.DB_LIST_AUDITS,
-    (_event, args?: DbListAuditsArgs): AuditSummaryIpc[] => {
-      const db = AuditsDatabase.getInstance();
-      const summaries = db.listAudits({
-        domain: args?.domain,
+    (_event, args?: DbListAuditsArgs): AuditSummaryDto[] =>
+      listAudits(AuditsDatabase.getInstance(), {
+        ...(args?.domain && { domain: args.domain }),
         limit: args?.limit ?? 50,
         offset: args?.offset ?? 0,
-      });
-
-      // Serialize Date objects for IPC transport
-      return summaries.map((s) => ({
-        id: s.id,
-        auditId: s.auditId,
-        domain: s.domain,
-        projectName: s.projectName,
-        startUrl: s.startUrl,
-        overallScore: s.overallScore,
-        pagesAudited: s.pagesAudited,
-        passedCount: s.passedCount,
-        warningCount: s.warningCount,
-        failedCount: s.failedCount,
-        startedAt: s.startedAt instanceof Date ? s.startedAt.toISOString() : String(s.startedAt),
-        completedAt: s.completedAt instanceof Date ? s.completedAt.toISOString() : s.completedAt ? String(s.completedAt) : null,
-        status: s.status,
-      }));
-    },
+      })
   );
 
   ipcMain.handle(
     IPC_CHANNELS.DB_GET_SCORE_TREND,
-    (_event, args: DbScoreTrendArgs): ScoreTrendPoint[] => {
-      const db = AuditsDatabase.getInstance();
-      const trend = db.getScoreTrend(args.domain, args.limit);
-
-      return trend.map((t) => ({
-        auditId: t.auditId,
-        score: t.score,
-        date: t.date instanceof Date ? t.date.toISOString() : String(t.date),
-      }));
-    },
+    (_event, args: DbScoreTrendArgs): ScoreTrendPointDto[] =>
+      getTrend(AuditsDatabase.getInstance(), args.domain, args.limit)
   );
 
-  ipcMain.handle(
-    IPC_CHANNELS.DB_GET_AUDITED_DOMAINS,
-    (): string[] => {
-      const db = AuditsDatabase.getInstance();
-      return db.getAuditedDomains();
-    },
+  ipcMain.handle(IPC_CHANNELS.DB_GET_AUDITED_DOMAINS, (): string[] =>
+    AuditsDatabase.getInstance().getAuditedDomains()
+  );
+
+  ipcMain.handle(IPC_CHANNELS.DB_LIST_DOMAINS, (): DomainSummary[] =>
+    listDomains(AuditsDatabase.getInstance())
   );
 
   ipcMain.handle(
     IPC_CHANNELS.DB_GET_AUDIT_DETAIL,
-    (_event, auditId: string): AuditDetailIpc | null => {
-      const db = AuditsDatabase.getInstance();
-      const audit = db.getAudit(auditId);
-      if (!audit) return null;
-
-      // Fetch stored categories and results
-      const dbCategories = db.getCategories(audit.id);
-      const dbResults = db.getResults(audit.id);
-
-      // Group results by categoryId
-      const resultsByCategory = new Map<string, RuleResult[]>();
-      for (const r of dbResults) {
-        const list = resultsByCategory.get(r.categoryId) ?? [];
-        list.push({
-          ruleId: r.ruleId,
-          status: r.status as RuleResult['status'],
-          message: r.message,
-          score: r.score,
-          details: (r.details as Record<string, unknown>) ?? undefined,
-        });
-        resultsByCategory.set(r.categoryId, list);
-      }
-
-      // Reconstruct CategoryResult[] in the same order as stored categories
-      const categoryResults: CategoryResult[] = dbCategories.map((cat) => ({
-        categoryId: cat.categoryId,
-        score: cat.score,
-        passCount: cat.passCount,
-        warnCount: cat.warnCount,
-        failCount: cat.failCount,
-        results: resultsByCategory.get(cat.categoryId) ?? [],
-      }));
-
-      const result: AuditResult = {
-        url: audit.startUrl,
-        overallScore: audit.overallScore,
-        categoryResults,
-        timestamp: audit.startedAt instanceof Date
-          ? audit.startedAt.toISOString()
-          : String(audit.startedAt),
-        crawledPages: audit.pagesAudited,
-      };
-
-      // Build rule metadata from results + registry
-      const ruleMetadata: Record<string, RuleMetadataIpc> = {};
-      for (const r of dbResults) {
-        if (!ruleMetadata[r.ruleId]) {
-          const rule = getRuleById(r.ruleId);
-          ruleMetadata[r.ruleId] = {
-            name: rule?.name ?? r.ruleName,
-            description: rule?.description ?? '',
-            fix: getFixSuggestion(r.ruleId),
-          };
-        }
-      }
-
-      return { result, ruleMetadata };
-    },
+    (_event, auditId: string): AuditDetail | null =>
+      getAuditDetail(AuditsDatabase.getInstance(), auditId)
   );
 }

@@ -11,10 +11,10 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import type { ScoreTrendPoint } from '../../shared/ipc-types.js';
+import type { ScoreTrendPointDto } from '../../shared/ipc-types.js';
 
 interface ScoreTrendProps {
-  data: ScoreTrendPoint[];
+  data: ScoreTrendPointDto[];
 }
 
 export function ScoreTrend({ data }: ScoreTrendProps) {

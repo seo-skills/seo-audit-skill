@@ -1,7 +1,7 @@
 /**
  * Fix suggestions for the renderer — OFFLINE FALLBACK only.
  *
- * The primary path is `RuleMetadataIpc.fix`: the main process attaches fix
+ * The primary path is `RuleMetadata.fix`: the main process attaches fix
  * text from src/reporters/fix-suggestions.ts to every rule's metadata when an
  * audit completes (audit-bridge) or is loaded from history (db-bridge).
  * RuleCard prefers `metadata.fix` and only calls this map when metadata is

@@ -101,6 +101,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Along the way 8 of 13 text/background pairs failed WCAG AA; all 18 pairs now
   clear 4.5:1 in both themes, and a test computes the ratios.
 
+- **A failed read no longer looks like an empty database.** `HttpApiError` was
+  built with `super(failure.message)` from whatever the response body carried.
+  Any body that was not the exact error envelope — a bare string, a proxy's HTML
+  502, an empty body — left that undefined, so the error carried the message
+  `''`. Every caller tests `if (error)`, an empty string is falsy, and the
+  failure walked through every error branch untouched: the dashboard reported
+  "No audits yet" and invited the user to run their first audit while the ones
+  they had sat unread. An error now always describes itself, `useAsync` never
+  stores a falsy one, and a non-JSON body no longer throws a `SyntaxError` past
+  the status check. Home shows a read-error state with the reason and a retry.
+
+- **Filtering to a site with no audits says so.** It previously rendered the
+  first-run empty state, telling someone with twelve audits of another site to
+  run their first one. It now names the site and offers a way back to all of
+  them.
+
 - **Reduced motion is honoured.** A `prefers-reduced-motion` block existed in
   the dashboard under a comment claiming "anything that animates does so only
   for people who want it to", and disabled exactly one transition — the skip

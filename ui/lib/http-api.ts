@@ -36,12 +36,24 @@ export class HttpApiError extends Error {
   readonly code: string;
   readonly hint: string | undefined;
 
-  constructor(status: number, failure: ApiFailure) {
-    super(failure.message);
+  /**
+   * `failure` is whatever the response body carried, which is not always the
+   * envelope this client expects: a reverse proxy's HTML 502, a truncated body,
+   * a server of a different vintage. When `failure.message` came back undefined
+   * the error was built as `Error('')`, and an empty string is falsy — so every
+   * `if (error)` in the UI skipped, and a failed read rendered as an empty
+   * database. An error must never be able to describe itself as nothing.
+   */
+  constructor(status: number, failure: Partial<ApiFailure> | null | undefined) {
+    super(
+      typeof failure?.message === 'string' && failure.message.trim() !== ''
+        ? failure.message
+        : `The server returned ${status}.`
+    );
     this.name = 'HttpApiError';
     this.status = status;
-    this.code = failure.code;
-    this.hint = failure.hint;
+    this.code = typeof failure?.code === 'string' ? failure.code : 'unknown';
+    this.hint = failure?.hint;
   }
 }
 
@@ -71,14 +83,22 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (response.status === 204) return undefined as T;
 
   const text = await response.text();
-  const body = text ? (JSON.parse(text) as unknown) : null;
+  let body: unknown = null;
+  try {
+    body = text ? (JSON.parse(text) as unknown) : null;
+  } catch {
+    // An HTML error page from a proxy, say. Not JSON, not a reason to throw a
+    // SyntaxError past the status check below and lose the status entirely.
+    body = null;
+  }
 
   if (!response.ok) {
-    const failure = (body as { error?: ApiFailure } | null)?.error;
-    throw new HttpApiError(
-      response.status,
-      failure ?? { code: 'unknown', message: `Request failed with ${response.status}` }
-    );
+    // Only an object-shaped `error` is the envelope; a bare string or a missing
+    // one lets HttpApiError fall back to a message derived from the status.
+    const raw = (body as { error?: unknown } | null)?.error;
+    const failure =
+      raw !== null && typeof raw === 'object' ? (raw as Partial<ApiFailure>) : undefined;
+    throw new HttpApiError(response.status, failure);
   }
 
   return body as T;

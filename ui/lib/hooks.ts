@@ -43,7 +43,10 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[]): AsyncState
       .catch((cause: unknown) => {
         if (cancelled) return;
         setServerGone(cause instanceof ServerUnreachableError);
-        setError(cause instanceof Error ? cause.message : 'Something went wrong.');
+        // Never store an empty string: callers test `if (error)`, and a falsy
+        // error is indistinguishable from no error at all.
+        const message = cause instanceof Error ? cause.message.trim() : '';
+        setError(message !== '' ? message : 'Something went wrong.');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

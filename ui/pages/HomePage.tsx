@@ -48,7 +48,19 @@ export function HomePage() {
     return <PageError kind="server-gone" onRetry={refresh} />;
   }
 
+  // A failed read is not an empty database. Without this branch the page told a
+  // user whose read had failed that they had no audits yet and invited them to
+  // run their first one — while the audits they already had sat unread.
+  if (audits.error && !audits.data) {
+    return <PageError kind="read-failed" message={audits.error} onRetry={refresh} />;
+  }
+
   const hasAudits = (audits.data?.length ?? 0) > 0 || (domains.data?.length ?? 0) > 0;
+
+  // Filtering to a domain with no audits is not the same as having none at all,
+  // and telling someone to run their first audit when they have twelve of
+  // another site reads as if the dashboard lost them.
+  const filteredEmpty = Boolean(domain) && !audits.loading && (audits.data?.length ?? 0) === 0;
 
   return (
     <div className="max-w-[var(--content-max-width)] mx-auto p-6 space-y-6">
@@ -81,7 +93,11 @@ export function HomePage() {
           )}
         </div>
 
-        {!audits.loading && !hasAudits ? <EmptyHistory /> : (
+        {filteredEmpty ? (
+          <NoAuditsForDomain domain={domain!} onClear={() => selectDomain(null)} />
+        ) : !audits.loading && !hasAudits ? (
+          <EmptyHistory />
+        ) : (
           <AuditList
             audits={audits.data ?? []}
             loading={audits.loading}
@@ -115,6 +131,31 @@ function EmptyHistory() {
       <p className="text-xs mt-4" style={{ color: 'var(--color-text-muted)' }}>
         Then come back to this page, or press <Link to="/" className="underline">reload</Link>.
       </p>
+    </div>
+  );
+}
+
+/** The filter matched nothing — which is not the same as having no history */
+function NoAuditsForDomain({ domain, onClear }: { domain: string; onClear: () => void }) {
+  return (
+    <div
+      className="rounded-xl border border-dashed p-10 text-center"
+      style={{ borderColor: 'var(--color-border)' }}
+    >
+      <p className="text-base font-medium mb-1" style={{ color: 'var(--color-text)' }}>
+        No audits of {domain}
+      </p>
+      <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>
+        Your other sites are still here.
+      </p>
+      <button
+        type="button"
+        onClick={onClear}
+        className="px-3 py-1.5 text-sm rounded-md font-medium border"
+        style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+      >
+        Show all sites
+      </button>
     </div>
   );
 }

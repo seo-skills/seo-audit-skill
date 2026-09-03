@@ -110,7 +110,7 @@ export function AuditRunner({
           <button
             type="button"
             onClick={onCancel}
-            className="px-5 py-2.5 rounded-lg text-sm font-medium"
+            className="px-5 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap"
             style={{ backgroundColor: 'var(--color-fail)', color: 'var(--color-on-accent)' }}
           >
             Cancel
@@ -119,7 +119,7 @@ export function AuditRunner({
           <button
             type="submit"
             disabled={!url.trim()}
-            className="px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-40"
+            className="px-5 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap disabled:opacity-40"
             style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
           >
             Run audit

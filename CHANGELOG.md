@@ -101,6 +101,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Along the way 8 of 13 text/background pairs failed WCAG AA; all 18 pairs now
   clear 4.5:1 in both themes, and a test computes the ratios.
 
+- **Clicking an issue opens the rule it names.** `CategorySection` initialised
+  its expansion with `useState(defaultExpanded)`, and `useState` reads its
+  argument on the first render only — so a section already on screen ignored
+  every later change to that prop, which is exactly how the issues table asks
+  for the category it is jumping to. The category never expanded, the scroll
+  found no element, and the drill-down did nothing at all. Expansion is derived
+  during render now, so the section is open in the same commit; the reader's own
+  collapse still wins until the table asks for that category again. The jump
+  also moves keyboard focus to the rule, so Tab continues from there and a
+  screen reader announces it, and it honours `prefers-reduced-motion` — an
+  explicit `behavior` overrides the CSS that would otherwise handle it.
+
 - **A running audit says how long it has taken and how long is left.** An
   eight-page audit takes about four and a half minutes and the UI said nothing
   about time, so a slow run was indistinguishable from a stuck one. Elapsed is

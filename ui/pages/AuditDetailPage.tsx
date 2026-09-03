@@ -6,7 +6,7 @@
  * looking at a finished audit.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useLayoutEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getHost, getReads } from '../lib/api-client.js';
 import { getAPI } from '../lib/ipc-client.js';
@@ -46,13 +46,31 @@ export function AuditDetailPage() {
     document.getElementById(`category-${categoryId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
+  // Expanding the category and jumping to the rule are one action, but they
+  // happen in two renders: the element does not exist until React has committed
+  // the expansion. This used to guess with `setTimeout(..., 100)`, so on a slow
+  // machine the scroll found nothing and silently did nothing.
+  const [pendingReveal, setPendingReveal] = useState<string | null>(null);
+
   const handleIssueClick = useCallback((ruleId: string, categoryId: string) => {
     setActiveCategory(categoryId);
-    setTimeout(() => {
-      const element = document.getElementById(`rule-${ruleId}`);
-      element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 100);
+    setPendingReveal(ruleId);
   }, []);
+
+  useLayoutEffect(() => {
+    if (pendingReveal === null) return;
+    const element = document.getElementById(`rule-${pendingReveal}`);
+    setPendingReveal(null);
+    if (!element) return;
+
+    // An explicit `behavior` overrides the CSS that honours the preference, so
+    // the preference has to be read here too.
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    element.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+    // Focus follows the eye. Without this the view moved and the keyboard did
+    // not, so Tab resumed from the table and a screen reader said nothing.
+    element.focus({ preventScroll: true });
+  }, [pendingReveal, activeCategory]);
 
   const handleExport = useCallback(
     async (format: 'html' | 'markdown' | 'json' | 'llm') => {

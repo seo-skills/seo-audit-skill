@@ -56,6 +56,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   whole rule registry has loaded.
 - `getResultCounts()` returns a fourth bucket, and the four now sum to the
   total. Bucketing by status alone left `pass + warn + fail` quietly short.
+- **Two named count ledgers.** The HTML report said an audit had 332 findings
+  and the dashboard said 2,656, for the same audit. Both were right — one
+  counted rules, the other counted rule-per-page evaluations of them — and
+  neither said which. `countLiveResult()` and `countFromSummaries()` return
+  both, named, each with four buckets that sum. `affectedPages` is a distinct
+  page count rather than a sum of per-rule counts, which double-counted a page
+  that two rules both flagged.
 
 ### Fixed
 

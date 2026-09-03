@@ -54,6 +54,13 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
 - **Close the fix loop.** Nothing marks a finding handled, and nothing answers "did my
   fix land" except a manual compare. A "since last audit" strip on the detail page is
   composition over `getScoreTrend` + `compare`, not new plumbing.
+- **Per-status page counts on `RuleSummary`.** It carries the worst measured
+  status plus a total affected-page count, so a rule that fails on one page and
+  warns on 999 ranks as if all 1,000 were failures. `rulePriority()`'s
+  affected-share is a reasonable approximation of urgency today; splitting into
+  `failPages` / `warnPages` / `passPages` / `notMeasuredPages` would make it
+  exact and let the evaluation ledger be derived from the summaries alone
+  instead of a second query.
 - **Persist one `audit_rule_summaries` row per rule at save time**, so dashboard reads
   and exports stop rescanning raw history.
 

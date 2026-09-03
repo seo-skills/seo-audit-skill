@@ -41,6 +41,11 @@ export type {
   OnCrawlProgressCallback,
 } from './auditor.js';
 
+// Two honest answers to "how many findings?" — per rule and per rule-page.
+// Surfaces quote the one that matches what they are showing, and say which.
+export { countLiveResult, countFromSummaries, ledgerSums } from './dashboard/counts.js';
+export type { AuditCounts, CountLedger } from './dashboard/counts.js';
+
 // What to fix first. Server-side only by design: the weights it reads exist
 // only after the whole rule registry has loaded, so this must not be pulled
 // into a browser bundle — surfaces receive the computed number instead.

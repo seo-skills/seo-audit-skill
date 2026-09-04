@@ -1,4 +1,15 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+/*
+ * No webfont import.
+ *
+ * This UI runs on localhost — as a desktop app and as `seomator serve` — and
+ * fetching a stylesheet from Google to render text means the dashboard needs
+ * the internet to look right, leaks a request to a third party on every open,
+ * and would need a hole in the dashboard's Content-Security-Policy.
+ *
+ * The family names stay in --font-sans / --font-mono, so anyone who has IBM
+ * Plex installed still sees it; everyone else gets the platform's own UI font,
+ * which is what the native-feeling toolbar wants anyway.
+ */
 @import 'tailwindcss';
 @import './globals.css';
 

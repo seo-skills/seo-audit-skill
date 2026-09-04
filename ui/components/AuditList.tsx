@@ -2,16 +2,18 @@
  * Table of past audits from the database.
  */
 
+import { Link } from 'react-router-dom';
 import type { AuditSummaryDto } from '../../electron/shared/ipc-types.js';
 import { getScoreColor, formatDate } from '../lib/format.js';
 
 interface AuditListProps {
   audits: AuditSummaryDto[];
   loading: boolean;
-  onAuditClick?: (auditId: string) => void;
+  /** Where a row goes. A real link, so Cmd-click and the keyboard work. */
+  linkTo: (auditId: string) => string;
 }
 
-export function AuditList({ audits, loading, onAuditClick }: AuditListProps) {
+export function AuditList({ audits, loading, linkTo }: AuditListProps) {
   if (loading) {
     return (
       <div className="text-center py-8 text-sm" style={{ color: 'var(--color-text-muted)' }}>
@@ -47,11 +49,15 @@ export function AuditList({ audits, loading, onAuditClick }: AuditListProps) {
             return (
               <tr
                 key={audit.auditId}
-                className="border-t border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-hover)] transition-colors cursor-pointer"
-                onClick={() => onAuditClick?.(audit.auditId)}
+                className="border-t border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-hover)] transition-colors"
               >
-                <td className="p-3" style={{ color: 'var(--color-text-secondary)' }}>
-                  {formatDate(audit.startedAt)}
+                <td className="p-0" style={{ color: 'var(--color-text-secondary)' }}>
+                  {/* The link fills the first cell and carries the row's
+                      focus, so the whole row is reachable by keyboard without
+                      making every cell a tab stop. */}
+                  <Link to={linkTo(audit.auditId)} className="block p-3 focus:outline-2 focus:outline-[var(--color-accent)]">
+                    {formatDate(audit.startedAt)}
+                  </Link>
                 </td>
                 <td className="p-3 truncate max-w-xs" style={{ color: 'var(--color-text)' }}>
                   {audit.startUrl}

@@ -4,6 +4,56 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [Unreleased]
+
+### Added
+
+- **`seomator serve` — a local dashboard for the audits you have already run.**
+  Until now a finished audit produced a one-shot HTML report and nothing that
+  accumulated. The dashboard opens on your history: which sites you audit, how
+  each score moved, what changed between two runs, and the full detail of any
+  single audit with its per-rule drill-down. It reads the same
+  `~/.seomator/audits.db` the CLI writes, binds to `127.0.0.1`, and makes no
+  outbound requests.
+
+- **A documented HTTP API** under `/api`, usable from curl or an agent:
+  audits with paging, one audit aggregated to a row per rule, per-rule pages,
+  compare, export (html/markdown/json/llm), delete, domains and trends.
+  `GET /api` returns the route index, derived from the router table so it
+  cannot drift. One error shape everywhere, with a code, a hint and structured
+  details; out-of-range options are rejected rather than clamped.
+
+- **A per-launch token** guards every `/api` request — sent as the
+  `X-SEOmator-Token` header or the `HttpOnly; SameSite=Strict` cookie the page
+  response sets — on top of `Host`, `Origin` and `Sec-Fetch-Site` checks, a
+  framing refusal and a CSP. Loopback is reachable from sandboxes, forwarded
+  ports and host-network containers, so reaching the dashboard is not the same
+  as being allowed to use it. The token is written to
+  `$SEOMATOR_HOME/serve.json` (0600) for agents and removed on shutdown.
+
+- **`docs/WEB-DASHBOARD.md`**: the API and error reference, the token workflow
+  for agents, the security model, and what to do about a port in use or a
+  missing build.
+
+### Changed
+
+- **The desktop app and the dashboard are the same React app.** Both are served
+  from `ui/`, pick their transport at runtime, and show a stored audit
+  identically. The app moved from two tabs to real routes (`/`, `/audits/:id`,
+  `/compare/:id`), so a URL in the browser is bookmarkable and the back button
+  works.
+
+- **Recharts is gone**, replaced by a hand-drawn SVG trend chart: 350 kB of
+  dependency for one chart of at most twenty points. The desktop bundle went
+  from 1,369 kB to 712 kB.
+
+- **The UI no longer fetches a webfont from Google.** A dashboard that runs on
+  localhost should not need the internet to render text, or ping a third party
+  on every open. IBM Plex is still used when it is installed locally; otherwise
+  the platform's own UI font.
+
+- **`seomator self doctor`** reports whether the dashboard's assets are present.
+
 ## [3.4.0] - 2026-09-03
 
 ### Changed

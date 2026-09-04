@@ -7,7 +7,9 @@ export default defineConfig([
   {
     entry: ["src/cli.ts"],
     format: ["esm"],
-    clean: true,
+    // `npm run clean` handles this: dist/ also holds the dashboard's static
+    // assets, and whichever build ran second would wipe the first.
+    clean: false,
     dts: false,
     banner: {
       js: "#!/usr/bin/env node",

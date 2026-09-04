@@ -195,3 +195,38 @@
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
 }
+
+/*
+ * Skip link.
+ *
+ * The dashboard's sidebar puts twenty category links between the header and
+ * the content, so a keyboard user would otherwise tab through all of them on
+ * every page. Off-screen until focused, which is the one pattern that works
+ * without hiding it from assistive technology.
+ */
+@layer base {
+  .skip-link {
+    position: absolute;
+    left: 0.5rem;
+    top: -3rem;
+    z-index: 100;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    background-color: var(--color-accent);
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: top 120ms ease;
+  }
+
+  .skip-link:focus {
+    top: 0.5rem;
+  }
+
+  /* Anything that animates does so only for people who want it to. */
+  @media (prefers-reduced-motion: reduce) {
+    .skip-link {
+      transition: none;
+    }
+  }
+}

@@ -3,6 +3,7 @@ import { getCategoryIds } from './categories/index.js';
 import { getVersion } from './version.js';
 import { OUTPUT_FORMATS, type AuditOptions } from './commands/audit.js';
 import type { AnalyzeOptions } from './commands/analyze.js';
+import type { ServeOptions } from './commands/serve.js';
 import { CONFIG_PRESETS } from './config/writer.js';
 
 /** Formats the `report` command can render. */
@@ -153,6 +154,19 @@ program
       saveExplicit: command.getOptionValueSource('save') === 'cli' && options.save === true,
     })
   );
+
+// Serve command
+program
+  .command('serve')
+  .description('Run the local dashboard: browse past audits in your browser')
+  .option('-p, --port <n>', 'Port on 127.0.0.1 (0 picks a free one)', (v) => parseIntValue(v, 'port', 0, 65535), 7360)
+  .option('--no-open', 'Do not open a browser')
+  .option('-v, --verbose', 'Log one line per request', false)
+  .action(async (options: ServeOptions) => {
+    // Imported lazily so `seomator audit` does not pay for the server module.
+    const { runServe } = await import('./commands/serve.js');
+    await runServe(options);
+  });
 
 // Init command
 program

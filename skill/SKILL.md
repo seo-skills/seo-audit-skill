@@ -206,6 +206,13 @@ seomator audit https://example.com --format llm -v
 
 Audits are stored by default, so `compare` and `report` always have history.
 
+### Dashboard
+
+`seomator serve` runs a local web dashboard over the stored audits (history,
+per-rule detail, comparisons, exports). For scripted access, read the token
+from `~/.seomator/serve.json` and send it as `X-SEOmator-Token`; `GET /api`
+lists every route. See `docs/WEB-DASHBOARD.md`.
+
 ### Compare Command Options
 
 `seomator compare <domain>` diffs two stored audits of the same site. Every

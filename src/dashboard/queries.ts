@@ -157,6 +157,54 @@ export function getAuditDetail(db: AuditsDatabase, auditId: string): AuditDetail
 }
 
 /**
+ * Every page a rule ran on, for the "failed on 3 of 12 pages" drill-down.
+ *
+ * Paged by offset: the ordering is stable and the pages are small, so a cursor
+ * would be ceremony.
+ */
+export function getRulePages(
+  db: AuditsDatabase,
+  auditId: string,
+  ruleId: string,
+  options: { limit?: number; offset?: number } = {}
+): { total: number; pages: Array<{ pageUrl: string; status: string; score: number; message: string; notMeasured: boolean }> } | null {
+  const audit = db.getAudit(auditId);
+  if (!audit) return null;
+
+  const raw = db.getDb();
+  const { total } = raw
+    .prepare('SELECT COUNT(*) AS total FROM audit_results WHERE audit_id = ? AND rule_id = ?')
+    .get(audit.id, ruleId) as { total: number };
+
+  const rows = raw
+    .prepare(
+      `SELECT page_url, status, score, message, weight
+       FROM audit_results
+       WHERE audit_id = ? AND rule_id = ?
+       ORDER BY id
+       LIMIT ? OFFSET ?`
+    )
+    .all(audit.id, ruleId, options.limit ?? 100, options.offset ?? 0) as Array<{
+    page_url: string;
+    status: string;
+    score: number;
+    message: string;
+    weight: number | null;
+  }>;
+
+  return {
+    total,
+    pages: rows.map((r) => ({
+      pageUrl: r.page_url,
+      status: r.status,
+      score: r.score,
+      message: r.message,
+      notMeasured: r.weight === 0,
+    })),
+  };
+}
+
+/**
  * A domain's score history, oldest first.
  */
 export function getTrend(db: AuditsDatabase, domain: string, limit = SPARKLINE_POINTS): ScoreTrendPointDto[] {

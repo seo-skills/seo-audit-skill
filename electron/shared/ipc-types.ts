@@ -23,6 +23,8 @@ export type {
   StoredComparison,
 } from '../../src/dashboard/contract.js';
 
+export type { RuleChange, RuleDiff } from '../../src/storage/audits-db/rule-diff.js';
+
 export type {
   AuditRunArgs,
   Capabilities,
@@ -109,5 +111,8 @@ export const IPC_CHANNELS = {
   DB_GET_AUDITED_DOMAINS: 'db:get-audited-domains',
   DB_GET_AUDIT_DETAIL: 'db:get-audit-detail',
   DB_LIST_DOMAINS: 'db:list-domains',
+  DB_COMPARE: 'db:compare',
+  DB_DELETE_AUDIT: 'db:delete-audit',
+  DB_EXPORT_AUDIT: 'db:export-audit',
   APP_GET_INFO: 'app:get-info',
 } as const;

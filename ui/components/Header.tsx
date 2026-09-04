@@ -7,18 +7,18 @@
  * clears the traffic lights.
  */
 
+import { NavLink, useLocation } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme.js';
 import { Logo } from './Logo.js';
 
 interface HeaderProps {
-  url?: string | null;
-  crawledPages?: number;
-  activeView: 'audit' | 'history';
-  onViewChange: (view: 'audit' | 'history') => void;
+  /** Whether this host can start an audit; the web build cannot until Phase 3 */
+  canRunAudits: boolean;
 }
 
-export function Header({ url, crawledPages, activeView, onViewChange }: HeaderProps) {
+export function Header({ canRunAudits }: HeaderProps) {
   const { theme, toggle } = useTheme();
+  const { pathname } = useLocation();
 
   return (
     <header
@@ -30,46 +30,14 @@ export function Header({ url, crawledPages, activeView, onViewChange }: HeaderPr
         <Logo height={20} />
       </div>
 
-      {/* View switcher */}
-      <nav className="segmented no-drag shrink-0 ml-1" role="tablist" aria-label="View">
-        <Segment
-          label="Audit"
-          active={activeView === 'audit'}
-          onClick={() => onViewChange('audit')}
-        />
-        <Segment
-          label="History"
-          active={activeView === 'history'}
-          onClick={() => onViewChange('history')}
-        />
+      {/* View switcher. Real links, so the browser's back button and
+          Cmd-click behave the way the URL bar promises they will. */}
+      <nav className="segmented no-drag shrink-0 ml-1" aria-label="View">
+        <Segment to="/" label="History" active={pathname === '/'} />
+        {canRunAudits && <Segment to="/run" label="New audit" active={pathname === '/run'} />}
       </nav>
 
-      {/* Audited document. Centred like a native window title, and allowed to
-          truncate rather than push the controls around. */}
-      <div className="flex-1 flex items-center justify-center gap-2 min-w-0 px-2">
-        {url && (
-          <>
-            <span
-              className="text-xs truncate"
-              style={{ color: 'var(--color-text-muted)' }}
-              title={url}
-            >
-              {url}
-            </span>
-            {crawledPages != null && crawledPages > 1 && (
-              <span
-                className="text-xs px-2 py-0.5 rounded-full shrink-0"
-                style={{
-                  backgroundColor: 'var(--color-info-bg)',
-                  color: 'var(--color-info)',
-                }}
-              >
-                {crawledPages} pages
-              </span>
-            )}
-          </>
-        )}
-      </div>
+      <div className="flex-1 min-w-0 px-2" />
 
       {/* Appearance */}
       <button
@@ -84,16 +52,15 @@ export function Header({ url, crawledPages, activeView, onViewChange }: HeaderPr
   );
 }
 
-function Segment({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function Segment({ to, label, active }: { to: string; label: string; active: boolean }) {
   return (
-    <button
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
+    <NavLink
+      to={to}
+      aria-current={active ? 'page' : undefined}
       className={`segment ${active ? 'segment-active' : ''}`}
     >
       {label}
-    </button>
+    </NavLink>
   );
 }
 

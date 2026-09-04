@@ -14,3 +14,4 @@ export {
   type DbRestoreOptions,
 } from './db.js';
 export { runSelfDoctor, type SelfDoctorOptions } from './doctor.js';
+export { runServe, type ServeOptions } from './serve.js';

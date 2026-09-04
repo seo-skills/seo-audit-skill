@@ -1,26 +1,54 @@
 /**
- * Root application component — layout shell with header and page routing.
+ * The app shell.
+ *
+ * One React app, two hosts. Electron loads it from `file://`, where only a
+ * hash router works; `seomator serve` serves it over HTTP, where real paths
+ * are what a user expects to be able to bookmark and share.
  */
 
-import { useState } from 'react';
+import { HashRouter, BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Header } from './components/Header.js';
-import { AuditPage } from './pages/AuditPage.js';
-import { HistoryPage } from './pages/HistoryPage.js';
-import { useAuditStore } from './stores/audit-store.js';
+import { HomePage } from './pages/HomePage.js';
+import { AuditDetailPage } from './pages/AuditDetailPage.js';
+import { ComparePage } from './pages/ComparePage.js';
+import { RunPage } from './pages/RunPage.js';
+import { getHost } from './lib/api-client.js';
 
 export function App() {
-  const [activeView, setActiveView] = useState<'audit' | 'history'>('audit');
-  const { run, result } = useAuditStore();
+  const host = getHost();
+  const Router = host === 'electron' ? HashRouter : BrowserRouter;
 
   return (
-    <div>
-      <Header
-        url={run.url}
-        crawledPages={result?.crawledPages}
-        activeView={activeView}
-        onViewChange={setActiveView}
-      />
-      {activeView === 'audit' ? <AuditPage /> : <HistoryPage onNavigateToAudit={() => setActiveView('audit')} />}
+    <Router>
+      <a href="#main" className="skip-link">
+        Skip to content
+      </a>
+      <Header canRunAudits={host === 'electron'} />
+      <main id="main" className="pt-[var(--header-height)]">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          {/* The old two-tab shell linked here; keep the URL working. */}
+          <Route path="/history" element={<Navigate to="/" replace />} />
+          <Route path="/audits/:id" element={<AuditDetailPage />} />
+          <Route path="/compare/:id" element={<ComparePage />} />
+          <Route path="/compare/:id/:against" element={<ComparePage />} />
+          <Route path="/run" element={host === 'electron' ? <RunPage /> : <Navigate to="/" replace />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </main>
+    </Router>
+  );
+}
+
+function NotFound() {
+  return (
+    <div className="max-w-[var(--content-max-width)] mx-auto p-6 text-center py-16">
+      <p className="text-base font-medium mb-1" style={{ color: 'var(--color-text)' }}>
+        That page does not exist
+      </p>
+      <a href="/" className="text-sm underline" style={{ color: 'var(--color-accent)' }}>
+        Back to history
+      </a>
     </div>
   );
 }

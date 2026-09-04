@@ -20,6 +20,7 @@ import type {
   RunError,
   RunState,
   ScoreTrendPointDto,
+  StoredComparison,
 } from '../shared/ipc-types.js';
 
 export interface ElectronAPI {
@@ -41,6 +42,10 @@ export interface ElectronAPI {
   getAuditedDomains: () => Promise<string[]>;
   listDomains: () => Promise<DomainSummary[]>;
   getAuditDetail: (auditId: string) => Promise<AuditDetail | null>;
+  compare: (auditId: string, against?: string) => Promise<StoredComparison>;
+  deleteAudit: (auditId: string) => Promise<void>;
+  /** Opens a save dialog; resolves with the written path, or null if cancelled */
+  exportAudit: (auditId: string, format: 'html' | 'markdown' | 'json' | 'llm') => Promise<string | null>;
 
   // Build facts
   getAppInfo: () => Promise<AppInfoIpc>;
@@ -73,6 +78,9 @@ const electronAPI: ElectronAPI = {
   getAuditedDomains: () => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_AUDITED_DOMAINS),
   listDomains: () => ipcRenderer.invoke(IPC_CHANNELS.DB_LIST_DOMAINS),
   getAuditDetail: (auditId) => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_AUDIT_DETAIL, auditId),
+  compare: (auditId, against) => ipcRenderer.invoke(IPC_CHANNELS.DB_COMPARE, auditId, against),
+  deleteAudit: (auditId) => ipcRenderer.invoke(IPC_CHANNELS.DB_DELETE_AUDIT, auditId),
+  exportAudit: (auditId, format) => ipcRenderer.invoke(IPC_CHANNELS.DB_EXPORT_AUDIT, auditId, format),
 
   // Build facts
   getAppInfo: () => ipcRenderer.invoke(IPC_CHANNELS.APP_GET_INFO),

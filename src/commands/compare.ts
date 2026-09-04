@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { emitCommandError } from './machine-error.js';
 import Table from 'cli-table3';
 import { getAuditsDatabase, closeAuditsDatabase, domainOf, diffRules } from '../storage/index.js';
 import {
@@ -113,9 +114,13 @@ export async function runCompare(
   options: CompareOptions
 ): Promise<void> {
   if (!target) {
-    console.error(chalk.red('Specify a domain or URL to compare.'));
-    console.error(chalk.dim('  seomator compare example.com'));
-    process.exit(1);
+    emitCommandError({
+      json: options.json === true,
+      code: 'no-target',
+      message: 'Specify a domain or URL to compare.',
+      hint: 'seomator compare example.com',
+    });
+    return;
   }
 
   const domain = domainOf(target.includes('://') ? target : `https://${target}`);
@@ -132,26 +137,37 @@ export async function runCompare(
     const current = db.getLatestAudit(domain);
 
     if (!current) {
-      console.error(chalk.yellow(`No stored audits for ${domain}.`));
-      console.error(chalk.dim(`Run: seomator audit ${target} --save`));
-      process.exit(1);
+      emitCommandError({
+        json: options.json === true,
+        code: 'no-audits',
+        message: `No stored audits for ${domain}.`,
+        hint: `Run: seomator audit ${target} --save`,
+      });
+      return;
     }
 
     let previous: HydratedAudit | null;
     if (options.against) {
       previous = db.getAudit(options.against);
       if (!previous) {
-        console.error(chalk.red(`Audit not found: ${options.against}`));
-        process.exit(1);
+        emitCommandError({
+          json: options.json === true,
+          code: 'audit-not-found',
+          message: `Audit not found: ${options.against}`,
+          hint: 'List what is stored with: seomator report --list',
+        });
+        return;
       }
     } else {
       previous = db.getPreviousAudit(domain, current.auditId);
       if (!previous) {
-        console.error(
-          chalk.yellow(`Only one stored audit for ${domain}, so there is nothing to compare against.`)
-        );
-        console.error(chalk.dim(`Run another: seomator audit ${target} --save`));
-        process.exit(1);
+        emitCommandError({
+          json: options.json === true,
+          code: 'nothing-to-compare',
+          message: `Only one stored audit for ${domain}, so there is nothing to compare against.`,
+          hint: `Run another: seomator audit ${target} --save`,
+        });
+        return;
       }
     }
 

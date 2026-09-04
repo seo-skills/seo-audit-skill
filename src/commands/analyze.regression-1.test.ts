@@ -27,7 +27,7 @@ const crawl = {
   id: '2026-09-04-5b4876',
   url: 'https://example.com',
   pages: [{ url: 'https://example.com' }],
-} as never;
+} as unknown as Parameters<typeof announceAnalysis>[0];
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -58,7 +58,10 @@ describe('analyze keeps stdout for the document', () => {
     vi.spyOn(console, 'log').mockImplementation(() => {});
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    announceAnalysis({ ...crawl, pages: [{}, {}, {}] } as never);
+    announceAnalysis({
+      ...crawl,
+      pages: [{}, {}, {}],
+    } as unknown as Parameters<typeof announceAnalysis>[0]);
 
     expect(err.mock.calls.flat().join(' ')).toContain('3');
   });

@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { emitCommandError } from './machine-error.js';
 import Table from 'cli-table3';
 import {
   listReports,
@@ -70,7 +71,23 @@ export async function runReport(query: string | undefined, options: ReportOption
       // Nothing in the database: fall back to the legacy JSON store
       const reports = listReports(baseDir, { project: options.project, since });
       if (reports.length === 0) {
-        console.log(chalk.yellow('No audits stored yet. Run `seomator audit <url>` to create one.'));
+        // An empty result is not an error, so this stays exit 0 — but under
+        // `--format json` it has to be an empty array, not a sentence. It used
+        // to print prose on stdout and exit 0, so an agent's parse failed
+        // while the exit code said everything was fine.
+        if (options.format === 'json') {
+          console.log('[]');
+          return;
+        }
+        // And it is only "nothing stored" when nothing was filtered out.
+        const filtered = options.project !== undefined || since !== undefined;
+        console.log(
+          chalk.yellow(
+            filtered
+              ? 'No audits match that filter.'
+              : 'No audits stored yet. Run `seomator audit <url>` to create one.'
+          )
+        );
         return;
       }
 
@@ -112,8 +129,12 @@ export async function runReport(query: string | undefined, options: ReportOption
 
     const report = loadReport(baseDir, query);
     if (!report) {
-      console.error(chalk.red(`Audit not found: ${query}`));
-      process.exitCode = 1;
+      emitCommandError({
+        json: options.format === 'json',
+        code: 'audit-not-found',
+        message: `Audit not found: ${query}`,
+        hint: 'List what is stored with: seomator report --list',
+      });
       return;
     }
 

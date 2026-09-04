@@ -21,6 +21,7 @@ import { loadAllRules } from '../rules/loader.js';
 import { createAuditContext } from '../crawler/index.js';
 import { resetCrossPageState } from '../rules/registry.js';
 import type { AuditContext } from '../types.js';
+import { emitCommandError } from './machine-error.js';
 
 export interface AnalyzeOptions {
   categories?: string[];
@@ -128,16 +129,26 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
   if (options.latest || !crawlId) {
     crawl = getLatestCrawl(baseDir);
     if (!crawl) {
-      console.error(chalk.red('No crawls found. Run `seomator crawl <url>` first.'));
+      emitCommandError({
+        json: options.json === true,
+        code: 'no-crawls',
+        message: 'No crawls found.',
+        hint: 'Run `seomator crawl <url>` first.',
+      });
       reportArchivedCrawls(baseDir);
-      process.exit(1);
+      return;
     }
   } else {
     crawl = loadCrawl(baseDir, crawlId);
     if (!crawl) {
-      console.error(chalk.red(`Crawl not found: ${crawlId}`));
+      emitCommandError({
+        json: options.json === true,
+        code: 'crawl-not-found',
+        message: `Crawl not found: ${crawlId}`,
+        hint: 'List stored crawls with: seomator analyze (no id) or check .seomator/crawls/',
+      });
       reportArchivedCrawls(baseDir);
-      process.exit(1);
+      return;
     }
   }
 
@@ -171,8 +182,13 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
     progress.start(crawl.url);
 
     if (crawl.pages.length === 0) {
-      console.error(chalk.red('No pages in crawl data.'));
-      process.exit(1);
+      emitCommandError({
+        json: options.json === true,
+        code: 'empty-crawl',
+        message: 'No pages in crawl data.',
+        hint: 'Re-run the crawl: seomator crawl <url>',
+      });
+      return;
     }
 
     // analyze runs in crawl mode, so per-category lines are suppressed. Without

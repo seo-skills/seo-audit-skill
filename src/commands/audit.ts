@@ -16,7 +16,7 @@ import {
 import { loadConfig } from '../config/index.js';
 import { AuditAbortedError, classifyError } from '../errors.js';
 import { setUserAgent } from '../crawler/user-agent.js';
-import { saveReport, createReport, generateId, saveAuditToDatabase, getAuditsDbPath } from '../storage/index.js';
+import { saveReport, createReport, saveAuditToDatabase, getAuditsDbPath } from '../storage/index.js';
 import { resolvePersistence, SAVE_DEPRECATION_NOTICE } from './persistence.js';
 
 /**
@@ -60,7 +60,18 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   // `--format llm` exists so an agent can read stdout. A failure that prints
   // only to stderr leaves that agent with an empty string, which reads exactly
   // like a clean audit.
-  const isMachineMode = isJsonMode || outputFormat === 'llm';
+  // Every format whose job is to put a document on stdout. Progress display,
+  // completion lines and anything else chatty must stay off stdout for these,
+  // or the document is not parseable.
+  //
+  // This covered json and llm only, so `--format markdown` printed the terminal
+  // progress summary to stdout while the real report went to a file nobody
+  // asked for.
+  const isMachineMode =
+    isJsonMode ||
+    outputFormat === 'llm' ||
+    outputFormat === 'html' ||
+    outputFormat === 'markdown';
   const isCrawlMode = options.crawl;
   const isVerbose = options.verbose;
   const measureCwv = options.cwv !== false;
@@ -239,27 +250,34 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       case 'json':
         if (outputPath) {
           fs.writeFileSync(outputPath, JSON.stringify(result, null, 2), 'utf-8');
-          console.log(chalk.green(`Report saved to: ${outputPath}`));
+          console.error(chalk.green(`Report saved to: ${outputPath}`));
         } else {
           outputJsonReport(result);
         }
         break;
 
-      case 'html': {
-        const htmlContent = renderHtmlReport(result);
-        const htmlPath = outputPath ?? `seo-report-${generateId()}.html`;
-        fs.writeFileSync(htmlPath, htmlContent, 'utf-8');
-        console.log(chalk.green(`HTML report saved to: ${htmlPath}`));
+      // html and markdown used to write `seo-report-<id>.html` into the working
+      // directory whatever the caller asked for, so `--format html > page.html`
+      // produced a file of terminal output beside a stray report with an
+      // invented name. They stream now, like json and llm: `-o` is the one way
+      // to get a file, and it is the only thing that writes one.
+      case 'html':
+        if (outputPath) {
+          fs.writeFileSync(outputPath, renderHtmlReport(result), 'utf-8');
+          console.error(chalk.green(`HTML report saved to: ${outputPath}`));
+        } else {
+          console.log(renderHtmlReport(result));
+        }
         break;
-      }
 
-      case 'markdown': {
-        const mdContent = renderMarkdownReport(result);
-        const mdPath = outputPath ?? `seo-report-${generateId()}.md`;
-        fs.writeFileSync(mdPath, mdContent, 'utf-8');
-        console.log(chalk.green(`Markdown report saved to: ${mdPath}`));
+      case 'markdown':
+        if (outputPath) {
+          fs.writeFileSync(outputPath, renderMarkdownReport(result), 'utf-8');
+          console.error(chalk.green(`Markdown report saved to: ${outputPath}`));
+        } else {
+          console.log(renderMarkdownReport(result));
+        }
         break;
-      }
 
       case 'llm':
         if (outputPath) {

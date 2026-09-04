@@ -98,7 +98,7 @@ function pageToInsertInput(page: StoredPage): InsertPageInput {
 function migrateCrawl(
   filePath: string,
   projectDbs: Map<string, ProjectDatabase>
-): { success: boolean; error?: string } {
+): { success: boolean; skipped?: boolean; error?: string } {
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
     const crawl: StoredCrawl = JSON.parse(content);
@@ -115,6 +115,13 @@ function migrateCrawl(
 
     // Get or create project
     projectDb.getOrCreateProject(crawl.project);
+
+    // Already migrated. Re-running the migration reported this as
+    // "UNIQUE constraint failed: crawls.crawl_id" under a green "Migration
+    // complete!", which reads like a broken database rather than a no-op.
+    if (projectDb.getCrawl(crawl.id)) {
+      return { success: true, skipped: true };
+    }
 
     // Create crawl record
     const dbCrawl = projectDb.createCrawl({
@@ -276,15 +283,20 @@ export function migrateJsonToSqlite(
 
       for (const filePath of crawlFiles) {
         const result = migrateCrawl(filePath, projectDbs);
-        if (result.success) {
+        if (result.skipped) {
+          stats.crawlsSkipped++;
+        } else if (result.success) {
           stats.crawlsMigrated++;
         } else {
           stats.crawlErrors.push(`${path.basename(filePath)}: ${result.error}`);
         }
       }
 
-      // Backup crawls directory
-      if (options.backup !== false && stats.crawlsMigrated > 0) {
+      // Archiving is opt-in, not the default. `analyze` reads
+      // `.seomator/crawls/*.json` and nothing reads a crawl back out of
+      // project.db, so renaming the directory to `.bak` made every stored
+      // crawl unreachable — while `db stats` recommended running this.
+      if (options.backup === true && stats.crawlsMigrated > 0) {
         if (backupDirectory(crawlsDir)) {
           stats.backupCreated = true;
         }
@@ -310,7 +322,9 @@ export function migrateJsonToSqlite(
       }
 
       // Backup reports directory
-      if (options.backup !== false && stats.reportsMigrated > 0) {
+      // Same reason as crawls: `report` still reads `.seomator/reports/*.json`
+      // through listReports()/loadReport() alongside the audits database.
+      if (options.backup === true && stats.reportsMigrated > 0) {
         if (backupDirectory(reportsDir)) {
           stats.backupCreated = true;
         }

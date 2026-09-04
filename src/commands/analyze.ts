@@ -2,9 +2,11 @@ import chalk from 'chalk';
 import * as cheerio from 'cheerio';
 import { Auditor } from '../auditor.js';
 import { loadConfig } from '../config/index.js';
+import * as fs from 'fs';
 import {
   loadCrawl,
   getLatestCrawl,
+  getCrawlsDir,
   saveReport,
   createReport,
   saveAuditToDatabase,
@@ -60,6 +62,32 @@ function createContextFromStoredPage(page: StoredPage): AuditContext {
 /**
  * Run analysis on stored crawl data
  */
+/**
+ * Explain the one cause of "crawl not found" that the user cannot guess.
+ *
+ * `db migrate` used to rename `.seomator/crawls` to `.seomator/crawls.bak`,
+ * and `analyze` only ever reads JSON: nothing reads a crawl back out of
+ * `project.db`. So the migration `db stats` recommended made every stored
+ * crawl unreachable, and said nothing about it. `db restore` puts them back,
+ * which is not a connection anyone would make from "Crawl not found".
+ */
+function reportArchivedCrawls(baseDir: string): void {
+  const archived = `${getCrawlsDir(baseDir)}.bak`;
+  if (!fs.existsSync(archived)) return;
+
+  const count = fs.readdirSync(archived).filter((f) => f.endsWith('.json')).length;
+  if (count === 0) return;
+
+  console.error();
+  console.error(
+    chalk.yellow(
+      `${count} crawl${count === 1 ? '' : 's'} sitting in ${archived}, moved there by a past ` +
+        '`db migrate`.'
+    )
+  );
+  console.error(chalk.yellow('Run `seomator db restore` to put them back where analyze reads.'));
+}
+
 export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOptions): Promise<void> {
   const { config } = loadConfig(process.cwd());
   const baseDir = process.cwd();
@@ -81,12 +109,14 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
     crawl = getLatestCrawl(baseDir);
     if (!crawl) {
       console.error(chalk.red('No crawls found. Run `seomator crawl <url>` first.'));
+      reportArchivedCrawls(baseDir);
       process.exit(1);
     }
   } else {
     crawl = loadCrawl(baseDir, crawlId);
     if (!crawl) {
       console.error(chalk.red(`Crawl not found: ${crawlId}`));
+      reportArchivedCrawls(baseDir);
       process.exit(1);
     }
   }

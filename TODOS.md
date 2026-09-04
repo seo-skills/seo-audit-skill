@@ -35,6 +35,15 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
 
 ### P2 — CLI correctness, outside the design blast radius
 
+- **Nothing reads a crawl back out of `project.db`.** `db migrate` and `db stats` are
+  its only readers/writers; `analyze` goes through `loadCrawl()`/`getLatestCrawl()` in
+  `crawl-store.ts`, which read `.seomator/crawls/*.json` and nothing else. The SQLite
+  crawl store is therefore write-only. /qa (2026-09-04) stopped the migration from
+  moving the JSON aside by default, because that made the store the user was told to
+  migrate to unreadable; finishing the job means a DB-backed `loadCrawl` that
+  reconstructs `StoredCrawl` (pages, HTML, links, images) from `crawls`/`pages`, after
+  which `--archive` can go back to being the default.
+
 - **`--refresh` and `--resume` are accepted and ignored.** `cli.ts:144` exposes
   them; `runAudit` forwards neither. Either wire them or remove them. These are
   crawler semantics (cache bypass, interrupted-crawl resume), not config plumbing.

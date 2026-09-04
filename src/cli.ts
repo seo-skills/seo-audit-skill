@@ -261,7 +261,10 @@ dbCommand
   .command('migrate')
   .description('Migrate JSON files to SQLite databases')
   .option('--dry-run', 'Preview migration without making changes', false)
-  .option('--no-backup', 'Skip creating backup of original files')
+  .option('--archive', 'Move the original JSON files aside after migrating', false)
+  // Kept so existing scripts keep parsing. Not archiving is the default now,
+  // because `analyze` and `report` still read those JSON files.
+  .option('--no-backup', 'Deprecated: originals are kept unless --archive')
   .action(runDbMigrate);
 
 dbCommand

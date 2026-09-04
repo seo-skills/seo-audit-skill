@@ -12,7 +12,10 @@ import {
 
 export interface DbMigrateOptions {
   dryRun: boolean;
-  noBackup: boolean;
+  /** Move the JSON files aside after migrating. Off by default. */
+  archive?: boolean;
+  /** Accepted for compatibility; not archiving is now the default. */
+  noBackup?: boolean;
 }
 
 export interface DbStatsOptions {
@@ -77,7 +80,12 @@ export async function runDbMigrate(options: DbMigrateOptions): Promise<void> {
 
   const stats = migrateJsonToSqlite(baseDir, {
     dryRun: false,
-    backup: !options.noBackup,
+    // `--archive` moves the JSON aside; the default leaves it. `analyze` reads
+    // `.seomator/crawls/*.json` and `report` still reads
+    // `.seomator/reports/*.json`, and nothing reads a crawl back out of
+    // project.db — so archiving by default made a recommended migration break
+    // the workflow it was recommended from.
+    backup: options.archive === true,
   });
 
   // Report results
@@ -91,7 +99,15 @@ export async function runDbMigrate(options: DbMigrateOptions): Promise<void> {
 
   if (stats.backupCreated) {
     console.log();
-    console.log(chalk.dim('Original JSON files backed up to .bak directories'));
+    console.log(chalk.dim('Original JSON files moved to .bak directories'));
+    console.log(
+      chalk.yellow('`analyze` and `report` read those files. Run `seomator db restore` to undo.')
+    );
+  } else if (stats.crawlsMigrated > 0 || stats.reportsMigrated > 0) {
+    console.log();
+    console.log(
+      chalk.dim('Original JSON files left in place: analyze and report still read them.')
+    );
   }
 
   if (stats.crawlErrors.length > 0 || stats.reportErrors.length > 0) {

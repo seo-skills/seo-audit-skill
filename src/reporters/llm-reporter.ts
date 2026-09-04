@@ -49,7 +49,16 @@ function escapeXml(text: string): string {
 /**
  * Strip invisible / dangerous Unicode characters used for prompt-injection.
  * Removes: zero-width (U+200B–U+200D, U+2060, U+FEFF), Unicode tag block
- * (U+E0000–U+E007F), and C0/C1 controls except \t \n \r.
+ * (U+E0000–U+E007F), C0/C1 controls except \t \n \r, and unpaired
+ * surrogates.
+ *
+ * The surrogate case is not about injection. A lone surrogate is not a legal
+ * XML character and does not encode to valid UTF-8, so one reaching the output
+ * makes the whole report unparseable — an agent loses the entire audit, not one
+ * field. `JSON.parse` of a page's JSON-LD accepts `"\ud800"` and yields one, and
+ * `String.fromCodePoint` here would pass it straight through. No end-to-end
+ * repro was found (HTML parsing replaces them with U+FFFD first), so this is
+ * hardening, not a fixed live bug.
  */
 function stripInvisible(text: string): string {
   let out = '';
@@ -66,7 +75,10 @@ function stripInvisible(text: string): string {
     const isZeroWidth =
       code === 0x200b || code === 0x200c || code === 0x200d || code === 0x2060 || code === 0xfeff;
     const isTagBlock = code >= 0xe0000 && code <= 0xe007f;
-    if (isControl || isZeroWidth || isTagBlock) continue;
+    // A surviving code point in the surrogate range is unpaired: a valid pair
+    // was already consumed above as a single code point > 0xFFFF.
+    const isLoneSurrogate = code >= 0xd800 && code <= 0xdfff;
+    if (isControl || isZeroWidth || isTagBlock || isLoneSurrogate) continue;
     out += String.fromCodePoint(code);
   }
   return out;

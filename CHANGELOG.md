@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`[rules] enable` / `disable` now filter the audit.** They were documented
+  with worked examples and nothing applied them. A category left with no rules
+  is dropped from the result rather than scored zero, so a narrower audit does
+  not read as a catastrophic one, and the patterns are recorded on the run so
+  `compare` reports a filter change as a run difference instead of a
+  regression. `analyze` honours the same config.
+
+  One sharp edge, now documented: the five Core Web Vitals rules in `perf` are
+  named `cwv-*`, so `disable = ["perf-*"]` leaves them running. Use
+  `["perf-*", "cwv-*"]` for the whole category.
+- **The `[crawler]` URL filter now applies.** `include`, `exclude`,
+  `allow_query_params` and `drop_query_prefixes` never reached the crawler,
+  which accepted them all along. `--preset ecommerce` excludes `/cart/**`,
+  `/checkout/**` and `/account/**`, and a crawl walked into all three. Default
+  behaviour is unchanged.
+
 - **`--config <path>` works.** It was declared on the command and on
   `AuditOptions`, and nothing read it: pointing the CLI at a config file audited
   with defaults and reported nothing unusual. A path that does not exist now
@@ -47,6 +63,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   were printed on every run and never incremented; they work now.
 
 ### Fixed
+
+- **`--refresh` and `--resume` no longer advertise features that do not exist.**
+  There is no cache to refresh — `LinkCache` is never instantiated and no rule
+  fetches an external link — and no crawl state to resume, since the `frontier`
+  table is created and never written. Both are out of `--help` and warn when
+  passed. They still parse, so existing scripts keep working and get exactly
+  what they got before: a full fresh crawl.
+- **Nine config keys that do nothing now say so.** `crawler.per_host_concurrency`,
+  `breadth_first`, `follow_redirects`, `max_prefix_budget`, the four
+  `external_links` keys, and `rule_options` are parsed and validated with
+  nothing behind them. Their defaults match real behaviour, so a default config
+  is unaffected; changing one warns. `crawler.per_host_concurrency = 8` used to
+  produce a precise range error for a setting with no implementation.
+- **`getRuleCategory()` described a taxonomy this project does not have** —
+  `meta-tags`, `core-web-vitals`, `structured-data`, `headings` — and its own
+  test asserted that taxonomy, so it passed while being wrong about every rule
+  the product ships. It now derives from the real category list, and maps
+  `cwv-*` onto `perf`.
+- **Config docs corrected:** `max_pages` was documented as 10 (it is 100),
+  `drop_query_prefixes` listed three of its five entries, and four `[crawler]`
+  keys were missing.
 
 - **A report path may name a directory that does not exist.** `audit <url> -o
   reports/out.json` failed with a bare `ENOENT` — with no config involved, and

@@ -2,7 +2,7 @@
  * Left sidebar with category navigation and count badges.
  */
 
-import type { CategoryResult } from '../../../src/types.js';
+import type { CategoryResult } from '../../src/types.js';
 import { getScoreColor } from '../lib/format.js';
 
 const CATEGORY_NAMES: Record<string, string> = {

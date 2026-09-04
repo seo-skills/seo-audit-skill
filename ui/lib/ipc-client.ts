@@ -3,7 +3,7 @@
  * Returns null when running outside Electron (e.g., plain browser on Vite dev server).
  */
 
-import type { ElectronAPI } from '../../preload/index.js';
+import type { ElectronAPI } from '../../electron/preload/index.js';
 
 declare global {
   interface Window {

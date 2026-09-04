@@ -2,6 +2,7 @@ import ora, { type Ora } from 'ora';
 import cliProgress from 'cli-progress';
 import chalk from 'chalk';
 import type { CategoryResult, RuleResult } from '../types.js';
+import type { CrawlProgress } from '../crawler/crawler.js';
 import { getCategoryById } from '../categories/index.js';
 import { getRuleCount } from '../rules/registry.js';
 
@@ -12,6 +13,8 @@ import { getRuleCount } from '../rules/registry.js';
 export class ProgressReporter {
   private spinner: Ora | null = null;
   private progressBar: cliProgress.SingleBar | null = null;
+  /** The crawl phase's own bar, replaced by `progressBar` once scoring starts */
+  private crawlBar: cliProgress.SingleBar | null = null;
   private categoryResults: Map<string, CategoryResult> = new Map();
   private isJsonMode: boolean;
   private isCrawlMode: boolean;
@@ -212,17 +215,65 @@ export class ProgressReporter {
       return;
     }
 
-    this.progressBar = new cliProgress.SingleBar(
+    // The crawl runs to completion before a single page is scored, so this
+    // bar covers the fetching. Without it the display sat at 0/N for the
+    // whole crawl and then filled in a second.
+    this.crawlBar = this.makeBar('Crawling ');
+    this.crawlBar.start(totalPages, 0, { url: 'Starting...' });
+  }
+
+  /** Build a page bar with the shared format */
+  private makeBar(label: string): cliProgress.SingleBar {
+    return new cliProgress.SingleBar(
       {
-        format: chalk.cyan('{bar}') + ' {percentage}% | {value}/{total} pages | {url}',
+        format: `${label} ` + chalk.cyan('{bar}') + ' {percentage}% | {value}/{total} pages | {url}',
         barCompleteChar: '\u2588',
         barIncompleteChar: '\u2591',
         hideCursor: true,
       },
       cliProgress.Presets.shades_classic
     );
+  }
 
-    this.progressBar.start(totalPages, 0, { url: 'Starting...' });
+  /**
+   * Report crawl discovery progress, before any page has been scored.
+   *
+   * The target grows as links are found, so the bar is re-targeted rather
+   * than allowed to jump backwards.
+   */
+  onCrawlProgress(progress: CrawlProgress): void {
+    if (!this.shouldShowProgress()) {
+      return;
+    }
+
+    if (this.isJsonMode && this.isVerbose) {
+      if (progress.done) {
+        this.log(chalk.gray(`  crawled ${progress.crawled} pages`));
+      }
+      return;
+    }
+
+    if (!this.crawlBar) return;
+
+    this.crawlBar.setTotal(Math.max(progress.total, 1));
+    this.crawlBar.update(progress.crawled, {
+      url: this.truncateUrl(progress.currentUrl || '…'),
+    });
+
+    if (progress.done) {
+      this.crawlBar.stop();
+      this.crawlBar = null;
+      console.log();
+      // Now the page count is known, so the scoring bar has a real target.
+      this.progressBar = this.makeBar('Auditing ');
+      this.progressBar.start(Math.max(progress.crawled, 1), 0, { url: 'Starting...' });
+    }
+  }
+
+  /** Shorten a URL to fit on the progress line */
+  private truncateUrl(url: string): string {
+    const maxUrlLength = 50;
+    return url.length > maxUrlLength ? url.substring(0, maxUrlLength - 3) + '...' : url;
   }
 
   /**
@@ -233,11 +284,7 @@ export class ProgressReporter {
       return;
     }
 
-    // Truncate URL if too long
-    const maxUrlLength = 50;
-    const displayUrl = url.length > maxUrlLength
-      ? url.substring(0, maxUrlLength - 3) + '...'
-      : url;
+    const displayUrl = this.truncateUrl(url);
 
     // In verbose JSON mode, log to stderr
     if (this.isJsonMode && this.isVerbose) {
@@ -292,6 +339,10 @@ export class ProgressReporter {
    * Stop any active progress indicators
    */
   stop(): void {
+    if (this.crawlBar) {
+      this.crawlBar.stop();
+      this.crawlBar = null;
+    }
     if (this.spinner) {
       this.spinner.stop();
       this.spinner = null;

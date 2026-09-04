@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
 import { fetchUrlWithRedirects } from '../../crawler/fetcher.js';
+import { rethrowIfAborted } from '../../errors.js';
 
 /**
  * Rule: Check for redirect chains in internal links
@@ -43,7 +44,7 @@ export const redirectChainsRule = defineRule({
     // Check each sampled link
     for (const url of sampled) {
       try {
-        const result = await fetchUrlWithRedirects(url, 10000, 5);
+        const result = await fetchUrlWithRedirects(url, 10000, 5, context.signal);
 
         if (result.redirectCount > 0) {
           redirectingLinks.push({
@@ -53,7 +54,8 @@ export const redirectChainsRule = defineRule({
             chain: result.chain,
           });
         }
-      } catch {
+      } catch (error) {
+        rethrowIfAborted(error, context.signal);
         // Skip errors
       }
     }

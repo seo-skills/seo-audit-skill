@@ -3,8 +3,8 @@
  */
 
 import { useState } from 'react';
-import type { CategoryResult } from '../../../src/types.js';
-import type { RuleMetadataIpc } from '../../shared/ipc-types.js';
+import type { CategoryResult } from '../../src/types.js';
+import type { RuleMetadata } from '../../electron/shared/ipc-types.js';
 import { getScoreColor } from '../lib/format.js';
 import { RuleCard } from './RuleCard.js';
 import type { FilterStatus } from './FilterTabs.js';
@@ -23,7 +23,7 @@ const CATEGORY_NAMES: Record<string, string> = {
 interface CategorySectionProps {
   category: CategoryResult;
   filter: FilterStatus;
-  ruleMetadata?: Record<string, RuleMetadataIpc>;
+  ruleMetadata?: Record<string, RuleMetadata>;
   defaultExpanded?: boolean;
 }
 

@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
-import { fetchUrl } from '../../crawler/fetcher.js';
+import { requestSignal } from '../../crawler/fetcher.js';
+import { rethrowIfAborted, throwIfAborted } from '../../errors.js';
 
 /**
  * Normalize URL for comparison (lowercase host, consistent trailing slash)
@@ -23,7 +24,8 @@ function normalizeUrl(url: string): string {
  * Returns final URL if redirect chain is detected
  */
 async function checkCanonicalRedirect(
-  canonicalUrl: string
+  canonicalUrl: string,
+  signal?: AbortSignal
 ): Promise<{
   redirects: boolean;
   statusCode: number;
@@ -31,12 +33,14 @@ async function checkCanonicalRedirect(
   chainLength: number;
   error?: string;
 }> {
+  throwIfAborted(signal);
+  const head = requestSignal(10000, signal);
   try {
     // Use fetch with redirect: 'manual' to detect redirects
     const response = await fetch(canonicalUrl, {
       method: 'HEAD',
       redirect: 'manual',
-      signal: AbortSignal.timeout(10000),
+      signal: head.signal,
     });
 
     const statusCode = response.status;
@@ -54,11 +58,13 @@ async function checkCanonicalRedirect(
 
         for (let i = 0; i < 5; i++) {
           // Max 5 redirects
+          throwIfAborted(signal);
+          const hop = requestSignal(5000, signal);
           try {
             const chainResponse = await fetch(currentUrl, {
               method: 'HEAD',
               redirect: 'manual',
-              signal: AbortSignal.timeout(5000),
+              signal: hop.signal,
             });
 
             if (chainResponse.status >= 300 && chainResponse.status < 400) {
@@ -72,8 +78,11 @@ async function checkCanonicalRedirect(
             } else {
               break;
             }
-          } catch {
+          } catch (error) {
+            rethrowIfAborted(error, signal);
             break;
+          } finally {
+            hop.dispose();
           }
         }
 
@@ -92,6 +101,7 @@ async function checkCanonicalRedirect(
       chainLength: 0,
     };
   } catch (error) {
+    rethrowIfAborted(error, signal);
     const message = error instanceof Error ? error.message : String(error);
     return {
       redirects: false,
@@ -99,6 +109,8 @@ async function checkCanonicalRedirect(
       chainLength: 0,
       error: message,
     };
+  } finally {
+    head.dispose();
   }
 }
 
@@ -146,7 +158,7 @@ export const canonicalRedirectRule = defineRule({
     const isSelfReferencing = normalizedUrl === normalizedCanonical;
 
     // Check if canonical redirects
-    const redirectInfo = await checkCanonicalRedirect(absoluteCanonical);
+    const redirectInfo = await checkCanonicalRedirect(absoluteCanonical, context.signal);
 
     const details = {
       canonical: absoluteCanonical,

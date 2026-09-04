@@ -1,6 +1,6 @@
 {
   "name": "@seomator/seo-audit",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "description": "SEOmator - Comprehensive SEO audit CLI tool with 332 rules across 20 categories",
   "type": "module",
   "bin": {
@@ -67,7 +67,7 @@
   },
   "homepage": "https://github.com/seo-skills/seo-audit-skill#readme",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.3.0"
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",

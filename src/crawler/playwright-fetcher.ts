@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { chromium, type Browser, type Page, type Request, type Response } from 'playwright';
 import type { AssetInfo, CoreWebVitals, FailedRequestInfo, RenderDiagnostics } from '../types.js';
 import { getUserAgent, MOBILE_USER_AGENT } from './user-agent.js';
+import { rethrowIfAborted, throwIfAborted } from '../errors.js';
 
 /**
  * Shape of a `web-vitals` report, narrowed to the fields we read.
@@ -39,7 +40,19 @@ async function tryLaunch(options: Parameters<typeof chromium.launch>[0]): Promis
  */
 export async function initBrowser(): Promise<Browser> {
   if (!browserPromise) {
-    browserPromise = (async () => {
+    // A failed launch must not be cached: the next audit in the same process
+    // (a second dashboard run, say) would keep failing after the user has
+    // installed the browser.
+    browserPromise = launchBrowser().catch((error: unknown) => {
+      browserPromise = null;
+      throw error;
+    });
+  }
+  return browserPromise;
+}
+
+async function launchBrowser(): Promise<Browser> {
+  return (async () => {
       const baseArgs = [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -68,19 +81,23 @@ export async function initBrowser(): Promise<Browser> {
         args: baseArgs,
       });
     })();
-  }
-  return browserPromise;
 }
 
 /**
- * Close the browser instance
- * @returns Promise that resolves when browser is closed
+ * Close the browser instance.
+ *
+ * Tolerant by design: it runs from `finally` blocks, so a browser that never
+ * launched or already died must not turn a cancellation into a second error.
  */
 export async function closeBrowser(): Promise<void> {
-  if (browserPromise) {
-    const browser = await browserPromise;
+  const pending = browserPromise;
+  browserPromise = null;
+  if (!pending) return;
+  try {
+    const browser = await pending;
     await browser.close();
-    browserPromise = null;
+  } catch {
+    // Never launched, or already gone
   }
 }
 
@@ -330,6 +347,8 @@ export interface RenderOptions {
    * than real usage, so it is reported only when explicitly requested.
    */
   simulateInteraction?: boolean;
+  /** Cancels the render: the page is closed and the call rejects */
+  signal?: AbortSignal;
 }
 
 /**
@@ -473,7 +492,9 @@ export async function fetchPageWithPlaywright(
   timeout = 30000,
   options: RenderOptions = {}
 ): Promise<PlaywrightFetchResult> {
+  throwIfAborted(options.signal);
   const browser = await initBrowser();
+  throwIfAborted(options.signal);
   // A context, not a bare page, so the render identifies itself with the same
   // User-Agent as the HTTP crawler instead of the default headless Chrome one.
   const context = await browser.newContext(
@@ -482,6 +503,12 @@ export async function fetchPageWithPlaywright(
       : { userAgent: getUserAgent() }
   );
   const page = await context.newPage();
+  // Closing the page is what makes a pending goto/evaluate reject, so a
+  // cancelled run stops mid-render instead of after the timeout.
+  const onAbort = (): void => {
+    page.close().catch(() => {});
+  };
+  options.signal?.addEventListener('abort', onAbort, { once: true });
   // Listeners must be attached before goto to see load-time errors.
   const diagnostics = collectDiagnostics(page);
   // Same timing constraint: subresource responses fire during load.
@@ -528,9 +555,13 @@ export async function fetchPageWithPlaywright(
       diagnostics,
       assets,
     };
+  } catch (error) {
+    rethrowIfAborted(error, options.signal);
+    throw error;
   } finally {
-    await page.close();
-    await context.close();
+    options.signal?.removeEventListener('abort', onAbort);
+    await page.close().catch(() => {});
+    await context.close().catch(() => {});
   }
 }
 

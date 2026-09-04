@@ -2,7 +2,7 @@
 name: seo-audit
 description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 332 rules and 20 categories, and can diff two audits to show what a deploy changed. Use when analyzing websites, debugging SEO issues, checking site health, or comparing a site before and after a change.
 license: MIT
-compatibility: Requires Node.js 20+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
+compatibility: Requires Node.js 20.3+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
 metadata:
   author: seomator
   version: "3.1"
@@ -130,7 +130,7 @@ When auditing:
    | Click depth, inbound internal links | `--crawl` (builds the site graph) |
    | Mobile-first indexing parity | `--mobile` (second render at a phone viewport) |
    | JS errors, failed subresources, Core Web Vitals | default (omit `--no-cwv`) |
-   | What a deploy changed | `--save` on both runs, then `seomator compare <domain>` |
+   | What a deploy changed | run before and after, then `seomator compare <domain>` |
 
 4. **Scope fixes as concurrent tasks** when implementing multiple fixes
 5. **Run typechecking/formatting** after implementing fixes (tsc, eslint, prettier, etc.)
@@ -202,12 +202,14 @@ seomator audit https://example.com --format llm -v
 | `--verbose` | `-v` | Show progress | false |
 | `--output <path>` | `-o` | Output file path | |
 | `--config <path>` | | Config file path | |
-| `--save` | | Save to ~/.seomator | false |
+| `--no-save` | | Do not store this audit in ~/.seomator | |
+
+Audits are stored by default, so `compare` and `report` always have history.
 
 ### Compare Command Options
 
-`seomator compare <domain>` diffs two saved audits of the same site. Both runs
-must have been saved with `audit --save`.
+`seomator compare <domain>` diffs two stored audits of the same site. Every
+audit is stored unless it ran with `--no-save`.
 
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -286,12 +288,12 @@ seomator audit https://example.com -c js,redirect --format llm
 ### Example 6: Did This Deploy Make Anything Worse?
 
 ```bash
-# Save a baseline before the change
-seomator audit https://example.com --save
+# A baseline before the change (stored automatically)
+seomator audit https://example.com
 
 # ... deploy ...
 
-seomator audit https://example.com --save
+seomator audit https://example.com
 seomator compare example.com --json
 ```
 

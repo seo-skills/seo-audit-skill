@@ -275,6 +275,16 @@ export function validateConfig(config: PartialSeomatorConfig | SeomatorConfig): 
   const outputFormat = getNestedValue(configObj, 'output.format');
   validateOutputFormat(outputFormat, errors);
 
+  // Validate output.save
+  const outputSave = getNestedValue(configObj, 'output.save');
+  if (outputSave !== undefined && typeof outputSave !== 'boolean') {
+    errors.push({
+      path: 'output.save',
+      message: 'output.save must be true or false',
+      value: outputSave,
+    });
+  }
+
   // Validate output path
   const outputPath = getNestedValue(configObj, 'output.path');
   if (outputPath !== undefined && typeof outputPath !== 'string') {

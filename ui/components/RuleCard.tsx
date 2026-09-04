@@ -6,14 +6,14 @@
  */
 
 import { useState } from 'react';
-import type { RuleResult } from '../../../src/types.js';
-import type { RuleMetadataIpc } from '../../shared/ipc-types.js';
+import type { RuleResult } from '../../src/types.js';
+import type { RuleMetadata } from '../../electron/shared/ipc-types.js';
 import { formatRuleIdAsName, getStatusIcon, getStatusColorClass } from '../lib/format.js';
 import { getFixSuggestion } from '../lib/fix-suggestions.js';
 
 interface RuleCardProps {
   rule: RuleResult;
-  metadata?: RuleMetadataIpc;
+  metadata?: RuleMetadata;
 }
 
 /** Keys to skip when rendering details (already shown elsewhere or internal) */

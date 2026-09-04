@@ -2,7 +2,17 @@ import chalk from 'chalk';
 import * as cheerio from 'cheerio';
 import { Auditor } from '../auditor.js';
 import { loadConfig } from '../config/index.js';
-import { loadCrawl, getLatestCrawl, saveReport, createReport, type StoredCrawl, type StoredPage } from '../storage/index.js';
+import {
+  loadCrawl,
+  getLatestCrawl,
+  saveReport,
+  createReport,
+  saveAuditToDatabase,
+  getAuditsDbPath,
+  type StoredCrawl,
+  type StoredPage,
+} from '../storage/index.js';
+import { resolvePersistence, SAVE_DEPRECATION_NOTICE } from './persistence.js';
 import { ProgressReporter, renderTerminalReport, outputJsonReport } from '../reporters/index.js';
 import { buildAuditResult } from '../scoring.js';
 import { loadAllRules } from '../rules/loader.js';
@@ -13,7 +23,12 @@ import type { AuditContext } from '../types.js';
 export interface AnalyzeOptions {
   categories?: string[];
   latest: boolean;
+  /** Store the analysis in the history database. True unless `--no-save`. */
   save: boolean;
+  /** True only when the user typed the deprecated `--save` flag */
+  saveExplicit?: boolean;
+  /** Also write the legacy JSON report under .seomator/reports/ */
+  jsonReport?: boolean;
   json: boolean;
   verbose: boolean;
 }
@@ -48,6 +63,16 @@ function createContextFromStoredPage(page: StoredPage): AuditContext {
 export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOptions): Promise<void> {
   const { config } = loadConfig(process.cwd());
   const baseDir = process.cwd();
+
+  const persistence = resolvePersistence({
+    save: options.save,
+    saveExplicit: options.saveExplicit ?? false,
+    jsonReport: options.jsonReport ?? false,
+    configSave: config.output.save,
+  });
+  if (persistence.deprecatedSaveFlag && !options.json) {
+    console.error(chalk.yellow(`  ${SAVE_DEPRECATION_NOTICE}`));
+  }
 
   // Load crawl data
   let crawl: StoredCrawl | null = null;
@@ -133,8 +158,7 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
 
     progress.stop();
 
-    // Save report if requested
-    if (options.save) {
+    if (persistence.legacyJson) {
       const report = createReport(
         crawl.id,
         crawl.url,
@@ -144,7 +168,35 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
         result.categoryResults
       );
       saveReport(baseDir, report);
-      console.log(chalk.green(`Report saved: ${report.id}`));
+      if (!options.json) console.log(chalk.green(`Report saved: ${report.id}`));
+    }
+
+    if (persistence.database) {
+      try {
+        const saved = saveAuditToDatabase(result, {
+          projectName: crawl.project || config.project.name || 'default',
+          config,
+          source: 'cli',
+          run: {
+            crawl: true,
+            maxPages: crawl.pages.length,
+            concurrency: config.crawler.concurrency,
+            measureCwv: false,
+            mobile: false,
+            simulateInteraction: false,
+            categories: options.categories ?? [],
+            timeout: config.crawler.timeout_ms,
+          },
+        });
+        if (!options.json) {
+          console.log(chalk.dim(`  Saved as ${saved.auditId} — compare with: seomator compare ${saved.domain}`));
+        }
+      } catch (error) {
+        console.error(
+          chalk.yellow(`  Could not store this analysis in ${getAuditsDbPath()}:`),
+          error instanceof Error ? error.message : 'unknown error'
+        );
+      }
     }
 
     // Output results

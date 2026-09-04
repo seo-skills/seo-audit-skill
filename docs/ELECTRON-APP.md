@@ -38,25 +38,23 @@ The desktop app reuses the CLI's `Auditor` class directly — no HTTP APIs, no c
 ┌─────────────────────────┼─────────────────────────────────────┐
 │  Main Process (Node.js)  │                                     │
 │                          ▼                                     │
-│  audit-bridge.ts ──► new Auditor({                            │
-│                        onCategoryStart: (id, name) => {       │
-│                          win.webContents.send(                │
-│                            'audit:progress:category-start',   │
-│                            { categoryId: id, ... }            │
-│                          );                                   │
-│                        }                                      │
-│                      })                                       │
-│                                                               │
-│  Auditor class (from src/auditor.ts)                          │
-│    └── fetchPage() → Cheerio parse → runAllCategories()       │
-│        └── 287 rules across 20 categories                     │
-│                                                               │
-│  db-bridge.ts ──► AuditsDatabase (from src/storage/)          │
-│    └── SQLite queries: listAudits, getScoreTrend, etc.        │
-└───────────────────────────────────────────────────────────────┘
+│  audit-bridge.ts ──► AuditSession (src/dashboard/)             │
+│                        .start(args) / .cancel()                │
+│                        .subscribe(state =>                     │
+│                          win.webContents.send(                 │
+│                            'audit:state', state))              │
+│                                                                │
+│  AuditSession ──► Auditor (from src/auditor.ts)                │
+│    └── fetchPage() → Cheerio parse → runAllCategories()        │
+│        └── 332 rules across 20 categories                      │
+│    └── saveAuditToDatabase(source: 'desktop')                  │
+│                                                                │
+│  db-bridge.ts ──► src/dashboard/queries.ts                     │
+│    └── getAuditDetail, listAudits, listDomains, getTrend       │
+└────────────────────────────────────────────────────────────────┘
 ```
 
-**The key insight**: The CLI's `Auditor` class already exposes a callback interface (`onCategoryStart`, `onCategoryComplete`, `onRuleComplete`, `onPageComplete`). The audit bridge simply wires those callbacks to `BrowserWindow.webContents.send()` calls, turning the CLI's synchronous callbacks into IPC event streams.
+**The key insight**: the run itself is not Electron's. `AuditSession` (`src/dashboard/audit-session.ts`) owns it — one run at a time, bounded state, real cancellation, persistence — and the bridge is only transport. That is why the same run logic serves the desktop app and the web dashboard, and why the renderer receives one whole state object per change rather than four separate event streams it has to reassemble.
 
 ---
 
@@ -75,7 +73,9 @@ electron/
 ├── preload/                      # Preload script (security boundary)
 │   └── index.ts                  # contextBridge — exposes typed electronAPI
 │
-├── renderer/                     # Renderer process (browser context — React app)
+└── (the renderer lives in `ui/`, one level up — see below)
+
+ui/                               # Renderer process (browser context — React app)
 │   ├── index.html                # HTML shell
 │   ├── main.tsx                  # React entry point
 │   ├── App.tsx                   # Root component — header + page routing
@@ -130,8 +130,8 @@ Electron applications run three isolated processes. This is fundamental to under
 - **Runs Node.js** — full access to file system, native modules, `src/` code.
 - Creates the `BrowserWindow` and manages the app lifecycle.
 - Hosts the two IPC bridges:
-  - **`audit-bridge.ts`** — instantiates the `Auditor` class from `src/auditor.ts`, streams progress events to the renderer.
-  - **`db-bridge.ts`** — wraps `AuditsDatabase` from `src/storage/audits-db/`, handles SQLite queries.
+  - **`audit-bridge.ts`** — drives the shared `AuditSession` from `src/dashboard/audit-session.ts` and streams its state to the renderer.
+  - **`db-bridge.ts`** — calls the shared read queries in `src/dashboard/queries.ts`, which the web dashboard uses too.
 - Configured in `electron/main/index.ts`:
   - Window: 1280x820, macOS hidden inset title bar, traffic lights at (16, 16).
   - `sandbox: false` is required because `better-sqlite3` is a native C++ addon.
@@ -144,10 +144,14 @@ Electron applications run three isolated processes. This is fundamental to under
 - Provides a fully typed interface (`ElectronAPI`) — the renderer never touches `ipcRenderer` directly.
 - The preload script is the **only** code that can access both Node.js APIs and the DOM.
 
-### 3. Renderer Process (`electron/renderer/`)
+### 3. Renderer Process (`ui/`)
 
 - **Standard browser context** — runs the React app. No Node.js access.
-- Communicates exclusively through `window.electronAPI` (exposed by preload).
+- Lives outside `electron/` because the web dashboard serves the same app;
+  Electron is one host of it, not its owner.
+- Under Electron it talks to `window.electronAPI` (exposed by preload). The
+  `getAPI()` seam in `ui/lib/ipc-client.ts` returns `null` anywhere else,
+  which is where the dashboard's HTTP adapter plugs in.
 - Built with Vite + React + Tailwind CSS v4.
 
 ---
@@ -156,22 +160,29 @@ Electron applications run three isolated processes. This is fundamental to under
 
 IPC channels are defined in `electron/shared/ipc-types.ts` and follow a `namespace:action` naming convention.
 
-### Audit Channels (streaming events)
+### Audit Channels
 
-These use the **send/on pattern** — fire-and-forget messages that stream in real time.
+Starting and cancelling use **invoke/handle**, so the renderer learns whether
+the run actually started. Progress arrives as one event carrying the whole run
+state.
 
 | Direction | Channel | Payload | Purpose |
 |---|---|---|---|
-| Renderer → Main | `audit:run` | `AuditRunArgs` | Start an audit |
-| Renderer → Main | `audit:cancel` | — | Abort running audit |
-| Main → Renderer | `audit:progress:category-start` | `{ categoryId, categoryName }` | Category began |
-| Main → Renderer | `audit:progress:category-complete` | `{ categoryId, categoryName, result }` | Category finished |
-| Main → Renderer | `audit:progress:rule-complete` | `{ ruleId, ruleName, result }` | Single rule finished |
-| Main → Renderer | `audit:progress:page-complete` | `{ url, pageNumber, totalPages }` | Crawled page done |
+| Renderer → Main | `audit:run` | `AuditRunArgs` → `AuditStartResult` | Start an audit; answers with `{ started, error? }` |
+| Renderer → Main | `audit:cancel` | — → `boolean` | Cancel the running audit |
+| Renderer → Main | `audit:get-state` | — → `RunState` | Current state, for a window opened mid-run |
+| Main → Renderer | `audit:state` | `RunState` | The whole run state, on every change |
 | Main → Renderer | `audit:complete` | `AuditCompletePayload` | Entire audit done |
-| Main → Renderer | `audit:error` | `string` | Error message |
+| Main → Renderer | `audit:error` | `RunError` | `{ code, message, hint? }` |
 
-The `AuditCompletePayload` includes both the full `AuditResult` and a `ruleMetadata` map (`ruleId → { name, description }`) looked up from the rule registry.
+One state event replaced four progress channels. The renderer used to
+reassemble those into its own copy of the run, which is how a crawl ended up
+appending one category row per page; now it mirrors a state the main process
+already keeps bounded.
+
+The `AuditCompletePayload` carries the full `AuditResult`, a `ruleMetadata` map
+(`ruleId → { name, description, fix }`) from the rule registry, the stored
+`auditId`, and a `saveError` when the audit finished but could not be stored.
 
 ### Database Channels (request/response)
 
@@ -179,81 +190,87 @@ These use the **invoke/handle pattern** — async request-response, like an RPC 
 
 | Channel | Args | Returns | Purpose |
 |---|---|---|---|
-| `db:list-audits` | `{ domain?, limit?, offset? }` | `AuditSummaryIpc[]` | List past audits |
-| `db:get-score-trend` | `{ domain, limit? }` | `ScoreTrendPoint[]` | Score history for charts |
+| `db:list-audits` | `{ domain?, limit?, offset? }` | `AuditSummaryDto[]` | List past audits |
+| `db:get-score-trend` | `{ domain, limit? }` | `ScoreTrendPointDto[]` | Score history for charts |
 | `db:get-audited-domains` | — | `string[]` | Unique domains audited |
+| `db:list-domains` | — | `DomainSummary[]` | One row per domain: latest audit, movement, sparkline |
+| `db:get-audit-detail` | `auditId` | `AuditDetail \| null` | A stored audit, aggregated per rule |
+| `app:get-info` | — | `AppInfoIpc` | Rule and category counts, version, capabilities, data directory |
 
 ### How the Audit Bridge Connects to `src/`
 
-The bridge works because `Auditor` already has a callback-based interface:
+The bridge holds no run state of its own. `AuditSession` owns the run and the
+bridge forwards it:
 
 ```typescript
 // In audit-bridge.ts — this is the entire connection
-currentAuditor = new Auditor({
-  measureCwv: args.options.measureCwv ?? false,
-
-  onCategoryStart: (categoryId, categoryName) => {
-    win.webContents.send('audit:progress:category-start', { categoryId, categoryName });
-  },
-
-  onCategoryComplete: (categoryId, categoryName, result) => {
-    win.webContents.send('audit:progress:category-complete', { categoryId, categoryName, result });
-  },
-
-  // ... same pattern for onRuleComplete, onPageComplete
+const session = new AuditSession({
+  source: 'desktop',
+  capabilities: DESKTOP_CAPABILITIES,
+  auditorOptions: { browserFetcher: fetchPageWithBrowserWindow },
 });
 
-// Single vs multi-page audit
-if (args.options.crawl) {
-  result = await currentAuditor.auditWithCrawl(args.url, maxPages, concurrency);
-} else {
-  result = await currentAuditor.audit(args.url);
-}
+// Every change goes to whichever window is open
+session.subscribe((state) => getWindow()?.webContents.send('audit:state', state));
+
+ipcMain.handle('audit:run', (_event, args) => session.start(args));
+ipcMain.handle('audit:cancel', () => session.cancel());
 ```
 
-No adapters, no serialization layers — the existing `Auditor` callbacks map 1:1 to IPC events.
+`DESKTOP_CAPABILITIES` reports `mobileParity` and `simulateInteraction` as
+false: pages render in a `BrowserWindow`, which measures Core Web Vitals and
+gives a rendered DOM but cannot emulate a mobile viewport or drive a synthetic
+interaction. The UI hides those options rather than offering settings that
+would quietly do nothing.
 
 ---
 
 ## State Management
 
-### Zustand Store (`audit-store.ts`)
+### Zustand Store (`ui/stores/audit-store.ts`)
 
-The audit runs as a **state machine**:
+The store **mirrors** the main process's run state rather than building its
+own from events. The state machine lives in `AuditSession`:
 
 ```
-idle ──[startAudit]──► running ──[setComplete]──► complete
-                           │
-                           └──[setError]──► error
+idle ──[start]──► running ──► complete
+                     ├──────► cancelled
+                     └──────► error
 ```
 
 State shape:
-- `status`: `'idle' | 'running' | 'complete' | 'error'`
-- `url`: Target URL being audited
-- `progress`: Live streaming data (completed categories, current category, rule count)
+- `run`: the `RunState` streamed from the main process —
+  `status`, `phase` (`crawling | auditing | saving | done`), `crawl` discovery
+  counters, `pages`, one `categories` row per category, the last 50
+  `recentRules`, the stored `auditId`, and a typed `error`
 - `result`: Full `AuditResult` (same TypeScript type from `src/types.ts`)
-- `ruleMetadata`: Rule names and descriptions from the registry
-- `error`: Error message string
+- `ruleMetadata`: Rule names, descriptions and fixes from the registry
+- `saveError`: set when a finished audit could not be stored
 
 ### Data Flow
 
 ```
 User clicks "Run"
-  └─► useAudit().run(url)
-        ├─► store.startAudit(url)           // status = 'running'
-        └─► electronAPI.runAudit({ url })    // IPC to main process
-              └─► Auditor runs...
-                    ├─► onCategoryStart  ──► store.setCategoryStart()
-                    ├─► onRuleComplete   ──► store.addRuleComplete()
-                    ├─► onCategoryComplete ──► store.setCategoryComplete()
-                    └─► audit:complete   ──► store.setComplete(result)  // status = 'complete'
+  └─► useAudit().runAudit(url)
+        └─► electronAPI.runAudit({ url })     // invoke; answers { started }
+              └─► AuditSession.start(...)      // slot reserved synchronously
+                    └─► Auditor runs...
+                          ├─► every change ──► audit:state ──► store.setRunState()
+                          ├─► saved to ~/.seomator/audits.db
+                          └─► audit:complete ──► store.setComplete(result)
+
+User clicks "Cancel"
+  └─► electronAPI.cancelAudit()
+        └─► AuditSession.cancel() → AbortSignal → fetches and renders stop
+              └─► audit:state (status: 'cancelled')
 ```
 
 ### Hooks
 
 | Hook | Purpose |
 |---|---|
-| `useAudit()` | Subscribes to IPC events, updates Zustand store, returns `{ run, cancel, status, result, progress }` |
+| `useAudit()` | Mirrors the streamed run state into the store; asks for the current state on mount so a window opened mid-run is correct. Returns `{ runAudit, cancel, status, run, result, error, saveError }` |
+| `useAppInfo()` | Rule and category counts, version, capabilities and data directory from the main process |
 | `useAuditHistory()` | Fetches audit history + score trends from SQLite via IPC |
 | `useTheme()` | Light/dark toggle persisted in localStorage |
 
@@ -294,9 +311,9 @@ The app uses **electron-vite**, which runs three parallel Vite builds:
 
 ```
 electron-vite build
-  ├── main/index.ts      → dist-electron/main/index.js        (Node.js, ESM)
-  ├── preload/index.ts   → dist-electron/preload/index.mjs    (Node.js, ESM)
-  └── renderer/index.html → dist-electron/renderer/            (Browser, React+CSS)
+  ├── electron/main/index.ts    → dist-electron/main/index.js      (Node.js, ESM)
+  ├── electron/preload/index.ts → dist-electron/preload/index.mjs  (Node.js, ESM)
+  └── ui/index.html             → dist-electron/renderer/          (Browser, React+CSS)
 ```
 
 Configuration in `electron/electron-vite.config.ts`:
@@ -304,7 +321,7 @@ Configuration in `electron/electron-vite.config.ts`:
 - **Main**: Uses `externalizeDepsPlugin()` — all `node_modules` are left as external `require()` calls, not bundled. This is critical for native modules like `better-sqlite3`.
 - **Preload**: Same externalization strategy.
 - **Renderer**: Standard Vite build with React and Tailwind plugins.
-- **Path aliases**: `@core` → `../src`, `@renderer` → `./renderer`
+- **Path aliases**: `@core` → `../src`, `@renderer` → `../ui`
 
 ---
 
@@ -379,14 +396,14 @@ npm run electron:dev
 1. Define the channel name and payload types in `electron/shared/ipc-types.ts`
 2. Add the handler in the relevant bridge (`audit-bridge.ts` or `db-bridge.ts`)
 3. Expose it through the preload script (`electron/preload/index.ts`)
-4. Call it from the renderer via `getAPI()` from `electron/renderer/lib/ipc-client.ts`
+4. Call it from the renderer via `getAPI()` from `ui/lib/ipc-client.ts`
 
 ### Adding New Pages/Components
 
-1. Create the component in `electron/renderer/components/`
-2. If it needs IPC data, create a hook in `electron/renderer/hooks/`
-3. If it needs shared state, extend the Zustand store in `electron/renderer/stores/audit-store.ts`
-4. Add routing in `electron/renderer/App.tsx`
+1. Create the component in `ui/components/`
+2. If it needs IPC data, create a hook in `ui/hooks/`
+3. If it needs shared state, extend the Zustand store in `ui/stores/audit-store.ts`
+4. Add routing in `ui/App.tsx`
 
 ---
 

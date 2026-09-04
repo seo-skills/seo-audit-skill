@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn } from '../define-rule.js';
 import { fetchUrl } from '../../crawler/fetcher.js';
+import { rethrowIfAborted } from '../../errors.js';
 
 /**
  * Rule: Check that external links are reachable (warn if unreachable)
@@ -30,7 +31,7 @@ export const externalValidRule = defineRule({
 
     for (const link of linksToCheck) {
       try {
-        const statusCode = await fetchUrl(link.href);
+        const statusCode = await fetchUrl(link.href, 10000, context.signal);
 
         // Consider link unreachable if 4xx, 5xx, or network error (0)
         if (statusCode === 0 || statusCode >= 400) {
@@ -39,7 +40,8 @@ export const externalValidRule = defineRule({
             statusCode,
           });
         }
-      } catch {
+      } catch (error) {
+        rethrowIfAborted(error, context.signal);
         unreachableLinks.push({
           href: link.href,
           statusCode: 0,

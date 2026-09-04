@@ -3,7 +3,6 @@ import type {
   DbAuditComparison,
   HydratedAuditComparison,
   CategoryDelta,
-  HydratedAudit,
   HydratedAuditCategory,
 } from '../types.js';
 import { getAuditById } from './audits.js';
@@ -107,18 +106,32 @@ function countFixedIssues(
 }
 
 /**
- * Compare two audits and store the comparison
+ * A comparison that has been computed but not stored.
+ */
+export type AuditComparison = Omit<HydratedAuditComparison, 'id' | 'comparedAt'> & {
+  /** True when both engine versions are known and differ */
+  engineChanged: boolean;
+  currentEngineVersion: string | null;
+  previousEngineVersion: string | null;
+};
+
+/**
+ * Compute the comparison between two audits. Reads only.
+ *
+ * `seomator compare` and the dashboard call this; a read should never leave a
+ * row behind. The save path calls `recordComparison()` to store the result of
+ * this function once, inside its own transaction.
  *
  * @param db - Database instance
  * @param currentAuditId - Current audit database ID
  * @param previousAuditId - Previous audit database ID
- * @returns Comparison record
+ * @returns The comparison, or null when either audit is missing
  */
-export function compareAudits(
+export function buildComparison(
   db: Database.Database,
   currentAuditId: number,
   previousAuditId: number
-): HydratedAuditComparison | null {
+): AuditComparison | null {
   const currentAudit = getAuditById(db, currentAuditId);
   const previousAudit = getAuditById(db, previousAuditId);
 
@@ -135,6 +148,41 @@ export function compareAudits(
   const newIssuesCount = countNewIssues(db, currentAuditId, previousAuditId);
   const fixedIssuesCount = countFixedIssues(db, currentAuditId, previousAuditId);
 
+  const engineChanged =
+    currentAudit.engineVersion !== null &&
+    previousAudit.engineVersion !== null &&
+    currentAudit.engineVersion !== previousAudit.engineVersion;
+
+  return {
+    currentAuditId,
+    previousAuditId,
+    domain: currentAudit.domain,
+    scoreDelta,
+    categoryDeltas,
+    newIssuesCount,
+    fixedIssuesCount,
+    engineChanged,
+    currentEngineVersion: currentAudit.engineVersion,
+    previousEngineVersion: previousAudit.engineVersion,
+  };
+}
+
+/**
+ * Compute and store the comparison between two audits.
+ *
+ * @param db - Database instance
+ * @param currentAuditId - Current audit database ID
+ * @param previousAuditId - Previous audit database ID
+ * @returns Stored comparison record, or null when either audit is missing
+ */
+export function recordComparison(
+  db: Database.Database,
+  currentAuditId: number,
+  previousAuditId: number
+): HydratedAuditComparison | null {
+  const comparison = buildComparison(db, currentAuditId, previousAuditId);
+  if (!comparison) return null;
+
   const result = db
     .prepare(
       `
@@ -149,11 +197,11 @@ export function compareAudits(
     .get(
       currentAuditId,
       previousAuditId,
-      currentAudit.domain,
-      scoreDelta,
-      JSON.stringify(categoryDeltas),
-      newIssuesCount,
-      fixedIssuesCount
+      comparison.domain,
+      comparison.scoreDelta,
+      JSON.stringify(comparison.categoryDeltas),
+      comparison.newIssuesCount,
+      comparison.fixedIssuesCount
     ) as DbAuditComparison;
 
   return hydrateComparison(result);
@@ -205,25 +253,39 @@ export function getComparisonsByDomain(
 }
 
 /**
- * Get score trend for a domain
+ * One point of a domain's score history.
+ */
+export interface ScoreTrendPoint {
+  auditId: string;
+  score: number;
+  date: Date;
+  /** null for audits stored before 3.4.0 */
+  engineVersion: string | null;
+}
+
+/**
+ * Get score trend for a domain, oldest first.
+ *
+ * This is the only place the order is reversed; consumers must not reverse
+ * again.
  *
  * @param db - Database instance
  * @param domain - Domain name
  * @param limit - Number of audits to include
- * @returns Array of scores with dates
+ * @returns Array of scores with dates, oldest first
  */
 export function getScoreTrend(
   db: Database.Database,
   domain: string,
   limit = 10
-): Array<{ auditId: string; score: number; date: Date }> {
+): ScoreTrendPoint[] {
   const rows = db
     .prepare(
       `
-    SELECT audit_id, overall_score, started_at
+    SELECT audit_id, overall_score, started_at, engine_version
     FROM audits
     WHERE domain = ? AND status = 'completed'
-    ORDER BY started_at DESC
+    ORDER BY started_at DESC, id DESC
     LIMIT ?
   `
     )
@@ -231,13 +293,17 @@ export function getScoreTrend(
     audit_id: string;
     overall_score: number;
     started_at: string;
+    engine_version: string | null;
   }>;
 
-  return rows.map((r) => ({
-    auditId: r.audit_id,
-    score: r.overall_score,
-    date: parseSqliteUtc(r.started_at),
-  })).reverse(); // Oldest first for trend display
+  return rows
+    .map((r) => ({
+      auditId: r.audit_id,
+      score: r.overall_score,
+      date: parseSqliteUtc(r.started_at),
+      engineVersion: r.engine_version ?? null,
+    }))
+    .reverse();
 }
 
 /**

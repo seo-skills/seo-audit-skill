@@ -2,7 +2,7 @@
  * CSS grid of CategoryBar components for all audited categories.
  */
 
-import type { CategoryResult } from '../../../src/types.js';
+import type { CategoryResult } from '../../src/types.js';
 import { CategoryBar } from './CategoryBar.js';
 
 // Category display names (matches src/categories/index.ts)

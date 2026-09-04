@@ -1,5 +1,6 @@
 import { gunzipSync } from 'node:zlib';
 import { getUserAgent } from './user-agent.js';
+import { rethrowIfAborted, throwIfAborted } from '../errors.js';
 import type { SitemapEntry, SitemapFetchResult } from '../types.js';
 
 /**
@@ -30,12 +31,13 @@ function isGzip(bytes: Uint8Array): boolean {
  * served as `application/gzip` is a gzip *payload*, not a gzip encoding, and
  * arrives compressed.
  */
-async function fetchSitemapDocument(url: string): Promise<string | null> {
+async function fetchSitemapDocument(url: string, signal?: AbortSignal): Promise<string | null> {
+  throwIfAborted(signal);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const response = await fetch(url, {
-      signal: controller.signal,
+      signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
       headers: { 'User-Agent': getUserAgent() },
     });
     if (!response.ok) return null;
@@ -49,7 +51,8 @@ async function fetchSitemapDocument(url: string): Promise<string | null> {
       }
     }
     return new TextDecoder('utf-8').decode(bytes);
-  } catch {
+  } catch (error) {
+    rethrowIfAborted(error, signal);
     return null;
   } finally {
     clearTimeout(timeoutId);
@@ -162,7 +165,8 @@ export function parseSitemapDeclarations(robotsTxtContent: string): string[] {
  */
 export async function fetchSitemap(
   siteUrl: string,
-  robotsTxtContent?: string
+  robotsTxtContent?: string,
+  signal?: AbortSignal
 ): Promise<SitemapFetchResult> {
   const empty: SitemapFetchResult = {
     urls: [],
@@ -209,7 +213,7 @@ export async function fetchSitemap(
     if (seen.has(start)) continue;
     seen.add(start);
 
-    const xml = await fetchSitemapDocument(start);
+    const xml = await fetchSitemapDocument(start, signal);
     if (xml === null) continue;
 
     sources.push(start);
@@ -227,7 +231,7 @@ export async function fetchSitemap(
         seen.add(child);
         childBudget--;
 
-        const childXml = await fetchSitemapDocument(child);
+        const childXml = await fetchSitemapDocument(child, signal);
         if (childXml === null) continue;
         sources.push(child);
         collectEntries(child, childXml);

@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail } from '../define-rule.js';
 import { fetchUrl } from '../../crawler/fetcher.js';
+import { rethrowIfAborted } from '../../errors.js';
 
 /**
  * Extracts the base URL (origin) from a full URL
@@ -28,7 +29,7 @@ export const robotsTxtExistsRule = defineRule({
     const robotsTxtUrl = `${baseUrl}/robots.txt`;
 
     try {
-      const statusCode = await fetchUrl(robotsTxtUrl);
+      const statusCode = await fetchUrl(robotsTxtUrl, 10000, context.signal);
 
       if (statusCode === 200) {
         return pass(
@@ -52,6 +53,7 @@ export const robotsTxtExistsRule = defineRule({
         { url: robotsTxtUrl, statusCode }
       );
     } catch (error) {
+      rethrowIfAborted(error, context.signal);
       const message = error instanceof Error ? error.message : String(error);
       return fail(
         'technical-robots-txt-exists',

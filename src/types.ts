@@ -509,6 +509,15 @@ export interface AuditContext {
    * be answered.
    */
   site?: SiteContext;
+
+  // --- Run control ---
+
+  /**
+   * Fires when the run is cancelled. Rules that make their own requests pass
+   * it to `fetchUrl()` so an in-flight check stops with the run instead of
+   * finishing in the background.
+   */
+  signal?: AbortSignal;
 }
 
 /**

@@ -261,6 +261,26 @@ export interface DbFrontier {
 export type AuditStatus = 'running' | 'completed' | 'failed';
 
 /**
+ * Which surface produced an audit.
+ */
+export type AuditSource = 'cli' | 'dashboard' | 'desktop' | 'api';
+
+/**
+ * The options an audit ran with, recorded so a run can be repeated the same
+ * way and so a stored audit can explain itself.
+ */
+export interface AuditRunOptions {
+  crawl: boolean;
+  maxPages: number;
+  concurrency: number;
+  measureCwv: boolean;
+  mobile: boolean;
+  simulateInteraction: boolean;
+  categories: string[];
+  timeout: number;
+}
+
+/**
  * Audit record - represents a complete SEO audit
  */
 export interface DbAudit {
@@ -280,6 +300,12 @@ export interface DbAudit {
   started_at: string;
   completed_at: string | null;
   status: AuditStatus;
+  /** NULL on rows written before 3.4.0 */
+  source: string | null;
+  /** NULL on rows written before 3.4.0 */
+  engine_version: string | null;
+  /** NULL on rows written before 3.4.0 */
+  run_json: string | null;
 }
 
 /**
@@ -302,6 +328,12 @@ export interface HydratedAudit {
   startedAt: Date;
   completedAt: Date | null;
   status: AuditStatus;
+  /** null for audits stored before 3.4.0 */
+  source: AuditSource | null;
+  /** null for audits stored before 3.4.0 — shown as "unknown", never as "changed" */
+  engineVersion: string | null;
+  /** null for audits stored before 3.4.0 */
+  run: AuditRunOptions | null;
 }
 
 /**
@@ -321,6 +353,8 @@ export interface AuditSummary {
   startedAt: Date;
   completedAt: Date | null;
   status: AuditStatus;
+  source: AuditSource | null;
+  engineVersion: string | null;
 }
 
 /**
@@ -374,6 +408,12 @@ export interface DbAuditResult {
   message: string;
   details_json: string | null;
   executed_at: string;
+  /**
+   * The rule's declared weight for this result. 0 marks a check that could not
+   * take a reading (see `notMeasured()`); NULL on rows written before 3.4.0,
+   * which are read as weight 1 — the behaviour they had.
+   */
+  weight: number | null;
 }
 
 /**
@@ -392,6 +432,36 @@ export interface HydratedAuditResult {
   message: string;
   details: Record<string, unknown> | null;
   executedAt: Date;
+  /** See `DbAuditResult.weight`; null means "written before 3.4.0" */
+  weight: number | null;
+}
+
+/**
+ * One rule of one audit, aggregated across every page it ran on.
+ *
+ * This is what the dashboard and `report` show: a 1,000-page crawl produces
+ * ~332,000 result rows but only ~330 of these.
+ */
+export interface StoredRuleSummary {
+  categoryId: string;
+  ruleId: string;
+  ruleName: string;
+  /** Worst status among measured pages; 'warn' when nothing was measured */
+  status: RuleResultStatus;
+  /** Score of the worst measured page; 50 when nothing was measured */
+  score: number;
+  /** Message of the worst measured page */
+  message: string;
+  details: Record<string, unknown> | null;
+  totalPages: number;
+  /** Pages where the rule took a reading (weight not 0) */
+  measuredPages: number;
+  /** Measured pages that did not pass */
+  affectedPages: number;
+  /** True when every page row has weight 0 */
+  notMeasured: boolean;
+  /** Up to five pages, worst first */
+  samplePages: Array<{ pageUrl: string; status: RuleResultStatus; message: string }>;
 }
 
 /**
@@ -606,6 +676,9 @@ export interface CreateAuditInput {
   crawlId?: string;
   startUrl: string;
   config?: PartialSeomatorConfig;
+  source?: AuditSource;
+  engineVersion?: string;
+  run?: AuditRunOptions;
 }
 
 /**
@@ -633,6 +706,8 @@ export interface InsertResultInput {
   score: number;
   message: string;
   details?: Record<string, unknown>;
+  /** Defaults to 1; pass 0 for a not-measured result */
+  weight?: number;
 }
 
 /**

@@ -13,8 +13,10 @@ import {
   renderBanner,
 } from '../reporters/index.js';
 import { loadConfig } from '../config/index.js';
+import { AuditAbortedError, classifyError } from '../errors.js';
 import { setUserAgent } from '../crawler/user-agent.js';
-import { saveReport, createReport, generateId, saveAuditToDatabase } from '../storage/index.js';
+import { saveReport, createReport, generateId, saveAuditToDatabase, getAuditsDbPath } from '../storage/index.js';
+import { resolvePersistence, SAVE_DEPRECATION_NOTICE } from './persistence.js';
 
 /**
  * Output formats the audit command can render.
@@ -40,7 +42,12 @@ export interface AuditOptions {
   refresh: boolean;
   resume: boolean;
   config?: string;
+  /** Store the audit in the history database. True unless `--no-save`. */
   save: boolean;
+  /** True only when the user typed the deprecated `--save` flag */
+  saveExplicit?: boolean;
+  /** Also write the legacy JSON report under .seomator/reports/ */
+  jsonReport?: boolean;
   format?: OutputFormat;
   output?: string;
 }
@@ -59,7 +66,6 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   const selectedCategories: string[] = options.categories ?? [];
   const maxPages: number = options.maxPages;
   const concurrency: number = options.concurrency;
-  const shouldSave = options.save;
   const outputPath = options.output;
 
   // Load config
@@ -74,12 +80,36 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   // Apply the configured identity to every request this run makes
   setUserAgent(config.crawler.user_agent);
 
+  const persistence = resolvePersistence({
+    save: options.save,
+    saveExplicit: options.saveExplicit ?? false,
+    jsonReport: options.jsonReport ?? false,
+    configSave: config.output.save,
+  });
+  if (persistence.deprecatedSaveFlag && !isJsonMode) {
+    console.error(chalk.yellow(`  ${SAVE_DEPRECATION_NOTICE}`));
+  }
+
   // Create progress reporter
   const progress = new ProgressReporter({
     json: isJsonMode,
     crawl: isCrawlMode,
     verbose: isVerbose,
   });
+
+  // Ctrl-C now stops the run rather than leaving the process to die with
+  // requests in flight and a half-drawn progress bar.
+  const controller = new AbortController();
+  const onInterrupt = (): void => {
+    if (!controller.signal.aborted) {
+      controller.abort();
+      progress.stop();
+      console.error();
+      console.error(chalk.yellow('Cancelling…'));
+    }
+  };
+  process.on('SIGINT', onInterrupt);
+  process.on('SIGTERM', onInterrupt);
 
   try {
     // Show banner (only for console output)
@@ -118,6 +148,10 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       onPageComplete: (pageUrl, pageNumber, totalPages) => {
         progress.onPageComplete(pageUrl, pageNumber, totalPages);
       },
+      onCrawlProgress: (crawlProgress) => {
+        progress.onCrawlProgress(crawlProgress);
+      },
+      signal: controller.signal,
     });
 
     let result;
@@ -143,8 +177,8 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       console.log(chalk.green(`\u2713 Audited ${result.crawledPages} ${pageText} in ${elapsedSec}s`));
     }
 
-    // Save report if requested
-    if (shouldSave) {
+    // The legacy per-project JSON report, on request only
+    if (persistence.legacyJson) {
       const report = createReport(
         '', // No crawl ID for inline audits
         url,
@@ -154,25 +188,37 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
         result.categoryResults
       );
       saveReport(process.cwd(), report);
+    }
 
-      // Also record in the audits database, which is what `seomator compare`
-      // and score trends read. Never let a storage failure lose the report the
-      // user is waiting on.
+    // The history database, which `seomator compare`, `seomator report` and
+    // the desktop app read. On by default; never let a storage failure lose
+    // the report the user is waiting on, and never hide the failure either.
+    if (persistence.database) {
       try {
         const saved = saveAuditToDatabase(result, {
           projectName: config.project.name || 'default',
           config,
+          source: 'cli',
+          run: {
+            crawl: isCrawlMode,
+            maxPages: config.crawler.max_pages,
+            concurrency: config.crawler.concurrency,
+            measureCwv,
+            mobile: mobileParity,
+            simulateInteraction,
+            categories: selectedCategories,
+            timeout: config.crawler.timeout_ms,
+          },
         });
         if (outputFormat === 'console') {
           console.log(chalk.dim(`  Saved as ${saved.auditId} — compare with: seomator compare ${saved.domain}`));
         }
       } catch (error) {
-        if (isVerbose) {
-          console.error(
-            chalk.yellow('  Could not write to the audits database:'),
-            error instanceof Error ? error.message : 'unknown error'
-          );
-        }
+        console.error(
+          chalk.yellow(`  Could not store this audit in ${getAuditsDbPath()}:`),
+          error instanceof Error ? error.message : 'unknown error'
+        );
+        console.error(chalk.dim('  The report below is complete. Run `seomator self doctor` to check the data directory.'));
       }
     }
 
@@ -229,14 +275,31 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   } catch (error) {
     progress.stop();
 
+    if (error instanceof AuditAbortedError) {
+      if (!isJsonMode) {
+        console.error(chalk.yellow('Audit cancelled.'));
+      } else {
+        console.log(JSON.stringify({ error: true, code: 'aborted', message: 'Audit cancelled' }, null, 2));
+      }
+      process.exitCode = 130;
+      return;
+    }
+
+    const audited = classifyError(error);
+
     if (!isJsonMode) {
       console.error();
-      console.error(chalk.red('Error: ') + (error instanceof Error ? error.message : 'Unknown error'));
+      console.error(chalk.red('Error: ') + audited.message);
+      if (audited.hint) {
+        console.error(chalk.dim(`  ${audited.hint}`));
+      }
       console.error();
     } else {
       const errorOutput = {
         error: true,
-        message: error instanceof Error ? error.message : 'Unknown error',
+        code: audited.code,
+        message: audited.message,
+        ...(audited.hint && { hint: audited.hint }),
         timestamp: new Date().toISOString(),
       };
       console.log(JSON.stringify(errorOutput, null, 2));
@@ -244,5 +307,8 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
 
     // Same reason as the success path: let stdout drain before the process ends.
     process.exitCode = 2;
+  } finally {
+    process.off('SIGINT', onInterrupt);
+    process.off('SIGTERM', onInterrupt);
   }
 }

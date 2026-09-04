@@ -1,7 +1,8 @@
 import { Command, InvalidArgumentError } from 'commander';
 import { getCategoryIds } from './categories/index.js';
 import { getVersion } from './version.js';
-import { OUTPUT_FORMATS } from './commands/audit.js';
+import { OUTPUT_FORMATS, type AuditOptions } from './commands/audit.js';
+import type { AnalyzeOptions } from './commands/analyze.js';
 import { CONFIG_PRESETS } from './config/writer.js';
 
 /** Formats the `report` command can render. */
@@ -142,8 +143,16 @@ program
   .option('-r, --refresh', 'Ignore cache, fetch all pages fresh', false)
   .option('--resume', 'Resume interrupted crawl', false)
   .option('--config <path>', 'Config file path')
-  .option('--save', 'Save report to .seomator/reports/', false)
-  .action(runAudit);
+  // --no-save must be declared before --save so the default stays true.
+  .option('--no-save', 'Do not store this audit in the history database')
+  .option('--save', 'Deprecated: also write the legacy JSON report (use --json-report)')
+  .option('--json-report', 'Also write the legacy JSON report to .seomator/reports/', false)
+  .action((url: string, options: AuditOptions, command: Command) =>
+    runAudit(url, {
+      ...options,
+      saveExplicit: command.getOptionValueSource('save') === 'cli' && options.save === true,
+    })
+  );
 
 // Init command
 program
@@ -176,10 +185,17 @@ program
   .description('Run rules on stored crawl data')
   .option('-c, --categories <list>', 'Categories to analyze', parseCategories)
   .option('--latest', 'Use most recent crawl', false)
-  .option('--save', 'Save report', false)
+  .option('--no-save', 'Do not store this analysis in the history database')
+  .option('--save', 'Deprecated: also write the legacy JSON report (use --json-report)')
+  .option('--json-report', 'Also write the legacy JSON report to .seomator/reports/', false)
   .option('-j, --json', 'Output as JSON', false)
   .option('-v, --verbose', 'Show progress', false)
-  .action(runAnalyze);
+  .action((crawlId: string | undefined, options: AnalyzeOptions, command: Command) =>
+    runAnalyze(crawlId, {
+      ...options,
+      saveExplicit: command.getOptionValueSource('save') === 'cli' && options.save === true,
+    })
+  );
 
 // Report command
 program

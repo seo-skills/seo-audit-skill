@@ -11,7 +11,7 @@ npm install -g @seomator/seo-audit
 This installs the `seomator` command globally.
 
 **Requirements:**
-- Node.js 20+
+- Node.js 20.3+
 - Chrome, Chromium, or Edge (for Core Web Vitals - auto-detected)
 
 After installation, run `seomator self doctor` to verify everything is set up correctly.

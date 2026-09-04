@@ -53,6 +53,26 @@ export interface AuditOptions {
   output?: string;
 }
 
+/**
+ * Formats whose job is to put a document on stdout.
+ *
+ * Progress display, completion lines and anything else chatty must stay off
+ * stdout for these, or the document is not parseable. This started life as
+ * `json || llm` inline, so `--format markdown` printed the terminal progress
+ * summary to stdout while the real report went to a file nobody asked for.
+ *
+ * Exported so the rule can be tested directly. A test that restates the list is
+ * a test of its own copy.
+ */
+export function isDocumentFormat(outputFormat: string): boolean {
+  return (
+    outputFormat === 'json' ||
+    outputFormat === 'llm' ||
+    outputFormat === 'html' ||
+    outputFormat === 'markdown'
+  );
+}
+
 export async function runAudit(url: string, options: AuditOptions): Promise<void> {
   // Determine output format (--format takes precedence over --json)
   const outputFormat = options.format ?? (options.json ? 'json' : 'console');
@@ -60,18 +80,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   // `--format llm` exists so an agent can read stdout. A failure that prints
   // only to stderr leaves that agent with an empty string, which reads exactly
   // like a clean audit.
-  // Every format whose job is to put a document on stdout. Progress display,
-  // completion lines and anything else chatty must stay off stdout for these,
-  // or the document is not parseable.
-  //
-  // This covered json and llm only, so `--format markdown` printed the terminal
-  // progress summary to stdout while the real report went to a file nobody
-  // asked for.
-  const isMachineMode =
-    isJsonMode ||
-    outputFormat === 'llm' ||
-    outputFormat === 'html' ||
-    outputFormat === 'markdown';
+  const isMachineMode = isDocumentFormat(outputFormat);
   const isCrawlMode = options.crawl;
   const isVerbose = options.verbose;
   const measureCwv = options.cwv !== false;

@@ -329,11 +329,54 @@ export function validateConfig(config: PartialSeomatorConfig | SeomatorConfig): 
     });
   }
 
+  // Report a rule filter that will not be applied, rather than accepting it
+  // silently and running all 332 rules anyway.
+  const rulesSection = getNestedValue(configObj, 'rules') as
+    | { enable?: string[]; disable?: string[] }
+    | undefined;
+  if (selectsRuleSubset(rulesSection)) {
+    warnings.push({
+      path: 'rules',
+      message: UNAPPLIED_RULE_FILTER_NOTICE,
+      value: rulesSection,
+    });
+  }
+
   return {
     valid: errors.length === 0,
     errors,
     warnings,
   };
+}
+
+/**
+ * What `[rules]` currently does, which is nothing.
+ *
+ * `enable` and `disable` are parsed, type-checked, merged and printed by
+ * `seomator config`, and `docs/configuration.md` documents them with worked
+ * examples. No caller ever consults them: `filterRules()` and
+ * `isRuleEnabled()` in `src/rules/pattern-matcher.ts` are exported, tested,
+ * and dead. Every rule runs on every audit whatever the file says.
+ *
+ * Silently ignoring a documented setting is worse than not offering it, so it
+ * is reported until something applies it. See TODOS.md.
+ */
+export const UNAPPLIED_RULE_FILTER_NOTICE =
+  'rules.enable / rules.disable are not applied yet — every rule runs regardless. ' +
+  'Use --categories to narrow an audit.';
+
+/**
+ * Whether `[rules]` asks for anything other than "run everything".
+ *
+ * The default is `enable = ["*"]`, and an empty `enable` also means all rules,
+ * so neither is a request the tool is failing to honour.
+ */
+export function selectsRuleSubset(rules: { enable?: string[]; disable?: string[] } | undefined): boolean {
+  if (!rules) return false;
+  const enable = rules.enable ?? [];
+  const disable = rules.disable ?? [];
+  const narrowsByEnable = enable.length > 0 && !(enable.length === 1 && enable[0] === '*');
+  return narrowsByEnable || disable.length > 0;
 }
 
 /**

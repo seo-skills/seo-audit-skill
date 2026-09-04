@@ -46,10 +46,6 @@ export function getPresetConfig(preset: ConfigPreset): PartialSeomatorConfig {
           delay_ms: 0,
           respect_robots: false,
         },
-        rules: {
-          enable: ['meta-tags/*', 'security/*', 'links/*'],
-          disable: [],
-        },
         external_links: {
           enabled: false,
           cache_ttl_days: 7,

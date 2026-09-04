@@ -14,6 +14,7 @@ import {
   renderBanner,
 } from '../reporters/index.js';
 import { loadConfig } from '../config/index.js';
+import { selectsRuleSubset, UNAPPLIED_RULE_FILTER_NOTICE } from '../config/validator.js';
 import type { OutputConfig } from '../config/schema.js';
 import { AuditAbortedError, classifyError } from '../errors.js';
 import { setUserAgent } from '../crawler/user-agent.js';
@@ -137,13 +138,21 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   // seomator.toml were read, displayed by `seomator config`, and then never
   // consulted — `init --preset ci` writes both, and produced a coloured console
   // banner on stdout and no file.
-  const { config } = loadConfig(process.cwd(), {
+  const { config, configPath } = loadConfig(process.cwd(), {
     crawler: {
       max_pages: maxPages,
       concurrency,
       timeout_ms: options.timeout,
     },
   });
+
+  // A config asking for a subset of rules gets all 332 anyway. Say so on the
+  // run it affects, not only when someone happens to type `seomator config`:
+  // stderr, so a redirected document is still only the document.
+  if (selectsRuleSubset(config.rules)) {
+    const where = configPath ? ` (${configPath})` : '';
+    console.error(chalk.yellow(`Warning${where}: ${UNAPPLIED_RULE_FILTER_NOTICE}`));
+  }
 
   const { format: outputFormat, path: outputPath } = resolveOutputTarget(options, config.output);
 

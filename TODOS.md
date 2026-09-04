@@ -37,10 +37,35 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
 
 - **`--config`, `--refresh` and `--resume` are accepted and ignored.** `cli.ts:144`
   exposes them; `runAudit` forwards none. Either wire them or remove them.
-- **`output.format` / `output.path` in `seomator.toml` are documented and ignored**,
-  because format resolves before config is read (`audit.ts:56`). Config also accepts
-  `text`, which `audit` does not. One `resolveAuditOptions()` layer with explicit
-  precedence, and one shared format enum.
+- ~~**`output.format` / `output.path` in `seomator.toml` are documented and ignored**~~
+  **Fixed by /qa on main, 2026-09-04** (`6d90f0d`). `resolveOutputTarget()` now
+  resolves below `loadConfig` with flag > file > default, and maps the config-only
+  `text` onto `console`. `format` and `path` resolve as one instruction: a `--format`
+  override drops the config path, because inheriting it wrote a markdown report into
+  a file named `audit.json` and left stdout empty. The wider `resolveAuditOptions()`
+  layer is still worth doing for `--config`/`--refresh`/`--resume` above.
+- ~~**`-o` cannot write into a directory that does not exist**~~ **Fixed by /qa on
+  main, 2026-09-04** (`6d90f0d`). `audit <url> -o reports/out.json` died with a bare
+  ENOENT with no config involved, and `--preset ci` ships that exact path. The four
+  duplicated write sites are now one `writeReport()` that creates the parent first.
+- **`[rules] enable` / `disable` are documented and do nothing.** `docs/configuration.md`
+  gives them a table and worked examples; `isRuleEnabled()` and `filterRules()` in
+  `src/rules/pattern-matcher.ts` are exported, tested, and have no caller outside
+  their own tests. Every rule runs whatever the file says. /qa (2026-09-04) made this
+  loud rather than silent — `seomator config validate` and every affected audit run
+  now warn — and dropped the inert block from the `ci` preset, whose patterns
+  (`meta-tags/*`) used the wrong separator against a category that does not exist,
+  so they matched zero rules even in principle.
+
+  Wiring it is a **scoring change, not a config change**, which is why /qa stopped at
+  the warning: a 40-rule audit scoring 78 is not comparable to a 332-rule audit
+  scoring 78. Doing it properly means filtering in `runAllCategories`, deciding what
+  a category with every rule filtered out scores, and adding the filter to
+  `AuditRunOptions` + `LABELS`/`MATERIAL` in `storage/audits-db/run-profile.ts` so
+  `compare` reports the runs as not like-for-like — which is exactly what that module
+  already does for `categories`. Also fix `getRuleCategory()` in `pattern-matcher.ts`,
+  whose hardcoded list (`meta-tags`, `core-web-vitals`, `structured-data`, `headings`)
+  describes a taxonomy this codebase does not have.
 - ~~**`http-error` is declared, hinted, and never thrown.**~~ **Fixed by /qa on
   main, 2026-09-04** (`568dd44`). A 404 scored 87/100 in practice. The guard sits
   beside the `non-html` one and reports the final URL after redirects;

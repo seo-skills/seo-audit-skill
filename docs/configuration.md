@@ -92,10 +92,17 @@ Controls how SEOmator crawls websites.
 
 Enable or disable specific audit rules.
 
+> **Not applied yet.** These keys are parsed and validated, and nothing acts on
+> them: every rule runs on every audit whatever this section says.
+> `seomator config validate` and any audit run that reads a config using them
+> print a warning. To narrow an audit today, use `--categories`. Tracked in
+> `TODOS.md` — applying a rule filter has to record itself in the run profile
+> first, so `compare` does not read a filtered score as a regression.
+
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `enable` | string[] | ["*"] | Rules to enable (supports wildcards) |
-| `disable` | string[] | [] | Rules to disable (supports wildcards) |
+| `enable` | string[] | ["*"] | Rules to enable (supports wildcards) — not applied |
+| `disable` | string[] | [] | Rules to disable (supports wildcards) — not applied |
 
 **Wildcard Examples:**
 
@@ -107,6 +114,8 @@ disable = [
   "a11y-color-contrast",          # Disable specific rule
   "content-word-count",
 ]
+# Patterns match rule ids, which are `<category>-<name>`. The separator is `-`,
+# not `/`, and the category is one of the 20 real ids (see the list above).
 ```
 
 ### [external_links]

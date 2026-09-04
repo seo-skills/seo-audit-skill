@@ -315,6 +315,24 @@ export class Auditor {
       throw new AuditError('non-html', unauditable);
     }
 
+    // Same reasoning one step earlier: a 404 is not a page to score. It was
+    // fetched, parsed and audited like any other document, so a typo'd URL came
+    // back with a confident 87/100 for a page that does not exist — and most
+    // rules pass when the thing they check is absent, so the score reads
+    // healthy rather than obviously wrong.
+    //
+    // Reported with the final URL after redirects, because a 301 to a 404 is
+    // the case where the address the user typed is not the address that failed.
+    if (fetchResult.statusCode >= 400) {
+      const chain = fetchResult.redirectChain;
+      const finalUrl = chain && chain.length > 0 ? chain[chain.length - 1].url : url;
+      const via = finalUrl !== url ? ` (redirected to ${finalUrl})` : '';
+      throw new AuditError(
+        'http-error',
+        `The page returned HTTP ${fetchResult.statusCode}${via}.`
+      );
+    }
+
     // Get Core Web Vitals and rendered DOM if enabled
     let cwv: CoreWebVitals = {};
     let renderedHtml: string | undefined;

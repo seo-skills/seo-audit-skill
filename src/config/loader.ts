@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { AuditError } from '../errors.js';
 import * as TOML from '@iarna/toml';
 import type { SeomatorConfig, PartialSeomatorConfig } from './schema.js';
 import { getDefaultConfig } from './defaults.js';
@@ -109,7 +110,8 @@ function loadJsonSettings(filePath: string): PartialSeomatorConfig {
  */
 export function loadConfig(
   startDir: string = process.cwd(),
-  cliOverrides: PartialSeomatorConfig = {}
+  cliOverrides: PartialSeomatorConfig = {},
+  explicitConfigPath?: string
 ): { config: SeomatorConfig; configPath: string | null } {
   // Start with defaults
   let config = getDefaultConfig();
@@ -117,6 +119,21 @@ export function loadConfig(
   // Merge global settings
   const globalSettings = loadJsonSettings(getGlobalSettingsPath());
   config = mergeConfigs(config, globalSettings);
+
+  // `--config <path>` names a file instead of searching for one. A path that
+  // does not exist is an error rather than a silent fall back to the search:
+  // a typo would otherwise audit with defaults and report nothing unusual,
+  // which is how the flag behaved when it was accepted and ignored entirely.
+  if (explicitConfigPath !== undefined) {
+    const resolved = path.resolve(startDir, explicitConfigPath);
+    if (!fs.existsSync(resolved)) {
+      throw new AuditError('config', `Config file not found: ${explicitConfigPath}`);
+    }
+    config = mergeConfigs(config, parseConfigFile(resolved));
+    config = mergeConfigs(config, loadJsonSettings(getProjectSettingsPath(startDir)));
+    config = mergeConfigs(config, cliOverrides);
+    return { config, configPath: resolved };
+  }
 
   // Find and merge TOML config
   const configPath = findConfigFile(startDir);

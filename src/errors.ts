@@ -15,6 +15,7 @@ export type AuditErrorCode =
   | 'http-error'
   | 'playwright-missing'
   | 'no-pages'
+  | 'config'
   | 'aborted'
   | 'unknown';
 
@@ -23,6 +24,7 @@ const HINTS: Partial<Record<AuditErrorCode, string>> = {
   timeout: 'Try again, raise --timeout, or audit without --crawl.',
   'non-html': 'Point the audit at an HTML page rather than a file, API or feed.',
   'http-error': 'Make sure the URL is publicly reachable and returns 200.',
+  config: 'Check the --config path, or drop the flag to search for seomator.toml.',
   'playwright-missing': 'Run `npx playwright install chromium`, or pass --no-cwv to skip the browser render.',
   'no-pages': 'The crawl found nothing to audit. Check robots.txt, the include/exclude patterns and that the start URL links to other pages.',
 };

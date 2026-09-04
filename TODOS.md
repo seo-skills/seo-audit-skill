@@ -35,8 +35,16 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
 
 ### P2 — CLI correctness, outside the design blast radius
 
-- **`--config`, `--refresh` and `--resume` are accepted and ignored.** `cli.ts:144`
-  exposes them; `runAudit` forwards none. Either wire them or remove them.
+- **`--refresh` and `--resume` are accepted and ignored.** `cli.ts:144` exposes
+  them; `runAudit` forwards neither. Either wire them or remove them. These are
+  crawler semantics (cache bypass, interrupted-crawl resume), not config plumbing.
+- ~~**`--config` is accepted and ignored**~~ **Fixed by /qa on main, 2026-09-04**
+  (`ISSUE-007`). `loadConfig()` takes an explicit path that wins over the upward
+  search, and a path that does not exist throws `AuditError('config')` instead of
+  falling back to defaults — a typo used to audit with defaults and report nothing
+  unusual. The audit command's error rendering moved into `reportAuditError()` so a
+  config failure, which happens before the run starts, produces the same message,
+  hint and exit 2 as every other error rather than a Node stack trace and exit 1.
 - ~~**`output.format` / `output.path` in `seomator.toml` are documented and ignored**~~
   **Fixed by /qa on main, 2026-09-04** (`6d90f0d`). `resolveOutputTarget()` now
   resolves below `loadConfig` with flag > file > default, and maps the config-only

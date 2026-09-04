@@ -67,6 +67,58 @@ export interface AuditOptions {
  * a test of its own copy.
  */
 /**
+ * Render a failure in whatever shape the caller is reading.
+ *
+ * Shared by the audit's own catch and by config loading, which happens before
+ * the run starts. A bad `--config` path used to escape as an unhandled throw:
+ * a typo printed a Node stack trace and exited 1, while every other error in
+ * this command produced a message, a hint and exit 2.
+ */
+function reportAuditError(
+  error: unknown,
+  url: string,
+  isMachineMode: boolean,
+  isJsonMode: boolean
+): void {
+  const audited = classifyError(error);
+
+  if (!isMachineMode) {
+    console.error();
+    console.error(chalk.red('Error: ') + audited.message);
+    if (audited.hint) {
+      console.error(chalk.dim(`  ${audited.hint}`));
+    }
+    console.error();
+  } else if (!isJsonMode) {
+    console.log(
+      renderLlmError({
+        url,
+        code: audited.code,
+        message: audited.message,
+        ...(audited.hint && { hint: audited.hint }),
+      })
+    );
+  } else {
+    console.log(
+      JSON.stringify(
+        {
+          error: true,
+          code: audited.code,
+          message: audited.message,
+          ...(audited.hint && { hint: audited.hint }),
+          timestamp: new Date().toISOString(),
+        },
+        null,
+        2
+      )
+    );
+  }
+
+  // Same reason as the success path: let stdout drain before the process ends.
+  process.exitCode = 2;
+}
+
+/**
  * Decide which format to render and where to put it.
  *
  * Precedence is flag > config file > default. This used to be computed before
@@ -138,13 +190,29 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   // seomator.toml were read, displayed by `seomator config`, and then never
   // consulted — `init --preset ci` writes both, and produced a coloured console
   // banner on stdout and no file.
-  const { config, configPath } = loadConfig(process.cwd(), {
-    crawler: {
-      max_pages: maxPages,
-      concurrency,
-      timeout_ms: options.timeout,
-    },
-  });
+  // How to report a failure that happens before the config is known. The
+  // config can change the output format, but a config that failed to load
+  // cannot, so the flags alone are the right view here.
+  const cliFormat: OutputFormat = options.format ?? (options.json ? 'json' : 'console');
+
+  let loaded;
+  try {
+    loaded = loadConfig(
+      process.cwd(),
+      {
+        crawler: {
+          max_pages: maxPages,
+          concurrency,
+          timeout_ms: options.timeout,
+        },
+      },
+      options.config
+    );
+  } catch (error) {
+    reportAuditError(error, url, isDocumentFormat(cliFormat), cliFormat === 'json');
+    return;
+  }
+  const { config, configPath } = loaded;
 
   // A config asking for a subset of rules gets all 332 anyway. Say so on the
   // run it affects, not only when someone happens to type `seomator config`:
@@ -381,37 +449,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       return;
     }
 
-    const audited = classifyError(error);
-
-    if (!isMachineMode) {
-      console.error();
-      console.error(chalk.red('Error: ') + audited.message);
-      if (audited.hint) {
-        console.error(chalk.dim(`  ${audited.hint}`));
-      }
-      console.error();
-    } else if (!isJsonMode) {
-      console.log(
-        renderLlmError({
-          url,
-          code: audited.code,
-          message: audited.message,
-          ...(audited.hint && { hint: audited.hint }),
-        })
-      );
-    } else {
-      const errorOutput = {
-        error: true,
-        code: audited.code,
-        message: audited.message,
-        ...(audited.hint && { hint: audited.hint }),
-        timestamp: new Date().toISOString(),
-      };
-      console.log(JSON.stringify(errorOutput, null, 2));
-    }
-
-    // Same reason as the success path: let stdout drain before the process ends.
-    process.exitCode = 2;
+    reportAuditError(error, url, isMachineMode, isJsonMode);
   } finally {
     process.off('SIGINT', onInterrupt);
     process.off('SIGTERM', onInterrupt);

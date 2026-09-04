@@ -41,15 +41,20 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
   because format resolves before config is read (`audit.ts:56`). Config also accepts
   `text`, which `audit` does not. One `resolveAuditOptions()` layer with explicit
   precedence, and one shared format enum.
-- **`http-error` is declared, hinted, and never thrown.** A 404 start URL is fetched,
-  parsed, scored and reported as a normal audit. Throw on `>= 400` in single-page mode
-  with the status and the final URL after redirects.
+- ~~**`http-error` is declared, hinted, and never thrown.**~~ **Fixed by /qa on
+  main, 2026-09-04** (`568dd44`). A 404 scored 87/100 in practice. The guard sits
+  beside the `non-html` one and reports the final URL after redirects;
+  regression test covers 400/404/410/500/503.
 - **`--fail-under <n>`** instead of the hardcoded `score >= 70` exit code
   (`audit.ts:274`). Lighthouse CI separates collection from assertion; every team whose
   site scores 68 currently has to wrap the CLI in `jq`.
-- **`html` and `markdown` write a file even without `-o`**, so piping them yields an
-  empty pipe and a stray `seo-report-<id>.html` in the cwd. Four formats stream, two do
-  not, and nothing documents the asymmetry.
+- ~~**`html` and `markdown` write a file even without `-o`**~~ **Fixed by /qa on
+  main, 2026-09-04** (`91bd17f`). Worse than recorded: the pipe was not empty, it
+  carried the terminal progress summary, so `--format markdown > report.md`
+  produced a file of coloured category lines. All four document formats now
+  stream, `-o` is the only thing that writes a file, and save confirmations go to
+  stderr. **Behaviour change** — anything globbing `seo-report-*.html` must pass
+  `-o`; version call still open.
 - **Exit code 130 is undocumented.** The README table lists 0/1/2; SIGINT also emits 130.
 - **Deprecation notices have no removal version**, and `--save`'s notice is suppressed in
   JSON mode — the only users affected are the ones scripting it.

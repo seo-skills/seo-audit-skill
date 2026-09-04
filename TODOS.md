@@ -35,6 +35,31 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
 
 ### P2 — CLI correctness, outside the design blast radius
 
+- **The SEO fundamentals are the lowest-weighted rules in the product.** Found by /qa
+  on 2026-09-04. `<html><body><p>x</p></body></html>` — no title, description, lang,
+  viewport, canonical or h1 — scores **84/100**, and `core` scores 85 with 9 failures
+  against 13 passes.
+
+  `core-title-present`, `core-description-present`, `core-canonical-present`,
+  `core-viewport-present` and `core-h1-present` are all weight **1**, the bottom of a
+  scale that runs to 25. `core-title-unique` is 5, so "your title is duplicated" is
+  weighted 5x "you have no title". Ten canonical edge-case rules at weight 6-8 pass
+  vacuously on a page with no canonical, contributing ~63 weight-points at 100.
+
+  Measured: treating those ten as not-measured takes `core` from 85.4 to 56.2 and the
+  overall from 84.2 to 81.0. **The weighting is the defensible half of this** — the
+  pass-vs-not-measured question is a design call, since the 68 files using
+  `notMeasured` do so for missing instrumentation data, not for an absent subject.
+  It reads as an oversight because the product weights presence checks heavily
+  elsewhere: `schema-present` 25, `images-alt-present` 20, `core-title-present` 1.
+
+  Not changed by /qa: it is an SEO judgement call and it moves every stored score, so
+  it needs a version marker or `compare` reads it as a site regression.
+
+- **`analyze` and `compare` return 1 for both an error and a low score.** `audit` uses
+  2 for errors and 1 for "score under 70", so an agent can distinguish them there and
+  not here. Aligning the three is a contract change; small, but it needs a version note.
+
 - **Nine config keys are parsed, validated, and not acted on.** Found by sweeping all
   30 leaf keys in `schema.ts` for a consumer. Unlike the keys fixed on 2026-09-04,
   each of these has a default matching real behaviour, so only changing one is

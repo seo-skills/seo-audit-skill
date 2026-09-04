@@ -64,6 +64,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`analyze --json` emitted status lines before the payload.** Four
+  human-readable lines went to stdout in front of the JSON, so `JSON.parse`
+  failed on the first character and every agent calling it got nothing usable.
+  Status now goes to stderr, as it already did in `audit`.
+- **Machine-mode errors are parseable everywhere.** `analyze --json`,
+  `compare --json` and `report --format json` used to leave stdout completely
+  empty on a failure, so an agent could not tell a missing crawl from a crash.
+  All three now emit the `{"error": true, "code": …}` object `audit` already
+  did. `report --format json` with no matches emits `[]` instead of a sentence
+  on stdout under a success exit code, and distinguishes "nothing stored" from
+  "nothing matched that filter".
+- **`compare` closes its database on every path.** Three error paths called
+  `process.exit(1)`, which skips the `finally` that calls
+  `closeAuditsDatabase()`, so the SQLite handle stayed open and the WAL was
+  never checkpointed.
+- **An analysed audit records its rule filter**, so `compare` no longer reads a
+  filtered analysis as like-for-like against a full audit.
+- **The skill no longer tells agents to use `--refresh` and `--resume`.**
+  `skill/SKILL.md` documented both with a section, a table row and a worked
+  example, and neither does anything. An agent told to resume an interrupted
+  crawl restarted it from nothing and reported that it resumed. A test now
+  fails if any live doc mentions a flag on the unimplemented list.
+- **Lone surrogates are stripped from the LLM report.** One is not a legal XML
+  character and does not encode to valid UTF-8, so it would have cost an agent
+  the whole audit rather than one field. Hardening: no end-to-end repro found.
+
 - **`--refresh` and `--resume` no longer advertise features that do not exist.**
   There is no cache to refresh — `LinkCache` is never instantiated and no rule
   fetches an external link — and no crawl state to resume, since the `frontier`

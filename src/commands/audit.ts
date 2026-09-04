@@ -14,6 +14,7 @@ import {
   renderBanner,
 } from '../reporters/index.js';
 import { loadConfig } from '../config/index.js';
+import { toUrlFilterOptions } from '../config/url-filter-options.js';
 import { selectsRuleSubset, RULE_FILTER_NOTICE } from '../config/validator.js';
 import { warnUnimplementedFlags } from './unimplemented-flags.js';
 import type { OutputConfig } from '../config/schema.js';
@@ -296,6 +297,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       mobileParity,
       simulateInteraction,
       respectRobots: config.crawler.respect_robots,
+      urlFilter: toUrlFilterOptions(config.crawler),
       enableRules: config.rules.enable,
       disableRules: config.rules.disable,
       delayMs: config.crawler.delay_ms,

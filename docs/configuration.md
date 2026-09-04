@@ -76,17 +76,26 @@ Controls how SEOmator crawls websites.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `max_pages` | number | 10 | Maximum pages to crawl |
+| `max_pages` | number | 100 | Maximum pages to crawl |
 | `concurrency` | number | 3 | Concurrent requests |
 | `timeout_ms` | number | 30000 | Request timeout in milliseconds |
 | `respect_robots` | boolean | true | Honor robots.txt directives |
-| `delay_ms` | number | 100 | Delay between requests |
+| `delay_ms` | number | 100 | Minimum gap between the start of any two requests |
+| `per_host_delay_ms` | number | 200 | Minimum gap between requests to one host |
 | `user_agent` | string | "" | Custom user agent (empty = random browser UA) |
-| `include` | string[] | [] | URL patterns to include (glob) |
+| `include` | string[] | [] | URL patterns to include (glob); empty means all |
 | `exclude` | string[] | [] | URL patterns to exclude (glob) |
-| `drop_query_prefixes` | string[] | ["utm_", "gclid", "fbclid"] | Query params to strip |
+| `drop_query_prefixes` | string[] | ["utm_", "gclid", "fbclid", "mc_", "_ga"] | Query params to strip before comparing URLs |
 | `allow_query_params` | string[] | [] | Query params to keep (empty = all except dropped) |
-| `max_prefix_budget` | number | 0.25 | Max fraction of crawl for single path prefix |
+| `per_host_concurrency` | number | 2 | **Not implemented** — concurrency is global, not per host |
+| `breadth_first` | boolean | true | **Not implemented** — the queue is always breadth-first |
+| `follow_redirects` | boolean | true | **Not implemented** — redirects are always followed, up to a hop limit |
+| `max_prefix_budget` | number | 0.25 | **Not implemented** — no prefix budget is applied |
+
+The four marked **Not implemented** are parsed and validated, and nothing acts
+on them. Each default matches what the crawler really does, so leaving them
+alone costs nothing; changing one has no effect and
+`seomator config validate` says so.
 
 ### [rules]
 
@@ -127,12 +136,17 @@ disable = [
 
 External link checking configuration.
 
+> **Not implemented.** No rule requests an external link, and the link cache is
+> never opened, so none of these keys does anything. `seomator config validate`
+> warns if you change one. The rules in the `links` category count and inspect
+> external links found in the HTML; they do not fetch them.
+
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `enabled` | boolean | true | Check external links |
-| `cache_ttl_days` | number | 7 | Days to cache link check results |
-| `timeout_ms` | number | 10000 | External link timeout |
-| `concurrency` | number | 5 | Concurrent external link checks |
+| `enabled` | boolean | true | Check external links — not implemented |
+| `cache_ttl_days` | number | 7 | Days to cache link check results — not implemented |
+| `timeout_ms` | number | 10000 | External link timeout — not implemented |
+| `concurrency` | number | 5 | Concurrent external link checks — not implemented |
 
 ### [output]
 

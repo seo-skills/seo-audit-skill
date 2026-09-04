@@ -30,6 +30,7 @@ import {
 import { buildPageSnapshot } from './page-snapshot.js';
 import { AuditError, rethrowIfAborted, throwIfAborted } from './errors.js';
 import { getUserAgent } from './crawler/user-agent.js';
+import type { UrlFilterOptions } from './crawler/url-filter.js';
 import { fetchSitemap } from './crawler/sitemap.js';
 import {
   buildCategoryResult,
@@ -129,6 +130,11 @@ export interface AuditorOptions {
   /** Whether a crawl obeys the site's robots.txt. Defaults to true. */
   respectRobots?: boolean;
   /**
+   * Which URLs a crawl may visit and how they are normalised, from the
+   * `[crawler]` include/exclude and query-parameter keys.
+   */
+  urlFilter?: Partial<UrlFilterOptions>;
+  /**
    * Rule id patterns to run, from `rules.enable`. Empty (or `['*']`) means
    * every rule, matching the config default.
    */
@@ -191,6 +197,7 @@ export class Auditor {
       respectRobots: options.respectRobots ?? true,
       // 0 rather than the config's 100/200: a programmatic Auditor is not
       // silently slowed down. The CLI passes the configured values.
+      urlFilter: options.urlFilter ?? {},
       enableRules: options.enableRules ?? [],
       disableRules: options.disableRules ?? [],
       delayMs: options.delayMs ?? 0,
@@ -473,6 +480,7 @@ export class Auditor {
       concurrency,
       timeout: this.options.timeout,
       respectRobots: this.options.respectRobots,
+      urlFilter: this.options.urlFilter,
       delayMs: this.options.delayMs,
       perHostDelayMs: this.options.perHostDelayMs,
       ...(this.options.signal && { signal: this.options.signal }),

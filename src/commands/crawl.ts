@@ -4,6 +4,7 @@ import { loadConfig } from '../config/index.js';
 import { setUserAgent } from '../crawler/user-agent.js';
 import { saveCrawl, createCrawl, type StoredPage } from '../storage/index.js';
 import { warnUnimplementedFlags } from './unimplemented-flags.js';
+import { toUrlFilterOptions } from '../config/url-filter-options.js';
 
 export interface CrawlOptions {
   maxPages?: number;
@@ -41,6 +42,9 @@ export async function runCrawl(url: string, options: CrawlOptions): Promise<void
     concurrency: config.crawler.concurrency,
     timeout: config.crawler.timeout_ms,
     respectRobots: config.crawler.respect_robots,
+    urlFilter: toUrlFilterOptions(config.crawler),
+    delayMs: config.crawler.delay_ms,
+    perHostDelayMs: config.crawler.per_host_delay_ms,
     onProgress: (progress) => {
       if (options.verbose) {
         const truncatedUrl = progress.currentUrl.length > 50

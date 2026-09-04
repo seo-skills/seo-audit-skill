@@ -35,6 +35,27 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
 
 ### P2 — CLI correctness, outside the design blast radius
 
+- **Nine config keys are parsed, validated, and not acted on.** Found by sweeping all
+  30 leaf keys in `schema.ts` for a consumer. Unlike the keys fixed on 2026-09-04,
+  each of these has a default matching real behaviour, so only changing one is
+  misleading — `seomator config validate` now warns, the docs mark them, and
+  `src/config/validator.ts` holds the list as data so it cannot drift.
+
+  - `crawler.per_host_concurrency` — concurrency is global. Needs a per-host in-flight
+    count in the crawler's worker loop, next to the politeness scheduling already there.
+  - `crawler.breadth_first` — the queue is `push`/`shift`, always breadth-first.
+    Depth-first is `pop()`, but the frontier ordering should be one decision with
+    `max_prefix_budget`.
+  - `crawler.follow_redirects` — `fetcher.ts` follows by hand with a hop limit so the
+    redirect chain can be recorded. Honouring `false` means stopping at the first hop
+    and deciding what `redirect-*` rules report then.
+  - `crawler.max_prefix_budget` — no prefix budget exists. It is the guard against a
+    crawl spending all 100 pages inside `/blog/`.
+  - `external_links.*` (4 keys) and `--refresh` — one missing feature, external link
+    checking. See the entry above.
+  - `rule_options` — per-rule options never reach a rule. `AuditContext` would need to
+    carry them, and `defineRule()` a way to declare what a rule accepts.
+
 - ~~**`crawler.delay_ms` and `crawler.per_host_delay_ms` are declared and unread**~~
   **Fixed by /qa on main, 2026-09-04** (`ISSUE-009`). Both were defaulted,
   range-validated and written by `init --preset ci`, and no crawler code read either:

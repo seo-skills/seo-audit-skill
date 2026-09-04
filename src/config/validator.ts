@@ -1,4 +1,5 @@
 import type { PartialSeomatorConfig, SeomatorConfig } from './schema.js';
+import { getDefaultConfig } from './defaults.js';
 
 /**
  * Validation error/warning details
@@ -343,11 +344,63 @@ export function validateConfig(config: PartialSeomatorConfig | SeomatorConfig): 
     });
   }
 
+  validateUnhonouredKeys(configObj, getDefaultConfig() as unknown as Record<string, unknown>, warnings);
+
   return {
     valid: errors.length === 0,
     errors,
     warnings,
   };
+}
+
+/**
+ * Config keys this build parses, validates, and does not act on.
+ *
+ * Each one's default matches what the crawler actually does, so a default
+ * config is not misleading — `breadth_first = true` describes a FIFO queue
+ * that really is breadth-first, and `follow_redirects = true` describes a
+ * fetcher that really does follow them. Changing one is what does nothing, so
+ * that is when this warns.
+ *
+ * Kept as data rather than prose in the docs, so a key cannot be implemented
+ * and left listed here, or added to the schema and never listed.
+ */
+const UNHONOURED_KEYS: Array<{ path: string; effect: string }> = [
+  { path: 'crawler.per_host_concurrency', effect: 'concurrency is global, not per host' },
+  { path: 'crawler.breadth_first', effect: 'the queue is always breadth-first' },
+  { path: 'crawler.follow_redirects', effect: 'redirects are always followed, up to the hop limit' },
+  { path: 'crawler.max_prefix_budget', effect: 'no prefix budget is applied' },
+  { path: 'external_links.enabled', effect: 'no external link is ever requested' },
+  { path: 'external_links.cache_ttl_days', effect: 'the link cache is never opened' },
+  { path: 'external_links.timeout_ms', effect: 'no external link is ever requested' },
+  { path: 'external_links.concurrency', effect: 'no external link is ever requested' },
+  { path: 'rule_options', effect: 'rules do not receive per-rule options' },
+];
+
+/**
+ * Warn about a key that was changed from its default and will not be acted on.
+ *
+ * Silence here is what let seven settings look like they worked — see the /qa
+ * report of 2026-09-04. Each of these is scoped in TODOS.md.
+ */
+function validateUnhonouredKeys(
+  configObj: Record<string, unknown>,
+  defaults: Record<string, unknown>,
+  warnings: ValidationError[]
+): void {
+  for (const { path, effect } of UNHONOURED_KEYS) {
+    const value = getNestedValue(configObj, path);
+    if (value === undefined) continue;
+
+    const fallback = getNestedValue(defaults, path);
+    if (JSON.stringify(value) === JSON.stringify(fallback)) continue;
+
+    warnings.push({
+      path,
+      message: `${path} is not implemented and has no effect — ${effect}`,
+      value,
+    });
+  }
 }
 
 /**

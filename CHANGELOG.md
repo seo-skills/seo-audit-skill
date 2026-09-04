@@ -247,6 +247,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`listAudits`, `getAuditDetail`, `listDomains`, `getTrend`, `compareStored`,
   `diffRules`) with their result types.
 
+- **PRD for the local web dashboard (`seomator serve`).** `docs/PRD-local-web-dashboard.md`
+  specifies a loopback HTTP server that lists stored audits, compares them, and
+  runs new ones from the browser, reusing the Electron renderer through a typed
+  `DashboardAPI` with an HTTP adapter. It was taken through a four-phase
+  `/autoplan` review (CEO, design, developer experience, engineering) with two
+  outside models; the review found ten defects in the existing storage and
+  cancel paths (opt-in persistence, a 1,000-row cap on stored detail, a
+  comparison that writes on read, a cosmetic cancel) and sequences their fixes
+  as a 3.4.0 foundations release before the dashboard ships in 3.5.0.
+  `TODOS.md` was created with the deferred items.
+
 - **The real SEOmator mark ships through the desktop app.** The app icon was a
   generic dark "S" and the in-app header drew a gradient square with the letter
   S beside the product name — placeholders for artwork the project already

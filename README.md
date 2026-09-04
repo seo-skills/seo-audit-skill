@@ -153,8 +153,6 @@ Run SEO audit on a URL.
 | `--mobile` | - | Second render at a mobile viewport + mobile-first parity checks (single-page) | false |
 | `--simulate-interaction` | - | Scroll and click the page so INP can be measured (reported as synthetic, unscored) | false |
 | `--verbose` | `-v` | Show progress | false |
-| `--refresh` | `-r` | Ignore cache, fetch fresh | false |
-| `--resume` | - | Resume interrupted crawl | false |
 | `--config <path>` | - | Config file path | - |
 | `--no-save` | - | Do not store this audit in your history | - |
 | `--json-report` | - | Also write the legacy JSON report to .seomator/reports/ | false |
@@ -203,8 +201,6 @@ Crawl website without running analysis. Saves data for later analysis with `seom
 
 ```bash
 seomator crawl https://example.com -m 20
-seomator crawl https://example.com --refresh
-seomator crawl https://example.com --resume
 ```
 
 ### `seomator analyze [crawl-id]`

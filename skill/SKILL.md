@@ -160,16 +160,6 @@ seomator audit https://example.com --crawl -m 20 --format llm
 
 ### Advanced Options
 
-Force fresh crawl (ignore cache):
-```bash
-seomator audit https://example.com --refresh --format llm
-```
-
-Resume interrupted crawl:
-```bash
-seomator audit https://example.com --resume --format llm
-```
-
 Audit specific categories only:
 ```bash
 seomator audit https://example.com -c core,security,js --format llm --no-cwv
@@ -195,8 +185,6 @@ seomator audit https://example.com --format llm -v
 | `--max-pages <n>` | `-m` | Maximum pages to crawl | 10 |
 | `--crawl` | | Enable multi-page crawl | false |
 | `--categories <list>` | `-c` | Comma-separated categories to audit | All |
-| `--refresh` | `-r` | Ignore cache, fetch fresh | false |
-| `--resume` | | Resume interrupted crawl | false |
 | `--no-cwv` | | Skip Core Web Vitals + JS rendering | false |
 | `--mobile` | | Render mobile viewport + mobile-first parity (single-page) | false |
 | `--verbose` | `-v` | Show progress | false |
@@ -275,7 +263,8 @@ seomator audit https://example.com --crawl -m 100 --format llm --no-cwv
 
 ```bash
 # User asks: "Re-audit the site, ignore cached results"
-seomator audit https://example.com --refresh --format llm --no-cwv
+# Every run fetches every page fresh — there is no cache to bypass.
+seomator audit https://example.com --format llm --no-cwv
 ```
 
 ### Example 4: Generate Shareable Report

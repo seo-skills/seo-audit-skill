@@ -167,7 +167,6 @@ The HTML report includes:
 Ignore cache and fetch all pages fresh:
 
 ```bash
-seomator audit https://example.com --refresh
 ```
 
 ### 6. Filter categories

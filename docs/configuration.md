@@ -221,8 +221,6 @@ CLI options override config file settings:
 | `-f, --format <type>` | `output.format` | Output format |
 | `-o, --output <path>` | `output.path` | Output file path |
 | `--no-cwv` | - | Skip Core Web Vitals |
-| `-r, --refresh` | - | Ignore cache |
-| `--resume` | - | Resume interrupted crawl |
 
 ## URL Filtering
 

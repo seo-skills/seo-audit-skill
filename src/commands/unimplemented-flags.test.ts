@@ -83,3 +83,50 @@ describe('the flags are not advertised', () => {
     expect(UNIMPLEMENTED_FLAGS.map((f) => f.key).sort()).toEqual(['refresh', 'resume']);
   });
 });
+
+describe('the docs do not teach them either', () => {
+  // ISSUE-018: `skill/SKILL.md` is what an agent reads to drive this tool, and
+  // it carried a "Force fresh crawl (ignore cache)" section, a "Resume
+  // interrupted crawl" section, a row for each flag in the options table, and a
+  // worked example mapping "Re-audit the site, ignore cached results" onto
+  // `--refresh`. An agent following it reported bypassing a cache that does not
+  // exist. README.md, docs/quickstart.md and docs/configuration.md said the
+  // same. Nothing guarded prose against a flag that stopped existing.
+  const ROOT = new URL('../../', import.meta.url).pathname;
+
+  /** Docs a user or agent reads as current instructions. */
+  const LIVE_DOCS = [
+    'SKILL.md',
+    'skill/SKILL.md',
+    'README.md',
+    'docs/quickstart.md',
+    'docs/configuration.md',
+  ];
+
+  it.each(LIVE_DOCS)('%s does not tell anyone to use them', async (doc) => {
+    const { readFileSync, existsSync } = await import('node:fs');
+    const path = ROOT + doc;
+    if (!existsSync(path)) return;
+    const text = readFileSync(path, 'utf8');
+
+    for (const { flags } of UNIMPLEMENTED_FLAGS) {
+      const flag = flags.split(', ').pop()!;
+      const lines = text
+        .split('\n')
+        .map((l, i) => [i + 1, l] as const)
+        .filter(([, l]) => l.includes(flag));
+      expect(lines, `${doc} still documents ${flag}:\n${lines.map(([n, l]) => `  ${n}: ${l}`).join('\n')}`).toEqual(
+        []
+      );
+    }
+  });
+
+  it('leaves the PRD alone, because it records what was true when written', async () => {
+    const { readFileSync, existsSync } = await import('node:fs');
+    const path = ROOT + 'docs/PRD-design-system.md';
+    if (!existsSync(path)) return;
+    // That PRD predicted this exact finding. Rewriting it would falsify the
+    // record, which is why it is not in LIVE_DOCS.
+    expect(readFileSync(path, 'utf8')).toContain('--refresh');
+  });
+});

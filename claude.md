@@ -36,7 +36,7 @@ The `package.json` serves **both** the npm CLI package and the Electron desktop 
 5. `npm publish --access public`
 6. The `prepublishOnly` script auto-runs `npm run build` before publish
 
-Published as `@seomator/seo-audit` on npm. Current version: **3.3.0**.
+Published as `@seomator/seo-audit` on npm. Current version: **3.5.0**.
 
 ### better-sqlite3 Native Module ABI
 
@@ -82,6 +82,37 @@ npm run electron:dev   # Dev mode with Vite HMR + Electron hot reload
 npm run electron:build # Production build (main + preload + renderer)
 npm run electron:pack  # Build + package into distributable
 ```
+
+### Local Web Dashboard (`seomator serve`)
+
+```bash
+npm run web:build      # Build the browser bundle into dist/web
+npm run web:dev        # API (node --watch) + Vite dev server, concurrently
+./dist/cli.js serve    # Serve stored audits on 127.0.0.1:7360
+```
+
+The dashboard and the Electron app render **the same React code** from `ui/`.
+The only difference is the transport behind `getAPI()`: Electron supplies the
+IPC bridge, the browser gets an HTTP adapter. A change in `ui/` affects both —
+build and check both before assuming a UI fix is done.
+
+`serve` mints a per-launch token, sets it as an `HttpOnly` cookie on every
+document response, and writes it to `$SEOMATOR_HOME/serve.json` (0600) for
+scripted access as `X-SEOmator-Token`. Restarting the server invalidates any
+open tab's cookie: the UI detects the 401 and asks for a reload, because
+retrying the same fetch can never pick up a new cookie.
+
+### Docs and token drift
+
+```bash
+npm run check:docs     # Rule/category totals and version across the docs
+npm run check:tokens   # ui/styles/tokens.css matches src/design/tokens.ts
+```
+
+Both run in `prepublishOnly`. `src/design/tokens.ts` is the single source for
+every colour; `ui/styles/tokens.css` is generated from it by a Vite plugin at
+`buildStart`. Never edit the generated file, and never put a hex literal in
+`ui/` — a test rejects both.
 
 ## Architecture
 
@@ -143,10 +174,14 @@ core(11%), perf(10%), links(8%), images(8%), security(8%), a11y(7%), technical(7
 - `src/reporters/` - Output formatters (console, json, html, markdown, llm)
 - `src/storage/` - SQLite persistence (project-db, audits-db, link-cache)
 - `src/config/` - TOML config loading, validation, presets
+- `src/dashboard/` - `seomator serve`: HTTP server, routes, SSE, run session, read queries
+- `src/design/` - `tokens.ts`, the single source for every colour on every surface
+- `ui/` - **Top level, not under `electron/`.** The React app rendered by *both*
+  the desktop app and the web dashboard: pages, components, hooks, stores.
+  Anything changed here ships to both surfaces.
 - `electron/` - Electron desktop app (does NOT modify `src/`)
   - `electron/main/` - Main process: BrowserWindow, IPC handlers, audit/db bridges
   - `electron/preload/` - contextBridge exposing typed `electronAPI`
-  - `ui/` - React UI shared by the desktop app and the web dashboard: pages, components, hooks, stores
   - `electron/shared/` - IPC type definitions shared between main and renderer
 
 ### Electron Desktop App Architecture

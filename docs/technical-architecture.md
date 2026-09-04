@@ -657,5 +657,5 @@ export function generateMyReport(report: AuditReport): string {
 ## Next Steps
 
 - [Configuration](./configuration.md) - Config options reference
-- [SEO Audit Rules](./SEO-AUDIT-RULES.md) - All 148 rules
+- [SEO Audit Rules](./SEO-AUDIT-RULES.md) - All 332 rules
 - [Storage Architecture](./STORAGE-ARCHITECTURE.md) - Database details

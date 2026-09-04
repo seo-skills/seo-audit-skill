@@ -335,4 +335,4 @@ See [Storage Architecture](./STORAGE-ARCHITECTURE.md) for details.
 
 - [Quickstart](./quickstart.md) - Run your first audit
 - [AI Agent Integration](./ai-agent-integration.md) - Use with Claude Code
-- [Rules Reference](./SEO-AUDIT-RULES.md) - All 148 rules explained
+- [Rules Reference](./SEO-AUDIT-RULES.md) - All 332 rules explained

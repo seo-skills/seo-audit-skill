@@ -1,6 +1,6 @@
 # SEOmator Documentation
 
-> Comprehensive SEO audit CLI tool with 148 rules across 16 categories
+> Comprehensive SEO audit CLI tool with 332 rules across 20 categories
 
 ## Getting Started
 
@@ -21,7 +21,7 @@
 | Document | Description |
 |----------|-------------|
 | [Technical Architecture](./technical-architecture.md) | How SEOmator works under the hood |
-| [SEO Audit Rules](./SEO-AUDIT-RULES.md) | All 148 rules with examples and fixes |
+| [SEO Audit Rules](./SEO-AUDIT-RULES.md) | All 332 rules with examples and fixes |
 | [Storage Architecture](./STORAGE-ARCHITECTURE.md) | SQLite database schema and internals |
 
 ## Quick Links

@@ -55,8 +55,10 @@ const rewrites = [
   // "**316 rules** across **20 categories**", "**316 rules** in **20 categories**"
   [/\*\*\d+ rules\*\* (across|in) \*\*\d+ categories\*\*/g,
     `**${ruleCount} rules** $1 **${categoryCount} categories**`],
-  // "for all 316 rules"
-  [/\ball \d+ rules\b/g, `all ${ruleCount} rules`],
+  // "for all 316 rules", and "All 148 rules" at the start of a cell or
+  // sentence — the case-sensitive version of this pattern walked straight past
+  // three docs that capitalise it.
+  [/\ball (\d+) rules\b/gi, (whole) => whole.replace(/\d+/, String(ruleCount))],
   // "## Categories & Rules (261 total)"
   [/\(\d+ total\)/g, `(${ruleCount} total)`],
   // "Runs 261 audit rules against each page" — the phrasing that drifted to 261
@@ -66,6 +68,12 @@ const rewrites = [
   // and stale again the same day, because the version rewrite only ever
   // reached the skill frontmatter.
   [/(Current version: \*\*)\d+\.\d+\.\d+(\*\*)/g, `$1${version}$2`],
+  // The quickstart's ASCII banner: "v2.2.0  •  148 rules  •  16 categories".
+  [/v\d+\.\d+\.\d+(\s*•\s*)\d+ rules(\s*•\s*)\d+ categories/g,
+    `v${version}$1${ruleCount} rules$2${categoryCount} categories`],
+  // skill/README.md: "**55 SEO Rules** across 9 categories".
+  [/\*\*\d+ SEO Rules\*\* across \d+ categories/g,
+    `**${ruleCount} SEO Rules** across ${categoryCount} categories`],
 ];
 
 /** The skill manifest tracks the package it wraps. */
@@ -79,7 +87,21 @@ const targets = [
   { file: 'README.md', rules: rewrites },
   { file: 'CLAUDE.md', rules: rewrites },
   { file: 'docs/SEO-AUDIT-RULES.md', rules: rewrites },
+  // Three files that drifted to 148 rules / 16 categories / v2.2.0 while
+  // `check:docs` reported green, because none of them was ever a target. A
+  // drift guard that covers four of seven public docs is worse than none: it
+  // makes the other three look checked.
+  { file: 'docs/README.md', rules: rewrites },
+  { file: 'docs/quickstart.md', rules: rewrites },
+  { file: 'skill/README.md', rules: rewrites },
+  { file: 'docs/technical-architecture.md', rules: rewrites },
+  { file: 'docs/configuration.md', rules: rewrites },
 ];
+
+// Deliberately not targets: docs/PRD-*.md. A PRD records what was true when it
+// was written — "148 rules / 16 categories" in a problem statement is the
+// evidence for the work, and rewriting it to today's total would falsify the
+// record rather than fix a drift.
 
 const changed = [];
 for (const { file, rules } of targets) {

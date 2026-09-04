@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`--config <path>` works.** It was declared on the command and on
+  `AuditOptions`, and nothing read it: pointing the CLI at a config file audited
+  with defaults and reported nothing unusual. A path that does not exist now
+  fails with a `config` error rather than silently falling back to the search.
+- **`db migrate --archive`** moves the original JSON files aside. It used to be
+  the default; see Changed.
+
+### Changed
+
+- **`[output]` in `seomator.toml` is honoured.** `format` and `path` were
+  parsed, validated, printed by `seomator config`, and never consulted, because
+  the output format was resolved before the config was read. `init --preset ci`
+  writes both, so a CI setup produced a coloured console banner on stdout and no
+  file. Precedence is flag > config > default, and the config-only `text`
+  format maps onto `console`.
+
+  `format` and `path` resolve together: passing `--format` drops a configured
+  path, because inheriting it wrote a markdown report into a file named
+  `audit.json` and left stdout empty. Pass `-o` to name a file explicitly.
+- **`crawler.delay_ms` and `crawler.per_host_delay_ms` are applied.** Both were
+  defaulted, range-validated and written by `--preset ci`, and no crawler code
+  read either, so a config asking for a gap between requests crawled at full
+  speed. **A crawl is slower now:** the 200ms per-host default applies, taking a
+  12-page crawl from 0.8s to 2.8s in local measurement. Set both to `0` to opt
+  out. Single-page audits are unaffected, and a `Crawler` or `Auditor`
+  constructed directly still defaults both to 0.
+- **`db migrate` no longer moves the JSON files aside by default.** `analyze`
+  reads `.seomator/crawls/*.json` and `report` reads `.seomator/reports/*.json`;
+  nothing reads a crawl back out of `project.db`. So the migration `db stats`
+  recommends made every stored crawl unreachable — `analyze <id>` answered
+  "Crawl not found" — with nothing pointing at `db restore`. Use `--archive` for
+  the old behaviour. `--no-backup` still parses and is now the default.
+- **Re-running `db migrate` is a skip, not an error.** An already-migrated crawl
+  was reported as `UNIQUE constraint failed: crawls.crawl_id` beneath a green
+  "Migration complete!". The `crawls skipped` and `reports skipped` counters
+  were printed on every run and never incremented; they work now.
+
+### Fixed
+
+- **A report path may name a directory that does not exist.** `audit <url> -o
+  reports/out.json` failed with a bare `ENOENT` — with no config involved, and
+  `--preset ci` ships exactly that path. Parent directories are created.
+- **A bad `--config` path no longer prints a Node stack trace.** Config loading
+  happens before the run starts, outside the command's error handling, so it
+  exited 1 with a stack trace where every other error gives a message, a hint
+  and exit 2. Machine formats emit `"code": "config"`.
+- **`analyze` explains an empty crawl store.** When crawls are sitting in a
+  `.bak` directory left by an older `db migrate`, it now reports how many and
+  names `seomator db restore`, instead of only "Crawl not found".
+- **`[rules] enable` / `disable` say they do nothing.** They are documented with
+  worked examples and no code applies them — every rule runs whatever the file
+  says. `seomator config validate` and any audit run that loads such a config
+  now warn. `--preset ci` no longer writes the block, whose patterns
+  (`meta-tags/*`) used the wrong separator against a category that does not
+  exist, so they matched zero rules even in principle. Applying the filter is
+  tracked in `TODOS.md`: it changes the score, so it has to reach the run
+  profile before `compare` can be trusted across it.
+
+
 ## [4.0.0] - 2026-09-04
 
 **npm went from 3.3.0 straight to this.** 3.4.0 and 3.5.0 were tagged in the

@@ -19,6 +19,7 @@ import { CategorySection } from '../components/CategorySection.js';
 import { FilterTabs, type FilterStatus } from '../components/FilterTabs.js';
 import { IssuesTable } from '../components/IssuesTable.js';
 import { Sidebar } from '../components/Sidebar.js';
+import { CategoryRow } from '../components/CategoryRow.js';
 import { formatDate } from '../lib/format.js';
 
 const EXPORT_FORMATS = [
@@ -109,13 +110,20 @@ export function AuditDetailPage() {
         onCategoryClick={handleCategoryClick}
       />
 
-      <div className="flex-1" style={{ marginLeft: 'var(--sidebar-width)' }}>
-        <div className="max-w-[var(--content-max-width)] mx-auto p-6 space-y-6">
+      {/* The rail only exists at lg and above, so the offset does too. */}
+      <div className="flex-1 min-w-0 lg:ml-[var(--sidebar-width)]">
+        <div className="max-w-[var(--content-max-width)] min-w-0 mx-auto p-6 space-y-6">
           <nav className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
             <Link to={`/?domain=${encodeURIComponent(audit.domain)}`} className="hover:underline">
               ← {audit.domain}
             </Link>
           </nav>
+
+          <CategoryRow
+            categories={result.categoryResults}
+            activeCategory={activeCategory}
+            onCategoryClick={handleCategoryClick}
+          />
 
           {/* Score first: the number is why anyone opened this page */}
           <section
@@ -147,6 +155,13 @@ export function AuditDetailPage() {
 
           {/* Actions */}
           <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to={`/run?url=${encodeURIComponent(audit.startUrl)}`}
+              className="px-3 py-1.5 text-sm rounded-md font-medium text-white"
+              style={{ backgroundColor: 'var(--color-accent)' }}
+            >
+              Run again
+            </Link>
             <Link
               to={`/compare/${audit.auditId}`}
               className="px-3 py-1.5 text-sm rounded-md font-medium border"

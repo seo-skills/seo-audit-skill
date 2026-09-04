@@ -4,9 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-## [Unreleased]
+## [3.5.0] - 2026-09-03
 
 ### Added
+
+- **Audits run from the browser.** The dashboard starts them, streams progress
+  as it happens (a crawl's discovery and the per-page scoring are separate
+  phases, because one bar for both sat at 0% and then jumped to done), and
+  cancels for real. A tab that opens or reloads mid-run is caught up by the
+  snapshot every connection receives, so there is no replay buffer to keep and
+  nothing to lose on a reconnect. One audit at a time: a second start is a
+  `409` naming the run in progress, not a silent queue.
+
+- **A run that cannot be saved is not lost.** Its result stays available for
+  fifteen minutes — the same window for saved and unsaved runs — so it can be
+  exported or the save retried. The in-memory result is aggregated by the same
+  rules the database read uses, so it renders identically either way.
+
+- **`seomator serve --audit <url>`** starts a run as the server comes up, with
+  the audit flags, so a script can hand someone a link to a running audit.
 
 - **`seomator serve` — a local dashboard for the audits you have already run.**
   Until now a finished audit produced a one-shot HTML report and nothing that
@@ -53,6 +69,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the platform's own UI font.
 
 - **`seomator self doctor`** reports whether the dashboard's assets are present.
+
+- **The dashboard works on a phone.** The category rail becomes a scrolling
+  row below 1024px, tables scroll inside their own box rather than widening the
+  page, and the score counters and filter pills wrap — four counters do not fit
+  across a phone, and "Not measured" was painting outside the viewport.
+
+- **Audited URLs go through a scheme check before reaching an `href`.** Page
+  URLs come from the sites being audited; the crawler only queues http(s), but
+  that guarantee spanned the crawler, the database and the API rather than the
+  component rendering the link. A test fails the build if a raw one is ever
+  used, and another asserts the renderer never uses `dangerouslySetInnerHTML`.
 
 ## [3.4.0] - 2026-09-03
 

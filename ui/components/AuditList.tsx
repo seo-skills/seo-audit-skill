@@ -31,7 +31,9 @@ export function AuditList({ audits, loading, linkTo }: AuditListProps) {
   }
 
   return (
-    <div className="rounded-lg border border-[var(--color-border)] overflow-hidden">
+    // The table keeps its column widths, so on a narrow screen it scrolls
+    // inside this box rather than widening the page.
+    <div className="rounded-lg border border-[var(--color-border)] overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-[var(--color-bg-hover)]">

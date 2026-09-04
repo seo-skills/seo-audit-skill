@@ -63,3 +63,23 @@ export function formatDate(dateStr: string): string {
     minute: '2-digit',
   });
 }
+
+/**
+ * A URL that is safe to put in an `href`.
+ *
+ * Page URLs come from the sites we audit. The crawler only queues http(s)
+ * URLs, so a `javascript:` or `data:` URL should never reach a stored audit —
+ * but "should never" spanning the crawler, the database and the API is not a
+ * guarantee this component can check. Making it local costs one function.
+ *
+ * @returns The URL, or undefined when it is not a web address
+ */
+export function safeHref(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : undefined;
+  } catch {
+    return undefined;
+  }
+}

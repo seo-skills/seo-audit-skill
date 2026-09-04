@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import type { RuleResult } from '../../src/types.js';
 import type { RuleMetadata } from '../../electron/shared/ipc-types.js';
-import { formatRuleIdAsName, getStatusIcon, getStatusColorClass } from '../lib/format.js';
+import { formatRuleIdAsName, getStatusIcon, getStatusColorClass, safeHref } from '../lib/format.js';
 import { getFixSuggestion } from '../lib/fix-suggestions.js';
 
 interface RuleCardProps {
@@ -156,7 +156,7 @@ export function RuleCard({ rule, metadata }: RuleCardProps) {
           {pageUrl && (
             <div className="mt-1.5">
               <a
-                href={pageUrl}
+                href={safeHref(pageUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block text-xs font-mono px-2 py-0.5 rounded hover:opacity-80 transition-opacity"

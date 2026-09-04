@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { AuditSession, normalizeRunArgs, MAX_RECENT_RULES, DEFAULT_CAPABILITIES } from './audit-session.js';
+import {
+  AuditSession,
+  normalizeRunArgs,
+  MAX_RECENT_RULES,
+  DEFAULT_CAPABILITIES,
+  RUN_RETENTION_MS,
+} from './audit-session.js';
 import type { RunState } from './audit-session.js';
 import { AuditAbortedError, AuditError } from '../errors.js';
 import type { Auditor, AuditorOptions } from '../auditor.js';
@@ -299,6 +305,89 @@ describe('AuditSession', () => {
     expect(status).toBe('error');
     expect(error?.code).toBe('non-html');
     expect(error?.hint).toContain('HTML page');
+  });
+
+  it('retains a finished run, then forgets it', async () => {
+    const fake = makeFakeAuditor();
+    let now = new Date('2026-09-03T10:00:00Z');
+    const session = new AuditSession({
+      source: 'dashboard',
+      createAuditor: fake.createAuditor,
+      now: () => now,
+    });
+
+    const run = session.start({ url: URL_UNDER_TEST, save: false });
+    const runId = session.getState().runId!;
+    fake.settle(makeResult());
+    await run;
+
+    expect(session.getResult(runId)).not.toBeNull();
+
+    // Just inside the window
+    now = new Date(now.getTime() + RUN_RETENTION_MS - 1000);
+    expect(session.getResult(runId)).not.toBeNull();
+
+    // Past it: a dashboard left open overnight is not holding a result
+    now = new Date(now.getTime() + 2000);
+    expect(session.getResult(runId)).toBeNull();
+    expect(session.getLastOutcome()).toBeNull();
+  });
+
+  it('a new run replaces what was retained', async () => {
+    const fake = makeFakeAuditor();
+    const session = new AuditSession({ source: 'dashboard', createAuditor: fake.createAuditor });
+
+    const first = session.start({ url: URL_UNDER_TEST, save: false });
+    const firstId = session.getState().runId!;
+    fake.settle(makeResult());
+    await first;
+    expect(session.getResult(firstId)).not.toBeNull();
+
+    const second = makeFakeAuditor();
+    const next = new AuditSession({ source: 'dashboard', createAuditor: second.createAuditor });
+    void next;
+
+    session.start({ url: URL_UNDER_TEST, save: false }).catch(() => {});
+    expect(session.getResult(firstId)).toBeNull();
+    session.cancel();
+  });
+
+  it('retries a failed save with the same result and provenance', async () => {
+    const fake = makeFakeAuditor();
+    let attempt = 0;
+    const saveAudit: typeof saveAuditToDatabase = vi.fn(() => {
+      attempt++;
+      if (attempt === 1) throw new Error('database is locked');
+      return { auditId: '2026-09-03-retry1', id: 7, domain: 'session.test', previousAuditId: null };
+    });
+    const session = new AuditSession({ source: 'dashboard', createAuditor: fake.createAuditor, saveAudit });
+
+    const run = session.start({ url: URL_UNDER_TEST, crawl: true, maxPages: 6 });
+    const runId = session.getState().runId!;
+    fake.settle(makeResult());
+    const outcome = await run;
+
+    expect(outcome.saveError).toBe('database is locked');
+    expect(session.getState().auditId).toBeNull();
+
+    const saved = session.persist(runId);
+
+    expect(saved?.auditId).toBe('2026-09-03-retry1');
+    expect(session.getState().auditId).toBe('2026-09-03-retry1');
+    expect(session.getResult(runId)?.saveError).toBeUndefined();
+    // The retry records what the run actually did, not a default
+    expect(vi.mocked(saveAudit).mock.calls[1]?.[1]).toMatchObject({
+      source: 'dashboard',
+      run: { crawl: true, maxPages: 6 },
+    });
+
+    // Saving twice is a no-op rather than a duplicate row
+    expect(session.persist(runId)).toBeNull();
+  });
+
+  it('cannot persist a run that is not retained', () => {
+    const session = new AuditSession({ source: 'dashboard' });
+    expect(session.persist('2026-09-03-nothing')).toBeNull();
   });
 
   it('cancel() on an idle session does nothing', () => {

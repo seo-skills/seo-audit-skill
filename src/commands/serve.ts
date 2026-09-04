@@ -5,6 +5,9 @@ import { fileURLToPath } from 'url';
 import * as fs from 'fs';
 import { createServer, generateToken, type Route } from '../dashboard/server.js';
 import { createReadRoutes } from '../dashboard/api.js';
+import { createRunRoutes } from '../dashboard/run-api.js';
+import { EventHub } from '../dashboard/events.js';
+import { AuditSession } from '../dashboard/audit-session.js';
 import { findWebAssets } from '../dashboard/static.js';
 import { DEFAULT_CAPABILITIES } from '../dashboard/audit-session.js';
 import { writeServeFile, removeServeFile, getServeFilePath } from '../dashboard/token.js';
@@ -20,6 +23,14 @@ export interface ServeOptions {
   port: number;
   open: boolean;
   verbose: boolean;
+  /** Start an audit of this URL as soon as the server is listening */
+  audit?: string;
+  crawl?: boolean;
+  maxPages?: number;
+  cwv?: boolean;
+  categories?: string[];
+  mobile?: boolean;
+  simulateInteraction?: boolean;
 }
 
 /** Where this build's files sit, whether running from source or from dist */
@@ -101,17 +112,21 @@ export async function runServe(options: ServeOptions): Promise<void> {
 
   const token = generateToken();
   const startedAt = Date.now();
+  const session = new AuditSession({ source: 'dashboard' });
+  const events = new EventHub({ session });
+
   // The index route describes the table it lives in, so the array is created
   // first and the handler reads it through a closure.
   const routes: Route[] = [];
   routes.push(
     ...createReadRoutes({
       db: () => getAuditsDatabase(),
-      capabilities: DEFAULT_CAPABILITIES,
+      capabilities: session.capabilities,
       startedAt,
       invocation: invocation(),
       routes: () => routes,
-    })
+    }),
+    ...createRunRoutes({ session, events })
   );
 
   const { server } = createServer({
@@ -156,6 +171,29 @@ export async function runServe(options: ServeOptions): Promise<void> {
 
   if (options.open && assets.available) openBrowser(url);
 
+  // `serve --audit <url>` starts a run without anyone touching the UI, so a
+  // script can hand a colleague a link to a running audit.
+  if (options.audit) {
+    try {
+      session
+        .start({
+          url: options.audit,
+          ...(options.crawl !== undefined && { crawl: options.crawl }),
+          ...(options.maxPages !== undefined && { maxPages: options.maxPages }),
+          ...(options.cwv !== undefined && { measureCwv: options.cwv }),
+          ...(options.categories && { categories: options.categories }),
+          ...(options.mobile !== undefined && { mobile: options.mobile }),
+          ...(options.simulateInteraction !== undefined && { simulateInteraction: options.simulateInteraction }),
+        })
+        .catch(() => {
+          // Reported through the run state, which the dashboard is showing.
+        });
+      console.log(chalk.dim(`  Auditing ${options.audit} — follow it at ${url}/run`));
+    } catch (error) {
+      console.error(chalk.yellow(`  Could not start the audit: ${error instanceof Error ? error.message : error}`));
+    }
+  }
+
   await new Promise<void>((resolve) => {
     let stopping = false;
 
@@ -168,6 +206,11 @@ export async function runServe(options: ServeOptions): Promise<void> {
       console.log(chalk.dim('\n  Stopping…'));
 
       removeServeFile();
+      // A run in flight would otherwise keep fetching after the user asked to
+      // stop, and an open event stream is a live connection that `close()`
+      // waits on — so both go first.
+      session.cancel();
+      events.closeAll();
       server.close(() => {
         try {
           closeAuditsDatabase();

@@ -41,6 +41,7 @@ interface AuditState {
 
   // Actions
   setRunState: (state: RunState) => void;
+  setSaveError: (saveError: string | null) => void;
   setComplete: (
     result: AuditResult,
     ruleMetadata: Record<string, RuleMetadata>,
@@ -65,6 +66,8 @@ export const useAuditStore = create<AuditState>((set) => ({
         ? { run: state, result: null, saveError: null }
         : { run: state }
     ),
+
+  setSaveError: (saveError) => set({ saveError }),
 
   setComplete: (result, ruleMetadata, saveError) =>
     set({ result, ruleMetadata, saveError: saveError ?? null }),

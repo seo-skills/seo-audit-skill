@@ -23,7 +23,7 @@ export function App() {
       <a href="#main" className="skip-link">
         Skip to content
       </a>
-      <Header canRunAudits={host === 'electron'} />
+      <Header canRunAudits />
       <main id="main" className="pt-[var(--header-height)]">
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -32,7 +32,7 @@ export function App() {
           <Route path="/audits/:id" element={<AuditDetailPage />} />
           <Route path="/compare/:id" element={<ComparePage />} />
           <Route path="/compare/:id/:against" element={<ComparePage />} />
-          <Route path="/run" element={host === 'electron' ? <RunPage /> : <Navigate to="/" replace />} />
+          <Route path="/run" element={<RunPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

@@ -24,6 +24,15 @@ import type { RuleMetadata } from './contract.js';
 /** Rule results kept in the live state; older ones are dropped */
 export const MAX_RECENT_RULES = 50;
 
+/**
+ * How long a finished run stays available after it ends.
+ *
+ * One rule for saved and unsaved results alike, so Export and Retry save keep
+ * working after a failed save without a second lifetime to reason about. The
+ * next run also clears it.
+ */
+export const RUN_RETENTION_MS = 15 * 60 * 1000;
+
 /** Bounds on what a client may ask for */
 export const RUN_LIMITS = {
   maxPages: { min: 1, max: 1000, fallback: 10 },
@@ -219,6 +228,10 @@ export class AuditSession {
   private controller: AbortController | null = null;
   private running: Promise<RunOutcome> | null = null;
   private lastOutcome: RunOutcome | null = null;
+  /** When the retained outcome stops being available */
+  private retainedUntil = 0;
+  /** The args the retained run used, so a save retry records the same thing */
+  private retainedArgs: NormalizedRunArgs | null = null;
 
   readonly capabilities: Capabilities;
   private readonly options: Required<Pick<AuditSessionOptions, 'source'>> & AuditSessionOptions;
@@ -233,9 +246,72 @@ export class AuditSession {
     return this.state;
   }
 
-  /** The most recent finished run, for clients that arrive after it ended */
+  /**
+   * The most recent finished run, for clients that arrive after it ended.
+   *
+   * Expires, so a dashboard left open overnight is not holding a 1,000-page
+   * result in memory.
+   */
   getLastOutcome(): RunOutcome | null {
+    if (this.lastOutcome && this.now().getTime() > this.retainedUntil) {
+      this.lastOutcome = null;
+      this.retainedArgs = null;
+    }
     return this.lastOutcome;
+  }
+
+  /**
+   * A run by id: the one in progress, or the retained finished one.
+   *
+   * @returns Its state, or null when that run is not the one being retained
+   */
+  getRun(runId: string): RunState | null {
+    if (this.state.runId === runId) return this.state;
+    return null;
+  }
+
+  /** The aggregated result of a retained run, for a client that has to render it */
+  getResult(runId: string): RunOutcome | null {
+    const outcome = this.getLastOutcome();
+    return outcome && outcome.runId === runId ? outcome : null;
+  }
+
+  /**
+   * Store a finished run that could not be saved the first time.
+   *
+   * The Retry save action: same result, same provenance, so a transient
+   * failure (a locked database, a full disk since cleared) does not cost the
+   * user the audit they just waited for.
+   *
+   * @returns The stored audit, or null when there is nothing retained to save
+   * @throws Whatever the save failed with, so the caller can show it
+   */
+  persist(runId: string): SavedAudit | null {
+    const outcome = this.getResult(runId);
+    if (!outcome || outcome.saved || !this.retainedArgs) return null;
+
+    const save = this.options.saveAudit ?? saveAuditToDatabase;
+    const args = this.retainedArgs;
+    const saved = save(outcome.result, {
+      source: this.options.source,
+      run: {
+        crawl: args.crawl,
+        maxPages: args.maxPages,
+        concurrency: args.concurrency,
+        measureCwv: args.measureCwv,
+        mobile: args.mobile,
+        simulateInteraction: args.simulateInteraction,
+        categories: args.categories,
+        timeout: args.timeout,
+      },
+    });
+
+    outcome.saved = saved;
+    delete outcome.saveError;
+    if (this.state.runId === runId) {
+      this.patch({ auditId: saved.auditId });
+    }
+    return saved;
   }
 
   isRunning(): boolean {
@@ -270,6 +346,9 @@ export class AuditSession {
     }
 
     const normalized = normalizeRunArgs(args, this.capabilities);
+    // A new run replaces whatever was being retained.
+    this.lastOutcome = null;
+    this.retainedArgs = null;
     const runId = generateId();
     const controller = new AbortController();
     this.controller = controller;
@@ -445,6 +524,8 @@ export class AuditSession {
       }
 
       this.lastOutcome = outcome;
+      this.retainedArgs = args;
+      this.retainedUntil = this.now().getTime() + RUN_RETENTION_MS;
       this.patch({
         status: 'complete',
         phase: 'done',

@@ -162,6 +162,13 @@ program
   .option('-p, --port <n>', 'Port on 127.0.0.1 (0 picks a free one)', (v) => parseIntValue(v, 'port', 0, 65535), 7360)
   .option('--no-open', 'Do not open a browser')
   .option('-v, --verbose', 'Log one line per request', false)
+  .option('--audit <url>', 'Audit this URL as soon as the server starts', validateUrl)
+  .option('--crawl', 'With --audit: crawl the site', false)
+  .option('-m, --max-pages <n>', 'With --audit: max pages to crawl', (v) => parseIntValue(v, 'max-pages', 1, 1000))
+  .option('--no-cwv', 'With --audit: skip Core Web Vitals')
+  .option('-c, --categories <list>', 'With --audit: categories to run', parseCategories)
+  .option('--mobile', 'With --audit: also render at a mobile viewport', false)
+  .option('--simulate-interaction', 'With --audit: click and scroll so INP can be measured', false)
   .action(async (options: ServeOptions) => {
     // Imported lazily so `seomator audit` does not pay for the server module.
     const { runServe } = await import('./commands/serve.js');

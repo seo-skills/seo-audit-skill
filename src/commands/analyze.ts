@@ -88,6 +88,26 @@ function reportArchivedCrawls(baseDir: string): void {
   console.error(chalk.yellow('Run `seomator db restore` to put them back where analyze reads.'));
 }
 
+/**
+ * Say which crawl is being analysed, on stderr.
+ *
+ * stdout carries the document — the JSON payload under `--json`, the terminal
+ * report otherwise — and stderr carries status, the same split `audit` uses.
+ * These four lines were plain `console.log` with no `--json` guard, so
+ * `analyze <id> --json` printed "Analyzing crawl..." in front of the payload
+ * and an agent's `JSON.parse` failed on the first character.
+ *
+ * Writing status to stderr removes the guard instead of adding a fourth one
+ * next to the three that were already there and still missed these.
+ */
+export function announceAnalysis(crawl: Pick<StoredCrawl, 'id' | 'url' | 'pages'>): void {
+  console.error(chalk.blue('Analyzing crawl...'));
+  console.error(`  Crawl ID: ${crawl.id}`);
+  console.error(`  URL: ${crawl.url}`);
+  console.error(`  Pages: ${crawl.pages.length}`);
+  console.error();
+}
+
 export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOptions): Promise<void> {
   const { config } = loadConfig(process.cwd());
   const baseDir = process.cwd();
@@ -121,11 +141,7 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
     }
   }
 
-  console.log(chalk.blue('Analyzing crawl...'));
-  console.log(`  Crawl ID: ${crawl.id}`);
-  console.log(`  URL: ${crawl.url}`);
-  console.log(`  Pages: ${crawl.pages.length}`);
-  console.log();
+  announceAnalysis(crawl);
 
   const progress = new ProgressReporter({
     json: options.json,
@@ -206,7 +222,7 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
         result.categoryResults
       );
       saveReport(baseDir, report);
-      if (!options.json) console.log(chalk.green(`Report saved: ${report.id}`));
+      console.error(chalk.green(`Report saved: ${report.id}`));
     }
 
     if (persistence.database) {
@@ -223,12 +239,16 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
             mobile: false,
             simulateInteraction: false,
             categories: options.categories ?? [],
+            // analyze applies rules.enable/disable too, so the run has to carry
+            // them or `compare` reads a filtered analysis as like-for-like.
+            enableRules: config.rules.enable,
+            disableRules: config.rules.disable,
             timeout: config.crawler.timeout_ms,
           },
         });
-        if (!options.json) {
-          console.log(chalk.dim(`  Saved as ${saved.auditId} — compare with: seomator compare ${saved.domain}`));
-        }
+        console.error(
+          chalk.dim(`  Saved as ${saved.auditId} — compare with: seomator compare ${saved.domain}`)
+        );
       } catch (error) {
         console.error(
           chalk.yellow(`  Could not store this analysis in ${getAuditsDbPath()}:`),

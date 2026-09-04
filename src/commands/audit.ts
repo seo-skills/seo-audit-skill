@@ -14,7 +14,7 @@ import {
   renderBanner,
 } from '../reporters/index.js';
 import { loadConfig } from '../config/index.js';
-import { selectsRuleSubset, UNAPPLIED_RULE_FILTER_NOTICE } from '../config/validator.js';
+import { selectsRuleSubset, RULE_FILTER_NOTICE } from '../config/validator.js';
 import type { OutputConfig } from '../config/schema.js';
 import { AuditAbortedError, classifyError } from '../errors.js';
 import { setUserAgent } from '../crawler/user-agent.js';
@@ -214,12 +214,11 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   }
   const { config, configPath } = loaded;
 
-  // A config asking for a subset of rules gets all 332 anyway. Say so on the
-  // run it affects, not only when someone happens to type `seomator config`:
-  // stderr, so a redirected document is still only the document.
+  // A filtered run scores differently from a full one. Say so on the run it
+  // affects, on stderr so a redirected document is still only the document.
   if (selectsRuleSubset(config.rules)) {
     const where = configPath ? ` (${configPath})` : '';
-    console.error(chalk.yellow(`Warning${where}: ${UNAPPLIED_RULE_FILTER_NOTICE}`));
+    console.error(chalk.yellow(`Note${where}: ${RULE_FILTER_NOTICE}`));
   }
 
   const { format: outputFormat, path: outputPath } = resolveOutputTarget(options, config.output);
@@ -294,6 +293,8 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       mobileParity,
       simulateInteraction,
       respectRobots: config.crawler.respect_robots,
+      enableRules: config.rules.enable,
+      disableRules: config.rules.disable,
       delayMs: config.crawler.delay_ms,
       perHostDelayMs: config.crawler.per_host_delay_ms,
       onCategoryStart: (categoryId, categoryName) => {

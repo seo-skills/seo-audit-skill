@@ -72,24 +72,19 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
   main, 2026-09-04** (`6d90f0d`). `audit <url> -o reports/out.json` died with a bare
   ENOENT with no config involved, and `--preset ci` ships that exact path. The four
   duplicated write sites are now one `writeReport()` that creates the parent first.
-- **`[rules] enable` / `disable` are documented and do nothing.** `docs/configuration.md`
-  gives them a table and worked examples; `isRuleEnabled()` and `filterRules()` in
-  `src/rules/pattern-matcher.ts` are exported, tested, and have no caller outside
-  their own tests. Every rule runs whatever the file says. /qa (2026-09-04) made this
-  loud rather than silent — `seomator config validate` and every affected audit run
-  now warn — and dropped the inert block from the `ci` preset, whose patterns
-  (`meta-tags/*`) used the wrong separator against a category that does not exist,
-  so they matched zero rules even in principle.
+- ~~**`[rules] enable` / `disable` are documented and do nothing**~~ **Fixed on main,
+  2026-09-04.** The auditor filters rules with `isRuleEnabled()`, and a category left
+  with no rules is dropped from the result rather than scored — `calculateCategoryScore([])`
+  returns 0, so keeping it would report a narrower audit as a catastrophic one. The
+  patterns reach `AuditRunOptions` and are marked material in `run-profile.ts`, so
+  `compare --fail-on-regression` reports a filter change as a run difference instead of
+  a regression. `analyze` honours the same config. `getRuleCategory()` now derives from
+  the real category list instead of the invented `meta-tags`/`core-web-vitals`/
+  `structured-data`/`headings` taxonomy its own test used to assert.
 
-  Wiring it is a **scoring change, not a config change**, which is why /qa stopped at
-  the warning: a 40-rule audit scoring 78 is not comparable to a 332-rule audit
-  scoring 78. Doing it properly means filtering in `runAllCategories`, deciding what
-  a category with every rule filtered out scores, and adding the filter to
-  `AuditRunOptions` + `LABELS`/`MATERIAL` in `storage/audits-db/run-profile.ts` so
-  `compare` reports the runs as not like-for-like — which is exactly what that module
-  already does for `categories`. Also fix `getRuleCategory()` in `pattern-matcher.ts`,
-  whose hardcoded list (`meta-tags`, `core-web-vitals`, `structured-data`, `headings`)
-  describes a taxonomy this codebase does not have.
+  Known sharp edge, documented: the five Core Web Vitals rules in `perf` are named
+  `cwv-*`, so `disable = ["perf-*"]` leaves them running. Every other category's rule
+  ids match its own id.
 - ~~**`http-error` is declared, hinted, and never thrown.**~~ **Fixed by /qa on
   main, 2026-09-04** (`568dd44`). A 404 scored 87/100 in practice. The guard sits
   beside the `non-html` one and reports the final URL after redirects;

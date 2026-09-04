@@ -329,15 +329,16 @@ export function validateConfig(config: PartialSeomatorConfig | SeomatorConfig): 
     });
   }
 
-  // Report a rule filter that will not be applied, rather than accepting it
-  // silently and running all 332 rules anyway.
+  // A rule filter changes the score: fewer checks, and a category left with no
+  // rules is dropped rather than scored. Worth saying once, so a score that
+  // moved for a config reason is not read as a site regression.
   const rulesSection = getNestedValue(configObj, 'rules') as
     | { enable?: string[]; disable?: string[] }
     | undefined;
   if (selectsRuleSubset(rulesSection)) {
     warnings.push({
       path: 'rules',
-      message: UNAPPLIED_RULE_FILTER_NOTICE,
+      message: RULE_FILTER_NOTICE,
       value: rulesSection,
     });
   }
@@ -350,26 +351,24 @@ export function validateConfig(config: PartialSeomatorConfig | SeomatorConfig): 
 }
 
 /**
- * What `[rules]` currently does, which is nothing.
+ * Said once when a config narrows the rule set.
  *
- * `enable` and `disable` are parsed, type-checked, merged and printed by
- * `seomator config`, and `docs/configuration.md` documents them with worked
- * examples. No caller ever consults them: `filterRules()` and
- * `isRuleEnabled()` in `src/rules/pattern-matcher.ts` are exported, tested,
- * and dead. Every rule runs on every audit whatever the file says.
- *
- * Silently ignoring a documented setting is worse than not offering it, so it
- * is reported until something applies it. See TODOS.md.
+ * A filter removes checks outright, and a category left with no rules is
+ * dropped from the result rather than scored zero, so the score moves without
+ * the site changing. `compare` reports that as a run difference rather than a
+ * regression, and this is the heads-up that it will.
  */
-export const UNAPPLIED_RULE_FILTER_NOTICE =
-  'rules.enable / rules.disable are not applied yet — every rule runs regardless. ' +
-  'Use --categories to narrow an audit.';
+export const RULE_FILTER_NOTICE =
+  'a rule filter is in force, so this score is not comparable to an unfiltered ' +
+  'audit. `compare` reports the difference rather than calling it a regression.';
 
 /**
  * Whether `[rules]` asks for anything other than "run everything".
  *
  * The default is `enable = ["*"]`, and an empty `enable` also means all rules,
- * so neither is a request the tool is failing to honour.
+ * so neither narrows the audit. Callers use this to tell a real filter from
+ * the default, which matters because a filtered run is not comparable to a
+ * full one — see `storage/audits-db/run-profile.ts`.
  */
 export function selectsRuleSubset(rules: { enable?: string[]; disable?: string[] } | undefined): boolean {
   if (!rules) return false;

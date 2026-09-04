@@ -663,6 +663,10 @@ export interface AuditRunOptions {
   mobile: boolean;
   simulateInteraction: boolean;
   categories: string[];
+  /** `rules.enable` patterns in force. Empty means every rule. */
+  enableRules?: string[];
+  /** `rules.disable` patterns in force. */
+  disableRules?: string[];
   timeout: number;
 }
 

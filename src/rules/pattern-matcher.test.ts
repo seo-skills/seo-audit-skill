@@ -181,23 +181,28 @@ describe('filterRules', () => {
 });
 
 describe('getRuleCategory', () => {
-  it('should extract known categories', () => {
-    expect(getRuleCategory('meta-tags-title-present')).toBe('meta-tags');
-    expect(getRuleCategory('core-web-vitals-lcp')).toBe('core-web-vitals');
-    expect(getRuleCategory('structured-data-present')).toBe('structured-data');
-    expect(getRuleCategory('headings-h1-present')).toBe('headings');
+  it('returns the category for real rule ids', () => {
+    // These are ids the registry actually contains. The previous version of
+    // this test asserted `meta-tags-title-present` and `core-web-vitals-lcp`,
+    // neither of which is a rule in this codebase.
+    expect(getRuleCategory('core-title-present')).toBe('core');
     expect(getRuleCategory('technical-robots-txt')).toBe('technical');
-    expect(getRuleCategory('links-broken')).toBe('links');
+    expect(getRuleCategory('links-broken-internal')).toBe('links');
     expect(getRuleCategory('images-alt-present')).toBe('images');
     expect(getRuleCategory('security-https')).toBe('security');
     expect(getRuleCategory('social-og-title')).toBe('social');
+    expect(getRuleCategory('htmlval-doctype')).toBe('htmlval');
   });
 
-  it('should fallback to first segment for unknown categories', () => {
-    expect(getRuleCategory('custom-some-rule')).toBe('custom');
+  it('maps the cwv-* rules onto perf, the category they belong to', () => {
+    // The one place a rule id does not start with its category name, and the
+    // reason `disable = ["perf-*"]` leaves five performance rules running.
+    expect(getRuleCategory('cwv-lcp')).toBe('perf');
+    expect(getRuleCategory('cwv-inp')).toBe('perf');
   });
 
-  it('should return null for invalid rule IDs', () => {
+  it('returns null for an id belonging to no category', () => {
+    expect(getRuleCategory('custom-some-rule')).toBeNull();
     expect(getRuleCategory('noruleid')).toBeNull();
   });
 });

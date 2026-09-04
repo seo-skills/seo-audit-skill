@@ -13,8 +13,11 @@
 // `meta-tags` is not a category here and `/` is not the separator, so the list
 // matched zero rules even in principle.
 //
-// Until something applies the filter, the contract this asserts is that the
-// tool says so rather than staying quiet.
+// The filter is applied now (see `src/rules/rule-filter.regression-2.test.ts`).
+// What survives here is the part that was never about the wiring: telling a
+// real request apart from the `enable = ["*"]` default, not shipping patterns
+// that match nothing, and saying once that a filtered score is not comparable
+// to a full one.
 import { describe, it, expect } from 'vitest';
 import { validateConfig, selectsRuleSubset } from './validator.js';
 import { getDefaultConfig } from './defaults.js';
@@ -48,8 +51,8 @@ describe('selectsRuleSubset only fires on a real request', () => {
   });
 });
 
-describe('a config that asks for a rule subset is told it will not get one', () => {
-  it('warns rather than accepting it silently', () => {
+describe('a config that asks for a rule subset is told the score will move', () => {
+  it('warns rather than letting the score change quietly', () => {
     const config = getDefaultConfig();
     config.rules = { enable: ['*'], disable: ['perf-*', 'a11y-color-contrast'] };
 
@@ -58,8 +61,10 @@ describe('a config that asks for a rule subset is told it will not get one', () 
     // Not an error: the file stays valid and the audit still runs.
     expect(result.valid).toBe(true);
     const warning = result.warnings.find((w) => w.path === 'rules');
-    expect(warning, 'an unapplied rule filter must produce a warning').toBeDefined();
-    expect(warning?.message).toMatch(/not applied/i);
+    expect(warning, 'a rule filter must produce a warning').toBeDefined();
+    // Fewer checks and a possibly-dropped category means a score that moved
+    // for a config reason. Saying so is what stops it reading as a regression.
+    expect(warning?.message).toMatch(/not comparable/i);
   });
 
   it('stays quiet on a default config, so the warning means something', () => {
@@ -68,7 +73,7 @@ describe('a config that asks for a rule subset is told it will not get one', () 
   });
 });
 
-describe('the ci preset does not ship a filter it cannot honour', () => {
+describe('the ci preset does not ship a filter that matches nothing', () => {
   const ci = getPresetConfig('ci');
 
   it('writes no [rules] section', () => {

@@ -138,6 +138,11 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
 
   const auditor = new Auditor({
     categories: options.categories,
+    // `analyze` reads the same seomator.toml as `audit`, so a rule filter
+    // applies to both. Analysing a stored crawl under different rules than the
+    // audit that would have produced it is not a difference anyone asked for.
+    enableRules: config.rules.enable,
+    disableRules: config.rules.disable,
     measureCwv: false, // CWV already measured during crawl
     onCategoryStart: (id, name) => progress.onCategoryStart(id, name),
     onCategoryComplete: (id, name, result) => progress.onCategoryComplete(id, name, result),

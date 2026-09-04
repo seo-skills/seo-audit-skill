@@ -30,6 +30,8 @@ const LABELS: Record<string, string> = {
   mobile: 'mobile parity',
   simulateInteraction: 'simulated interaction',
   categories: 'categories',
+  enableRules: 'enabled rules',
+  disableRules: 'disabled rules',
   maxPages: 'page limit',
 };
 
@@ -39,7 +41,17 @@ const LABELS: Record<string, string> = {
  * covered, not whether a check could run, so they are reported without being
  * called material.
  */
-const MATERIAL = new Set(['measureCwv', 'mobile', 'simulateInteraction', 'categories']);
+const MATERIAL = new Set([
+  'measureCwv',
+  'mobile',
+  'simulateInteraction',
+  'categories',
+  // A rule filter removes checks outright, and a category left with no rules
+  // is dropped from the result rather than scored zero. Both move the score
+  // without the site changing, which is the whole reason this module exists.
+  'enableRules',
+  'disableRules',
+]);
 
 function render(value: unknown): string {
   if (Array.isArray(value)) return value.length ? value.join(', ') : 'all';

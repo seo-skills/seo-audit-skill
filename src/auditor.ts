@@ -13,6 +13,7 @@ import type {
 } from './types.js';
 import { categories, getCategoryById } from './categories/index.js';
 import { getRulesByCategory, resetCrossPageState } from './rules/registry.js';
+import { isRuleEnabled } from './rules/pattern-matcher.js';
 import { loadAllRules } from './rules/loader.js';
 import {
   fetchPage,
@@ -127,6 +128,13 @@ export interface AuditorOptions {
   simulateInteraction?: boolean;
   /** Whether a crawl obeys the site's robots.txt. Defaults to true. */
   respectRobots?: boolean;
+  /**
+   * Rule id patterns to run, from `rules.enable`. Empty (or `['*']`) means
+   * every rule, matching the config default.
+   */
+  enableRules?: string[];
+  /** Rule id patterns to skip, from `rules.disable`. Takes precedence. */
+  disableRules?: string[];
   /** Minimum gap between requests, from `crawler.delay_ms` */
   delayMs?: number;
   /** Minimum gap between requests to one host, from `crawler.per_host_delay_ms` */
@@ -183,6 +191,8 @@ export class Auditor {
       respectRobots: options.respectRobots ?? true,
       // 0 rather than the config's 100/200: a programmatic Auditor is not
       // silently slowed down. The CLI passes the configured values.
+      enableRules: options.enableRules ?? [],
+      disableRules: options.disableRules ?? [],
       delayMs: options.delayMs ?? 0,
       perHostDelayMs: options.perHostDelayMs ?? 0,
       browserFetcher: options.browserFetcher,
@@ -612,8 +622,21 @@ export class Auditor {
       // Notify start
       this.options.onCategoryStart(category.id, category.name);
 
-      // Get rules for this category
-      const rules = getRulesByCategory(category.id);
+      // Get rules for this category, minus anything `rules.enable` /
+      // `rules.disable` excludes.
+      const rules = getRulesByCategory(category.id).filter((rule) =>
+        isRuleEnabled(rule.id, this.options.enableRules, this.options.disableRules)
+      );
+
+      // A category with every rule filtered out is not a category that scored
+      // zero. calculateCategoryScore([]) returns 0, so keeping it would drag
+      // the overall score down and report a narrower audit as a catastrophic
+      // one. Dropping it lets calculateOverallScore renormalise over the
+      // categories that actually ran.
+      if (rules.length === 0) {
+        continue;
+      }
+
       const ruleResults: RuleResult[] = [];
 
       // Run each rule
@@ -683,6 +706,8 @@ export class Auditor {
       mobile: this.options.mobileParity,
       simulateInteraction: this.options.simulateInteraction,
       categories: this.options.categories,
+      enableRules: this.options.enableRules,
+      disableRules: this.options.disableRules,
       timeout: this.options.timeout,
     };
   }

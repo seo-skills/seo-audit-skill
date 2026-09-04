@@ -1,3 +1,5 @@
+import { getCategoryIds } from '../categories/index.js';
+
 /**
  * Rule Pattern Matcher Module
  * Matches rule IDs against patterns with wildcard support
@@ -93,36 +95,30 @@ export function filterRules(
 }
 
 /**
- * Get the category from a rule ID
- * Convention: rules are named `category-name` where category is the first part
- * @param ruleId - Rule identifier (e.g., 'meta-tags-title-present')
- * @returns Category name or null if not determinable
+ * The category a rule id belongs to.
+ *
+ * Derived from the real category list rather than a hardcoded one. The list
+ * this used to carry — `meta-tags`, `core-web-vitals`, `structured-data`,
+ * `headings` — described a taxonomy this codebase does not have, and its own
+ * test asserted that taxonomy, so it passed while being wrong about every
+ * rule the product actually ships.
+ *
+ * @param ruleId - Rule identifier (e.g. `core-title-present`)
+ * @returns The category id, or null if the rule id matches no category
  */
 export function getRuleCategory(ruleId: string): string | null {
-  // Common category prefixes based on the codebase
-  const categories = [
-    'meta-tags',
-    'core-web-vitals',
-    'structured-data',
-    'headings',
-    'technical',
-    'links',
-    'images',
-    'security',
-    'social',
-  ];
-
-  for (const category of categories) {
-    if (ruleId.startsWith(`${category}-`)) {
-      return category;
-    }
+  // `perf` is the one category whose rules do not all share its name: the five
+  // Core Web Vitals rules are `cwv-*`. A `perf-*` pattern therefore does not
+  // reach them, which is worth knowing before writing `disable = ["perf-*"]`.
+  if (ruleId.startsWith('cwv-')) {
+    return 'perf';
   }
 
-  // Fallback: split on first hyphen
-  const parts = ruleId.split('-');
-  if (parts.length >= 2) {
-    return parts[0];
-  }
+  // Longest match first, so a category id that prefixes another cannot shadow it.
+  const match = getCategoryIds()
+    .filter((id) => ruleId.startsWith(`${id}-`))
+    .sort((a, b) => b.length - a.length)[0];
 
-  return null;
+  return match ?? null;
 }
+

@@ -62,6 +62,10 @@ const rewrites = [
   // "Runs 261 audit rules against each page" — the phrasing that drifted to 261
   // while every other total tracked, because no pattern here matched it.
   [/\bRuns \d+ audit rules\b/g, `Runs ${ruleCount} audit rules`],
+  // "Current version: **3.5.0**." in CLAUDE.md. Hand-corrected on 2026-09-04
+  // and stale again the same day, because the version rewrite only ever
+  // reached the skill frontmatter.
+  [/(Current version: \*\*)\d+\.\d+\.\d+(\*\*)/g, `$1${version}$2`],
 ];
 
 /** The skill manifest tracks the package it wraps. */

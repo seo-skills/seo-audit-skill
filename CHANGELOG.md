@@ -4,7 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ## [Unreleased]
+
+## [4.0.0] - 2026-09-04
+
+**npm went from 3.3.0 straight to this.** 3.4.0 and 3.5.0 were tagged in the
+repository and never published, so upgrading from the last release on npm brings
+all three at once — their sections below are part of this release in practice.
+
+The major is for the three breaking changes here, chiefly `RuleStatus` gaining a
+fourth value: a consumer filtering `results.filter(r => r.status === 'warn')`
+gets fewer rows than before, and the rows did not disappear, they are
+`'not-measured'`. A predicate keyed on `weight === 0` keeps working unchanged.
 
 ### Breaking
 

@@ -14,6 +14,7 @@ import {
   renderBanner,
 } from '../reporters/index.js';
 import { loadConfig } from '../config/index.js';
+import type { OutputConfig } from '../config/schema.js';
 import { AuditAbortedError, classifyError } from '../errors.js';
 import { setUserAgent } from '../crawler/user-agent.js';
 import { saveReport, createReport, saveAuditToDatabase, getAuditsDbPath } from '../storage/index.js';
@@ -64,6 +65,52 @@ export interface AuditOptions {
  * Exported so the rule can be tested directly. A test that restates the list is
  * a test of its own copy.
  */
+/**
+ * Decide which format to render and where to put it.
+ *
+ * Precedence is flag > config file > default. This used to be computed before
+ * `loadConfig` ran, so `[output] format` and `[output] path` were parsed,
+ * validated, printed by `seomator config`, and then never consulted.
+ *
+ * `text` is a config-only spelling of the human-readable format with no CLI
+ * equivalent, so it resolves to `console` rather than failing a run over a
+ * synonym the config schema itself accepts.
+ *
+ * `format` and `path` are one instruction, not two fields: "my runs produce
+ * JSON at reports/audit.json". Inheriting the path while the caller overrides
+ * the format writes markdown into a file named `audit.json` and leaves stdout
+ * empty, so `--format` without `-o` streams. A caller who overrides the format
+ * and still wants a file names it.
+ */
+export function resolveOutputTarget(
+  cli: { format?: OutputFormat; json?: boolean; output?: string },
+  config: OutputConfig
+): { format: OutputFormat; path: string | undefined } {
+  const fromConfig: OutputFormat = config.format === 'text' ? 'console' : config.format;
+  const overridesFormat = cli.format !== undefined || cli.json === true;
+  const configPath = overridesFormat ? undefined : config.path || undefined;
+  return {
+    format: cli.format ?? (cli.json ? 'json' : fromConfig),
+    path: cli.output ?? configPath,
+  };
+}
+
+/**
+ * Write a report to `outputPath`, creating its parent directories first.
+ *
+ * `-o reports/audit.json` failed with a bare ENOENT: nothing created the
+ * directory, so the natural CI shape (a report under a subdirectory) could not
+ * be written at all. The `ci` preset ships exactly that path as its default.
+ *
+ * The confirmation goes to stderr so a redirect still captures only the report.
+ */
+export function writeReport(outputPath: string, contents: string, label: string): void {
+  const dir = path.dirname(outputPath);
+  if (dir && dir !== '.') fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(outputPath, contents, 'utf-8');
+  console.error(chalk.green(`${label} saved to: ${outputPath}`));
+}
+
 export function isDocumentFormat(outputFormat: string): boolean {
   return (
     outputFormat === 'json' ||
@@ -74,13 +121,6 @@ export function isDocumentFormat(outputFormat: string): boolean {
 }
 
 export async function runAudit(url: string, options: AuditOptions): Promise<void> {
-  // Determine output format (--format takes precedence over --json)
-  const outputFormat = options.format ?? (options.json ? 'json' : 'console');
-  const isJsonMode = outputFormat === 'json';
-  // `--format llm` exists so an agent can read stdout. A failure that prints
-  // only to stderr leaves that agent with an empty string, which reads exactly
-  // like a clean audit.
-  const isMachineMode = isDocumentFormat(outputFormat);
   const isCrawlMode = options.crawl;
   const isVerbose = options.verbose;
   const measureCwv = options.cwv !== false;
@@ -91,9 +131,12 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   const selectedCategories: string[] = options.categories ?? [];
   const maxPages: number = options.maxPages;
   const concurrency: number = options.concurrency;
-  const outputPath = options.output;
 
-  // Load config
+  // Load config before resolving output, not after. Format used to be decided
+  // on the line above this call, so `[output] format` and `[output] path` in
+  // seomator.toml were read, displayed by `seomator config`, and then never
+  // consulted — `init --preset ci` writes both, and produced a coloured console
+  // banner on stdout and no file.
   const { config } = loadConfig(process.cwd(), {
     crawler: {
       max_pages: maxPages,
@@ -101,6 +144,14 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       timeout_ms: options.timeout,
     },
   });
+
+  const { format: outputFormat, path: outputPath } = resolveOutputTarget(options, config.output);
+
+  const isJsonMode = outputFormat === 'json';
+  // `--format llm` exists so an agent can read stdout. A failure that prints
+  // only to stderr leaves that agent with an empty string, which reads exactly
+  // like a clean audit.
+  const isMachineMode = isDocumentFormat(outputFormat);
 
   // Apply the configured identity to every request this run makes
   setUserAgent(config.crawler.user_agent);
@@ -258,8 +309,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
     switch (outputFormat) {
       case 'json':
         if (outputPath) {
-          fs.writeFileSync(outputPath, JSON.stringify(result, null, 2), 'utf-8');
-          console.error(chalk.green(`Report saved to: ${outputPath}`));
+          writeReport(outputPath, JSON.stringify(result, null, 2), 'Report');
         } else {
           outputJsonReport(result);
         }
@@ -272,8 +322,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       // to get a file, and it is the only thing that writes one.
       case 'html':
         if (outputPath) {
-          fs.writeFileSync(outputPath, renderHtmlReport(result), 'utf-8');
-          console.error(chalk.green(`HTML report saved to: ${outputPath}`));
+          writeReport(outputPath, renderHtmlReport(result), 'HTML report');
         } else {
           console.log(renderHtmlReport(result));
         }
@@ -281,8 +330,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
 
       case 'markdown':
         if (outputPath) {
-          fs.writeFileSync(outputPath, renderMarkdownReport(result), 'utf-8');
-          console.error(chalk.green(`Markdown report saved to: ${outputPath}`));
+          writeReport(outputPath, renderMarkdownReport(result), 'Markdown report');
         } else {
           console.log(renderMarkdownReport(result));
         }
@@ -290,9 +338,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
 
       case 'llm':
         if (outputPath) {
-          fs.writeFileSync(outputPath, renderLlmReport(result), 'utf-8');
-          // Use stderr for status message so stdout stays clean for piping
-          console.error(chalk.green(`LLM report saved to: ${outputPath}`));
+          writeReport(outputPath, renderLlmReport(result), 'LLM report');
         } else {
           outputLlmReport(result);
         }

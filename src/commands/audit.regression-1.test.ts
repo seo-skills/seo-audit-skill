@@ -11,8 +11,11 @@
 //
 // This asserts the routing decision rather than driving the whole CLI: which
 // formats must keep stdout clean, and which write a file only on `-o`.
-import { describe, it, expect } from 'vitest';
-import { isDocumentFormat } from './audit.js';
+import { describe, it, expect, vi } from 'vitest';
+import { isDocumentFormat, writeReport } from './audit.js';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 /**
  * A format whose job is to put a document on stdout must suppress progress and
@@ -36,25 +39,30 @@ describe('every document format keeps stdout for the document', () => {
 });
 
 describe('the audit command routes output the same way for every format', () => {
-  const source = new URL('./audit.ts', import.meta.url).pathname;
-
-  it('writes a file only when an output path is given', async () => {
+  it('never invents an output filename the caller did not ask for', async () => {
     const { readFileSync } = await import('node:fs');
-    const text = readFileSync(source, 'utf8');
+    const text = readFileSync(new URL('./audit.ts', import.meta.url).pathname, 'utf8');
 
     // The invented filename is what made a stray report appear on every run.
     expect(text).not.toMatch(/seo-report-\$\{generateId\(\)\}/);
     expect(text).not.toMatch(/outputPath \?\? `seo-report-/);
   });
 
-  it('sends save confirmations to stderr, so a redirect captures only the document', async () => {
-    const { readFileSync } = await import('node:fs');
-    const text = readFileSync(source, 'utf8');
+  it('sends the save confirmation to stderr, so a redirect captures only the document', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'seomator-stderr-'));
+    const out = join(dir, 'report.json');
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    for (const label of ['HTML report saved to', 'Markdown report saved to', 'Report saved to']) {
-      const line = text.split('\n').find((l) => l.includes(label));
-      expect(line, `"${label}" should be logged`).toBeDefined();
-      expect(line, `"${label}" must go to stderr`).toContain('console.error');
+    try {
+      writeReport(out, '{}', 'Report');
+      expect(err).toHaveBeenCalledWith(expect.stringContaining('Report saved to'));
+      // stdout belongs to the document, not to status lines.
+      expect(log).not.toHaveBeenCalled();
+    } finally {
+      err.mockRestore();
+      log.mockRestore();
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });

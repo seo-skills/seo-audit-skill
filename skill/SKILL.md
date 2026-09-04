@@ -5,7 +5,7 @@ license: MIT
 compatibility: Requires Node.js 20.3+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
 metadata:
   author: seomator
-  version: "3.1"
+  version: "3.5.0"
 allowed-tools: Bash(seomator:*)
 ---
 
@@ -33,7 +33,7 @@ This skill enables AI agents to audit websites for **332 rules** in **20 categor
 - **Images** (14 rules): Alt text, dimensions, lazy loading, modern formats, alt length, background images
 - **Security** (23 rules): HTTPS, HSTS, CSP, external link safety, leaked secrets, SSL expiry/protocol, cookie flags and lifetime
 - **Technical SEO** (17 rules): robots.txt, sitemap.xml, URL structure, 404 pages, soft 404s, error codes
-- **Crawlability** (34 rules): Sitemap conflicts, indexability signals, canonical chains, pagination issues, sitemap lastmod quality
+- **Crawlability** (35 rules): Sitemap conflicts, indexability signals, canonical chains, pagination issues, sitemap lastmod quality
 - **Structured Data** (13 rules): Schema.org markup, Article, Organization, FAQ, Product, Breadcrumb
 - **JavaScript Rendering** (16 rules): Rendered DOM checks, raw vs rendered mismatches, SSR detection, console errors, failed resource requests
 - **Accessibility** (31 rules): ARIA labels, color contrast, form labels, landmarks, touch targets
@@ -337,17 +337,17 @@ tag is present and well-formed, and only a real fetch reveals nothing came back.
 
 Fix issues in this order for maximum impact:
 
-1. **Core** (12%) - Meta tags, canonical, H1, indexing
-2. **Performance** (12%) - Core Web Vitals + optimization
+1. **Core** (11%) - Meta tags, canonical, H1, indexing
+2. **Performance** (10%) - Core Web Vitals + optimization
 3. **Links** (8%) - Internal linking structure
 4. **Images** (8%) - Performance + accessibility
 5. **Security** (8%) - Trust signals, SSL
 6. **Technical SEO** (7%) - Crawling foundation
-7. **Crawlability** (5%) - Indexability, pagination
-8. **Structured Data** (5%) - Rich snippets
-9. **JavaScript Rendering** (5%) - Rendered DOM, SSR
-10. **Content** (5%) - Text quality + duplicates
-11. **Accessibility** (4%) - WCAG compliance
+7. **Accessibility** (7%) - WCAG compliance
+8. **Crawlability** (5%) - Indexability, pagination
+9. **Structured Data** (5%) - Rich snippets
+10. **JavaScript Rendering** (5%) - Rendered DOM, SSR
+11. **Content** (5%) - Text quality + duplicates
 12. **Social** (3%) - Social sharing
 13. **E-E-A-T** (3%) - Trust, expertise
 14. **URL Structure** (3%) - URL hygiene
@@ -447,7 +447,7 @@ seomator audit https://example.com
 3. **Enrich**: Fetches robots.txt and sitemap once per audit
 4. **Render** (if CWV enabled): Captures rendered DOM via Playwright, plus console errors and failed resource requests
 5. **Crawl** (if enabled): Discovers and fetches linked pages
-6. **Analyze**: Runs 261 audit rules against each page
+6. **Analyze**: Runs 332 audit rules against each page
 7. **Score**: Calculates category and overall weighted scores
 8. **Report**: Generates output in requested format
 

@@ -405,7 +405,8 @@ export class Auditor {
       timestamp,
       1,
       buildPageSnapshot(context),
-      this.runOptions(false, 1, 1)
+      this.runOptions(false, 1, 1),
+      { pages: [url], detail: 'per-page' }
     );
   }
 
@@ -506,7 +507,8 @@ export class Auditor {
       timestamp,
       crawledPages.length,
       undefined,
-      this.runOptions(true, maxPages, concurrency)
+      this.runOptions(true, maxPages, concurrency),
+      { pages: crawledPages.map((p) => p.url), detail: 'per-page' }
     );
   }
 

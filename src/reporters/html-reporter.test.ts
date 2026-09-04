@@ -74,7 +74,7 @@ function buildResult(overrides: Partial<AuditResult> = {}): AuditResult {
 describe('renderHtmlReport — unmeasured checks are not warnings', () => {
   it('gives a weight-0 result its own display status rather than amber', () => {
     const out = renderHtmlReport(buildResult());
-    expect(out).toContain('data-rule-id="cwv-inp" data-urls');
+    expect(out).toContain('data-rule-id="cwv-inp"');
     expect(out).toMatch(/data-status="notmeasured" data-rule-id="cwv-inp"/);
     // The real warning keeps its amber status.
     expect(out).toMatch(/data-status="warn" data-rule-id="perf-page-weight"/);
@@ -88,13 +88,13 @@ describe('renderHtmlReport — unmeasured checks are not warnings', () => {
 
   it('offers no fix advice for a check that took no reading', () => {
     const inpCard = cardFor(renderHtmlReport(buildResult()), 'notmeasured', 'cwv-inp');
-    expect(inpCard).not.toContain('How to Fix');
+    expect(inpCard).not.toContain('How to fix');
     expect(inpCard).toContain('Not measured');
   });
 
   it('still offers fix advice for a real warning', () => {
     const warnCard = cardFor(renderHtmlReport(buildResult()), 'warn', 'perf-page-weight');
-    expect(warnCard).toContain('How to Fix');
+    expect(warnCard).toContain('How to fix');
   });
 
   it('keeps unmeasured checks out of the issues-to-fix table', () => {

@@ -69,3 +69,24 @@ export function scoreToVerdict(score: number | null | undefined): Verdict {
 export function verdictCssVar(token: VerdictToken): string {
   return `var(--color-${token})`;
 }
+
+/**
+ * The CSS custom properties a verdict is drawn with.
+ *
+ * Callers used to build the tint themselves with `` `${color}15` `` — string
+ * concatenation onto `var(--color-pass)`, which yields `var(--color-pass)15`.
+ * That is not a colour, so the browser dropped it: the score label rendered
+ * with no background at all, at 2.5:1 against the card, in the highest-priority
+ * element on the page. A token audit could not have caught it, because the
+ * token values were right and the composition was not.
+ */
+export function verdictStyle(score: number | null | undefined): {
+  color: string;
+  backgroundColor: string;
+} {
+  const { colorToken } = scoreToVerdict(score);
+  return {
+    color: `var(--color-${colorToken})`,
+    backgroundColor: `var(--color-${colorToken}-bg)`,
+  };
+}

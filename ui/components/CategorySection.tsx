@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import type { CategoryResult } from '../../src/types.js';
 import type { RuleMetadata } from '../../electron/shared/ipc-types.js';
-import { getScoreColor } from '../lib/format.js';
+import { getScoreColor, verdictStyle } from '../lib/format.js';
 import { RuleCard } from './RuleCard.js';
 import type { FilterStatus } from './FilterTabs.js';
 
@@ -28,7 +28,30 @@ interface CategorySectionProps {
 }
 
 export function CategorySection({ category, filter, ruleMetadata, defaultExpanded = false }: CategorySectionProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  // Expansion is derived, not copied.
+  //
+  // This was `useState(defaultExpanded)`, and `useState` reads its argument on
+  // the first render only — so a section already on screen ignored every later
+  // change to the prop, which is exactly how the issues table asks for the
+  // category it is jumping to. Clicking an issue expanded nothing and the
+  // drill-down silently did nothing.
+  //
+  // Syncing it in an effect fixes the expansion but not the jump: a passive
+  // effect runs after the parent's layout effect, so the rule card still does
+  // not exist at the moment the parent looks for it. Deriving during render
+  // means the section is open in the same commit the parent acts on.
+  //
+  // `override` is the reader's own decision, and it wins until the parent asks
+  // for this category again — a jump to a rule should not be defeated by a
+  // section the reader collapsed ten minutes ago.
+  const [override, setOverride] = useState<boolean | null>(null);
+  const [lastRequested, setLastRequested] = useState(defaultExpanded);
+  if (defaultExpanded !== lastRequested) {
+    setLastRequested(defaultExpanded);
+    if (defaultExpanded) setOverride(null);
+  }
+  const expanded = override ?? defaultExpanded;
+  const setExpanded = (next: boolean): void => setOverride(next);
   const color = getScoreColor(category.score);
   const name = CATEGORY_NAMES[category.categoryId] ?? category.categoryId;
 
@@ -67,7 +90,7 @@ export function CategorySection({ category, filter, ruleMetadata, defaultExpande
           </span>
           <span
             className="text-xs px-2 py-0.5 rounded-full font-bold"
-            style={{ color, backgroundColor: `${color}15` }}
+            style={verdictStyle(category.score)}
           >
             {Math.round(category.score)}
           </span>

@@ -48,7 +48,26 @@ export function HomePage() {
     return <PageError kind="server-gone" onRetry={refresh} />;
   }
 
+  // A restarted server mints a new token; this tab still holds the old cookie.
+  // Retrying the same fetch can never succeed — only a reload picks the new one
+  // up, because the cookie is set on the document response.
+  if (domains.stale || audits.stale) {
+    return <PageError kind="stale-session" />;
+  }
+
+  // A failed read is not an empty database. Without this branch the page told a
+  // user whose read had failed that they had no audits yet and invited them to
+  // run their first one — while the audits they already had sat unread.
+  if (audits.error && !audits.data) {
+    return <PageError kind="read-failed" message={audits.error} onRetry={refresh} />;
+  }
+
   const hasAudits = (audits.data?.length ?? 0) > 0 || (domains.data?.length ?? 0) > 0;
+
+  // Filtering to a domain with no audits is not the same as having none at all,
+  // and telling someone to run their first audit when they have twelve of
+  // another site reads as if the dashboard lost them.
+  const filteredEmpty = Boolean(domain) && !audits.loading && (audits.data?.length ?? 0) === 0;
 
   return (
     <div className="max-w-[var(--content-max-width)] mx-auto p-6 space-y-6">
@@ -56,13 +75,16 @@ export function HomePage() {
         <DomainStrip domains={domains.data} selected={domain} onSelect={selectDomain} />
       )}
 
-      {domain && (trend.data?.length ?? 0) > 1 && (
+      {/* The chart owns the threshold. Duplicating it here hid the section
+          entirely below three points, so the message explaining why there is
+          no trend yet could never be seen. */}
+      {domain && (trend.data?.length ?? 0) > 0 && (
         <section
           className="p-5 rounded-xl border"
           style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}
           aria-labelledby="trend-heading"
         >
-          <h2 id="trend-heading" className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
+          <h2 id="trend-heading" className="text-base font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
             {domain}
           </h2>
           <TrendChart points={trend.data ?? []} />
@@ -71,9 +93,9 @@ export function HomePage() {
 
       <section aria-labelledby="audits-heading">
         <div className="flex items-baseline justify-between mb-3">
-          <h2 id="audits-heading" className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+          <h1 id="audits-heading" className="text-xl font-semibold" style={{ color: 'var(--color-text)' }}>
             {domain ? `Audits of ${domain}` : 'Recent audits'}
-          </h2>
+          </h1>
           {audits.data && audits.data.length > 0 && (
             <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
               {audits.data.length} shown
@@ -81,7 +103,11 @@ export function HomePage() {
           )}
         </div>
 
-        {!audits.loading && !hasAudits ? <EmptyHistory /> : (
+        {filteredEmpty ? (
+          <NoAuditsForDomain domain={domain!} onClear={() => selectDomain(null)} />
+        ) : !audits.loading && !hasAudits ? (
+          <EmptyHistory />
+        ) : (
           <AuditList
             audits={audits.data ?? []}
             loading={audits.loading}
@@ -115,6 +141,31 @@ function EmptyHistory() {
       <p className="text-xs mt-4" style={{ color: 'var(--color-text-muted)' }}>
         Then come back to this page, or press <Link to="/" className="underline">reload</Link>.
       </p>
+    </div>
+  );
+}
+
+/** The filter matched nothing — which is not the same as having no history */
+function NoAuditsForDomain({ domain, onClear }: { domain: string; onClear: () => void }) {
+  return (
+    <div
+      className="rounded-xl border border-dashed p-10 text-center"
+      style={{ borderColor: 'var(--color-border)' }}
+    >
+      <p className="text-base font-medium mb-1" style={{ color: 'var(--color-text)' }}>
+        No audits of {domain}
+      </p>
+      <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>
+        Your other sites are still here.
+      </p>
+      <button
+        type="button"
+        onClick={onClear}
+        className="px-3 py-1.5 text-sm rounded-md font-medium border"
+        style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+      >
+        Show all sites
+      </button>
     </div>
   );
 }

@@ -1,5 +1,14 @@
-import type { PageSnapshot, AuditResult, CategoryResult, RuleResult } from '../types.js';
-import { scoreToVerdict } from '../verdict.js';
+import type {
+  PageSnapshot,
+  AuditResult,
+  CategoryResult,
+  RuleResult,
+  RuleStatus,
+} from '../types.js';
+import type { RuleSummary } from '../dashboard/contract.js';
+import { scoreToVerdict, verdictStyle } from '../verdict.js';
+import { rulePriority } from '../rules/priority.js';
+import { toCss as tokensToCss } from '../design/tokens.js';
 import { getCategoryById } from '../categories/index.js';
 import { getFixSuggestion } from './fix-suggestions.js';
 import { getRuleById } from '../rules/registry.js';
@@ -44,6 +53,44 @@ function toDisplayStatus(result: RuleResult): DisplayStatus {
 }
 
 /**
+ * Which pages a finding covers, as indices into the report's page list.
+ *
+ * This was the full URL list, repeated verbatim on the table row and again on
+ * the rule card: `data-urls="https://…/page-0,https://…/page-1,…"`. On a
+ * 1,000-page crawl that came to 20.6MB across 350 attributes — for data the
+ * page already carries once, used only to drive a dropdown filter.
+ *
+ * Indices instead, and `*` when a finding covers every page, which is the case
+ * that produced the blowup. The URLs themselves are emitted once, in the script
+ * the filter already needs.
+ */
+function encodePages(pages: string[], indexOf: Map<string, number>, total: number): string {
+  if (pages.length === 0) return '';
+  if (pages.length >= total) return '*';
+  const seen = new Set<number>();
+  for (const url of pages) {
+    const i = indexOf.get(url);
+    if (i !== undefined) seen.add(i);
+  }
+  if (seen.size >= total) return '*';
+  return [...seen].sort((a, b) => a - b).join(',');
+}
+
+/**
+ * How many affected pages a rule lists before it just counts the rest.
+ *
+ * A rule that fails on every page of a 1,000-page crawl produced 1,000 anchors
+ * inside one card. Multiplied across 340 rules that was 48MB of a 69MB file —
+ * all of it inside a closed `<details>`, so it was never even read.
+ */
+const MAX_LISTED_PAGES = 10;
+
+/** The inverse of `toDisplayStatus`, for the ranker's benefit. */
+function fromDisplayStatus(status: DisplayStatus): RuleStatus {
+  return status === 'notmeasured' ? 'not-measured' : status;
+}
+
+/**
  * Aggregated issue structure for grouping same-rule occurrences
  */
 interface AggregatedIssue {
@@ -56,6 +103,13 @@ interface AggregatedIssue {
   ruleDescription: string;
   pages: Array<{ url: string; details: Record<string, unknown> }>;
   pageCount: number;
+  /**
+   * How much attention this finding deserves relative to the others in this
+   * audit. Ordering by severity alone put a weight-1 warning above a weight-25
+   * one, which is most of why a reader had to scroll a 54,000-pixel report to
+   * find out what to fix first.
+   */
+  priority: number;
 }
 
 /**
@@ -126,7 +180,8 @@ function aggregateIssuesByRule(
           ruleName: metadata?.name ?? formatRuleIdAsName(r.ruleId),
           ruleDescription: metadata?.description ?? '',
           pages: [],
-          pageCount: 0
+          pageCount: 0,
+          priority: 0,
         });
       }
 
@@ -135,22 +190,58 @@ function aggregateIssuesByRule(
         group.pages.push({ url, details: r.details || {} });
       }
       group.pageCount++;
+
+      // A stored audit arrives as `RuleSummary`, already ranked server-side
+      // against the full page counts. Prefer that over anything derived here.
+      const stored = (r as Partial<RuleSummary>).priority;
+      if (typeof stored === 'number') group.priority = stored;
     }
 
-    aggregatedByCategory.set(cat.categoryId, Array.from(ruleGroups.values()));
+    const groups = Array.from(ruleGroups.values());
+
+    // A live audit has one result per rule per page and no precomputed rank, so
+    // derive the same number: the share of measured pages this status covers.
+    const measuredByRule = new Map<string, number>();
+    for (const g of groups) {
+      if (g.status === 'notmeasured') continue;
+      measuredByRule.set(g.ruleId, (measuredByRule.get(g.ruleId) ?? 0) + g.pageCount);
+    }
+    for (const g of groups) {
+      if (g.priority) continue;
+      const measuredPages = measuredByRule.get(g.ruleId) ?? 0;
+      g.priority = rulePriority({
+        ruleId: g.ruleId,
+        categoryId: cat.categoryId,
+        status: fromDisplayStatus(g.status),
+        affectedPages: g.pageCount,
+        measuredPages,
+      });
+    }
+
+    aggregatedByCategory.set(cat.categoryId, groups);
   }
 
   return aggregatedByCategory;
 }
 
 /**
- * Get color class for score
+ * Colour for a score, from the one shared bucket set.
+ *
+ * This used to carry its own 90/70/50 thresholds, so a score of 85 drew green
+ * in the terminal and the dashboard (verdict bucket B) and amber here. The
+ * scale lives in `src/verdict.ts` and nowhere else.
  */
 function getScoreColor(score: number): string {
-  if (score >= 90) return 'var(--color-pass)';
-  if (score >= 70) return 'var(--color-warn)';
-  if (score >= 50) return 'var(--color-orange)';
-  return 'var(--color-fail)';
+  return verdictStyle(score).color;
+}
+
+/**
+ * Paired background for a score badge. Never build this by appending an alpha
+ * suffix to `getScoreColor()` — that yields `var(--color-pass)20`, which is
+ * dropped silently and leaves the badge with no background at all.
+ */
+function getScoreBackground(score: number): string {
+  return verdictStyle(score).backgroundColor;
 }
 
 /**
@@ -210,85 +301,13 @@ function getShortUrl(url: string): string {
 function generateStyles(): string {
   return `
     /* ========================================
-       CSS Custom Properties (Theme System)
-       ======================================== */
-    :root {
-      /* Light theme (default) */
-      --color-bg: #f8fafc;
-      --color-bg-elevated: #ffffff;
-      --color-bg-hover: #f1f5f9;
-      --color-bg-active: #e2e8f0;
-      --color-border: #e2e8f0;
-      --color-border-subtle: #f1f5f9;
-      --color-text: #0f172a;
-      --color-text-secondary: #475569;
-      --color-text-muted: #94a3b8;
-
-      /* Status colors */
-      --color-pass: #10b981;
-      --color-pass-bg: #d1fae5;
-      --color-warn: #f59e0b;
-      --color-warn-bg: #fef3c7;
-      --color-orange: #f97316;
-      --color-fail: #ef4444;
-      --color-fail-bg: #fee2e2;
-      --color-info: #3b82f6;
-      --color-info-bg: #dbeafe;
-      /* "No reading taken" is its own state — deliberately colourless so it
-         never competes with the three that mean something about the site. */
-      --color-neutral: #64748b;
-      --color-neutral-bg: #e2e8f0;
-
-      /* Brand accent color */
-      --color-accent: #064ada;
-      --color-accent-hover: #0540b8;
-      --color-accent-light: rgba(6, 74, 218, 0.1);
-
-      /* Shadows */
-      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-
-      /* Spacing & Layout */
-      --header-height: 64px;
-      --sidebar-width: 260px;
-      --content-max-width: 1200px;
-
-      /* Typography */
-      --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
-
-      /* Border radius */
-      --radius-sm: 4px;
-      --radius-md: 8px;
-      --radius-lg: 12px;
-      --radius-full: 9999px;
-    }
-
-    /* Dark theme - True black */
-    [data-theme="dark"] {
-      --color-bg: #000000;
-      --color-bg-elevated: #0a0a0a;
-      --color-bg-hover: #161616;
-      --color-bg-active: #1f1f1f;
-      --color-border: #1a1a1a;
-      --color-border-subtle: #111111;
-      --color-text: #ffffff;
-      --color-text-secondary: #a3a3a3;
-      --color-text-muted: #525252;
-
-      --color-pass-bg: rgba(16, 185, 129, 0.12);
-      --color-warn-bg: rgba(245, 158, 11, 0.12);
-      --color-fail-bg: rgba(239, 68, 68, 0.12);
-      --color-info-bg: rgba(59, 130, 246, 0.12);
-      --color-neutral: #8b949e;
-      --color-neutral-bg: rgba(139, 148, 158, 0.14);
-      --color-accent-light: rgba(6, 74, 218, 0.2);
-
-      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-      --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.6);
-      --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.7);
-    }
+       Design tokens — generated, not written here
+       ========================================
+       These used to be declared inline, and the copy in the dashboard had
+       already drifted: this file painted pure black (#000000) for the dark
+       background where the app painted zinc (#09090b), and the two disagreed
+       on every raised surface. One source now: src/design/tokens.ts. */
+${tokensToCss()}
 
     /* ========================================
        Base Styles
@@ -544,6 +563,88 @@ function generateStyles(): string {
       background: var(--color-pass-bg);
       color: var(--color-pass);
     }
+
+    /* Checks that need no action, folded out of the way */
+    .quiet-rules {
+      margin-top: 8px;
+      border-top: 1px solid var(--color-border);
+    }
+
+    .quiet-rules summary {
+      cursor: pointer;
+      padding: 7px 4px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      list-style: none;
+    }
+
+    .quiet-rules summary::marker,
+    .quiet-rules summary::-webkit-details-marker { display: none; }
+
+    .quiet-rules summary::before {
+      content: '▶';
+      font-size: 9px;
+      margin-right: 8px;
+      display: inline-block;
+    }
+
+    .quiet-rules[open] summary::before { content: '▼'; }
+
+    .quiet-rules summary:hover { color: var(--color-text); }
+
+    .quiet-rules summary:focus-visible {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* Pages covered, when the results are aggregated and cannot be filtered */
+    .pages-covered summary {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text);
+      cursor: pointer;
+      padding: 8px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-bg);
+      list-style: none;
+    }
+
+    .pages-covered summary::marker,
+    .pages-covered summary::-webkit-details-marker { display: none; }
+
+    .pages-covered summary::before {
+      content: '▶';
+      font-size: 9px;
+      color: var(--color-text-muted);
+      margin-right: 8px;
+      display: inline-block;
+    }
+
+    .pages-covered[open] summary::before { content: '▼'; }
+
+    .pages-covered ul {
+      list-style: none;
+      margin: 6px 0 0;
+      padding: 0 0 0 12px;
+    }
+
+    .pages-covered li { margin: 0; }
+
+    .pages-covered a {
+      display: block;
+      padding: 5px 0;
+      font-size: 12px;
+      color: var(--color-text-muted);
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .pages-covered a:hover { color: var(--color-accent); }
 
     /* URL Filter in sidebar */
     .url-filter {
@@ -1009,7 +1110,7 @@ function generateStyles(): string {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 16px 20px;
+      padding: 10px 20px;
       border-bottom: 1px solid var(--color-border);
       background: var(--color-bg);
     }
@@ -1026,7 +1127,7 @@ function generateStyles(): string {
 
     .issues-table th {
       text-align: left;
-      padding: 12px 16px;
+      padding: 8px 16px;
       font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
@@ -1041,7 +1142,9 @@ function generateStyles(): string {
     }
 
     .issues-table td {
-      padding: 14px 16px;
+      /* Ten of these decide whether the top ten findings reach the first
+         screen: at 14px the tenth row landed at y=980 on a 900px viewport. */
+      padding: 8px 16px;
       border-bottom: 1px solid var(--color-border-subtle);
       font-size: 13px;
     }
@@ -1149,7 +1252,7 @@ function generateStyles(): string {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 16px 20px;
+      padding: 10px 20px;
       background: var(--color-bg-elevated);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-lg) var(--radius-lg) 0 0;
@@ -1203,7 +1306,7 @@ function generateStyles(): string {
        Rule Cards
        ======================================== */
     .rule-card {
-      padding: 16px 20px;
+      padding: 12px 20px;
       border-bottom: 1px solid var(--color-border-subtle);
       transition: background 0.15s;
     }
@@ -1336,9 +1439,22 @@ function generateStyles(): string {
       margin-bottom: 8px;
     }
 
+    .rule-fix > summary {
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .rule-fix > summary::marker,
+    .rule-fix > summary::-webkit-details-marker { display: none; }
+
     .rule-fix {
-      margin-top: 12px;
-      padding: 12px 16px;
+      margin-top: 8px;
+    }
+
+    /* Open, the advice gets its panel; closed, it costs one line. It was 46px
+       of every card in a report where cards are 83% of the page. */
+    .rule-fix[open] > .rule-fix-text {
+      padding: 10px 14px;
       border-left: 3px solid var(--color-info);
       background: var(--color-bg);
       border-radius: 0 var(--radius-md) var(--radius-md) 0;
@@ -1353,6 +1469,9 @@ function generateStyles(): string {
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--color-info);
+    }
+
+    .rule-fix[open] > .rule-fix-header {
       margin-bottom: 6px;
     }
 
@@ -1399,6 +1518,12 @@ function generateStyles(): string {
 
     .pages-toggle summary:hover {
       background: var(--color-accent-light);
+    }
+
+    .pages-more {
+      font-size: 11px;
+      color: var(--color-text-muted);
+      align-self: center;
     }
 
     .pages-list {
@@ -1508,11 +1633,55 @@ function generateStyles(): string {
        Responsive
        ======================================== */
     @media (max-width: 1024px) {
+      /* The sidebar used to be display:none here, which left a report that can
+         run to 17,000 pixels with no way to reach a category except scrolling.
+         It becomes a scrollable strip above the content instead: same links,
+         same DOM, no JavaScript. */
       .sidebar {
+        position: static;
+        width: auto;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--color-border);
+        overflow: visible;
+        padding: 12px 0 0;
+        /* The header stays fixed, so a static sidebar starts at y=0 and its
+           first rows render behind it. */
+        margin-top: var(--header-height);
+      }
+      .sidebar-section {
+        margin-bottom: 12px;
+        padding: 0;
+      }
+      .sidebar-nav {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        padding: 0 16px 12px;
+        scrollbar-width: thin;
+      }
+      .sidebar-link {
+        white-space: nowrap;
+        padding: 8px 12px;
+        border: 1px solid var(--color-border);
+      }
+      /* The category glyph earns no room on a phone; the name and its counter
+         are what make the link scannable. */
+      .sidebar-link-icon {
         display: none;
       }
+      .sidebar-title {
+        padding: 0 16px 6px;
+      }
+      /* Filter and page list are full-width controls here, not a rail. */
+      .url-filter {
+        padding: 0 16px;
+      }
       .main {
+        /* The sidebar now carries the header offset in normal flow; keeping it
+           here too would leave a header-sized gap between the two. */
         margin-left: 0;
+        margin-top: 0;
       }
     }
 
@@ -1593,6 +1762,19 @@ function generateStyles(): string {
     /* ========================================
        Print Styles
        ======================================== */
+    /* The report animates the score ring and every hover; honour a reader who
+       has asked their system for less motion. There was no such rule at all. */
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
     @media print {
       .header, .sidebar, .filter-bar, .theme-toggle {
         display: none !important;
@@ -1609,11 +1791,18 @@ function generateStyles(): string {
 }
 
 /**
- * Generate JavaScript for interactivity
+ * Generate JavaScript for interactivity.
+ *
+ * `pages` is emitted here once. It used to be repeated as a full URL list on
+ * every table row and every rule card — 20.6MB across 350 attributes on a
+ * 1,000-page crawl, of data the document already contained.
  */
-function generateScript(): string {
+function generateScript(pages: string[]): string {
   return `
     (function() {
+      // The report's page list, in the order the filter offers them. Findings
+      // reference it by index.
+      const REPORT_PAGES = ${JSON.stringify(pages)};
       // Theme toggle
       const themeToggle = document.querySelector('.theme-toggle');
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -1635,6 +1824,18 @@ function generateScript(): string {
       // State
       let currentStatusFilter = 'all';
       let currentUrlFilter = 'all';
+      // -1 means "all pages". Findings carry indices into REPORT_PAGES rather
+      // than a repeated copy of every URL they cover.
+      let currentPageIndex = -1;
+
+      // Does this element's page set include the selected page?
+      function matchesPage(el) {
+        if (currentPageIndex < 0) return true;
+        const bits = el.dataset.pages;
+        // No attribution at all, or every page: always shown.
+        if (!bits || bits === '*') return true;
+        return bits.split(',').indexOf(String(currentPageIndex)) !== -1;
+      }
 
       // Elements
       const filterTabs = document.querySelectorAll('.filter-tab');
@@ -1648,30 +1849,34 @@ function generateScript(): string {
         // Filter rule cards - supports multiple URLs in data-urls attribute
         ruleCards.forEach(card => {
           const status = card.dataset.status;
-          // Support both single url and multiple urls (comma-separated)
-          const urls = (card.dataset.urls || card.dataset.url || '').split(',').filter(Boolean);
-
           const statusMatch = currentStatusFilter === 'all' || status === currentStatusFilter;
-          const urlMatch = currentUrlFilter === 'all' || urls.length === 0 || urls.some(u => u.includes(currentUrlFilter));
-
-          card.classList.toggle('hidden', !(statusMatch && urlMatch));
+          card.classList.toggle('hidden', !(statusMatch && matchesPage(card)));
         });
 
         // Filter issue rows in summary table - supports multiple URLs
         issueRows.forEach(row => {
           const status = row.dataset.status;
-          const urls = (row.dataset.urls || row.dataset.url || '').split(',').filter(Boolean);
-
           const statusMatch = currentStatusFilter === 'all' || status === currentStatusFilter;
-          const urlMatch = currentUrlFilter === 'all' || urls.length === 0 || urls.some(u => u.includes(currentUrlFilter));
-
-          row.classList.toggle('hidden', !(statusMatch && urlMatch));
+          row.classList.toggle('hidden', !(statusMatch && matchesPage(row)));
         });
 
         // Hide empty categories
         categorySections.forEach(section => {
           const visibleRules = section.querySelectorAll('.rule-card:not(.hidden)');
           section.style.display = visibleRules.length === 0 ? 'none' : 'block';
+        });
+
+        // The fold must never hide what the reader explicitly asked to see:
+        // filtering to Passed with the passed checks folded away would show an
+        // empty report. Selecting 'All' leaves the fold as the reader left it.
+        document.querySelectorAll('details.quiet-rules').forEach(fold => {
+          const visible = fold.querySelectorAll('.rule-card:not(.hidden)').length;
+          fold.style.display = visible === 0 ? 'none' : '';
+          if (currentStatusFilter === 'pass' || currentStatusFilter === 'notmeasured') {
+            fold.open = true;
+          } else if (currentStatusFilter !== 'all') {
+            fold.open = false;
+          }
         });
 
         // Update counts in filter tabs
@@ -1689,10 +1894,7 @@ function generateScript(): string {
 
         ruleCards.forEach(card => {
           const status = card.dataset.status;
-          const urls = (card.dataset.urls || card.dataset.url || '').split(',').filter(Boolean);
-          const urlMatch = currentUrlFilter === 'all' || urls.length === 0 || urls.some(u => u.includes(currentUrlFilter));
-
-          if (urlMatch) {
+          if (matchesPage(card)) {
             visible.all++;
             if (status === 'fail') visible.fail++;
             if (status === 'warn') visible.warn++;
@@ -1724,6 +1926,8 @@ function generateScript(): string {
       if (urlFilter) {
         urlFilter.addEventListener('change', () => {
           currentUrlFilter = urlFilter.value;
+          // Resolved once here rather than string-matched on every element.
+          currentPageIndex = currentUrlFilter === 'all' ? -1 : REPORT_PAGES.indexOf(currentUrlFilter);
           applyFilters();
         });
       }
@@ -1958,7 +2162,19 @@ export function renderHtmlReport(result: AuditResult): string {
   const passes = allAggregatedIssues.filter(i => i.status === 'pass');
   const notMeasured = allAggregatedIssues.filter(i => i.status === 'notmeasured');
   const totalChecks = allAggregatedIssues.length;
-  const uniqueUrls = Array.from(allUrls).sort();
+  // Prefer the audit's own page list. Scraping URLs back out of rule details
+  // only ever recovers pages that some rule happened to name, so a page with no
+  // attributable finding disappeared: an eight-page crawl listed seven.
+  const coverage = result.coverage;
+  const uniqueUrls = coverage ? [...coverage.pages] : Array.from(allUrls).sort();
+
+  // Built once and shared by both emission sites below.
+  const pageIndexOf = new Map(uniqueUrls.map((url, index) => [url, index]));
+
+  // A per-page filter is only honest when every rule result carries its own
+  // page. Aggregated results keep one row per rule with a capped sample of
+  // pages, so filtering by page would hide most of what it claims to show.
+  const canFilterByPage = coverage ? coverage.detail === 'per-page' : true;
 
   // Drives every per-rule page link. Read from the URLs the rules actually
   // reported rather than from `crawledPages`, so a crawl that resolved to one
@@ -1970,10 +2186,25 @@ export function renderHtmlReport(result: AuditResult): string {
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference - (result.overallScore / 100) * circumference;
 
-  // Generate issues table rows (failures and warnings only) - now using aggregated data
-  const issueTableRows = [...failures, ...warnings]
+  // Generate issues table rows (failures and warnings only) - now using
+  // aggregated data, ordered by what actually deserves attention first.
+  // Severity still leads, because a failure outranks a warning whatever its
+  // weight; within a severity the ranker decides, so a weight-25 finding no
+  // longer sits below a weight-1 one that happens to register earlier.
+  const byPriority = (a: AggregatedIssue, b: AggregatedIssue) =>
+    b.priority - a.priority ||
+    b.pageCount - a.pageCount ||
+    a.ruleId.localeCompare(b.ruleId);
+
+  // The table and the category sections below rendered the same 46 findings
+  // twice — 3,191px of rows and 12,217px of cards, 90% of a 17,199px page. The
+  // table is a ranked index now: what to fix first, linking down to the detail.
+  const rankedIssues = [...failures.sort(byPriority), ...warnings.sort(byPriority)];
+  const TOP_ISSUES = 10;
+  const issueTableRows = rankedIssues
+    .slice(0, TOP_ISSUES)
     .map((issue) => {
-      const urlsCommaSeparated = issue.pages.map(p => p.url).join(',');
+      const pageBits = encodePages(issue.pages.map(p => p.url), pageIndexOf, uniqueUrls.length);
       const pageDisplay = issue.pages.length === 0
         ? '-'
         : issue.pages.length === 1
@@ -1981,7 +2212,7 @@ export function renderHtmlReport(result: AuditResult): string {
           : `<span class="issue-row-url">${issue.pages.length} pages</span>`;
 
       return `
-      <tr class="issue-row" data-rule-id="${escapeHtml(issue.ruleId)}" data-status="${issue.status}" data-urls="${escapeHtml(urlsCommaSeparated)}">
+      <tr class="issue-row" data-rule-id="${escapeHtml(issue.ruleId)}" data-status="${issue.status}" data-pages="${pageBits}">
         <td>
           <div class="issue-row-name">
             <div class="issue-row-icon ${issue.status}">${STATUS_ICONS[issue.status]}</div>
@@ -2000,9 +2231,21 @@ export function renderHtmlReport(result: AuditResult): string {
     }).join('');
 
   // Generate URL filter options
-  const urlFilterOptions = uniqueUrls.length > 1
-    ? `<option value="all">All Pages (${uniqueUrls.length})</option>
+  const urlFilterOptions = uniqueUrls.length > 1 && canFilterByPage
+    ? `<option value="all">All pages (${uniqueUrls.length})</option>
        ${uniqueUrls.map(url => `<option value="${escapeHtml(url)}">${escapeHtml(getShortUrl(url))}</option>`).join('')}`
+    : '';
+
+  // When the results are aggregated the pages are still worth showing — every
+  // rule below reports how many of them it affected — but they cannot be
+  // filtered on, so they are presented as the list they are.
+  const pagesCovered = uniqueUrls.length > 1 && !canFilterByPage
+    ? `<details class="pages-covered">
+         <summary>${uniqueUrls.length} pages audited</summary>
+         <ul>
+           ${uniqueUrls.map(url => `<li><a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(getShortUrl(url))}</a></li>`).join('')}
+         </ul>
+       </details>`
     : '';
 
   // Generate sidebar links
@@ -2052,12 +2295,21 @@ export function renderHtmlReport(result: AuditResult): string {
       `;
     }
 
-    // For 4+ pages, use collapsible list
+    // For 4+ pages, use collapsible list.
+    //
+    // Capped, because `<details>` hides these visually and puts every one of
+    // them in the DOM regardless. On a 1,000-page crawl that meant 340 rules x
+    // 1,000 anchors: 340,004 links and 48MB of a 69MB file, for a list nobody
+    // reads past the first few. The count is the useful part; the URLs are a
+    // sample of where to look.
+    const shown = pages.slice(0, MAX_LISTED_PAGES);
+    const rest = pages.length - shown.length;
     return `
       <details class="pages-toggle">
         <summary>${pages.length} pages affected</summary>
         <div class="pages-list">
-          ${pages.map(p => `<a href="${escapeHtml(p.url)}" target="_blank" rel="noopener">${escapeHtml(getShortUrl(p.url))}</a>`).join('')}
+          ${shown.map(p => `<a href="${escapeHtml(p.url)}" target="_blank" rel="noopener">${escapeHtml(getShortUrl(p.url))}</a>`).join('')}
+          ${rest > 0 ? `<span class="pages-more">and ${rest.toLocaleString()} more</span>` : ''}
         </div>
       </details>
     `;
@@ -2072,32 +2324,54 @@ export function renderHtmlReport(result: AuditResult): string {
     // Get aggregated issues for this category
     const aggregatedIssues = aggregatedByCategory.get(cat.categoryId) || [];
 
-    const rulesHtml = aggregatedIssues.map(issue => {
+    // What the reader came for goes first, ranked; what passed or was never
+    // measured is kept but folded away. Rendering all 332 rules expanded is
+    // what made this report 54,000 pixels tall, and the 278 that passed are
+    // the part nobody scrolls to.
+    const actionable = aggregatedIssues
+      .filter(i => i.status === 'fail' || i.status === 'warn')
+      .sort(byPriority);
+    const quiet = aggregatedIssues.filter(i => i.status === 'pass' || i.status === 'notmeasured');
+
+    const renderIssue = (issue: AggregatedIssue) => {
       const fix = getFixSuggestion(issue.ruleId);
       const statusIcon = STATUS_ICONS[issue.status];
-      const urlsCommaSeparated = issue.pages.map(p => p.url).join(',');
+      const pageBits = encodePages(issue.pages.map(p => p.url), pageIndexOf, uniqueUrls.length);
 
       // Generate pages list HTML (collapsible for 4+ pages)
       const pagesHtml = generatePagesListHtml(issue.pages);
 
-      // Show description only if we have one and it's not just the message repeated
-      const showDescription = issue.ruleDescription && issue.ruleDescription !== issue.message;
+      // The rule's generic description ("checks that the page has a title")
+      // sat under the finding's own message ("title is 51 characters"): noise
+      // while scanning, and it was on every one of the cards that make up most
+      // of the page. For a finding with advice it moves inside that advice,
+      // where the reader has stopped scanning and started reading. For a check
+      // that passed there is no advice to hold it, and it is the only context
+      // the card has — so it stays where it was, one line under the result.
+      const description =
+        issue.ruleDescription && issue.ruleDescription !== issue.message
+          ? issue.ruleDescription
+          : '';
+      const descriptionHtml = description
+        ? `<div class="rule-description">${escapeHtml(description)}</div>`
+        : '';
 
       // Fix advice belongs to results that found something wrong. Offering it
       // for a check that took no reading told readers to optimise a metric
       // nobody had measured.
       const fixHtml = issue.status === 'fail' || issue.status === 'warn'
-        ? `<div class="rule-fix">
-            <div class="rule-fix-header">
+        ? `<details class="rule-fix">
+            <summary class="rule-fix-header">
               ${getIcon('lightbulb')}
-              <span>How to Fix</span>
-            </div>
+              <span>How to fix</span>
+            </summary>
+            ${descriptionHtml}
             <div class="rule-fix-text">${escapeHtml(fix)}</div>
-          </div>`
+          </details>`
         : '';
 
       return `
-        <div class="rule-card" data-status="${issue.status}" data-rule-id="${escapeHtml(issue.ruleId)}" data-urls="${escapeHtml(urlsCommaSeparated)}">
+        <div class="rule-card" data-status="${issue.status}" data-rule-id="${escapeHtml(issue.ruleId)}" data-pages="${pageBits}">
           <div class="rule-header">
             <div class="rule-status-icon ${issue.status}">${statusIcon}</div>
             <div class="rule-content">
@@ -2107,21 +2381,34 @@ export function renderHtmlReport(result: AuditResult): string {
               </div>
               ${issue.status === 'notmeasured' ? '<div class="rule-notmeasured-tag">Not measured</div>' : ''}
               <div class="rule-message">${escapeHtml(issue.message)}</div>
-              ${showDescription ? `<div class="rule-description">${escapeHtml(issue.ruleDescription)}</div>` : ''}
+              ${fixHtml ? '' : descriptionHtml}
               ${pagesHtml}
               ${fixHtml}
             </div>
           </div>
         </div>
       `;
-    }).join('');
+    };
+
+    const actionableHtml = actionable.map(renderIssue).join('');
+
+    // `<details>` rather than a class toggle, so the fold works with no
+    // JavaScript and the browser handles find-in-page inside it.
+    const quietHtml = quiet.length
+      ? `<details class="quiet-rules">
+           <summary>${quiet.length} ${quiet.length === 1 ? 'check that needs' : 'checks that need'} no action</summary>
+           <div class="quiet-rules-body">${quiet.map(renderIssue).join('')}</div>
+         </details>`
+      : '';
+
+    const rulesHtml = actionableHtml + quietHtml;
 
     return `
       <section class="category-section" id="category-${cat.categoryId}">
         <div class="category-header">
           <div class="category-title">
             <span class="category-name">${escapeHtml(categoryName)}</span>
-            <span class="category-score" style="background: ${categoryColor}20; color: ${categoryColor}">${cat.score}/100</span>
+            <span class="category-score" style="background: ${getScoreBackground(cat.score)}; color: ${categoryColor}">${cat.score}/100</span>
           </div>
           <div class="category-stats">
             <span class="category-stat pass">${cat.passCount} passed</span>
@@ -2147,7 +2434,6 @@ export function renderHtmlReport(result: AuditResult): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SEO Audit Report - ${escapeHtml(result.url)}</title>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>${generateStyles()}</style>
 </head>
 <body>
@@ -2167,7 +2453,7 @@ export function renderHtmlReport(result: AuditResult): string {
         ${getIcon('pages')}
         <span>${
           isMultiPageReport
-            ? `${result.crawledPages} pages`
+            ? `${uniqueUrls.length} pages`
             : escapeHtml(getShortUrl(result.url))
         }</span>
       </div>
@@ -2183,14 +2469,14 @@ export function renderHtmlReport(result: AuditResult): string {
 
   <!-- Sidebar Navigation -->
   <nav class="sidebar">
-    ${uniqueUrls.length > 1 ? `
+    ${urlFilterOptions ? `
     <div class="url-filter">
-      <label class="url-filter-label">Filter by Page</label>
+      <label class="url-filter-label" for="url-filter">Filter by page</label>
       <select id="url-filter" class="url-filter-select">
         ${urlFilterOptions}
       </select>
     </div>
-    ` : ''}
+    ` : pagesCovered ? `<div class="url-filter">${pagesCovered}</div>` : ''}
     <div class="sidebar-section">
       <div class="sidebar-title">Categories</div>
       <ul class="sidebar-nav">
@@ -2245,31 +2531,37 @@ export function renderHtmlReport(result: AuditResult): string {
               <span class="score-stat-label">Total</span>
             </div>
           </div>
-          <!-- Category Progress Bars -->
-          <div class="category-progress-section">
-            <div class="category-progress-title">Category Scores</div>
-            <div class="category-progress-list">
-              ${result.categoryResults.map(cat => {
-                const category = getCategoryById(cat.categoryId);
-                const catName = category?.name ?? cat.categoryId;
-                const catColor = getScoreColor(cat.score);
-                return `
-                <a href="#category-${cat.categoryId}" class="category-progress-item">
-                  <span class="category-progress-name">${escapeHtml(catName)}</span>
-                  <div class="category-progress-bar">
-                    <div class="category-progress-fill" style="width: ${cat.score}%; background: ${catColor};"></div>
-                  </div>
-                  <span class="category-progress-value" style="color: ${catColor};">${cat.score}%</span>
-                </a>
-                `;
-              }).join('')}
-            </div>
           </div>
         </div>
       </div>
 
       <!-- Page Snapshot -->
       ${renderPageSnapshot(result.page, result.url)}
+
+      ${failures.length + warnings.length > 0 ? `
+      <!-- Issues Summary Table -->
+      <div class="issues-summary">
+        <div class="issues-summary-header">
+          <span class="issues-summary-title">${
+            rankedIssues.length > TOP_ISSUES
+              ? `Fix these first — top ${TOP_ISSUES} of ${rankedIssues.length}`
+              : `Issues to fix (${rankedIssues.length})`
+          }</span>
+        </div>
+        <table class="issues-table">
+          <thead>
+            <tr>
+              <th>Issue</th>
+              ${isMultiPageReport ? '<th>Page</th>' : ''}
+              <th>Severity</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${issueTableRows}
+          </tbody>
+        </table>
+      </div>
+      ` : ''}
 
       <!-- Filter Tabs -->
       <div class="filter-bar">
@@ -2294,26 +2586,34 @@ export function renderHtmlReport(result: AuditResult): string {
         </div>
       </div>
 
-      ${failures.length + warnings.length > 0 ? `
-      <!-- Issues Summary Table -->
-      <div class="issues-summary">
-        <div class="issues-summary-header">
-          <span class="issues-summary-title">Issues to Fix (${failures.length + warnings.length})</span>
+      <!-- Category Scores -->
+      <!--
+        This sat inside the score card, where its 442px pushed the first
+        finding to y=976 on a 900px screen: a report whose whole job is to say
+        what to fix opened with nothing to fix in view. Scores are orientation,
+        findings are the work, so the findings go first.
+      -->
+          <!-- Category Progress Bars -->
+      <div class="category-progress-section">
+        <div class="category-progress-title">Category Scores</div>
+        <div class="category-progress-list">
+          ${result.categoryResults.map(cat => {
+            const category = getCategoryById(cat.categoryId);
+            const catName = category?.name ?? cat.categoryId;
+            const catColor = getScoreColor(cat.score);
+            return `
+            <a href="#category-${cat.categoryId}" class="category-progress-item">
+              <span class="category-progress-name">${escapeHtml(catName)}</span>
+              <div class="category-progress-bar">
+                <div class="category-progress-fill" style="width: ${cat.score}%; background: ${catColor};"></div>
+              </div>
+              <span class="category-progress-value" style="color: ${catColor};">${cat.score}%</span>
+            </a>
+            `;
+          }).join('')}
         </div>
-        <table class="issues-table">
-          <thead>
-            <tr>
-              <th>Issue</th>
-              ${isMultiPageReport ? '<th>Page</th>' : ''}
-              <th>Severity</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${issueTableRows}
-          </tbody>
-        </table>
+
       </div>
-      ` : ''}
 
       <!-- Category Sections -->
       ${categorySectionsHtml}
@@ -2332,7 +2632,7 @@ export function renderHtmlReport(result: AuditResult): string {
     </div>
   </main>
 
-  <script>${generateScript()}</script>
+  <script>${generateScript(uniqueUrls)}</script>
 </body>
 </html>`;
 }

@@ -87,6 +87,250 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is zero scores 0; that now reads "Not scored" rather than reporting the site
   as catastrophic.
 
+- **Score badges render their background again.** `getScoreColor()` returns a
+  CSS custom property, so the three call sites that built a tint by appending a
+  hex alpha suffix produced `var(--color-pass)15` — not a colour, silently
+  dropped. The audit list, the score circle, the category headers and the HTML
+  report all drew their badge with no background. `verdictStyle()` now returns
+  the foreground and its paired background together.
+
+- **Six surfaces share one palette and one grade scale.** Colours are defined
+  once in `src/design/tokens.ts`; the HTML reporter inlines them and the
+  dashboard and Electron read a generated stylesheet. The report kept a private
+  90/70/50 scale, so a score of 85 drew green everywhere else and amber there.
+  Along the way 8 of 13 text/background pairs failed WCAG AA; all 18 pairs now
+  clear 4.5:1 in both themes, and a test computes the ratios.
+
+- **The terminal ranks issues too.** It groups by category, which is right for a
+  terminal, but inside a category issues were left in the order their rules
+  happened to register, so a weight-1 warning could print above a weight-25 one
+  — on the surface most people actually read. All four surfaces now answer
+  "what first?" the same way. Unmeasured checks sink below real findings and no
+  longer draw the yellow warning triangle one line under the label
+  "(not measured)".
+
+- **Clicking an issue opens the rule it names.** `CategorySection` initialised
+  its expansion with `useState(defaultExpanded)`, and `useState` reads its
+  argument on the first render only — so a section already on screen ignored
+  every later change to that prop, which is exactly how the issues table asks
+  for the category it is jumping to. The category never expanded, the scroll
+  found no element, and the drill-down did nothing at all. Expansion is derived
+  during render now, so the section is open in the same commit; the reader's own
+  collapse still wins until the table asks for that category again. The jump
+  also moves keyboard focus to the rule, so Tab continues from there and a
+  screen reader announces it, and it honours `prefers-reduced-motion` — an
+  explicit `behavior` overrides the CSS that would otherwise handle it.
+
+- **A running audit says how long it has taken and how long is left.** An
+  eight-page audit takes about four and a half minutes and the UI said nothing
+  about time, so a slow run was indistinguishable from a stuck one. Elapsed is
+  always shown. The projection appears only when it is real: measured from the
+  first completed page (not the run's start, which folds in the crawl and the
+  browser launch), over at least two completions, never during the crawl, and
+  computed between completions rather than against the clock — dividing by
+  `now` makes the estimate climb while a page is in flight, which on a real
+  four-page crawl read 76s, 86, 97, 107, 117, 127 while nothing was wrong. Past
+  its own estimate it is withdrawn rather than floored at "0s left".
+
+- **A trend needs three points.** Two audits drew a straight segment between
+  them, which reads as a direction while being a single comparison. The chart
+  now asks for three, and below that says how many more audits are needed —
+  a message that could not previously appear, because the page repeated the
+  threshold and hid the whole section.
+
+- **A clean audit reads as a result.** Zero issues rendered as "No issues found"
+  in muted grey, indistinguishable from a panel that had failed to load. It is
+  now a success state that says every measurable check passed.
+
+- **`--format llm` output is parseable.** The format exists so a program can
+  read stdout, and two things prevented that. Progress display was suppressed
+  for `--format json` but not for `--format llm`, so every run printed
+  "✗ Core …" lines before `<seo-audit>` and the output was not XML at all.
+  And a failed audit wrote only to stderr, leaving stdout empty — which a caller
+  reads as an audit with nothing to report. Progress now treats both document
+  formats alike (including under `--verbose`), and a failure emits a
+  `<seo-audit ok="false">` envelope carrying the code, message and hint.
+
+- **The markdown and LLM reports say a thing once.** A crawl produces one rule
+  result per rule per page, and both reporters rendered them raw: a forty-page
+  site with one render-blocking script got forty identical `### ` sections and
+  forty `<issue>` elements. For the LLM report that is forty times the tokens
+  for one problem, and a model reading it has every reason to conclude there are
+  forty problems. Both now group by rule and message through a shared
+  `collectFindings()`, carry page attribution ("affects 3 of 8 pages" and the
+  URLs), and order by the same ranking the HTML report uses.
+
+- **The LLM report admits when it is truncated.** It emitted every finding, so a
+  large crawl overran the context of the model meant to read it. It now carries
+  the fifty highest-impact findings and states `total` and `omitted` on the
+  `<issues>` element, because a truncated list with no marker reads as a
+  complete one.
+
+- **Solid buttons are readable in dark mode.** The run, cancel, delete and
+  filter buttons set a themed background and a hardcoded white foreground. In
+  the light theme those backgrounds are a dark blue, amber and red, so white
+  read at 7.00:1, 7.09:1 and 6.47:1. In the dark theme they are a bright blue,
+  amber and red, and the same white read at 2.50:1, **1.67:1** and 2.77:1 — the
+  Cancel button was very nearly invisible. They use `--color-on-accent`, which
+  flips with the theme: 7.49:1, 11.22:1 and 6.77:1 in dark, unchanged in light.
+  A test now rejects hex literals and fixed white/black utilities anywhere in
+  `ui/` outside the token definitions and the brand mark.
+
+- **Deleting an audit asks first, and says so when it fails.** Delete removed a
+  stored audit permanently on a single click with no confirmation, and its
+  handler had no failure path — a refused delete reset the button and said
+  nothing, leaving the audit in place and the user unsure whether it had gone.
+  It now confirms inline (not `confirm()`, which blocks the renderer under
+  Electron), and a failure names the reason and keeps you on the page. Export
+  under Electron gained the same treatment: a save that fails no longer leaves
+  the user believing they have a file they do not have.
+
+- **A history row is clickable across its whole width.** Only the date text was
+  a link. The URL, the score, the page count, all three result columns and the
+  chevron pointing right were dead — eleven-twelfths of a row that looks
+  clickable, with an arrow at the end promising navigation it was not wired to.
+  The row now navigates anywhere, through a single stretched link, so keyboard
+  focus stays one tab stop and cmd-click still opens a new tab.
+
+- **A restarted server no longer strands an open tab on a Retry that cannot
+  work.** `seomator serve` mints a per-launch token, so restarting it leaves any
+  open tab holding the previous cookie: every API call 401s while the document
+  request would set the new one. The dashboard showed "Could not load your
+  audits — The server returned 401" with a Retry button that re-ran the same
+  fetch with the same stale cookie, failing identically every time. A 401 is now
+  its own state — "The dashboard was restarted" — offering the one action that
+  resolves it.
+
+- **A failed read no longer looks like an empty database.** `HttpApiError` was
+  built with `super(failure.message)` from whatever the response body carried.
+  Any body that was not the exact error envelope — a bare string, a proxy's HTML
+  502, an empty body — left that undefined, so the error carried the message
+  `''`. Every caller tests `if (error)`, an empty string is falsy, and the
+  failure walked through every error branch untouched: the dashboard reported
+  "No audits yet" and invited the user to run their first audit while the ones
+  they had sat unread. An error now always describes itself, `useAsync` never
+  stores a falsy one, and a non-JSON body no longer throws a `SyntaxError` past
+  the status check. Home shows a read-error state with the reason and a retry.
+
+- **Filtering to a site with no audits says so.** It previously rendered the
+  first-run empty state, telling someone with twelve audits of another site to
+  run their first one. It now names the site and offers a way back to all of
+  them.
+
+- **Reduced motion is honoured.** A `prefers-reduced-motion` block existed in
+  the dashboard under a comment claiming "anything that animates does so only
+  for people who want it to", and disabled exactly one transition — the skip
+  link. Everything else kept moving, and the HTML report had no such rule at
+  all. Both surfaces now stop animation and transition globally.
+
+- **The issues table is reachable by keyboard.** Rows carried a click handler
+  and nothing else, so the drill-down into a rule existed only for a mouse.
+  Each row now leads with a focusable button — one tab stop per row, matching
+  the audit list — and the run options show a focus ring, which their
+  screen-reader-only checkboxes previously swallowed.
+
+- **A running audit no longer floods a screen reader.** `aria-live` wrapped the
+  whole progress panel, so every change to the bar, the current URL or any of
+  the twenty category rows re-announced the entire section. It is now a single
+  status line that changes only when the phase or the count does.
+
+- **A filter that matches nothing says so.** Each `CategorySection` returns null
+  when nothing in it matches — right per category, and with all twenty doing it
+  the page was a heading and a row of filter tabs over empty space. It now names
+  what matched nothing, and "no failures" reads as the good news it is rather
+  than getting the same treatment as "no passing checks".
+
+- **Revealing a finding is one complete action.** Clicking an issue expanded its
+  category, scrolled and moved focus — but the summary table lists the top
+  findings regardless of the active filter, so clicking a warning while filtered
+  to Failures asked the page to reveal a rule the filter had just removed from
+  the DOM. The jump found nothing and did nothing, for exactly the reason the
+  collapsed category used to. The filter clears as part of the same action, and
+  the URL now names the revealed finding, so the view can be shared or reloaded
+  straight back to it.
+
+- **Export says it is working.** Clicking Markdown looked like nothing happened,
+  because on a fast download nothing visible does. The button reports
+  "Preparing…" and its siblings disable while it runs. A browser download gives
+  no completion event, so nothing claims success that cannot be known — under
+  Electron, where the save is awaited, a real failure is still reported.
+
+- **One finding is listed once, however its message is worded.** Message
+  grouping normalised a hand-maintained list of units — `X chars`, `X words`,
+  `X images`, `X links`, `Xpx`, `Xms`, `XKB` — which only covers what someone
+  thought of. On a real crawl `technical-trailing-slash` printed **five times**,
+  because its message counts URLs and a percentage: "16 URLs with slash, 2
+  without (11% inconsistency)", then 14, 6, 21 and 8. One finding took five
+  entries and five of the agent report's slots. Any number that is not part of a
+  word is now treated as a quantity, so `H1` and `H2` stay the distinct findings
+  they are while those five collapse to one. The terminal and the shared grouper
+  had separate copies of this; there is one now.
+
+- **The agent report stops truncating real audits.** The 50-finding cap was
+  chosen when a 1,000-page crawl produced 1.4 MB — but that size came from
+  listing each finding once per page, not from the number of findings. With the
+  duplication fixed, 50 was simply too low: an eight-page personal blog produced
+  77 findings and 27 were dropped. The cap is 150, which is a bound on the
+  pathological case rather than a curation — curation is what the ordering is
+  for, since an agent can stop reading a ranked list but cannot recover what was
+  truncated. That blog's 77 findings now arrive complete, in 60 KB.
+
+- **A 1,000-page crawl is a budget now, not a hope.** Nothing asserted what the
+  reporters do at scale, and the 8-page fixture hides all of it, because every
+  cost is per-rule-per-page on a live crawl. Measured for the first time, a
+  1,000-page HTML report was **69.28 MB**: 48.11 MB of it 340,004 page anchors
+  (every affected page linked inside every rule card, all of them inside a
+  closed `<details>` nobody opens), and 20.59 MB of it full URL lists repeated
+  in `data-urls` on both the table row and the card. The agent report was
+  1.44 MB because `<passed>` listed each rule once per page it passed on —
+  113,000 entries, the same duplication that was fixed for `<issue>` and left
+  here.
+
+  Page lists cap at ten with a count for the rest; the affected-page attribute
+  carries indices into a page list emitted once, or `*` when a finding covers
+  every page; `<passed>` is a set. **HTML 69.28 MB → 1.11 MB, agent report
+  1.44 MB → 0.04 MB.** In a browser that report loads in 113ms with 10,655 DOM
+  nodes and a 9.5 MB heap, and the page filter still resolves correctly — eight
+  budget assertions cover it, including that ten times the pages must not mean
+  ten times the report.
+
+  **If you script against the report's HTML:** `data-urls` is gone, replaced by
+  `data-pages` carrying indices rather than URLs.
+
+- **The report stops printing every finding twice.** The summary table and the
+  category sections below it rendered the same 46 findings — 3,191px of rows and
+  12,217px of cards, 90% of a 17,199px page. The table is a ranked index now
+  (top 10 of 46) and the sections hold the detail. Fix advice folds, the rule's
+  generic description moves inside it rather than sitting under every finding's
+  own message, and the category-score grid moved below the findings: it was
+  442px of orientation pushing the first thing to fix to y=976 on a 900px
+  screen. **17,199px → 10,046px**, with nine of the top ten findings on the
+  first screen where none were before.
+
+- **The HTML report leads with what to fix, and folds away what needs nothing.**
+  It rendered all 332 checks expanded, ordered by severity and then by
+  registration order, so a weight-1 warning could sit above a weight-25 one and
+  the 278 checks that passed took up most of a 54,675-pixel page. Findings are
+  now ranked by `rulePriority()` within each severity, and the passed and
+  unmeasured checks fold into a per-category disclosure. The page is 17,147
+  pixels; nothing was removed, and filtering to Passed opens the fold.
+
+- **The HTML report has category navigation on a phone again.** The sidebar was
+  `display: none` below 1024px, which left a report that can run to 17,000
+  pixels with no way to reach a category except scrolling. It becomes a
+  scrollable strip of category links above the content.
+
+- **The HTML report no longer offers a page filter it cannot honour.** It built
+  its page list by scraping `pageUrl` out of rule details. That is exact for a
+  live crawl, where every result carries its own page, and wrong for a stored
+  audit, which keeps one row per rule with a capped sample of pages. An
+  eight-page crawl exported from the dashboard showed "8 pages" in its header,
+  offered seven in "Filter by Page", and returned one or two rules for whichever
+  page you picked; the page missing from every sample was unreachable.
+  `AuditResult` now carries `coverage` — the pages covered and whether the
+  results are per-page or aggregated — so the report renders a real filter when
+  it has per-page results and lists the audited pages when it does not.
+
 ## [3.5.0] - 2026-09-03
 
 ### Added

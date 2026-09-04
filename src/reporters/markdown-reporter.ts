@@ -1,4 +1,5 @@
 import type { AuditResult, RuleResult } from '../types.js';
+import { collectFindings, type Finding } from './findings.js';
 import { scoreToVerdict } from '../verdict.js';
 import { getCategoryById } from '../categories/index.js';
 
@@ -45,6 +46,27 @@ function escapeMarkdown(text: string | null | undefined): string {
  * @param result - Audit result to render
  * @returns Markdown string
  */
+/**
+ * Where a finding was seen. A count alone ("8 pages") is not actionable, and
+ * listing forty URLs is not readable, so it names a few and counts the rest.
+ */
+function pageAttribution(finding: Finding): string {
+  if (finding.pageCount <= 1 && finding.pages.length <= 1) {
+    return finding.pages.length === 1
+      ? `- **Page:** ${escapeMarkdown(finding.pages[0])}`
+      : '';
+  }
+  const shown = finding.pages.slice(0, 3).map((p) => escapeMarkdown(p));
+  const rest = finding.pages.length - shown.length;
+  const where = shown.length
+    ? `${shown.join(', ')}${rest > 0 ? ` and ${rest} more` : ''}`
+    : 'across the crawl';
+  const scope = finding.measuredPages > 0
+    ? `${finding.pageCount} of ${finding.measuredPages} pages`
+    : `${finding.pageCount} pages`;
+  return `- **Affects:** ${scope} — ${where}`;
+}
+
 export function renderMarkdownReport(result: AuditResult): string {
   const lines: string[] = [];
   const timestamp = new Date(result.timestamp).toLocaleString();
@@ -99,40 +121,31 @@ export function renderMarkdownReport(result: AuditResult): string {
   }
   lines.push('');
 
-  // Collect issues
-  const failures: { category: string; result: RuleResult }[] = [];
-  const warnings: { category: string; result: RuleResult }[] = [];
-
-  for (const categoryResult of result.categoryResults) {
-    const category = getCategoryById(categoryResult.categoryId);
-    const categoryName = category?.name ?? categoryResult.categoryId;
-
-    for (const ruleResult of categoryResult.results) {
-      if (ruleResult.status === 'fail') {
-        failures.push({ category: categoryName, result: ruleResult });
-      } else if (ruleResult.status === 'warn') {
-        warnings.push({ category: categoryName, result: ruleResult });
-      }
-    }
-  }
+  // One entry per problem, ranked. A crawl produces one rule result per rule
+  // per page, so listing them raw repeated the same finding once per page.
+  const findings = collectFindings(result);
+  const failures = findings.filter((f) => f.status === 'fail');
+  const warnings = findings.filter((f) => f.status === 'warn');
 
   // Failures Section
   if (failures.length > 0) {
     lines.push('## :x: Failures');
     lines.push('');
-    lines.push(`Found ${failures.length} failing checks:`);
+    lines.push(`Found ${failures.length} failing ${failures.length === 1 ? 'check' : 'checks'}, most important first:`);
     lines.push('');
 
-    for (const { category, result: r } of failures) {
-      lines.push(`### ${escapeMarkdown(r.ruleId)}`);
+    for (const f of failures) {
+      lines.push(`### ${escapeMarkdown(f.ruleId)}`);
       lines.push('');
-      lines.push(`- **Category:** ${escapeMarkdown(category)}`);
-      lines.push(`- **Status:** ${getStatusIcon(r.status)} Failed`);
-      lines.push(`- **Message:** ${escapeMarkdown(r.message)}`);
+      lines.push(`- **Category:** ${escapeMarkdown(f.categoryName)}`);
+      lines.push(`- **Status:** ${getStatusIcon(f.status)} Failed`);
+      lines.push(`- **Message:** ${escapeMarkdown(f.message)}`);
+      const where = pageAttribution(f);
+      if (where) lines.push(where);
 
-      if (r.details && Object.keys(r.details).length > 0) {
+      if (f.details && Object.keys(f.details).length > 0) {
         lines.push('- **Details:**');
-        for (const [key, value] of Object.entries(r.details)) {
+        for (const [key, value] of Object.entries(f.details)) {
           const displayValue = typeof value === 'object'
             ? JSON.stringify(value)
             : String(value);
@@ -150,19 +163,21 @@ export function renderMarkdownReport(result: AuditResult): string {
   if (warnings.length > 0) {
     lines.push('## :warning: Warnings');
     lines.push('');
-    lines.push(`Found ${warnings.length} warnings:`);
+    lines.push(`Found ${warnings.length} ${warnings.length === 1 ? 'warning' : 'warnings'}, most important first:`);
     lines.push('');
 
-    for (const { category, result: r } of warnings) {
-      lines.push(`### ${escapeMarkdown(r.ruleId)}`);
+    for (const f of warnings) {
+      lines.push(`### ${escapeMarkdown(f.ruleId)}`);
       lines.push('');
-      lines.push(`- **Category:** ${escapeMarkdown(category)}`);
-      lines.push(`- **Status:** ${getStatusIcon(r.status)} Warning`);
-      lines.push(`- **Message:** ${escapeMarkdown(r.message)}`);
+      lines.push(`- **Category:** ${escapeMarkdown(f.categoryName)}`);
+      lines.push(`- **Status:** ${getStatusIcon(f.status)} Warning`);
+      lines.push(`- **Message:** ${escapeMarkdown(f.message)}`);
+      const where = pageAttribution(f);
+      if (where) lines.push(where);
 
-      if (r.details && Object.keys(r.details).length > 0) {
+      if (f.details && Object.keys(f.details).length > 0) {
         lines.push('- **Details:**');
-        for (const [key, value] of Object.entries(r.details)) {
+        for (const [key, value] of Object.entries(f.details)) {
           const displayValue = typeof value === 'object'
             ? JSON.stringify(value)
             : String(value);

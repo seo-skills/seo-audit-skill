@@ -149,12 +149,18 @@ export function getAuditDetail(db: AuditsDatabase, auditId: string): AuditDetail
     };
   });
 
+  // Stored results are one row per rule with page counts, not one row per rule
+  // per page. Saying so lets the reporter render the coverage it can actually
+  // support instead of a per-page filter that only sees sampled pages.
+  const pages = db.getAuditPages(audit.id);
+
   const result: AuditResult = {
     url: audit.startUrl,
     overallScore: audit.overallScore,
     categoryResults,
     timestamp: audit.startedAt.toISOString(),
     crawledPages: audit.pagesAudited,
+    coverage: { pages, detail: 'aggregated' },
   };
 
   return {

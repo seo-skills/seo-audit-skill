@@ -25,6 +25,8 @@ export const IDLE_RUN_STATE: RunState = {
   finishedAt: null,
   crawl: null,
   pages: { completed: 0, total: 0, currentUrl: null },
+  firstPageAt: null,
+  lastPageAt: null,
   categories: [],
   recentRules: [],
   auditId: null,

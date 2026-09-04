@@ -2,7 +2,7 @@
  * The verdict is the product's answer. Every surface has to give the same one.
  */
 import { describe, it, expect } from 'vitest';
-import { scoreToVerdict, verdictCssVar } from './verdict.js';
+import { scoreToVerdict, verdictCssVar, verdictStyle } from './verdict.js';
 
 describe('scoreToVerdict', () => {
   it('grades the five buckets at their boundaries', () => {
@@ -48,6 +48,28 @@ describe('scoreToVerdict', () => {
   it('never returns a bare hex literal', () => {
     for (const score of [100, 85, 75, 55, 10, null]) {
       expect(verdictCssVar(scoreToVerdict(score).colorToken)).toMatch(/^var\(--color-[a-z]+\)$/);
+    }
+  });
+});
+
+describe('verdictStyle', () => {
+  it('pairs every colour with a background that exists as a token', () => {
+    for (const score of [100, 95, 85, 75, 60, 30, 0]) {
+      const style = verdictStyle(score);
+      expect(style.color).toMatch(/^var\(--color-[a-z]+\)$/);
+      expect(style.backgroundColor).toMatch(/^var\(--color-[a-z]+-bg\)$/);
+      // The pair must name the same token, or a green badge gets an amber tint.
+      const fg = style.color.match(/--color-([a-z]+)\)/)![1];
+      const bg = style.backgroundColor.match(/--color-([a-z]+)-bg\)/)![1];
+      expect(bg).toBe(fg);
+    }
+  });
+
+  it('never returns a value that could take a hex alpha suffix', () => {
+    // Guards the alpha-suffix bug class at its source: a var() string cannot
+    // take one, so the value must never look like a hex literal.
+    for (const score of [100, 85, 60, 0, null]) {
+      expect(verdictStyle(score).color).not.toMatch(/^#/);
     }
   });
 });

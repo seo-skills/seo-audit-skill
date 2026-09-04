@@ -7,17 +7,31 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
 
 ### P1 — must land before Release 2 of the design plan
 
-- **Two divergent in-repo `SKILL.md` copies, both claiming "Runs 261 audit rules"**
-  while the tool has 332. `scripts/sync-docs.mjs` targets `SKILL.md`, `README.md`,
-  `CLAUDE.md`, `docs/SEO-AUDIT-RULES.md` — its rewrite patterns are anchored on
-  "N rules across N categories" and never match "Runs N audit rules". The skill also
-  hardcodes a category-weight table (Core 12% / Performance 12% / Accessibility 4%)
-  that the registry contradicts today (11 / 10 / 7) and that `rulePriority()` will
-  contradict explicitly. Resolve to one copy, extend the sync patterns, wire
-  `check:docs` into CI.
-- **The installed skill clone** at `~/.claude/skills/seo-audit/SKILL.md` advertises 287
+- ~~**Two divergent in-repo `SKILL.md` copies, both claiming "Runs 261 audit rules"**
+  while the tool has 332 … Resolve to one copy, extend the sync patterns, wire
+  `check:docs` into CI.~~
+  **Mostly fixed 2026-09-04.** `sync-docs.mjs` gained a `Runs N audit rules`
+  pattern, `skill/SKILL.md` as a target (it was never one, which is how the
+  second copy drifted freely), and a weight-table sync that rewrites the
+  percentages *and* re-sorts the "fix in this order" list — it claimed
+  12/12/4 against a registry saying 11/10/7, and with Accessibility at 7% the
+  list was no longer in the order it promises. The two copies are now identical:
+  the root one was additionally stale on 3.4.0, still telling agents to pass
+  `--save` and never mentioning `seomator serve`.
+  **Still open:** the copies are kept in step by `check:docs`, not by structure —
+  resolving to genuinely one file (symlink, or generate one from the other) is a
+  layout decision left to the maintainer. Wiring `check:docs` into CI is moot
+  while the repo has no CI, which was a deliberate call.
+- ~~**The installed skill clone** at `~/.claude/skills/seo-audit/SKILL.md` advertises 287
   rules. `check:docs` cannot reach it. Decide: sync it, or state that the clone is out
-  of scope and stop it drifting silently.
+  of scope and stop it drifting silently.~~
+  **Fixed 2026-09-03** (outside `/qa`, on request). The clone is a separate git checkout
+  of this same repo (`~/.agents/skills/seo-audit`, symlinked from
+  `~/.claude/skills/seo-audit`), 24 commits behind `origin/main` — `git pull --ff-only`
+  brought it to `af5e851`, matching this repo's `main`. Both `SKILL.md` and
+  `skill/SKILL.md` in that clone now say 332. `check:docs` still cannot reach it — this
+  was a manual pull, not a mechanism, so it can drift again. The clone picks up the
+  item above once this branch reaches `main` and it is pulled again.
 
 ### P2 — CLI correctness, outside the design blast radius
 

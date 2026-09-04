@@ -4,8 +4,7 @@ import type {
   CategoryDefinition,
   AuditResult,
   PageSnapshot,
-  AuditRunOptions,
-} from './types.js';
+  AuditRunOptions, AuditCoverage } from './types.js';
 import { AUDIT_SCHEMA_VERSION } from './types.js';
 import { isNotMeasured } from './rules/define-rule.js';
 
@@ -165,7 +164,8 @@ export function buildAuditResult(
   timestamp: string,
   crawledPages = 1,
   page?: PageSnapshot,
-  run?: AuditRunOptions
+  run?: AuditRunOptions,
+  coverage?: AuditCoverage
 ): AuditResult {
   return {
     schemaVersion: AUDIT_SCHEMA_VERSION,
@@ -176,5 +176,6 @@ export function buildAuditResult(
     crawledPages,
     ...(page && { page }),
     ...(run && { run }),
+    ...(coverage && { coverage }),
   };
 }

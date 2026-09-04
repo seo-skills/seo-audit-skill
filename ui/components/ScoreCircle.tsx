@@ -3,7 +3,7 @@
  * Ported from the html-reporter.ts SVG score circle.
  */
 
-import { getScoreColor, getScoreLabel } from '../lib/format.js';
+import { getScoreColor, getScoreLabel, verdictStyle } from '../lib/format.js';
 
 interface ScoreCircleProps {
   score: number;
@@ -56,7 +56,7 @@ export function ScoreCircle({ score, size = 140 }: ScoreCircleProps) {
       </svg>
       <span
         className="text-sm font-semibold px-3 py-0.5 rounded-full"
-        style={{ color, backgroundColor: `${color}15` }}
+        style={verdictStyle(score)}
       >
         {label}
       </span>

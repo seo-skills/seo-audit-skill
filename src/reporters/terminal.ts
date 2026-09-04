@@ -9,6 +9,8 @@ import {
   renderSeparator,
 } from './banner.js';
 import { isNotMeasured } from '../rules/define-rule.js';
+import { rulePriority } from '../rules/priority.js';
+import { normalizeMessage } from './findings.js';
 import { getRuleById } from '../rules/registry.js';
 
 /**
@@ -23,6 +25,10 @@ interface GroupedIssue {
   weight?: number;
   pages: string[];
   details: Array<{ key: string; value: string }>;
+  /** Set once grouping is done; see the sort in `groupIssuesByCategory`. */
+  priority: number;
+  /** Pages the rule could be measured on, for the priority share */
+  measuredPages: number;
 }
 
 /**
@@ -75,21 +81,6 @@ function getPageUrl(result: RuleResult): string | null {
   return null;
 }
 
-/**
- * Normalize a message for grouping (strip variable parts)
- */
-function normalizeMessage(message: string): string {
-  // Remove specific numbers that vary (like "20 chars" -> "X chars")
-  return message
-    .replace(/\d+ chars?/g, 'X chars')
-    .replace(/\d+ words?/g, 'X words')
-    .replace(/\d+ images?/g, 'X images')
-    .replace(/\d+ links?/g, 'X links')
-    .replace(/\d+px/g, 'Xpx')
-    .replace(/\d+ms/g, 'Xms')
-    .replace(/\d+KB/g, 'XKB')
-    .replace(/\d+\.\d+s/g, 'X.Xs');
-}
 
 /**
  * Group issues by category, rule, and message
@@ -149,6 +140,8 @@ function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
           weight: ruleResult.weight,
           pages: [],
           details: [],
+          priority: 0,
+          measuredPages: 0,
         };
         categoryIssues.issues.push(existingIssue);
         groupsByKey.set(groupKey, existingIssue);
@@ -159,6 +152,8 @@ function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
       if (pageUrl && !existingIssue.pages.includes(pageUrl)) {
         existingIssue.pages.push(pageUrl);
       }
+
+      if (!isNotMeasured(ruleResult)) existingIssue.measuredPages++;
 
       // Collect non-URL details
       if (ruleResult.details) {
@@ -183,6 +178,32 @@ function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
     if (b.errorCount !== a.errorCount) return b.errorCount - a.errorCount;
     return b.warningCount - a.warningCount;
   });
+
+  // Rank within each category. The categories are ordered by how much is wrong
+  // in them; inside one, issues were left in the order their rules happened to
+  // register, so a weight-1 warning could print above a weight-25 one. This is
+  // the same ranking the HTML, markdown and LLM reports use, so every surface
+  // answers "what first?" the same way.
+  for (const category of categories) {
+    for (const issue of category.issues) {
+      issue.priority = rulePriority({
+        ruleId: issue.ruleId,
+        categoryId: category.categoryId,
+        status: isNotMeasured(issue) ? 'not-measured' : issue.status,
+        affectedPages: Math.max(issue.pages.length, 1),
+        measuredPages: Math.max(issue.measuredPages, 1),
+      });
+    }
+    const severity = (i: GroupedIssue): number =>
+      i.status === 'fail' ? 0 : isNotMeasured(i) ? 2 : 1;
+    category.issues.sort(
+      (a, b) =>
+        severity(a) - severity(b) ||
+        b.priority - a.priority ||
+        b.pages.length - a.pages.length ||
+        a.ruleId.localeCompare(b.ruleId)
+    );
+  }
 
   // Sort issues within each category: errors first, then warnings
   for (const cat of categories) {
@@ -346,8 +367,14 @@ export function renderTerminalReport(result: AuditResult): void {
         // Rule ID and name
         console.log(`  ${chalk.gray(issue.ruleId)} ${issue.ruleName} ${typeLabel}`);
 
-        // Status icon and message
-        const icon = issue.status === 'fail' ? chalk.red('✗') : chalk.yellow('⚠');
+        // Status icon and message. Three states, not two: a check that took no
+        // reading was drawn with the same yellow warning triangle as a real
+        // warning, one line under a label reading "(not measured)".
+        const icon = issue.status === 'fail'
+          ? chalk.red('✗')
+          : isNotMeasured(issue)
+            ? chalk.gray('–')
+            : chalk.yellow('⚠');
         const pageCount = issue.pages.length > 1 ? ` (${issue.pages.length} pages)` : '';
         console.log(`    ${icon} ${issue.ruleId}: ${issue.message}${chalk.gray(pageCount)}`);
 

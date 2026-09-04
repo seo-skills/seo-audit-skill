@@ -28,12 +28,12 @@ export function FilterTabs({ active, counts, onChange }: FilterTabsProps) {
             onClick={() => onChange(key)}
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
               isActive
-                ? 'text-white'
+                ? ''
                 : 'hover:bg-[var(--color-bg-hover)]'
             }`}
             style={{
               backgroundColor: isActive ? (color ?? 'var(--color-accent)') : undefined,
-              color: isActive ? '#fff' : (color ?? 'var(--color-text-secondary)'),
+              color: isActive ? 'var(--color-on-accent)' : (color ?? 'var(--color-text-secondary)'),
             }}
           >
             {label}

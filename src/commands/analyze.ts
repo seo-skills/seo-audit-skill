@@ -153,7 +153,10 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
       categoryResults,
       auditor.getCategoriesToAudit(),
       timestamp,
-      crawl.pages.length
+      crawl.pages.length,
+      undefined,
+      undefined,
+      { pages: pages.map((p) => p.url), detail: 'per-page' }
     );
 
     progress.stop();

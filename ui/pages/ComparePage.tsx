@@ -18,6 +18,7 @@ export function ComparePage() {
   const comparison = useAsync(() => reads.compare(id, against), [id, against]);
 
   if (comparison.serverGone) return <PageError kind="server-gone" onRetry={comparison.reload} />;
+  if (comparison.stale) return <PageError kind="stale-session" />;
   if (comparison.error) {
     // The first audit of a site has nothing to compare against. That is not a
     // failure, so it does not get a failure's heading.
@@ -57,7 +58,7 @@ export function ComparePage() {
         className="p-6 rounded-xl border"
         style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}
       >
-        <h1 className="text-lg font-semibold mb-1" style={{ color: 'var(--color-text)' }}>
+        <h1 className="text-xl font-semibold mb-1" style={{ color: 'var(--color-text)' }}>
           {current.domain}
         </h1>
         <div className="flex items-baseline gap-3 mb-2">
@@ -91,7 +92,7 @@ export function ComparePage() {
           className="p-5 rounded-xl border"
           style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}
         >
-          <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
+          <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
             Categories that moved
           </h2>
           <ul className="space-y-1">
@@ -156,7 +157,7 @@ function RuleChangeList({
       className="p-5 rounded-xl border"
       style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}
     >
-      <h2 className="text-sm font-semibold mb-3" style={{ color }}>
+      <h2 className="text-base font-semibold mb-3" style={{ color }}>
         {title} ({changes.length})
       </h2>
       <ul className="space-y-2">

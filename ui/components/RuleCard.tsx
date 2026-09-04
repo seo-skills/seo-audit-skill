@@ -108,8 +108,13 @@ export function RuleCard({ rule, metadata }: RuleCardProps) {
 
   return (
     <div
-      className="border border-[var(--color-border-subtle)] rounded-lg p-4 hover:bg-[var(--color-bg-hover)] transition-colors"
+      className="border border-[var(--color-border-subtle)] rounded-lg p-4 hover:bg-[var(--color-bg-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]"
       id={`rule-${rule.ruleId}`}
+      // Not a tab stop, but focusable when the page jumps here from the issues
+      // table. Without it the scroll moved the view and left focus behind in
+      // the table, so the next Tab continued from the row the reader had left
+      // and a screen reader announced nothing at all.
+      tabIndex={-1}
     >
       <div className="flex items-start gap-3">
         {/* Status icon */}

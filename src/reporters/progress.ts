@@ -20,6 +20,12 @@ export class ProgressReporter {
   private isCrawlMode: boolean;
   private isVerbose: boolean;
 
+  /**
+   * `json` means "stdout carries a document for a program to parse", which is
+   * true of `--format json` and `--format llm` alike. It is not about JSON.
+   * Callers that read it as JSON-only let progress output print into the middle
+   * of an XML report.
+   */
   constructor(options: { json?: boolean; crawl?: boolean; verbose?: boolean } = {}) {
     this.isJsonMode = options.json ?? false;
     this.isCrawlMode = options.crawl ?? false;

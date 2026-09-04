@@ -110,8 +110,8 @@ export function AuditRunner({
           <button
             type="button"
             onClick={onCancel}
-            className="px-5 py-2.5 rounded-lg text-sm font-medium text-white"
-            style={{ backgroundColor: 'var(--color-fail)' }}
+            className="px-5 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap"
+            style={{ backgroundColor: 'var(--color-fail)', color: 'var(--color-on-accent)' }}
           >
             Cancel
           </button>
@@ -119,56 +119,67 @@ export function AuditRunner({
           <button
             type="submit"
             disabled={!url.trim()}
-            className="px-5 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-40"
-            style={{ backgroundColor: 'var(--color-accent)' }}
+            className="px-5 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap disabled:opacity-40"
+            style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
           >
             Run audit
           </button>
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Toggle
+      <div className="flex flex-wrap gap-x-10 gap-y-1">
+        <Option
           label="Core Web Vitals"
+          hint="Opens the page in a real browser to measure loading speed. Adds about a minute."
           checked={options.measureCwv}
           disabled={isRunning || capabilities?.browserRender === false}
-          onChange={(value) => set('measureCwv', value)}
-          title={
+          disabledReason={
             capabilities?.browserRender === false
-              ? 'This build cannot render pages in a browser'
-              : 'Render the page in a browser to measure loading performance'
+              ? 'This build cannot render pages in a browser.'
+              : undefined
           }
+          onChange={(value) => set('measureCwv', value)}
         />
-        <Toggle
-          label="Crawl site"
+
+        <Option
+          label="Crawl the whole site"
+          hint="Audits pages linked from this one, not just this URL. Much slower."
           checked={options.crawl}
           disabled={isRunning}
           onChange={(value) => set('crawl', value)}
         />
 
         {options.measureCwv && capabilities?.mobileParity && (
-          <Toggle
+          <Option
             label="Mobile parity"
+            hint="Renders again at a phone size and reports what differs."
             checked={options.mobile}
             disabled={isRunning}
             onChange={(value) => set('mobile', value)}
-            title="Render a second time at a phone viewport and compare"
           />
         )}
         {options.measureCwv && capabilities?.simulateInteraction && (
-          <Toggle
+          <Option
             label="Simulate interaction"
+            hint="Clicks and scrolls the page so responsiveness (INP) can be measured."
             checked={options.simulateInteraction}
             disabled={isRunning}
             onChange={(value) => set('simulateInteraction', value)}
-            title="Click and scroll the page so responsiveness can be measured"
           />
         )}
+      </div>
 
-        {options.crawl && (
-          <>
+      {options.crawl && (
+        // "Concurrency" is a word from the engine, not from the user's problem,
+        // and it sat with equal weight beside the control people actually reach
+        // for. Both are here, named for what they do, one fold away.
+        <details className="mt-1">
+          <summary className="text-xs cursor-pointer w-fit" style={{ color: 'var(--color-text-muted)' }}>
+            Crawl settings — up to {options.maxPages} pages, {options.concurrency} at a time
+          </summary>
+          <div className="flex flex-wrap items-center gap-6 mt-3">
             <Slider
-              label="Max pages"
+              label="Pages to audit, at most"
               value={options.maxPages}
               min={2}
               max={100}
@@ -176,43 +187,55 @@ export function AuditRunner({
               onChange={(value) => set('maxPages', value)}
             />
             <Slider
-              label="Concurrency"
+              label="Pages fetched at once"
               value={options.concurrency}
               min={1}
               max={10}
               disabled={isRunning}
               onChange={(value) => set('concurrency', value)}
             />
-          </>
-        )}
-      </div>
+          </div>
+        </details>
+      )}
     </form>
   );
 }
 
-function Toggle({
+/**
+ * One run option: what it does, and what it costs.
+ *
+ * These were pills carrying a `title`. A title shows on hover after a delay,
+ * never appears on touch, and is read unreliably by assistive tech — so the two
+ * settings that decide what the product actually does were, for most people,
+ * two unlabelled words. The whole page came to thirteen words.
+ *
+ * The cost belongs in the description as much as the effect: measured on one
+ * site, the same audit took 8 seconds without crawl and 4 minutes 29 with it.
+ * Someone choosing between those should know before they wait.
+ *
+ * The checkbox was `sr-only` inside a bordered pill, so the off state was
+ * indistinguishable from a secondary button — no box, no tick, nothing that
+ * reads as two-state. The box is drawn now, and it is empty when off.
+ */
+function Option({
   label,
+  hint,
   checked,
   disabled,
-  title,
+  disabledReason,
   onChange,
 }: {
   label: string;
+  hint: string;
   checked: boolean;
   disabled?: boolean;
-  title?: string;
+  disabledReason?: string;
   onChange: (value: boolean) => void;
 }) {
   return (
     <label
-      title={title}
-      className="flex items-center gap-2 text-xs font-medium cursor-pointer px-3 py-1.5 rounded-lg border transition-colors"
-      style={{
-        color: checked ? 'var(--color-accent)' : 'var(--color-text-muted)',
-        borderColor: checked ? 'var(--color-accent)' : 'var(--color-border)',
-        backgroundColor: checked ? 'var(--color-accent-light)' : 'transparent',
-        opacity: disabled ? 0.5 : 1,
-      }}
+      className="flex items-start gap-2.5 rounded-lg px-2 py-1.5 -mx-2 max-w-sm transition-colors hover:bg-[var(--color-bg-hover)] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--color-accent)]"
+      style={{ opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
     >
       <input
         type="checkbox"
@@ -221,10 +244,38 @@ function Toggle({
         onChange={(event) => onChange(event.target.checked)}
         className="sr-only"
       />
-      {label}
+      <span
+        aria-hidden="true"
+        className="mt-0.5 shrink-0 grid place-items-center rounded border-2 transition-colors"
+        style={{
+          width: 16,
+          height: 16,
+          borderColor: checked ? 'var(--color-accent)' : 'var(--color-text-muted)',
+          backgroundColor: checked ? 'var(--color-accent)' : 'transparent',
+          color: 'var(--color-on-accent)',
+        }}
+      >
+        {checked && (
+          <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M2.5 6.5l2.5 2.5 4.5-5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </span>
+      <span className="min-w-0">
+        <span
+          className="block text-sm font-medium leading-tight"
+          style={{ color: checked ? 'var(--color-accent)' : 'var(--color-text)' }}
+        >
+          {label}
+        </span>
+        <span className="block text-xs leading-snug mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+          {disabled && disabledReason ? disabledReason : hint}
+        </span>
+      </span>
     </label>
   );
 }
+
 
 function Slider({
   label,

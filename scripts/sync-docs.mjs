@@ -59,6 +59,9 @@ const rewrites = [
   [/\ball \d+ rules\b/g, `all ${ruleCount} rules`],
   // "## Categories & Rules (261 total)"
   [/\(\d+ total\)/g, `(${ruleCount} total)`],
+  // "Runs 261 audit rules against each page" — the phrasing that drifted to 261
+  // while every other total tracked, because no pattern here matched it.
+  [/\bRuns \d+ audit rules\b/g, `Runs ${ruleCount} audit rules`],
 ];
 
 /** The skill manifest tracks the package it wraps. */
@@ -66,6 +69,9 @@ const frontmatterVersion = [/^(\s*version:\s*)"[^"]*"/m, `$1"${version}"`];
 
 const targets = [
   { file: 'SKILL.md', rules: [...rewrites, frontmatterVersion] },
+  // The repo carries two copies of the skill doc. Only the root one was synced,
+  // so the other drifted on its own — same 261, same stale weights.
+  { file: 'skill/SKILL.md', rules: [...rewrites, frontmatterVersion] },
   { file: 'README.md', rules: rewrites },
   { file: 'CLAUDE.md', rules: rewrites },
   { file: 'docs/SEO-AUDIT-RULES.md', rules: rewrites },
@@ -92,7 +98,7 @@ for (const { file, rules } of targets) {
  * reported instead of being quietly skipped — a renamed category should surface
  * as a failure, not rot silently.
  */
-const LABEL_ALIASES = { 'Core SEO': 'core' };
+const LABEL_ALIASES = { 'Core SEO': 'core', Core: 'core' };
 
 const categoryByLabel = new Map(categories.map((c) => [c.name, c.id]));
 for (const [label, id] of Object.entries(LABEL_ALIASES)) categoryByLabel.set(label, id);
@@ -105,7 +111,7 @@ const seenCategoryIds = new Set();
 // "**Label** (N rules)" in SKILL.md, "### Label (N rules)" in README.md.
 const CATEGORY_LINE = /(\*\*|### )([A-Za-z0-9/ -]+?)(\*\*)? \((\d+) rules?\)/g;
 
-for (const file of ['SKILL.md', 'README.md']) {
+for (const file of ['SKILL.md', 'skill/SKILL.md', 'README.md']) {
   const path = join(root, file);
   if (!existsSync(path)) continue;
 
@@ -123,6 +129,68 @@ for (const file of ['SKILL.md', 'README.md']) {
     const noun = live === 1 ? 'rule' : 'rules';
     return `${open}${label}${close ?? ''} (${live} ${noun})`;
   });
+
+  if (after !== before) {
+    if (!changed.includes(file)) changed.push(file);
+    if (!checkOnly) writeFileSync(path, after, 'utf8');
+  }
+}
+
+/**
+ * The "fix in this order" list carries a weight per category, and the list is
+ * ordered by that weight. Both drifted: it claimed Core 12 / Performance 12 /
+ * Accessibility 4 while the registry said 11 / 10 / 7, and with Accessibility
+ * at 7 the list was no longer in the order it promises — it had Accessibility
+ * eleventh, below three 5% categories.
+ *
+ * Values are rewritten and the lines re-sorted by live weight. The sort is
+ * stable, so categories that share a weight keep the hand-chosen order they
+ * already had, and the prose after each dash is carried across untouched.
+ */
+const WEIGHT_LINE = /^(\d+)\. \*\*([A-Za-z0-9/ -]+?)\*\* \((\d+)%\)( - .*)$/;
+const weightByCategoryId = new Map(categories.map((c) => [c.id, c.weight]));
+
+for (const file of ['SKILL.md', 'skill/SKILL.md']) {
+  const path = join(root, file);
+  if (!existsSync(path)) continue;
+
+  const before = readFileSync(path, 'utf8');
+  const lines = before.split('\n');
+
+  // The block is the one run of consecutive numbered weight lines.
+  let start = -1;
+  let end = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (WEIGHT_LINE.test(lines[i])) {
+      if (start === -1) start = i;
+      end = i;
+    } else if (start !== -1 && i > end + 1) {
+      break;
+    }
+  }
+  if (start === -1) continue;
+
+  const parsed = [];
+  let unresolved = false;
+  for (let i = start; i <= end; i++) {
+    const m = lines[i].match(WEIGHT_LINE);
+    if (!m) continue;
+    const label = m[2].trim();
+    const id = categoryByLabel.get(label);
+    if (!id) {
+      unresolvedLabels.push({ file, label });
+      unresolved = true;
+      continue;
+    }
+    parsed.push({ label, prose: m[4], weight: weightByCategoryId.get(id) });
+  }
+  // A label the registry does not know means the block cannot be rebuilt
+  // safely; it is already reported, so leave the file alone.
+  if (unresolved || parsed.length === 0) continue;
+
+  parsed.sort((a, b) => b.weight - a.weight);
+  const rebuilt = parsed.map((c, i) => `${i + 1}. **${c.label}** (${c.weight}%)${c.prose}`);
+  const after = [...lines.slice(0, start), ...rebuilt, ...lines.slice(end + 1)].join('\n');
 
   if (after !== before) {
     if (!changed.includes(file)) changed.push(file);

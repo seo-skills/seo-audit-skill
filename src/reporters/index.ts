@@ -16,4 +16,5 @@ export {
 export { renderJsonReport, outputJsonReport } from './json.js';
 export { renderHtmlReport, writeHtmlReport } from './html-reporter.js';
 export { renderMarkdownReport, writeMarkdownReport } from './markdown-reporter.js';
-export { renderLlmReport, outputLlmReport } from './llm-reporter.js';
+export { renderLlmReport,
+  renderLlmError, outputLlmReport } from './llm-reporter.js';

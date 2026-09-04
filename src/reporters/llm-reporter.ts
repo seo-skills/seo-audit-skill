@@ -18,6 +18,7 @@
 import { randomBytes } from 'node:crypto';
 import { scoreToVerdict } from '../verdict.js';
 import { isNotMeasured } from '../rules/define-rule.js';
+import { collectFindings } from './findings.js';
 import { AUDIT_SCHEMA_VERSION } from '../types.js';
 import type { AuditResult } from '../types.js';
 import { getFixSuggestion } from './fix-suggestions.js';
@@ -110,7 +111,29 @@ interface IssueData {
   cat: string;
   msg: string;
   details?: Record<string, unknown>;
+  /** Pages this was seen on, capped when rendered */
+  pages: string[];
+  /** Pages affected, and how many the rule could be measured on */
+  pageCount: number;
+  measuredPages: number;
 }
+
+/**
+ * How many findings the report carries.
+ *
+ * This was 50, chosen when a 1,000-page crawl produced a 1.4MB report — but
+ * that size came from listing every finding once per page, not from the number
+ * of findings. With that fixed, 50 was simply too low: an eight-page personal
+ * blog produced 77 real findings and 27 of them were dropped.
+ *
+ * The cap is a bound on the pathological case, not a curation. Curation is what
+ * the ordering is for: findings arrive ranked by impact, so an agent can stop
+ * reading whenever it has enough — and it cannot recover what was truncated
+ * away. At roughly 700 bytes each, 150 findings is about 105KB (~26k tokens),
+ * which covers every audit a 332-rule engine can realistically produce while
+ * still refusing to grow without limit.
+ */
+export const MAX_ISSUES = 150;
 
 /**
  * Render audit result in LLM-optimized XML format
@@ -167,47 +190,69 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
   }
   lines.push(`${t1}</categories>${nl}`);
 
-  // Collect issues and passed rules
-  const issues: IssueData[] = [];
-  const passed: string[] = [];
-  const notMeasured: string[] = [];
+  // Grouped and ranked. A crawl emits one rule result per rule per page, so
+  // this used to carry one <issue> per page: forty copies of one problem on a
+  // forty-page site, which is forty times the tokens and reads to a model as
+  // forty separate problems.
+  //
+  // Three-way, not two. An earlier `else` filed anything that was not fail/warn
+  // under <passed>, so a model was told that checks which never ran had passed
+  // — and could propose fixes for measurements the audit never took.
+  const findings = collectFindings(result);
+  const notMeasured = [...new Set(findings.filter((f) => f.status === 'not-measured').map((f) => f.ruleId))];
 
+  // A Set, because a live crawl reports one result per rule per page: pushing
+  // each one listed the same rule id once per page it passed on. On a
+  // 1,000-page crawl that was 113,000 entries and 1.4MB of a report whose whole
+  // point is to fit in a model's context — the same duplication that was fixed
+  // for <issue> and left here.
+  const passedRules = new Set<string>();
   for (const cat of result.categoryResults) {
     for (const r of cat.results) {
-      // Three-way, not two. The old `else` filed anything that was not
-      // fail/warn under <passed>, so a model reading this report was told that
-      // checks which never ran had passed — and could then propose fixes for
-      // measurements the audit never took.
-      if (isNotMeasured(r)) {
-        notMeasured.push(r.ruleId);
-      } else if (r.status === 'fail' || r.status === 'warn') {
-        issues.push({
-          severity: getSeverity(r.status),
-          rule: r.ruleId,
-          cat: cat.categoryId,
-          msg: r.message,
-          details: r.details,
-        });
-      } else {
-        passed.push(r.ruleId);
-      }
+      if (!isNotMeasured(r) && r.status === 'pass') passedRules.add(r.ruleId);
     }
   }
+  const passed = [...passedRules];
 
-  // Sort issues: critical first, then warning
-  issues.sort((a, b) => {
-    if (a.severity === 'critical' && b.severity !== 'critical') return -1;
-    if (a.severity !== 'critical' && b.severity === 'critical') return 1;
-    return 0;
-  });
+  const ranked = findings.filter((f) => f.status === 'fail' || f.status === 'warn');
+
+  // A model reading a truncated list with no marker will treat it as the whole
+  // list. Cap it, and say plainly how much was left out.
+  const omitted = Math.max(0, ranked.length - MAX_ISSUES);
+  const issues: IssueData[] = ranked.slice(0, MAX_ISSUES).map((f) => ({
+    severity: getSeverity(f.status === 'fail' ? 'fail' : 'warn'),
+    rule: f.ruleId,
+    cat: f.categoryId,
+    msg: f.message,
+    details: f.details,
+    pages: f.pages,
+    pageCount: f.pageCount,
+    measuredPages: f.measuredPages,
+  }));
 
   // Issues section. Rule messages and details may quote site content, so they
   // are wrapped in nonce-stamped delimiters; fix suggestions are tool-authored
   // and rendered as plain XML.
   if (issues.length > 0) {
-    lines.push(`${t1}<issues>${nl}`);
+    lines.push(
+      `${t1}<issues count="${issues.length}" total="${ranked.length}"` +
+        (omitted > 0 ? ` omitted="${omitted}" note="ranked by impact; lowest-impact omitted"` : '') +
+        `>${nl}`
+    );
     for (const issue of issues) {
-      lines.push(`${t2}<issue severity="${issue.severity}" rule="${issue.rule}" cat="${issue.cat}">${nl}`);
+      const scope =
+        issue.pageCount > 0 && issue.measuredPages > 1
+          ? ` pages="${issue.pageCount}" of="${issue.measuredPages}"`
+          : '';
+      lines.push(
+        `${t2}<issue severity="${issue.severity}" rule="${issue.rule}" cat="${issue.cat}"${scope}>${nl}`
+      );
+      if (issue.pages.length > 0) {
+        // URLs are the audit's own, not site-authored text, so they are plain.
+        lines.push(
+          `${t3}<on>${issue.pages.slice(0, 5).map(escapeXml).join(' ')}</on>${nl}`
+        );
+      }
       lines.push(`${t3}<msg>${wrapUntrusted(issue.msg, nonce)}</msg>${nl}`);
 
       const fix = getFixSuggestion(issue.rule);
@@ -246,4 +291,34 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
  */
 export function outputLlmReport(result: AuditResult): void {
   console.log(renderLlmReport(result));
+}
+
+/**
+ * What `--format llm` prints when the audit could not run.
+ *
+ * The failure path wrote a human message to stderr and left stdout empty, so an
+ * agent that captured stdout — which is what `--format llm` exists for — saw an
+ * empty string. That is indistinguishable from a site with no findings and from
+ * the tool crashing. The exit code said 2, but a caller reading a stream has no
+ * reason to look there before parsing.
+ *
+ * Same root element as a real report, so one parser handles both, and an
+ * explicit `ok="false"` so success is never inferred from the absence of an
+ * error.
+ */
+export function renderLlmError(failure: {
+  url: string;
+  code: string;
+  message: string;
+  hint?: string;
+}): string {
+  const date = new Date().toISOString();
+  return (
+    `<seo-audit schema="${AUDIT_SCHEMA_VERSION}" ok="false" url="${escapeXml(failure.url)}" date="${date}">\n` +
+    `  <error code="${escapeXml(failure.code)}">\n` +
+    `    <message>${escapeXml(failure.message)}</message>\n` +
+    (failure.hint ? `    <hint>${escapeXml(failure.hint)}</hint>\n` : '') +
+    `  </error>\n` +
+    `</seo-audit>\n`
+  );
 }

@@ -9,6 +9,7 @@ import {
   renderHtmlReport,
   renderMarkdownReport,
   renderLlmReport,
+  renderLlmError,
   outputLlmReport,
   renderBanner,
 } from '../reporters/index.js';
@@ -56,6 +57,10 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   // Determine output format (--format takes precedence over --json)
   const outputFormat = options.format ?? (options.json ? 'json' : 'console');
   const isJsonMode = outputFormat === 'json';
+  // `--format llm` exists so an agent can read stdout. A failure that prints
+  // only to stderr leaves that agent with an empty string, which reads exactly
+  // like a clean audit.
+  const isMachineMode = isJsonMode || outputFormat === 'llm';
   const isCrawlMode = options.crawl;
   const isVerbose = options.verbose;
   const measureCwv = options.cwv !== false;
@@ -92,7 +97,12 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
 
   // Create progress reporter
   const progress = new ProgressReporter({
-    json: isJsonMode,
+    // Machine mode, not JSON mode. `--format llm` also writes a document to
+    // stdout for a program to parse, and passing `isJsonMode` here let the
+    // progress display print into the middle of it: every `--format llm` run
+    // emitted "✗ Core …" lines before `<seo-audit>`, so the output was not
+    // parseable XML at all.
+    json: isMachineMode,
     crawl: isCrawlMode,
     verbose: isVerbose,
   });
@@ -170,8 +180,10 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
     const elapsedMs = Date.now() - startTime;
     const elapsedSec = (elapsedMs / 1000).toFixed(1);
 
-    // Show completion message (for non-JSON output)
-    if (outputFormat === 'console' || (isVerbose && !isJsonMode)) {
+    // Show completion message. Verbose must not reopen the hole: with
+    // `--format llm --verbose` this line would print into the middle of the
+    // document stdout is carrying.
+    if (outputFormat === 'console' || (isVerbose && !isMachineMode)) {
       const pageText = result.crawledPages === 1 ? 'page' : 'pages';
       console.log();
       console.log(chalk.green(`\u2713 Audited ${result.crawledPages} ${pageText} in ${elapsedSec}s`));
@@ -276,10 +288,12 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
     progress.stop();
 
     if (error instanceof AuditAbortedError) {
-      if (!isJsonMode) {
+      if (!isMachineMode) {
         console.error(chalk.yellow('Audit cancelled.'));
-      } else {
+      } else if (isJsonMode) {
         console.log(JSON.stringify({ error: true, code: 'aborted', message: 'Audit cancelled' }, null, 2));
+      } else {
+        console.log(renderLlmError({ url, code: 'aborted', message: 'Audit cancelled' }));
       }
       process.exitCode = 130;
       return;
@@ -287,13 +301,22 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
 
     const audited = classifyError(error);
 
-    if (!isJsonMode) {
+    if (!isMachineMode) {
       console.error();
       console.error(chalk.red('Error: ') + audited.message);
       if (audited.hint) {
         console.error(chalk.dim(`  ${audited.hint}`));
       }
       console.error();
+    } else if (!isJsonMode) {
+      console.log(
+        renderLlmError({
+          url,
+          code: audited.code,
+          message: audited.message,
+          ...(audited.hint && { hint: audited.hint }),
+        })
+      );
     } else {
       const errorOutput = {
         error: true,

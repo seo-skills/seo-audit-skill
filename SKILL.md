@@ -130,7 +130,7 @@ When auditing:
    | Click depth, inbound internal links | `--crawl` (builds the site graph) |
    | Mobile-first indexing parity | `--mobile` (second render at a phone viewport) |
    | JS errors, failed subresources, Core Web Vitals | default (omit `--no-cwv`) |
-   | What a deploy changed | `--save` on both runs, then `seomator compare <domain>` |
+   | What a deploy changed | run before and after, then `seomator compare <domain>` |
 
 4. **Scope fixes as concurrent tasks** when implementing multiple fixes
 5. **Run typechecking/formatting** after implementing fixes (tsc, eslint, prettier, etc.)
@@ -202,12 +202,21 @@ seomator audit https://example.com --format llm -v
 | `--verbose` | `-v` | Show progress | false |
 | `--output <path>` | `-o` | Output file path | |
 | `--config <path>` | | Config file path | |
-| `--save` | | Save to ~/.seomator | false |
+| `--no-save` | | Do not store this audit in ~/.seomator | |
+
+Audits are stored by default, so `compare` and `report` always have history.
+
+### Dashboard
+
+`seomator serve` runs a local web dashboard over the stored audits (history,
+per-rule detail, comparisons, exports). For scripted access, read the token
+from `~/.seomator/serve.json` and send it as `X-SEOmator-Token`; `GET /api`
+lists every route. See `docs/WEB-DASHBOARD.md`.
 
 ### Compare Command Options
 
-`seomator compare <domain>` diffs two saved audits of the same site. Both runs
-must have been saved with `audit --save`.
+`seomator compare <domain>` diffs two stored audits of the same site. Every
+audit is stored unless it ran with `--no-save`.
 
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -286,12 +295,12 @@ seomator audit https://example.com -c js,redirect --format llm
 ### Example 6: Did This Deploy Make Anything Worse?
 
 ```bash
-# Save a baseline before the change
-seomator audit https://example.com --save
+# A baseline before the change (stored automatically)
+seomator audit https://example.com
 
 # ... deploy ...
 
-seomator audit https://example.com --save
+seomator audit https://example.com
 seomator compare example.com --json
 ```
 
@@ -328,17 +337,17 @@ tag is present and well-formed, and only a real fetch reveals nothing came back.
 
 Fix issues in this order for maximum impact:
 
-1. **Core** (12%) - Meta tags, canonical, H1, indexing
-2. **Performance** (12%) - Core Web Vitals + optimization
+1. **Core** (11%) - Meta tags, canonical, H1, indexing
+2. **Performance** (10%) - Core Web Vitals + optimization
 3. **Links** (8%) - Internal linking structure
 4. **Images** (8%) - Performance + accessibility
 5. **Security** (8%) - Trust signals, SSL
 6. **Technical SEO** (7%) - Crawling foundation
-7. **Crawlability** (5%) - Indexability, pagination
-8. **Structured Data** (5%) - Rich snippets
-9. **JavaScript Rendering** (5%) - Rendered DOM, SSR
-10. **Content** (5%) - Text quality + duplicates
-11. **Accessibility** (4%) - WCAG compliance
+7. **Accessibility** (7%) - WCAG compliance
+8. **Crawlability** (5%) - Indexability, pagination
+9. **Structured Data** (5%) - Rich snippets
+10. **JavaScript Rendering** (5%) - Rendered DOM, SSR
+11. **Content** (5%) - Text quality + duplicates
 12. **Social** (3%) - Social sharing
 13. **E-E-A-T** (3%) - Trust, expertise
 14. **URL Structure** (3%) - URL hygiene
@@ -438,7 +447,7 @@ seomator audit https://example.com
 3. **Enrich**: Fetches robots.txt and sitemap once per audit
 4. **Render** (if CWV enabled): Captures rendered DOM via Playwright, plus console errors and failed resource requests
 5. **Crawl** (if enabled): Discovers and fetches linked pages
-6. **Analyze**: Runs 261 audit rules against each page
+6. **Analyze**: Runs 332 audit rules against each page
 7. **Score**: Calculates category and overall weighted scores
 8. **Report**: Generates output in requested format
 

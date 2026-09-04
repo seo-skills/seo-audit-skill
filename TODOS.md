@@ -51,9 +51,25 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
   reconstructs `StoredCrawl` (pages, HTML, links, images) from `crawls`/`pages`, after
   which `--archive` can go back to being the default.
 
-- **`--refresh` and `--resume` are accepted and ignored.** `cli.ts:144` exposes
-  them; `runAudit` forwards neither. Either wire them or remove them. These are
-  crawler semantics (cache bypass, interrupted-crawl resume), not config plumbing.
+- ~~**`--refresh` and `--resume` are accepted and ignored**~~ **Addressed on main,
+  2026-09-04.** Neither has a feature behind it, so neither was wired: `--refresh`
+  bypasses a cache, and the only cache in the codebase (`LinkCache`) is never
+  instantiated outside its own test — nothing fetches an external link, so nothing is
+  cached. `--resume` continues from the `frontier` table, which `schema.ts` creates
+  with two indexes and no code ever writes to. Both are now hidden from `--help` and
+  warn when passed, while staying parseable so existing scripts keep running.
+
+  The two missing features, if they are ever wanted:
+
+  - **External link checking.** `LinkCache` and the whole `[external_links]` config
+    section (`enabled`, `cache_ttl_days`, `timeout_ms`, `concurrency`) exist for a
+    checker that was never written; `src/rules/links/external-valid.ts` counts
+    external links without requesting any. Writing the checker is what makes
+    `--refresh` mean something.
+  - **Resumable crawls.** The `frontier` table is the persisted queue. The crawler
+    keeps its queue in memory (`private queue: string[]`), so an interrupted crawl
+    has nothing to resume from. `cancelCrawl()` and `failCrawl()` already mark the
+    crawl row, so the missing half is writing and reading the frontier.
 - ~~**`--config` is accepted and ignored**~~ **Fixed by /qa on main, 2026-09-04**
   (`ISSUE-007`). `loadConfig()` takes an explicit path that wins over the upward
   search, and a path that does not exist throws `AuditError('config')` instead of

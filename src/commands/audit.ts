@@ -15,6 +15,7 @@ import {
 } from '../reporters/index.js';
 import { loadConfig } from '../config/index.js';
 import { selectsRuleSubset, RULE_FILTER_NOTICE } from '../config/validator.js';
+import { warnUnimplementedFlags } from './unimplemented-flags.js';
 import type { OutputConfig } from '../config/schema.js';
 import { AuditAbortedError, classifyError } from '../errors.js';
 import { setUserAgent } from '../crawler/user-agent.js';
@@ -213,6 +214,8 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
     return;
   }
   const { config, configPath } = loaded;
+
+  warnUnimplementedFlags(options as unknown as Record<string, unknown>);
 
   // A filtered run scores differently from a full one. Say so on the run it
   // affects, on stderr so a redirected document is still only the document.

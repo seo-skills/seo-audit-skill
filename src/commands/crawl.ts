@@ -3,6 +3,7 @@ import { Crawler } from '../crawler/index.js';
 import { loadConfig } from '../config/index.js';
 import { setUserAgent } from '../crawler/user-agent.js';
 import { saveCrawl, createCrawl, type StoredPage } from '../storage/index.js';
+import { warnUnimplementedFlags } from './unimplemented-flags.js';
 
 export interface CrawlOptions {
   maxPages?: number;
@@ -13,6 +14,8 @@ export interface CrawlOptions {
 }
 
 export async function runCrawl(url: string, options: CrawlOptions): Promise<void> {
+  warnUnimplementedFlags(options as unknown as Record<string, unknown>);
+
   // Load config
   const { config } = loadConfig(process.cwd());
 

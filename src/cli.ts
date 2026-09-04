@@ -1,4 +1,5 @@
-import { Command, InvalidArgumentError } from 'commander';
+import chalk from 'chalk';
+import { Command, InvalidArgumentError, Option } from 'commander';
 import { getCategoryIds } from './categories/index.js';
 import { getVersion } from './version.js';
 import { OUTPUT_FORMATS, type AuditOptions } from './commands/audit.js';
@@ -141,8 +142,8 @@ program
   .option('--no-cwv', 'Skip Core Web Vitals')
   .option('--mobile', 'Also render at a mobile viewport and run mobile-first parity checks (single-page)', false)
   .option('--simulate-interaction', 'Click and scroll the page so INP can be measured (reported as synthetic)', false)
-  .option('-r, --refresh', 'Ignore cache, fetch all pages fresh', false)
-  .option('--resume', 'Resume interrupted crawl', false)
+  .addOption(new Option('-r, --refresh').hideHelp().default(false))
+  .addOption(new Option('--resume').hideHelp().default(false))
   .option('--config <path>', 'Config file path')
   // --no-save must be declared before --save so the default stays true.
   .option('--no-save', 'Do not store this audit in the history database')
@@ -194,8 +195,8 @@ program
   .argument('<url>', 'URL to crawl', validateUrl)
   .description('Crawl website without analysis')
   .option('-m, --max-pages <n>', 'Max pages to crawl', (v) => parseIntValue(v, 'max-pages', 1, 1000))
-  .option('-r, --refresh', 'Ignore cache, fetch all pages fresh', false)
-  .option('--resume', 'Resume interrupted crawl', false)
+  .addOption(new Option('-r, --refresh').hideHelp().default(false))
+  .addOption(new Option('--resume').hideHelp().default(false))
   .option('--output <path>', 'Output directory')
   .option('-v, --verbose', 'Show progress', false)
   .action(runCrawl);

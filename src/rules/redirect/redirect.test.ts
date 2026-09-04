@@ -21,7 +21,7 @@ describe('resourceBrokenRedirectRule', () => {
   it('reports as unmeasured when no render ran', async () => {
     const result = await resourceBrokenRedirectRule.run(createTestContext('<html></html>'));
     expect(result.weight).toBe(0);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('not-measured');
   });
 
   it('passes when no redirected resource ends in an error status', async () => {
@@ -85,7 +85,7 @@ describe('resourceLoopRedirectRule', () => {
   it('reports as unmeasured when no render ran', async () => {
     const result = await resourceLoopRedirectRule.run(createTestContext('<html></html>'));
     expect(result.weight).toBe(0);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('not-measured');
   });
 
   it('passes when no resource loops', async () => {
@@ -131,7 +131,7 @@ describe('resourceChainRedirectRule', () => {
   it('reports as unmeasured when no render ran', async () => {
     const result = await resourceChainRedirectRule.run(createTestContext('<html></html>'));
     expect(result.weight).toBe(0);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('not-measured');
   });
 
   it('passes on single-hop redirects and direct loads', async () => {

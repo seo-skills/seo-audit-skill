@@ -161,7 +161,7 @@ export function saveAuditToDatabase(result: AuditResult, options: SaveAuditOptio
         ruleId: ruleResult.ruleId,
         ruleName: rule?.name ?? ruleResult.ruleId,
         pageUrl: stripUserinfo(pageUrl),
-        status: ruleResult.status as RuleResultStatus,
+        status: ruleResult.status,
         score: ruleResult.score,
         message: ruleResult.message,
         weight: ruleResult.weight ?? 1,

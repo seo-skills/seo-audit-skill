@@ -45,7 +45,7 @@ describe('perf-asset-cache-policy', () => {
   it('is not measured when no asset data was collected', async () => {
     const result = await assetCachePolicyRule.run(createContext());
     expect(result.weight).toBe(0);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('not-measured');
   });
 
   it('passes when static assets carry a max-age of at least 1 hour', async () => {
@@ -91,7 +91,7 @@ describe('perf-asset-compression', () => {
   it('is not measured when no asset data was collected', async () => {
     const result = await assetCompressionRule.run(createContext());
     expect(result.weight).toBe(0);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('not-measured');
   });
 
   it('passes when text assets are served compressed', async () => {
@@ -148,7 +148,7 @@ describe('perf-image-encoding', () => {
   it('is not measured when no asset data was collected', async () => {
     const result = await imageEncodingRule.run(createContext());
     expect(result.weight).toBe(0);
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('not-measured');
   });
 
   it('passes for reasonably sized modern images', async () => {

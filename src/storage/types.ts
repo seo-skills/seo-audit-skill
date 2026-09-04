@@ -7,6 +7,11 @@
  * - *Options: Query/filter options for list operations
  */
 
+import type { RuleStatus, AuditRunOptions } from '../types.js';
+
+// The run options belong to the result, not to its persistence; re-exported so
+// existing storage imports keep working.
+export type { AuditRunOptions };
 import type { PartialSeomatorConfig } from '../config/schema.js';
 
 // =============================================================================
@@ -269,16 +274,6 @@ export type AuditSource = 'cli' | 'dashboard' | 'desktop' | 'api';
  * The options an audit ran with, recorded so a run can be repeated the same
  * way and so a stored audit can explain itself.
  */
-export interface AuditRunOptions {
-  crawl: boolean;
-  maxPages: number;
-  concurrency: number;
-  measureCwv: boolean;
-  mobile: boolean;
-  simulateInteraction: boolean;
-  categories: string[];
-  timeout: number;
-}
 
 /**
  * Audit record - represents a complete SEO audit
@@ -388,9 +383,13 @@ export interface HydratedAuditCategory {
 }
 
 /**
- * Rule result status
+ * Rule result status.
+ *
+ * Re-exported from the engine rather than declared again: two independent
+ * copies of this union is how a new status value could cross the storage
+ * boundary through a cast without the type checker noticing.
  */
-export type RuleResultStatus = 'pass' | 'warn' | 'fail';
+export type RuleResultStatus = RuleStatus;
 
 /**
  * Per-rule, per-page audit result record

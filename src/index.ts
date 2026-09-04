@@ -41,6 +41,23 @@ export type {
   OnCrawlProgressCallback,
 } from './auditor.js';
 
+// Two honest answers to "how many findings?" — per rule and per rule-page.
+// Surfaces quote the one that matches what they are showing, and say which.
+export { countLiveResult, countFromSummaries, ledgerSums } from './dashboard/counts.js';
+export type { AuditCounts, CountLedger } from './dashboard/counts.js';
+
+// What to fix first. Server-side only by design: the weights it reads exist
+// only after the whole rule registry has loaded, so this must not be pulled
+// into a browser bundle — surfaces receive the computed number instead.
+export { rulePriority, byPriority } from './rules/priority.js';
+export type { PriorityInput } from './rules/priority.js';
+
+// One score, one verdict, shared by every surface. A consumer rendering an
+// audit should derive its grade and label here rather than re-deriving them.
+export { scoreToVerdict, verdictCssVar } from './verdict.js';
+export type { Verdict, VerdictToken } from './verdict.js';
+export { AUDIT_SCHEMA_VERSION } from './types.js';
+
 // `audit()` rejects with these, so a consumer that catches needs to name them.
 // `AuditAbortedError` is what an aborted `signal` produces; every other
 // failure arrives as an `AuditError` carrying a code and often a hint.

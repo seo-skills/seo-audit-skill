@@ -1,4 +1,5 @@
 import type { PageSnapshot, AuditResult, CategoryResult, RuleResult } from '../types.js';
+import { scoreToVerdict } from '../verdict.js';
 import { getCategoryById } from '../categories/index.js';
 import { getFixSuggestion } from './fix-suggestions.js';
 import { getRuleById } from '../rules/registry.js';
@@ -37,7 +38,9 @@ const STATUS_ICONS: Record<DisplayStatus, string> = {
  * `scoring.ts` and the terminal reporter read it.
  */
 function toDisplayStatus(result: RuleResult): DisplayStatus {
-  return isNotMeasured(result) ? 'notmeasured' : result.status;
+  // `isNotMeasured` covers the new status and both legacy encodings, so the
+  // remaining values really are the three measured ones.
+  return isNotMeasured(result) ? 'notmeasured' : (result.status as Exclude<DisplayStatus, 'notmeasured'>);
 }
 
 /**
@@ -153,12 +156,6 @@ function getScoreColor(score: number): string {
 /**
  * Get score label
  */
-function getScoreLabel(score: number): string {
-  if (score >= 90) return 'Excellent';
-  if (score >= 70) return 'Good';
-  if (score >= 50) return 'Needs Work';
-  return 'Poor';
-}
 
 /**
  * Escape HTML special characters
@@ -1931,7 +1928,7 @@ function renderPageSnapshot(page: PageSnapshot | undefined, url: string): string
 
 export function renderHtmlReport(result: AuditResult): string {
   const scoreColor = getScoreColor(result.overallScore);
-  const scoreLabel = getScoreLabel(result.overallScore);
+  const scoreLabel = scoreToVerdict(result.overallScore).label;
   const timestamp = new Date(result.timestamp).toLocaleString();
   const isPassing = result.overallScore >= 70;
 

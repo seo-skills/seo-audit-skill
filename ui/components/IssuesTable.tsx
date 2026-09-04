@@ -50,7 +50,9 @@ export function IssuesTable({ result, ruleMetadata, onIssueClick }: IssuesTableP
   for (const cat of result.categoryResults) {
     const ruleMap = new Map<string, IssueRow>();
     for (const rule of cat.results) {
-      if (rule.status === 'pass') continue;
+      // Unmeasured checks are not issues: they produced no reading, so they
+      // belong in their own block rather than in a list of things to fix.
+      if (rule.status === 'pass' || rule.status === 'not-measured') continue;
       const existing = ruleMap.get(rule.ruleId);
       if (existing) {
         existing.count++;
@@ -61,7 +63,7 @@ export function IssuesTable({ result, ruleMetadata, onIssueClick }: IssuesTableP
           ruleName: ruleMetadata?.[rule.ruleId]?.name ?? formatRuleIdAsName(rule.ruleId),
           categoryId: cat.categoryId,
           categoryName: CATEGORY_NAMES[cat.categoryId] ?? cat.categoryId,
-          status: rule.status as 'fail' | 'warn',
+          status: rule.status,
           message: rule.message,
           pageUrl: pageUrl ?? null,
           count: 1,

@@ -67,6 +67,12 @@ export interface RuleMetadata {
  */
 export interface RuleSummary extends RuleResult {
   ruleName: string;
+  /**
+   * How much attention this finding deserves relative to the others in its
+   * audit; 0 means "not something to fix". Computed server-side, because the
+   * weights behind it exist only once the whole rule registry has loaded.
+   */
+  priority: number;
   totalPages: number;
   measuredPages: number;
   affectedPages: number;

@@ -16,19 +16,15 @@
  */
 
 import { randomBytes } from 'node:crypto';
+import { scoreToVerdict } from '../verdict.js';
+import { isNotMeasured } from '../rules/define-rule.js';
+import { AUDIT_SCHEMA_VERSION } from '../types.js';
 import type { AuditResult } from '../types.js';
 import { getFixSuggestion } from './fix-suggestions.js';
 
 /**
  * Get letter grade from score
  */
-function getGrade(score: number): string {
-  if (score >= 90) return 'A';
-  if (score >= 80) return 'B';
-  if (score >= 70) return 'C';
-  if (score >= 60) return 'D';
-  return 'F';
-}
 
 /**
  * Map rule status to severity
@@ -137,7 +133,7 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
 
   // Root element with summary attributes + nonce
   lines.push(
-    `<seo-audit url="${escapeXml(result.url)}" score="${result.overallScore}" grade="${getGrade(result.overallScore)}" pages="${result.crawledPages}" date="${date}" nonce="${nonce}">${nl}`
+    `<seo-audit schema="${result.schemaVersion ?? AUDIT_SCHEMA_VERSION}" url="${escapeXml(result.url)}" score="${result.overallScore}" grade="${scoreToVerdict(result.overallScore).grade}" pages="${result.crawledPages}" date="${date}" nonce="${nonce}">${nl}`
   );
 
   // Security notice — instructs the consuming LLM how to treat untrusted blocks.
@@ -174,10 +170,17 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
   // Collect issues and passed rules
   const issues: IssueData[] = [];
   const passed: string[] = [];
+  const notMeasured: string[] = [];
 
   for (const cat of result.categoryResults) {
     for (const r of cat.results) {
-      if (r.status === 'fail' || r.status === 'warn') {
+      // Three-way, not two. The old `else` filed anything that was not
+      // fail/warn under <passed>, so a model reading this report was told that
+      // checks which never ran had passed — and could then propose fixes for
+      // measurements the audit never took.
+      if (isNotMeasured(r)) {
+        notMeasured.push(r.ruleId);
+      } else if (r.status === 'fail' || r.status === 'warn') {
         issues.push({
           severity: getSeverity(r.status),
           rule: r.ruleId,
@@ -220,6 +223,14 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
   }
 
   // Passed rules (collapsed into comma-separated list — rule IDs are tool-authored)
+  // Reported separately from <passed>, and named for what it is: an agent
+  // reading this must be able to tell "we checked and it is fine" from "we
+  // could not check". `<summary notMeasured>` already carried the count; this
+  // carries which ones.
+  if (notMeasured.length > 0) {
+    lines.push(`${t1}<not-measured>${notMeasured.join(', ')}</not-measured>${nl}`);
+  }
+
   if (passed.length > 0) {
     lines.push(`${t1}<passed>${passed.join(', ')}</passed>${nl}`);
   }

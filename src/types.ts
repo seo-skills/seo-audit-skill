@@ -1,9 +1,17 @@
 import type { CheerioAPI } from 'cheerio';
 
 /**
- * Rule execution status
+ * Rule execution status.
+ *
+ * `not-measured` is a real status rather than a sentinel. It used to be encoded
+ * as `status: 'warn'` with `weight: 0`, recovered by testing the weight — so
+ * every consumer that branched on status alone (the markdown and LLM reporters
+ * among them) reported checks that never ran as genuine warnings.
+ *
+ * Note for anyone reading stored history: three encodings exist in the
+ * database. See `isNotMeasured()`.
  */
-export type RuleStatus = 'pass' | 'warn' | 'fail';
+export type RuleStatus = 'pass' | 'warn' | 'fail' | 'not-measured';
 
 /**
  * Category definition for organizing audit rules
@@ -626,7 +634,52 @@ export interface PageSnapshot {
   };
 }
 
+/**
+ * Version of the shape `--format json` and the programmatic API emit.
+ *
+ * `renderJsonReport` is a bare `JSON.stringify` of `AuditResult`, so this type
+ * *is* the public contract. Without a version a consumer cannot tell a 3.5.0
+ * payload from a 3.6.0 one, and every semantic change below — a new status
+ * value, a moved grade boundary, reordered findings — is a silent break.
+ *
+ * Bump on any change a consumer could notice. 1 is the shape shipped through
+ * 3.5.0, so a payload with no `schemaVersion` should be read as 1.
+ */
+export const AUDIT_SCHEMA_VERSION = 2;
+
+/**
+ * The options an audit actually ran with.
+ *
+ * Lives here rather than in the storage layer because it belongs to the
+ * result, not to how the result is persisted: two audits of the same site are
+ * only comparable if they were measured the same way, and every surface needs
+ * to be able to say so.
+ */
+export interface AuditRunOptions {
+  crawl: boolean;
+  maxPages: number;
+  concurrency: number;
+  measureCwv: boolean;
+  mobile: boolean;
+  simulateInteraction: boolean;
+  categories: string[];
+  timeout: number;
+}
+
 export interface AuditResult {
+  /** See {@link AUDIT_SCHEMA_VERSION}. Absent on payloads from 3.5.0 and earlier. */
+  schemaVersion?: number;
+  /**
+   * How this audit was measured.
+   *
+   * Without it, a score is not comparable to another score. The CLI measures
+   * Core Web Vitals by default and the desktop app does not, both write to the
+   * same history, and `compare --fail-on-regression` could therefore fail a
+   * build whose only change was which surface produced the baseline.
+   *
+   * Optional because audits stored before 3.6.0 do not carry it.
+   */
+  run?: AuditRunOptions;
   /** URL that was audited */
   url: string;
   /** Overall score (0-100) */

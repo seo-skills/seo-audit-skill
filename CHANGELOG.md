@@ -4,6 +4,89 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [Unreleased]
+
+### Breaking
+
+- **`RuleStatus` gains a fourth value, `not-measured`.** A check that could not
+  take a reading used to be encoded as `status: 'warn'` with `weight: 0`, and
+  recovered by testing the weight. Consumers that branched on status alone —
+  the markdown and LLM reporters among them — reported checks that never ran as
+  genuine warnings, and the LLM report filed them under `<passed>`, so a model
+  could propose fixes for measurements the audit never took.
+
+  **If you script against the output:** a predicate like
+  `results.filter(r => r.status === 'warn')` now returns fewer rows. The rows
+  did not disappear; they are `'not-measured'`. `weight === 0` is still set on
+  every one of them, so a predicate keyed on weight keeps working unchanged —
+  that is deliberate, and it is also what lets an older build read a database
+  written by a newer one.
+
+  `AuditResult` now carries `schemaVersion: 2`, and `<seo-audit>` a `schema="2"`
+  attribute. A payload with no version is version 1.
+
+- **The score-to-grade scale is one scale.** It was three. A score of 55 printed
+  **D** in the terminal and **F** in the report handed to an LLM. The boundary
+  settles at **D ≥ 50**, matching the terminal, which is the default output. If
+  you gate a deploy on `grade != "F"` from `--format llm`, scores of 50–59 now
+  read D where they used to read F — re-run your baseline.
+
+- **70–79 now reads "Fair" where it read "Good".** Letter grades had five
+  buckets and word labels had four; unifying them needs a fifth word. This
+  changes the label on every dashboard card, HTML report and markdown summary in
+  that band.
+
+### Added
+
+- `scoreToVerdict()` in `src/verdict.ts`, exported from the package entry: one
+  bucket set returning `{ grade, label, colorToken }`. Colour is part of the
+  verdict, so a score cannot be green on one surface and amber on another.
+- The LLM report emits `<not-measured>` alongside `<passed>`, so an agent can
+  tell "we checked and it is fine" from "we could not check".
+- **`rulePriority()` — what to fix first.** An audit produces 332 findings and
+  no surface could say which mattered; the HTML report ordered by severity and
+  then by registry order, so a weight-1 warning sat above a weight-25 one. No
+  new data was needed: the registry already carries a rule weight (13 distinct
+  values) and every category a weight, and `rule x category x severity x share
+  of pages affected` ranks the lot. On a real 8-page audit that turns 332 rules
+  into 46 actionable ones led by render-blocking resources and lazy-loading
+  above the fold. Unmeasured and passing rules rank 0, so the top of a report
+  is never "we did not check this". The number travels on `RuleSummary`;
+  surfaces never compute it, because the weights behind it exist only once the
+  whole rule registry has loaded.
+- `getResultCounts()` returns a fourth bucket, and the four now sum to the
+  total. Bucketing by status alone left `pass + warn + fail` quietly short.
+- **Two named count ledgers.** The HTML report said an audit had 332 findings
+  and the dashboard said 2,656, for the same audit. Both were right — one
+  counted rules, the other counted rule-per-page evaluations of them — and
+  neither said which. `countLiveResult()` and `countFromSummaries()` return
+  both, named, each with four buckets that sum. `affectedPages` is a distinct
+  page count rather than a sum of per-rule counts, which double-counted a page
+  that two rules both flagged.
+
+### Fixed
+
+- **`compare` no longer blames the site for a measurement-mode change.** The
+  CLI measures Core Web Vitals by default and the desktop app does not, and both
+  write to the same history — so comparing a desktop baseline against a CLI run
+  showed a score drop, a category down 12 points and 23 "new" rules, none of
+  which had anything to do with the site. `--fail-on-regression` failed CI on
+  it. The run options were already stored from 3.4.0; nothing read them. Now
+  `AuditResult` carries them, `compare` reports any difference, and a difference
+  that can move the score on its own suppresses the regression exit code with an
+  explanation. A genuine regression on a like-for-like pair still exits 1.
+
+- **An unmeasured check is no longer promoted into the issues table.**
+  `generateIssuesFromResults` filed every weight-0 row as a warning-severity
+  issue with a priority score.
+- **The terminal's issue grouping is no longer quadratic.** It re-normalised
+  every candidate message on every comparison — eight regex replaces per step,
+  invisible on an 8-page audit and roughly 10⁸ applications on a 1,000-page
+  crawl. Keyed through a Map now.
+- **"Nothing could be measured" stops grading F.** An audit whose total weight
+  is zero scores 0; that now reads "Not scored" rather than reporting the site
+  as catastrophic.
+
 ## [3.5.0] - 2026-09-03
 
 ### Added

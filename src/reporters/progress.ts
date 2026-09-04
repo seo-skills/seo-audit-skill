@@ -1,7 +1,7 @@
 import ora, { type Ora } from 'ora';
 import cliProgress from 'cli-progress';
 import chalk from 'chalk';
-import type { CategoryResult, RuleResult } from '../types.js';
+import type { CategoryResult, RuleResult, RuleStatus } from '../types.js';
 import type { CrawlProgress } from '../crawler/crawler.js';
 import { getCategoryById } from '../categories/index.js';
 import { getRuleCount } from '../rules/registry.js';
@@ -175,8 +175,10 @@ export class ProgressReporter {
   /**
    * Get status icon for a rule result
    */
-  private getStatusIcon(status: 'pass' | 'warn' | 'fail'): string {
+  private getStatusIcon(status: RuleStatus): string {
     switch (status) {
+      case 'not-measured':
+        return chalk.gray('–');
       case 'pass':
         return chalk.green('\u2713');
       case 'warn':

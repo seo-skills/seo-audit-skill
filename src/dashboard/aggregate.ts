@@ -11,11 +11,13 @@
 import type { AuditResult, CategoryResult, RuleResult } from '../types.js';
 import { categories as categoryDefinitions } from '../categories/index.js';
 import { isNotMeasured } from '../rules/define-rule.js';
+import { rulePriority } from '../rules/priority.js';
 import { buildRuleMetadata } from './queries.js';
 import type { AuditDetail, AuditMetaDto, RuleSummary } from './contract.js';
 import { RULE_SUMMARY_SAMPLE_PAGES } from '../storage/audits-db/results.js';
 
-const RANK: Record<RuleResult['status'], number> = { pass: 0, warn: 1, fail: 2 };
+// Unmeasured ranks below everything: it can never be a rule's worst page.
+const RANK: Record<RuleResult['status'], number> = { pass: 0, warn: 1, fail: 2, 'not-measured': -1 };
 
 /** The page a rule result ran on, when the auditor recorded one */
 function pageOf(result: RuleResult, fallback: string): string {
@@ -39,6 +41,7 @@ export function aggregateCategory(category: CategoryResult, auditUrl: string): R
       summary = {
         ruleId: result.ruleId,
         ruleName: result.ruleId,
+        priority: 0,
         status: 'pass',
         score: 100,
         message: '',
@@ -92,7 +95,25 @@ export function aggregateCategory(category: CategoryResult, auditUrl: string): R
         return bMeasured - aMeasured;
       })
       .slice(0, RULE_SUMMARY_SAMPLE_PAGES)
-      .map((r) => ({ pageUrl: pageOf(r, auditUrl), status: r.status, message: r.message }));
+      .map((r) => ({
+        pageUrl: pageOf(r, auditUrl),
+        // Normalised the same way the SQL read normalises it, so a caller
+        // cannot tell which encoding the row was stored in.
+        status: isNotMeasured(r) ? ('not-measured' as const) : r.status,
+        message: r.message,
+      }));
+  }
+
+  // Priority needs the finished counts, so it is filled in once the rule's
+  // pages have all been folded in.
+  for (const summary of byRule.values()) {
+    summary.priority = rulePriority({
+      ruleId: summary.ruleId,
+      categoryId: category.categoryId,
+      status: summary.status,
+      affectedPages: summary.affectedPages,
+      measuredPages: summary.measuredPages,
+    });
   }
 
   return [...byRule.values()];

@@ -1,6 +1,10 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import { getAuditsDatabase, closeAuditsDatabase, domainOf, diffRules } from '../storage/index.js';
+import {
+  compareRunProfiles,
+  hasMaterialDifference,
+} from '../storage/audits-db/run-profile.js';
 import type { HydratedAudit } from '../storage/types.js';
 import type { RuleChange } from '../storage/index.js';
 
@@ -160,6 +164,11 @@ export async function runCompare(
     );
     const scoreDelta = current.overallScore - previous.overallScore;
     const engineChanged = comparison?.engineChanged ?? false;
+    // Two scores are only comparable if both were measured the same way. Until
+    // now this warned about the engine version and said nothing about the run
+    // options, so a baseline from the desktop app (Core Web Vitals off) versus
+    // a CLI run (on) looked like the site had regressed.
+    const profileDifferences = compareRunProfiles(previous.run, current.run);
 
     if (options.json) {
       console.log(
@@ -170,6 +179,8 @@ export async function runCompare(
             previous: { auditId: previous.auditId, score: previous.overallScore, date: previous.startedAt },
             scoreDelta,
             engineChanged,
+            comparable: !hasMaterialDifference(profileDifferences),
+            runDifferences: profileDifferences,
             engineVersions: {
               current: current.engineVersion,
               previous: previous.engineVersion,
@@ -207,6 +218,20 @@ export async function runCompare(
             `  Engine changed: ${previous.engineVersion} → ${current.engineVersion}. Some differences may come from rule updates rather than the site.`
           )
         );
+      }
+      if (profileDifferences.length > 0) {
+        const material = hasMaterialDifference(profileDifferences);
+        const lead = material
+          ? '  These audits were not measured the same way, so this diff is not a like-for-like comparison:'
+          : '  These audits covered different amounts of the site:';
+        console.log(material ? chalk.yellow(lead) : chalk.dim(lead));
+        for (const difference of profileDifferences) {
+          console.log(
+            (material ? chalk.yellow : chalk.dim)(
+              `    ${difference.option}: ${difference.previous} → ${difference.current}`
+            )
+          );
+        }
       }
       console.log();
 
@@ -287,7 +312,18 @@ export async function runCompare(
       }
     }
 
-    const regressionFound = scoreDelta < 0 || regressed.length > 0;
+    // A run measured differently is not a regression. Failing CI because the
+    // baseline came from a surface with different defaults is the bug this
+    // check exists to avoid, not a signal worth acting on.
+    const notComparable = hasMaterialDifference(profileDifferences);
+    const regressionFound = !notComparable && (scoreDelta < 0 || regressed.length > 0);
+    if (options.failOnRegression && notComparable) {
+      console.log(
+        chalk.yellow(
+          '  Not failing on regression: the two audits were measured differently, so any difference is not attributable to the site.'
+        )
+      );
+    }
     process.exitCode = options.failOnRegression && regressionFound ? 1 : 0;
   } finally {
     closeAuditsDatabase();

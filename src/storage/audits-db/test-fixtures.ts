@@ -45,7 +45,7 @@ export interface PageOutcome {
 /** Rules grouped by category id, each with its per-page outcomes */
 export type RuleSpec = Record<string, Record<string, PageOutcome[]>>;
 
-const SCORE: Record<RuleStatus, number> = { pass: 100, warn: 50, fail: 0 };
+const SCORE: Record<RuleStatus, number> = { pass: 100, warn: 50, fail: 0, 'not-measured': 50 };
 
 /**
  * Build a live `AuditResult` the way the auditor does: one `RuleResult` per

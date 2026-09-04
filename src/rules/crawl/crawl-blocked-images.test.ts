@@ -42,7 +42,7 @@ describe('crawl-blocked-images', () => {
     const result = await blockedImagesRule.run(
       createContext([image('/images/hero.jpg')])
     );
-    expect(result.status).toBe('warn');
+    expect(result.status).toBe('not-measured');
     expect(result.weight).toBe(0);
   });
 

@@ -35,7 +35,7 @@ export interface RuleDiff {
   removed: RuleChange[];
 }
 
-const RANK: Record<RuleResultStatus, number> = { pass: 0, warn: 1, fail: 2 };
+const RANK: Record<RuleResultStatus, number> = { pass: 0, warn: 1, fail: 2, 'not-measured': -1 };
 
 interface RuleRollup {
   ruleId: string;

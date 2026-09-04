@@ -286,6 +286,7 @@ export function generateIssuesFromResults(
       GROUP_CONCAT(page_url) as affected_pages
     FROM audit_results
     WHERE audit_id = ? AND status = 'fail'
+      AND NOT (weight = 0 OR status = 'not-measured')
     GROUP BY rule_id, category_id, rule_name, message
   `
     )
@@ -320,7 +321,10 @@ export function generateIssuesFromResults(
       message,
       GROUP_CONCAT(page_url) as affected_pages
     FROM audit_results
+    -- An unmeasured check is not an issue: it produced no reading, so it must
+    -- not become a warning-severity row with a priority score.
     WHERE audit_id = ? AND status = 'warn'
+      AND NOT (weight = 0 OR status = 'not-measured')
     GROUP BY rule_id, category_id, rule_name, message
   `
     )

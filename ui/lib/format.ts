@@ -1,13 +1,18 @@
 /**
- * Formatting utilities extracted from src/reporters/html-reporter.ts
- * Used across all dashboard components for consistent score display.
+ * Formatting helpers for the dashboard.
+ *
+ * The score-to-verdict mapping is NOT here: it lives in `src/verdict.ts` and is
+ * shared with every reporter, because three copies of it is how the same score
+ * came to be graded D in the terminal and F in the LLM report.
  */
 
+import { scoreToVerdict, verdictCssVar } from '@core/verdict.js';
+import type { RuleStatus } from '@core/types.js';
+
 export function getScoreColor(score: number): string {
-  if (score >= 90) return 'var(--color-pass)';
-  if (score >= 70) return 'var(--color-warn)';
-  if (score >= 50) return 'var(--color-orange)';
-  return 'var(--color-fail)';
+  // Derived from the shared verdict, so a score cannot be green here and amber
+  // in the report. Returns a CSS var, never a literal.
+  return verdictCssVar(scoreToVerdict(score).colorToken);
 }
 
 export function getScoreColorClass(score: number): string {
@@ -25,10 +30,7 @@ export function getScoreBgClass(score: number): string {
 }
 
 export function getScoreLabel(score: number): string {
-  if (score >= 90) return 'Excellent';
-  if (score >= 70) return 'Good';
-  if (score >= 50) return 'Needs Work';
-  return 'Poor';
+  return scoreToVerdict(score).label;
 }
 
 export function formatRuleIdAsName(ruleId: string): string {
@@ -38,19 +40,21 @@ export function formatRuleIdAsName(ruleId: string): string {
     .join(' ');
 }
 
-export function getStatusIcon(status: 'pass' | 'warn' | 'fail'): string {
+export function getStatusIcon(status: RuleStatus): string {
   switch (status) {
     case 'pass': return '\u2713';
     case 'warn': return '!';
     case 'fail': return '\u2717';
+    case 'not-measured': return '\u2013';
   }
 }
 
-export function getStatusColorClass(status: 'pass' | 'warn' | 'fail'): string {
+export function getStatusColorClass(status: RuleStatus): string {
   switch (status) {
     case 'pass': return 'text-pass';
     case 'warn': return 'text-warn';
     case 'fail': return 'text-fail';
+    case 'not-measured': return 'text-[var(--color-neutral)]';
   }
 }
 
@@ -81,5 +85,25 @@ export function safeHref(url: string | null | undefined): string | undefined {
     return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : undefined;
   } catch {
     return undefined;
+  }
+}
+
+/**
+ * The design tokens a rule status is drawn in.
+ *
+ * Exhaustive over `RuleStatus` on purpose. This replaced ternary chains of the
+ * form `pass ? … : warn ? … : fail`, which silently rendered anything that was
+ * neither pass nor warn — a not-measured check included — in failure red.
+ */
+export function statusTokens(status: RuleStatus): { color: string; background: string } {
+  switch (status) {
+    case 'pass':
+      return { color: 'var(--color-pass)', background: 'var(--color-pass-bg)' };
+    case 'warn':
+      return { color: 'var(--color-warn)', background: 'var(--color-warn-bg)' };
+    case 'fail':
+      return { color: 'var(--color-fail)', background: 'var(--color-fail-bg)' };
+    case 'not-measured':
+      return { color: 'var(--color-neutral)', background: 'var(--color-neutral-bg)' };
   }
 }

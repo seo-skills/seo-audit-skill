@@ -85,6 +85,18 @@ export interface CrawlerOptions {
    * config default that previously had no effect.
    */
   respectRobots?: boolean;
+  /**
+   * Minimum gap between the start of any two requests, in milliseconds.
+   * `crawler.delay_ms`, which was schema'd, defaulted, range-validated and
+   * never read: a config asking for a 2s gap crawled at full speed.
+   *
+   * Defaults to 0 here rather than to the config's 100, so a Crawler built
+   * directly (tests, embedders) is not silently slowed down. The CLI passes
+   * the configured value.
+   */
+  delayMs?: number;
+  /** Same, but per host. `crawler.per_host_delay_ms`, equally unread. */
+  perHostDelayMs?: number;
 }
 
 /**
@@ -129,6 +141,10 @@ export class Crawler {
   private hostname: string = '';
   private options: CrawlerOptions;
   private results: CrawledPage[] = [];
+  /** Earliest time any next request may start (politeness scheduling) */
+  private nextGlobalSlot = 0;
+  /** Earliest time the next request to each host may start */
+  private nextHostSlot = new Map<string, number>();
   private activeCount = 0;
   private urlFilter: UrlFilter;
   /** Built once per crawl from the site's robots.txt; null when not applied. */
@@ -146,6 +162,10 @@ export class Crawler {
       renderPage: options.renderPage,
       urlFilter: options.urlFilter,
       respectRobots: options.respectRobots ?? true,
+      // 0, not the config's 100/200: only the CLI passes the configured value,
+      // so a directly-built Crawler keeps its old speed.
+      delayMs: options.delayMs ?? 0,
+      perHostDelayMs: options.perHostDelayMs ?? 0,
     };
 
     // Initialize URL filter with provided options
@@ -273,8 +293,10 @@ export class Crawler {
           break;
         }
 
+        await this.waitForTurn(retryUrl);
         await this.processUrl(retryUrl);
       } else {
+        await this.waitForTurn(url);
         await this.processUrl(url);
       }
     }
@@ -728,6 +750,40 @@ export class Crawler {
    */
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Hold a worker until this request is allowed to start.
+   *
+   * The slot is reserved synchronously before the await, so concurrent workers
+   * queue behind each other instead of all reading the same "last request"
+   * timestamp and starting together — which is how a delay silently becomes
+   * no delay at concurrency > 1.
+   */
+  private async waitForTurn(url: string): Promise<void> {
+    const delay = this.options.delayMs ?? 0;
+    const hostDelay = this.options.perHostDelayMs ?? 0;
+    if (delay <= 0 && hostDelay <= 0) return;
+
+    let host: string;
+    try {
+      host = new URL(url).host;
+    } catch {
+      host = '';
+    }
+
+    const now = Date.now();
+    const nextAllowed = Math.max(
+      now,
+      this.nextGlobalSlot,
+      this.nextHostSlot.get(host) ?? 0
+    );
+
+    this.nextGlobalSlot = nextAllowed + delay;
+    this.nextHostSlot.set(host, nextAllowed + hostDelay);
+
+    const wait = nextAllowed - now;
+    if (wait > 0) await this.sleep(wait);
   }
 }
 

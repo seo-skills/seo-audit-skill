@@ -294,6 +294,8 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       mobileParity,
       simulateInteraction,
       respectRobots: config.crawler.respect_robots,
+      delayMs: config.crawler.delay_ms,
+      perHostDelayMs: config.crawler.per_host_delay_ms,
       onCategoryStart: (categoryId, categoryName) => {
         progress.onCategoryStart(categoryId, categoryName);
       },

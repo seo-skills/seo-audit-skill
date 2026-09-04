@@ -127,6 +127,10 @@ export interface AuditorOptions {
   simulateInteraction?: boolean;
   /** Whether a crawl obeys the site's robots.txt. Defaults to true. */
   respectRobots?: boolean;
+  /** Minimum gap between requests, from `crawler.delay_ms` */
+  delayMs?: number;
+  /** Minimum gap between requests to one host, from `crawler.per_host_delay_ms` */
+  perHostDelayMs?: number;
   /** Optional browser-based page fetcher (replaces Playwright when provided) */
   browserFetcher?: (
     url: string,
@@ -177,6 +181,10 @@ export class Auditor {
       simulateInteraction: options.simulateInteraction ?? false,
       // Defaults to true so a programmatic crawl is polite unless asked not to be.
       respectRobots: options.respectRobots ?? true,
+      // 0 rather than the config's 100/200: a programmatic Auditor is not
+      // silently slowed down. The CLI passes the configured values.
+      delayMs: options.delayMs ?? 0,
+      perHostDelayMs: options.perHostDelayMs ?? 0,
       browserFetcher: options.browserFetcher,
       signal: options.signal,
       onCategoryStart: options.onCategoryStart ?? (() => {}),
@@ -455,6 +463,8 @@ export class Auditor {
       concurrency,
       timeout: this.options.timeout,
       respectRobots: this.options.respectRobots,
+      delayMs: this.options.delayMs,
+      perHostDelayMs: this.options.perHostDelayMs,
       ...(this.options.signal && { signal: this.options.signal }),
       onProgress: (progress) => this.options.onCrawlProgress(progress),
       onPageStart: (pageUrl) => this.options.onPageStart(pageUrl),

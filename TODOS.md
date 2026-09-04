@@ -35,6 +35,13 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
 
 ### P2 — CLI correctness, outside the design blast radius
 
+- ~~**`crawler.delay_ms` and `crawler.per_host_delay_ms` are declared and unread**~~
+  **Fixed by /qa on main, 2026-09-04** (`ISSUE-009`). Both were defaulted,
+  range-validated and written by `init --preset ci`, and no crawler code read either:
+  a config asking for a 2s gap crawled at full speed. The crawler now reserves each
+  request's slot synchronously before awaiting, so the gap survives concurrency
+  instead of every worker reading one timestamp and starting together.
+
 - **Nothing reads a crawl back out of `project.db`.** `db migrate` and `db stats` are
   its only readers/writers; `analyze` goes through `loadCrawl()`/`getLatestCrawl()` in
   `crawl-store.ts`, which read `.seomator/crawls/*.json` and nothing else. The SQLite

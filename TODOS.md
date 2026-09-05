@@ -35,7 +35,9 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
 
 ### P2 — CLI correctness, outside the design blast radius
 
-- **The SEO fundamentals are the lowest-weighted rules in the product.** Found by /qa
+- ~~**The SEO fundamentals are the lowest-weighted rules in the product**~~ **Decided and shipped in 5.0.0, 2026-09-05.** Weights are now 25/20/15/15/10 against the product's own precedent; runs carry `scoringVersion` and `compare` treats a change as material. Real sites held or improved (growthmarketing.ai 94→94, livechatai.com 87→92); the blank document's `core` went 85→47. The open half remains the *overall* score: a blank page still scores 81, because 19 other categories award vacuous passes. Whether an absent subject is a pass or a non-measurement is still a design call.
+
+  ~~original finding:~~ **The SEO fundamentals are the lowest-weighted rules in the product.** Found by /qa
   on 2026-09-04. `<html><body><p>x</p></body></html>` — no title, description, lang,
   viewport, canonical or h1 — scores **84/100**, and `core` scores 85 with 9 failures
   against 13 passes.
@@ -56,7 +58,7 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
   Not changed by /qa: it is an SEO judgement call and it moves every stored score, so
   it needs a version marker or `compare` reads it as a site regression.
 
-- **`analyze` and `compare` return 1 for both an error and a low score.** `audit` uses
+- ~~**`analyze` and `compare` return 1 for both an error and a low score**~~ **Shipped in 5.0.0.** 0 success, 1 below threshold, 2 failed, 130 cancelled, documented in SKILL.md. Original note: **`analyze` and `compare` return 1 for both an error and a low score.** `audit` uses
   2 for errors and 1 for "score under 70", so an agent can distinguish them there and
   not here. Aligning the three is a contract change; small, but it needs a version note.
 

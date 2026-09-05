@@ -43,11 +43,31 @@ Published as `@seomator/seo-audit` on npm. Current version: **4.0.0**.
 `better-sqlite3` is a C++ addon compiled against a specific Node.js ABI. Electron and CLI/Node.js use different ABIs:
 
 ```bash
-npx electron-rebuild -f -w better-sqlite3   # Before running Electron
-npm rebuild better-sqlite3                    # Before running CLI tests
+npm run rebuild:electron   # Before running Electron
+npm run rebuild:cli        # Before running CLI tests
 ```
 
-**You must recompile when switching between Electron and CLI.** Failure produces a cryptic `NODE_MODULE_VERSION mismatch` error.
+**You must recompile when switching between Electron and CLI.** Failure produces
+a cryptic `NODE_MODULE_VERSION mismatch` error.
+
+**Use the npm scripts, not `electron-rebuild` directly.** On Apple Silicon the
+artifact `electron-rebuild` restores carries a signature the kernel refuses at
+load, even though `codesign -v` calls it "valid on disk". The Electron main
+process then dies inside `dlopen` before drawing a window:
+
+```
+Exception:   EXC_BAD_ACCESS, SIGKILL (Code Signature Invalid)
+Termination: CODESIGNING, code 2, "Invalid Page"
+```
+
+There is no stdout, no stack trace and no window — the only evidence is a crash
+report in `~/Library/Logs/DiagnosticReports/Electron-*.ips`. `npm run
+electron:dev` simply appears to do nothing. This cost four sessions of the
+desktop app being written off as untestable.
+
+Both scripts run `scripts/resign-native.mjs`, which re-signs the module ad-hoc
+(`codesign --force --sign -`). Re-signing a good binary is harmless, and the
+script is a no-op off macOS.
 
 ### Zero Modifications to `src/`
 

@@ -85,7 +85,7 @@ The desktop app provides a visual audit dashboard with real-time progress stream
 git clone https://github.com/seo-skills/seo-audit-skill.git
 cd seo-audit-skill
 npm install
-npx electron-rebuild -f -w better-sqlite3   # Compile native module for Electron
+npm run rebuild:electron   # Compile native module for Electron
 npm run electron:dev                          # Launch with hot reload
 ```
 
@@ -923,7 +923,7 @@ After installing, run `npx playwright install chromium` to install the browser f
 
 For the desktop app, `better-sqlite3` must be compiled for Electron's Node version:
 ```bash
-npx electron-rebuild -f -w better-sqlite3
+npm run rebuild:electron
 ```
 
 ## License

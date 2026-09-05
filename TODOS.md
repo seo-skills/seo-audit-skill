@@ -339,7 +339,9 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
 
 **What:** `npm run native:cli` / `npm run native:electron` wrappers plus a `self doctor` check that reports which ABI the compiled addon targets.
 
-**Why:** Switching between the CLI/tests and Electron still needs a manual `electron-rebuild` / `npm rebuild` dance; a wrong state fails with a cryptic `NODE_MODULE_VERSION` error. The DX review flagged it as contributor friction; the web dashboard reduces how often it happens but does not remove it.
+**Why:** Switching between the CLI/tests and Electron still needs a rebuild step; a wrong state fails with a cryptic `NODE_MODULE_VERSION` error. The DX review flagged it as contributor friction; the web dashboard reduces how often it happens but does not remove it.
+
+**Partly addressed 2026-09-05:** `npm run rebuild:electron` and `npm run rebuild:cli` wrap the dance and, critically, re-sign the module. On Apple Silicon the artifact `electron-rebuild` restores is refused by the kernel at `dlopen` (`SIGKILL`, CODESIGNING / "Invalid Page") while `codesign -v` still calls it valid, so the desktop app died before drawing a window with no output at all. That is why it read as untestable for four sessions. The remaining friction is that a rebuild is still needed at all — an N-API build of better-sqlite3, or a second `node_modules` tree, would remove it.
 
 **Context:** Commands exist as one-liners in `CLAUDE.md`. The doctor check can read `process.versions.modules` and compare with the addon's compiled ABI.
 

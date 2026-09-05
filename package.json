@@ -26,6 +26,8 @@
     "test:run": "vitest run",
     "electron:dev": "electron-vite dev -c electron/electron-vite.config.ts",
     "electron:build": "electron-vite build -c electron/electron-vite.config.ts",
+    "rebuild:electron": "electron-rebuild -f -w better-sqlite3 && node scripts/resign-native.mjs",
+    "rebuild:cli": "npm rebuild better-sqlite3 && node scripts/resign-native.mjs",
     "electron:icon": "node scripts/generate-icon.mjs",
     "electron:pack": "electron-builder install-app-deps && npm run electron:build && electron-builder --dir",
     "electron:dist": "electron-builder install-app-deps && npm run electron:build && electron-builder",

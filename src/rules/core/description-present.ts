@@ -9,7 +9,12 @@ export const descriptionPresentRule = defineRule({
   name: 'Meta Description Present',
   description: 'Checks that a <meta name="description"> tag exists in the document',
   category: 'core',
-  weight: 1,
+  // Raised from 1 in 5.0.0. Every core presence check sat at the bottom of a
+  // scale running to 25, so a page missing this lost a single weight-point
+  // while canonical edge cases passed vacuously at 6-8. A blank document
+  // scored 84/100. Drives click-through from the SERP rather than ranking directly, so a tier
+  // below title.
+  weight: 15,
   run: async (context: AuditContext) => {
     const { $ } = context;
     const descriptionElement = $('meta[name="description"]');

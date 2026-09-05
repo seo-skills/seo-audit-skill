@@ -119,6 +119,7 @@ export async function runCompare(
       code: 'no-target',
       message: 'Specify a domain or URL to compare.',
       hint: 'seomator compare example.com',
+      exitCode: 2,
     });
     return;
   }
@@ -142,6 +143,7 @@ export async function runCompare(
         code: 'no-audits',
         message: `No stored audits for ${domain}.`,
         hint: `Run: seomator audit ${target} --save`,
+        exitCode: 2,
       });
       return;
     }
@@ -155,6 +157,7 @@ export async function runCompare(
           code: 'audit-not-found',
           message: `Audit not found: ${options.against}`,
           hint: 'List what is stored with: seomator report --list',
+          exitCode: 2,
         });
         return;
       }
@@ -166,6 +169,7 @@ export async function runCompare(
           code: 'nothing-to-compare',
           message: `Only one stored audit for ${domain}, so there is nothing to compare against.`,
           hint: `Run another: seomator audit ${target} --save`,
+          exitCode: 2,
         });
         return;
       }

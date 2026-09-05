@@ -663,6 +663,8 @@ export interface AuditRunOptions {
   mobile: boolean;
   simulateInteraction: boolean;
   categories: string[];
+  /** Which scoring model produced the score. See SCORING_VERSION. */
+  scoringVersion?: number;
   /** `rules.enable` patterns in force. Empty means every rule. */
   enableRules?: string[];
   /** `rules.disable` patterns in force. */

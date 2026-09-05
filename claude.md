@@ -36,7 +36,7 @@ The `package.json` serves **both** the npm CLI package and the Electron desktop 
 5. `npm publish --access public`
 6. The `prepublishOnly` script auto-runs `npm run build` before publish
 
-Published as `@seomator/seo-audit` on npm. Current version: **4.1.0**.
+Published as `@seomator/seo-audit` on npm. Current version: **5.0.0**.
 
 ### better-sqlite3 Native Module ABI
 

@@ -28,6 +28,7 @@ import {
   type RenderOptions,
 } from './crawler/index.js';
 import { buildPageSnapshot } from './page-snapshot.js';
+import { SCORING_VERSION } from './scoring.js';
 import { AuditError, rethrowIfAborted, throwIfAborted } from './errors.js';
 import { getUserAgent } from './crawler/user-agent.js';
 import type { UrlFilterOptions } from './crawler/url-filter.js';
@@ -714,6 +715,7 @@ export class Auditor {
       mobile: this.options.mobileParity,
       simulateInteraction: this.options.simulateInteraction,
       categories: this.options.categories,
+      scoringVersion: SCORING_VERSION,
       enableRules: this.options.enableRules,
       disableRules: this.options.disableRules,
       timeout: this.options.timeout,

@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-09-05
+
+The score means more than it did. Two contract changes, both about a tool being
+readable — by a person looking at a number, and by an agent reading an exit code.
+
+### Breaking
+
+- **The core presence checks are weighted like fundamentals.**
+  `core-title-present`, `core-viewport-present`, `core-description-present`,
+  `core-h1-present` and `core-canonical-present` were all weight **1**, the
+  bottom of a scale running to 25, while ten canonical edge-case rules sat at
+  6-8 and passed vacuously on a page with no canonical to examine. A page
+  missing its title lost a single weight-point, and
+  `<html><body><p>x</p></body></html>` scored **84/100**.
+
+  They are now 25, 20, 15, 15 and 10, against the product's own precedent for
+  presence checks (`schema-present` 25, `images-alt-present` 20).
+
+  **Scores move.** A well-built site is unaffected or improves, because it has
+  the fundamentals and they now count — measured: growthmarketing.ai 94 → 94,
+  livechatai.com 87 → 92, and the `core` category on a properly marked-up page
+  99. A page missing them falls: that blank document goes from `core` 85 to 47.
+
+  Audits carry `run.scoringVersion`, and `compare` treats a change in it as a
+  material run difference. `compare --fail-on-regression` therefore reports a
+  model change rather than failing a build over a site that did not change.
+
+- **Errors exit 2 everywhere.** `analyze` and `compare` returned `1` for both a
+  failure and a low score, so an agent could not tell "the analysis failed"
+  from "the site scored 65". They follow `audit` now: `0` success, `1` the run
+  worked but the result is below a threshold, `2` the command failed, `130`
+  cancelled. `compare` keeps `1` for `--fail-on-regression`. The exit codes are
+  documented in `SKILL.md`.
+
+
 ## [4.1.0] - 2026-09-05
 
 ### Added

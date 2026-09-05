@@ -5,7 +5,7 @@ license: MIT
 compatibility: Requires Node.js 20.3+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
 metadata:
   author: seomator
-  version: "4.1.0"
+  version: "5.0.0"
 allowed-tools: Bash(seomator:*)
 ---
 
@@ -173,6 +173,27 @@ seomator audit https://example.com --format html -o report.html
 Verbose output for debugging:
 ```bash
 seomator audit https://example.com --format llm -v
+```
+
+## Exit codes
+
+An agent must be able to tell "the audit failed" from "the site scored badly".
+Every command uses the same three:
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | The run worked, and the result is below a threshold — `audit`/`analyze` scored under 70, or `compare --fail-on-regression` found a regression |
+| `2` | The command failed: unreachable URL, HTTP error, missing crawl, bad `--config` path |
+| `130` | Cancelled with Ctrl-C |
+
+**A non-zero exit is not automatically a failure.** `1` means the tool worked
+and is telling you something about the site. Only `2` means it could not do the
+job. Under `--format json` or `--format llm`, a `2` also puts a structured
+error on stdout with a stable `code` field:
+
+```json
+{ "error": true, "code": "http-error", "message": "...", "hint": "..." }
 ```
 
 ## Command Reference

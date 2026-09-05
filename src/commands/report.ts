@@ -134,6 +134,7 @@ export async function runReport(query: string | undefined, options: ReportOption
         code: 'audit-not-found',
         message: `Audit not found: ${query}`,
         hint: 'List what is stored with: seomator report --list',
+        exitCode: 2,
       });
       return;
     }

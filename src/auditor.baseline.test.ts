@@ -67,9 +67,17 @@ export function makeBaselineFetch() {
   });
 }
 
-/** Category id → [score, pass, warn, fail, notMeasured] */
+/**
+ * Category id → [score, pass, warn, fail, notMeasured]
+ *
+ * `core` moved 98 → 99 in 5.0.0, when the five presence checks went from
+ * weight 1 to 10-25. The fixture has a title, description, h1, viewport and
+ * canonical, so weighting them properly raises its score — which is the
+ * direction the change is meant to move a well-formed page. The counts are
+ * unchanged: the same rules pass, they just carry their proper weight.
+ */
 const EXPECTED_CATEGORIES: Record<string, [number, number, number, number, number]> = {
-  core: [98, 22, 1, 1, 0],
+  core: [99, 22, 1, 1, 0],
   technical: [99, 16, 0, 1, 0],
   perf: [89, 13, 5, 0, 8],
   links: [97, 16, 1, 1, 6],

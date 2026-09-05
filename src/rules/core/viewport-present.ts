@@ -9,7 +9,12 @@ export const viewportPresentRule = defineRule({
   name: 'Viewport Meta Tag Present',
   description: 'Checks that a <meta name="viewport"> tag exists in the document',
   category: 'core',
-  weight: 1,
+  // Raised from 1 in 5.0.0. Every core presence check sat at the bottom of a
+  // scale running to 25, so a page missing this lost a single weight-point
+  // while canonical edge cases passed vacuously at 6-8. A blank document
+  // scored 84/100. Mobile-first indexing: a missing viewport degrades every mobile result.
+  // Matches images-alt-present.
+  weight: 20,
   run: async (context: AuditContext) => {
     const { $ } = context;
     const viewportElement = $('meta[name="viewport"]');

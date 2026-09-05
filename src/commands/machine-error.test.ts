@@ -115,3 +115,27 @@ describe('the exit code is set, never exited', () => {
     expect(reachedFinally).toBe(true);
   });
 });
+
+describe('5.0.0 — errors exit 2, matching audit', () => {
+  // `analyze` and `compare` returned 1 for both an error and a low score, so an
+  // agent could not tell "the analysis failed" from "the site scored 65".
+  // `audit` has always reserved 2 for errors and 1 for the score threshold;
+  // the other commands follow it now, and compare keeps 1 for
+  // --fail-on-regression.
+  it('every command error path passes exitCode 2', async () => {
+    const { readFileSync } = await import('node:fs');
+    const root = new URL('./', import.meta.url).pathname;
+
+    for (const file of ['analyze.ts', 'compare.ts', 'report.ts']) {
+      const text = readFileSync(root + file, 'utf8');
+      const calls = (text.match(/emitCommandError\(\{/g) || []).length;
+      const coded = (text.match(/exitCode: 2/g) || []).length;
+      expect(coded, `${file}: ${calls} error paths but ${coded} set exitCode 2`).toBe(calls);
+    }
+  });
+
+  it('sets 2 when asked, so an agent can branch on it', () => {
+    capture(() => emitCommandError({ json: true, code: 'crawl-not-found', message: 'x', exitCode: 2 }));
+    expect(process.exitCode).toBe(2);
+  });
+});

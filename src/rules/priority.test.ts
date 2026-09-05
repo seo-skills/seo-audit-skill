@@ -50,7 +50,7 @@ describe('byPriority', () => {
     const findings: PriorityInput[] = [
       { ruleId: 'legal-cookie-consent', categoryId: 'legal', status: 'fail', affectedPages: 1, measuredPages: 1 },
       { ruleId: 'cwv-lcp', categoryId: 'perf', status: 'fail', affectedPages: 1, measuredPages: 1 },
-      { ruleId: 'core-title-present', categoryId: 'core', status: 'warn', affectedPages: 1, measuredPages: 1 },
+      { ruleId: 'core-favicon-present', categoryId: 'core', status: 'warn', affectedPages: 1, measuredPages: 1 },
       { ruleId: 'cwv-cls', categoryId: 'perf', status: 'fail', affectedPages: 1, measuredPages: 1 },
     ];
 
@@ -62,7 +62,23 @@ describe('byPriority', () => {
     // warning on a weight-1 rule even though its category is weighted 11%
     // (1 x 11 x 0.5 = 5.5). Severity and rule weight both count; neither wins
     // alone.
-    expect(ordered.slice(2)).toEqual(['legal-cookie-consent', 'core-title-present']);
+    //
+    // This used `core-title-present` as the trivial rule until 5.0.0, when it
+    // went from weight 1 to 25. `core-favicon-present` is the example now,
+    // because a missing favicon really is minor and a missing title is not.
+    expect(ordered.slice(2)).toEqual(['legal-cookie-consent', 'core-favicon-present']);
+  });
+
+  it('surfaces a missing title above a cookie notice', () => {
+    // The 5.0.0 weighting, asserted as an outcome rather than as arithmetic:
+    // at weight 1 a missing title ranked below `legal-cookie-consent`, which is
+    // not an order any SEO tool should present.
+    const ordered = byPriority([
+      { ruleId: 'legal-cookie-consent', categoryId: 'legal', status: 'fail', affectedPages: 1, measuredPages: 1 },
+      { ruleId: 'core-title-present', categoryId: 'core', status: 'fail', affectedPages: 1, measuredPages: 1 },
+    ]).map((f) => f.ruleId);
+
+    expect(ordered[0]).toBe('core-title-present');
   });
 
   it('is a total order, so the long tail does not shuffle between runs', () => {

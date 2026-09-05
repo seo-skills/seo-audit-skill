@@ -22,6 +22,7 @@ import { createAuditContext } from '../crawler/index.js';
 import { resetCrossPageState } from '../rules/registry.js';
 import type { AuditContext } from '../types.js';
 import { emitCommandError } from './machine-error.js';
+import { SCORING_VERSION } from '../scoring.js';
 
 export interface AnalyzeOptions {
   categories?: string[];
@@ -134,6 +135,7 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
         code: 'no-crawls',
         message: 'No crawls found.',
         hint: 'Run `seomator crawl <url>` first.',
+        exitCode: 2,
       });
       reportArchivedCrawls(baseDir);
       return;
@@ -146,6 +148,7 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
         code: 'crawl-not-found',
         message: `Crawl not found: ${crawlId}`,
         hint: 'List stored crawls with: seomator analyze (no id) or check .seomator/crawls/',
+        exitCode: 2,
       });
       reportArchivedCrawls(baseDir);
       return;
@@ -187,6 +190,7 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
         code: 'empty-crawl',
         message: 'No pages in crawl data.',
         hint: 'Re-run the crawl: seomator crawl <url>',
+        exitCode: 2,
       });
       return;
     }
@@ -255,6 +259,7 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
             mobile: false,
             simulateInteraction: false,
             categories: options.categories ?? [],
+            scoringVersion: SCORING_VERSION,
             // analyze applies rules.enable/disable too, so the run has to carry
             // them or `compare` reads a filtered analysis as like-for-like.
             enableRules: config.rules.enable,

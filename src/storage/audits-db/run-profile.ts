@@ -30,6 +30,7 @@ const LABELS: Record<string, string> = {
   mobile: 'mobile parity',
   simulateInteraction: 'simulated interaction',
   categories: 'categories',
+  scoringVersion: 'scoring model',
   enableRules: 'enabled rules',
   disableRules: 'disabled rules',
   maxPages: 'page limit',
@@ -51,6 +52,9 @@ const MATERIAL = new Set([
   // without the site changing, which is the whole reason this module exists.
   'enableRules',
   'disableRules',
+  // A weight change moves every score without the site changing, which is the
+  // one thing this module exists to stop being read as a regression.
+  'scoringVersion',
 ]);
 
 function render(value: unknown): string {

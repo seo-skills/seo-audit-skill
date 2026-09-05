@@ -9,7 +9,12 @@ export const canonicalPresentRule = defineRule({
   name: 'Canonical URL Present',
   description: 'Checks that a <link rel="canonical"> tag exists in the document',
   category: 'core',
-  weight: 1,
+  // Raised from 1 in 5.0.0. Every core presence check sat at the bottom of a
+  // scale running to 25, so a page missing this lost a single weight-point
+  // while canonical edge cases passed vacuously at 6-8. A blank document
+  // scored 84/100. Matters for duplicate content, but is genuinely optional on many pages, so
+  // the lightest of the five.
+  weight: 10,
   run: async (context: AuditContext) => {
     const { $ } = context;
     const canonicalElement = $('link[rel="canonical"]');

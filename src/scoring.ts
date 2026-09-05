@@ -58,6 +58,24 @@ export function calculateCategoryScore(results: RuleResult[]): number {
 }
 
 /**
+ * Which scoring model produced a score.
+ *
+ * Bumped whenever rule weights or the score arithmetic change, because two
+ * scores are only comparable if the same model produced them. Recorded on the
+ * run and treated as material by `storage/audits-db/run-profile.ts`, so
+ * `compare --fail-on-regression` reports a model change instead of failing a
+ * build over a site that did not change.
+ *
+ * 1 — through 4.1.0.
+ * 2 — 5.0.0. The five `core` presence checks (title, description, h1,
+ *     viewport, canonical) were raised from weight 1, the bottom of a scale
+ *     running to 25, where a page missing a title lost one weight-point while
+ *     ten canonical edge cases passed vacuously at 6-8. A blank document
+ *     scored 84/100.
+ */
+export const SCORING_VERSION = 2;
+
+/**
  * Calculate the overall audit score from category results
  * Uses weighted category average based on category definition weights
  * @param categoryResults - Array of category results

@@ -12,6 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import { createTestContext } from '../test-context.js';
 import { touchTargetsRule } from './touch-targets.js';
+import { formLabelsRule } from './form-labels.js';
 
 const withCss = (css: string) =>
   createTestContext(`<html><head><style>${css}</style></head><body><a href="/">Home</a></body></html>`);
@@ -39,5 +40,26 @@ describe('a11y-touch-targets CSS heuristics (ISSUE-013)', () => {
     const result = await touchTargetsRule.run(withCss('button{width:20px}'));
     expect(String(result.details?.wcagReference)).toMatch(/2\.5\.5.*AAA/);
     expect(String(result.details?.wcagReference)).not.toMatch(/2\.5\.8 \(Level AAA\)/);
+  });
+});
+
+// Regression: ISSUE-014 — a11y-form-labels ignored label text inside child elements
+// Found by /qa on 2026-10-15
+// Report: .gstack/qa-reports/run-20261015T075717Z/qa-report-developer-mozilla-org-2026-10-15.md
+//
+// A wrapping label's text was read with every child element removed, so
+// <label><span>Email</span><input></label>, an ordinary labelled field, was
+// reported as unlabelled.
+describe('a11y-form-labels wrapping labels (ISSUE-014)', () => {
+  const form = (body: string) => createTestContext(`<html><body><form>${body}</form></body></html>`);
+
+  it('reads label text nested in child elements', async () => {
+    const result = await formLabelsRule.run(form('<label><span>Email</span> <input type="email" name="e"></label>'));
+    expect(result.status).toBe('pass');
+  });
+
+  it('does not take a select\'s option text for its label', async () => {
+    const result = await formLabelsRule.run(form('<label><select name="s"><option>Pick one</option></select></label>'));
+    expect(result.status).not.toBe('pass');
   });
 });

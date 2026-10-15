@@ -144,8 +144,10 @@ function hasLabel($: CheerioAPI, $el: Cheerio<Element>): boolean {
   // Check for wrapping label
   const parentLabel = $el.closest('label');
   if (parentLabel.length > 0) {
-    // Wrapping label should have text content
-    const labelText = parentLabel.clone().children().remove().end().text().trim();
+    // Wrapping label should have text of its own. Drop the controls (an
+    // option's or textarea's text is not a label) but keep text nested in
+    // elements, as in <label><span>Email</span><input></label>.
+    const labelText = parentLabel.clone().find('input, select, textarea, button').remove().end().text().trim();
     if (labelText) {
       return true;
     }

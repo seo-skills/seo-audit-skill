@@ -191,6 +191,16 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
     `${t1}<summary passed="${totalPassed}" warnings="${totalWarnings}" failures="${totalFailures}" notMeasured="${totalNotMeasured}"/>${nl}`
   );
 
+  // A model reading score="20" beside categories in the 90s would go looking
+  // for an arithmetic error. The cap says there is none, and why.
+  if (result.scoreCap) {
+    lines.push(`${t1}<score-cap uncapped="${result.scoreCap.uncappedScore}">${nl}`);
+    for (const cap of result.scoreCap.caps) {
+      lines.push(`${t2}<cap id="${escapeXml(cap.id)}" ceiling="${cap.ceiling}">${escapeXml(cap.reason)}</cap>${nl}`);
+    }
+    lines.push(`${t1}</score-cap>${nl}`);
+  }
+
   // Categories (compact format)
   lines.push(`${t1}<categories>${nl}`);
   for (const cat of result.categoryResults) {

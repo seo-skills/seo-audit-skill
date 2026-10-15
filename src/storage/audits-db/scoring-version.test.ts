@@ -26,8 +26,8 @@ const run = (over: Partial<AuditRunOptions> = {}): AuditRunOptions => ({
 });
 
 describe('the scoring model is recorded on the run', () => {
-  it('is 2, the model that weights the core presence checks properly', () => {
-    expect(SCORING_VERSION).toBe(2);
+  it('is 3, the model that caps the score for page-level conditions', () => {
+    expect(SCORING_VERSION).toBe(3);
   });
 
   it('reports a model change as a difference', () => {
@@ -48,13 +48,14 @@ describe('the scoring model is recorded on the run', () => {
   it('renders the versions, so the report names what changed', () => {
     const [difference] = compareRunProfiles(run({ scoringVersion: 1 }), run());
     expect(difference.previous).toBe('1');
-    expect(difference.current).toBe('2');
+    expect(difference.current).toBe('3');
   });
 });
 
 describe('an audit stored before the marker existed', () => {
   it('is not mistaken for a same-model run', () => {
-    // Pre-5.0.0 rows carry no scoringVersion. Undefined against 2 has to read
+    // Pre-5.0.0 rows carry no scoringVersion. Undefined against the current
+    // model has to read
     // as a difference, or every historical audit silently compares as
     // like-for-like against a differently-scored one.
     const { scoringVersion: _omitted, ...legacy } = run();

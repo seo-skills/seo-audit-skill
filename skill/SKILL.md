@@ -381,6 +381,23 @@ A category score is the average of its rule results — `pass` 100, `warn` 50,
 `security-https` moves the category far more than a minor one. The overall score
 is the weighted average of category scores using the weights above.
 
+**A page-level condition can cap the overall score** (single-page audits only).
+An average cannot say "nothing else matters", so while one of these holds, the
+overall score stays at or under its ceiling whatever the categories average:
+
+| Condition | Ceiling |
+|-----------|---------|
+| `noindex` for Google (robots meta tag or `X-Robots-Tag`) | 20 |
+| robots.txt disallows the page for Googlebot | 20 |
+| No `<title>` and fewer than 20 words of main content | 30 |
+| Fewer than 20 words of main content | 49 |
+| No `<title>` | 69 |
+
+The JSON result then carries `scoreCap: { uncappedScore, caps: [{ id, ceiling,
+reason }] }`, and `--format llm` a `<score-cap>` element. **Fix the cap first:**
+no other fix moves the score while it holds. On a staging site that is noindex
+on purpose, read `uncappedScore` instead.
+
 **Unmeasured checks carry weight 0 and do not affect the score.** A check whose
 input was unavailable is reported so the gap is visible, but scores neither for
 nor against the site — you cannot score what you did not measure. This is why:

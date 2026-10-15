@@ -280,6 +280,38 @@ and `qa-report-developer-mozilla-org-2026-10-15.md`.
   `links-nofollow-appropriate` does not accept `rel="sponsored"`.
   `crawl-noindex-in-sitemap` would read gzipped child sitemaps undecompressed.
 
+## From the page-level score caps (2026-10-15)
+
+`src/score-caps.ts` holds a single-page score under a ceiling for noindex,
+robots.txt disallow, an empty page, almost no content, and a missing title.
+`src/score-ladder.test.ts` is the contract. These were left out of that change.
+
+### P1 — a capped score shown without its reason
+
+- **Stored audits drop `scoreCap`.** The `audits` table keeps `run_json`, not the
+  result, so history, `report`, and the score card in `ui/` (dashboard and
+  desktop app) show a capped score with no reason, the confusion the cap was
+  added to prevent. Persist it beside `run_json`, return it from
+  `getAuditDetail`, and render it under the score in `ui/`.
+
+### P2
+
+- **Crawl audits are not capped.** Decide whether a capped start URL caps the
+  site score, or the share of capped pages does. One noindex page among fifty is
+  usually deliberate; a noindex homepage is not.
+- **A noindex staging site now fails CI.** `audit` exits 1 below a hard-coded 70.
+  A threshold option, or a way to waive the noindex cap, needs a real consumer
+  in `audit.ts`, not just a config key.
+- **No category can be wholly unmeasured yet.** `calculateCategoryScore()`
+  returns 0 when every result is unmeasured, and `calculateOverallScore()` still
+  counts that category at full weight. `images` scores 100 on a page with no
+  images (every rule passes on nothing). Before converting it, skip unmeasured
+  categories in the overall, and show "—" in the 11 files that render a category
+  score.
+- **The core canonical cluster still passes with nothing to check.** About ten
+  rules at weight 6–8 pass when no canonical is declared, so a blank page reads
+  `core` 47. Category honesty only: the caps already handle the overall.
+
 ## Dashboard
 
 ### Publish the Electron app as a GitHub Release

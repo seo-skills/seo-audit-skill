@@ -72,8 +72,11 @@ export function calculateCategoryScore(results: RuleResult[]): number {
  *     running to 25, where a page missing a title lost one weight-point while
  *     ten canonical edge cases passed vacuously at 6-8. A blank document
  *     scored 84/100.
+ * 3 — page-level score caps (`score-caps.ts`). The category average cannot
+ *     say "nothing else matters": a noindex page scored 94 and a one-word
+ *     page 85, held up by server checks that read the same on every page.
  */
-export const SCORING_VERSION = 2;
+export const SCORING_VERSION = 3;
 
 /**
  * Calculate the overall audit score from category results

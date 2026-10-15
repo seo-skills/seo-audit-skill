@@ -756,6 +756,19 @@ export interface AuditCoverage {
   detail: 'per-page' | 'aggregated';
 }
 
+/**
+ * A page-level condition that holds the overall score at or below a ceiling,
+ * whatever the categories average. See `src/score-caps.ts`.
+ */
+export interface ScoreCap {
+  /** Stable identifier, e.g. `noindex`, for machines and tests */
+  id: string;
+  /** Highest overall score the page can show while the condition holds */
+  ceiling: number;
+  /** One sentence naming the condition, printed beside the score */
+  reason: string;
+}
+
 export interface AuditResult {
   /** See {@link AUDIT_SCHEMA_VERSION}. Absent on payloads from 3.5.0 and earlier. */
   schemaVersion?: number;
@@ -772,8 +785,22 @@ export interface AuditResult {
   run?: AuditRunOptions;
   /** URL that was audited */
   url: string;
-  /** Overall score (0-100) */
+  /** Overall score (0-100), after any {@link AuditResult.scoreCap} */
   overallScore: number;
+  /**
+   * Present when a page-level condition held `overallScore` below the
+   * weighted average of the categories. Records the average and every cap
+   * that lowered it, so no surface shows a capped score unexplained.
+   *
+   * Single-page audits only: a crawl's score is a site aggregate. Absent on
+   * stored audits, which do not persist it yet.
+   */
+  scoreCap?: {
+    /** The weighted category average the caps overrode */
+    uncappedScore: number;
+    /** The caps below that average, lowest ceiling first */
+    caps: ScoreCap[];
+  };
   /** Results grouped by category */
   categoryResults: CategoryResult[];
   /** Timestamp of when the audit was performed */

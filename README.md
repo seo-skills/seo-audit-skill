@@ -280,6 +280,13 @@ seomator self doctor -v          # Verbose diagnostics
 | 1 | Audit failed (score < 70) |
 | 2 | Error occurred |
 
+A page that cannot rank fails whatever its other checks score. In a single-page
+audit, the overall score is capped while a page-level condition holds: `noindex`
+or a robots.txt block (20), an empty page (30), fewer than 20 words of main
+content (49), no `<title>` (69). The report prints the cap under the score, and
+JSON output keeps the uncapped average in `scoreCap.uncappedScore`, for a
+staging site that is noindex on purpose.
+
 ## Categories & Rules (373 total)
 
 ### Core (24 rules) - 11% weight

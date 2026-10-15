@@ -280,6 +280,14 @@ export function renderTerminalReport(result: AuditResult): void {
   // Health Score
   const { grade, color } = getLetterGrade(result.overallScore);
   console.log(`${chalk.bold('Health Score:')} ${color(`${result.overallScore}/100 (${grade})`)}`);
+  // A capped score above category bars in the 90s reads as a bug unless the
+  // reason sits directly under the number it explains.
+  if (result.scoreCap) {
+    console.log(chalk.gray(`  Capped from ${result.scoreCap.uncappedScore}, the category average:`));
+    for (const cap of result.scoreCap.caps) {
+      console.log(chalk.gray(`  • ${cap.reason}`));
+    }
+  }
   console.log();
 
   // Category Breakdown

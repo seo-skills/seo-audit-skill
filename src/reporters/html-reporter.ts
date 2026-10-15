@@ -819,6 +819,16 @@ ${tokensToCss()}
       color: var(--color-text-muted);
     }
 
+    .score-cap {
+      font-size: 13px;
+      color: var(--color-text-secondary);
+    }
+
+    .score-cap ul {
+      margin: 4px 0 0;
+      padding-left: 18px;
+    }
+
     /* ========================================
        Category Progress Bars
        ======================================== */
@@ -2507,6 +2517,10 @@ export function renderHtmlReport(result: AuditResult): string {
           <div class="score-status ${isPassing ? 'pass' : 'fail'}">
             ${isPassing ? '✓ Audit Passed' : '✕ Audit Failed'} (threshold: 70)
           </div>
+          ${result.scoreCap ? `<div class="score-cap">
+            Capped from ${result.scoreCap.uncappedScore}, the category average:
+            <ul>${result.scoreCap.caps.map((cap) => `<li>${escapeHtml(cap.reason)}</li>`).join('')}</ul>
+          </div>` : ''}
           <div class="score-stats">
             <div class="score-stat">
               <span class="score-stat-value fail">${failures.length}</span>

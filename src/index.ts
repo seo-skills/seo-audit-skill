@@ -111,6 +111,7 @@ export type { AuditRunOptions, AuditSource } from './storage/types.js';
 
 export type {
   AuditResult,
+  ScoreCap,
   AuditContext,
   AuditRule,
   CategoryResult,

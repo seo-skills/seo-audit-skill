@@ -31,6 +31,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (18 → 19), eeat (15 → 16), geo (11 → 13), and accessibility (35 → 36) now
   average in more results. On the pinned fixture the overall score stays 91.
 
+### Changed
+
+- **Breaking: a page-level condition can cap the overall score.** The overall
+  score is a weighted average of 20 categories, and most of that weight sits in
+  checks that read the same on every page of a server, so an average could not
+  say "nothing else matters". On one well-configured server, a page Google is
+  told not to index scored 94, a page holding the single word "x" scored 85,
+  and a page with one four-word sentence scored as high as a full article (95).
+
+  A single-page audit now holds the overall score at the lowest ceiling that
+  applies, and every report prints the cap and the category average beneath
+  the score:
+
+  | Condition | Ceiling |
+  |-----------|---------|
+  | `noindex` for Google, in a robots meta tag or `X-Robots-Tag` | 20 |
+  | robots.txt disallows the page for Googlebot | 20 |
+  | No `<title>` and fewer than 20 words of main content | 30 |
+  | Fewer than 20 words of main content | 49 |
+  | No `<title>` | 69 |
+
+  Every ceiling is under 70, so these pages now exit `1`. A staging site that is
+  noindex on purpose fails CI; its uncapped score is `scoreCap.uncappedScore` in
+  the JSON output. Category scores do not change.
+
+  Crawl audits are not capped: a site score aggregates pages, and one noindex
+  page among fifty is usually deliberate. A client-rendered app shell audited
+  without rendering (`--no-cwv`, or the desktop app's default) gets no content
+  cap, because its words were never read. Soft-404 detection is not a cap: it
+  keys on words such as "error" in the title.
+
+  `SCORING_VERSION` is 3, so `compare` reports a model change rather than a
+  regression. `AuditResult` gains an optional `scoreCap`, and `ScoreCap` is
+  exported. Stored audits do not keep `scoreCap` yet, so history views show a
+  capped score without its reason.
+
 ### Fixed
 
 - **Wrong or misleading verdicts in about 60 rules, found by reverse-checking all

@@ -1620,13 +1620,18 @@ disable = ["*"]
 1. Each rule returns a score: **0** (fail), **50** (warn), or **100** (pass)
 2. Category score = weighted average of rule scores within that category
 3. Overall score = weighted sum of category scores (using category weights)
+4. In a single-page audit, a page-level condition caps the overall score while
+   it holds: `noindex` for Google or a robots.txt disallow (20), no `<title>` and
+   fewer than 20 words of main content (30), fewer than 20 words (49), no
+   `<title>` (69). The result's `scoreCap` records the uncapped average and the
+   reasons. Category scores are not capped.
 
 ### Example
-- Core SEO: 85/100 x 12% = 10.2
-- Performance: 70/100 x 12% = 8.4
+- Core SEO: 85/100 x 11% = 9.35
+- Performance: 70/100 x 10% = 7.0
 - Links: 90/100 x 8% = 7.2
 - ...
-- **Overall: Sum of all category contributions (0-100)**
+- **Overall: Sum of all category contributions (0-100)**, then any cap from step 4
 
 ### Score Ranges
 | Range | Grade | Meaning |

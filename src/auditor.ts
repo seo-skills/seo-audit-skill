@@ -29,6 +29,7 @@ import {
 } from './crawler/index.js';
 import { buildPageSnapshot } from './page-snapshot.js';
 import { SCORING_VERSION } from './scoring.js';
+import { applyScoreCaps, readPageFacts, scoreCaps } from './score-caps.js';
 import { AuditError, rethrowIfAborted, throwIfAborted } from './errors.js';
 import { getUserAgent } from './crawler/user-agent.js';
 import type { UrlFilterOptions } from './crawler/url-filter.js';
@@ -442,9 +443,10 @@ export class Auditor {
     // Run all categories
     const categoryResults = await this.runAllCategories(context);
 
-    // Build and return final result
+    // Build the final result, then hold the score down for any condition the
+    // category average cannot express (see score-caps.ts)
     const timestamp = new Date().toISOString();
-    return buildAuditResult(
+    const result = buildAuditResult(
       url,
       categoryResults,
       this.categoriesToAudit,
@@ -454,6 +456,7 @@ export class Auditor {
       this.runOptions(false, 1, 1),
       { pages: [url], detail: 'per-page' }
     );
+    return applyScoreCaps(result, scoreCaps(readPageFacts(context)));
   }
 
   /**

@@ -92,6 +92,14 @@ export function renderMarkdownReport(result: AuditResult): string {
     ? '> :white_check_mark: **Audit passed** (score >= 70)'
     : '> :x: **Audit failed** (score < 70)');
   lines.push('');
+  if (result.scoreCap) {
+    lines.push(`Capped from **${result.scoreCap.uncappedScore}**, the category average:`);
+    lines.push('');
+    for (const cap of result.scoreCap.caps) {
+      lines.push(`- ${cap.reason}`);
+    }
+    lines.push('');
+  }
 
   // Category Breakdown
   lines.push('## Category Breakdown');

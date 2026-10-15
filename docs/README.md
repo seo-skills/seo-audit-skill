@@ -1,51 +1,70 @@
 # SEOmator Documentation
 
-> Comprehensive SEO audit CLI tool with 373 rules across 20 categories
+SEOmator audits web pages against 373 rules across 20 categories, from the
+command line, a local dashboard, a desktop app, or an AI agent.
 
-## Getting Started
+These docs follow [Diataxis](https://diataxis.fr/). Every page states its type
+at the top, so you can tell at a glance whether it teaches, solves a task,
+lists facts or explains a design:
 
-| Document | Description |
-|----------|-------------|
-| [Introduction](./introduction.md) | Overview, features, and why SEOmator |
-| [Quickstart](./quickstart.md) | Installation and first audit |
-| [Configuration](./configuration.md) | Config files, presets, and options |
+| Type | Use it when you want to | Pages |
+|------|-------------------------|-------|
+| **Tutorial** | learn by doing, from nothing to a working result | [Quickstart](./quickstart.md) |
+| **How-to** | get a specific job done | [Use SEOmator from an AI agent](./ai-agent-integration.md) · [Use the local dashboard](./WEB-DASHBOARD.md) · [Run and package the desktop app](./ELECTRON-APP.md) |
+| **Reference** | look up an exact fact: a rule, a flag, a key, a column | [SEO audit rules](./SEO-AUDIT-RULES.md) · [Configuration](./configuration.md) · [Storage](./STORAGE-ARCHITECTURE.md) |
+| **Explanation** | understand why it works the way it does | [Introduction](./introduction.md) · [Technical architecture](./technical-architecture.md) |
 
-## Integration
+## Start here
 
-| Document | Description |
-|----------|-------------|
-| [AI Agent Integration](./ai-agent-integration.md) | Claude Code, Cursor, and LLM workflows |
+New to SEOmator? Read the [Introduction](./introduction.md) for what an audit
+measures and how the score is built, then follow the [Quickstart](./quickstart.md)
+to run your first audit and compare two of them.
 
-## Reference
+## By task
 
-| Document | Description |
-|----------|-------------|
-| [Technical Architecture](./technical-architecture.md) | How SEOmator works under the hood |
-| [SEO Audit Rules](./SEO-AUDIT-RULES.md) | All 373 rules with examples and fixes |
-| [Storage Architecture](./STORAGE-ARCHITECTURE.md) | SQLite database schema and internals |
+| I want to | Go to |
+|-----------|-------|
+| Run my first audit | [Quickstart](./quickstart.md) |
+| Let an AI agent run audits and read the results | [Use SEOmator from an AI agent](./ai-agent-integration.md) |
+| Check whether a deploy made anything worse | [Use SEOmator from an AI agent: check what a deploy changed](./ai-agent-integration.md) |
+| Browse stored audits in a browser, or script against them | [Use the local dashboard](./WEB-DASHBOARD.md) |
+| Run only some rules, or set up CI output | [Configuration: how-to](./configuration.md) |
+| Find out what a rule checks and how to fix it | [SEO audit rules](./SEO-AUDIT-RULES.md) |
+| Work on the desktop app | [Run and package the desktop app](./ELECTRON-APP.md) |
+| Understand where audits are stored and how `compare` reads them | [Storage](./STORAGE-ARCHITECTURE.md) |
 
-## Quick Links
+Some pages hold two types in clearly separated parts: the dashboard guide ends
+with an API reference, the desktop app guide with a design explanation, and the
+configuration reference with a short how-to section.
+
+## Quick commands
 
 ```bash
-# Install
-npm install -g @seomator/seo-audit
-
-# Run audit
-seomator audit https://example.com
-
-# Multi-page crawl
-seomator audit https://example.com --crawl -m 20
-
-# Create config
-seomator init
-
-# AI-optimized output
-seomator audit https://example.com --format llm | claude
+npm install -g @seomator/seo-audit             # install the CLI (Node.js 20.3+)
+seomator self doctor                           # check the setup
+seomator audit https://example.com             # audit one page
+seomator audit https://example.com --format llm --no-cwv   # compact output for AI agents
+seomator audit https://example.com --crawl -m 20           # crawl up to 20 pages
+seomator compare example.com                   # diff the two latest stored audits
+seomator serve                                 # local dashboard on 127.0.0.1:7360
+seomator init -y                               # write a seomator.toml with defaults
 ```
 
-## External Resources
+## Design records
 
-- **npm**: https://www.npmjs.com/package/@seomator/seo-audit
-- **GitHub**: https://github.com/seo-skills/seo-audit-skill
-- **Web UI**: https://seomator.com/free-seo-audit-tool
-- **Skills**: `npx skills add seo-skills/seo-audit-skill`
+These PRDs record what was decided and why, at the time they were written.
+They are not kept current; the pages above describe today's behaviour.
+
+| Record | What it decided |
+|--------|-----------------|
+| [Local web dashboard](./PRD-local-web-dashboard.md) | `seomator serve`: the HTTP API, the token model, running audits from a browser |
+| [Design system](./PRD-design-system.md) | One verdict and one ordering across the CLI, reports and dashboard |
+| [Lighthouse parity and coverage](./PRD-lighthouse-and-coverage-expansion.md) | Instant Web Vitals and Lighthouse-equivalent rules |
+| [Hint coverage expansion](./PRD-hint-coverage-expansion.md) | Rules added to match a reference audit catalog |
+
+## External resources
+
+- **npm:** https://www.npmjs.com/package/@seomator/seo-audit
+- **GitHub:** https://github.com/seo-skills/seo-audit-skill
+- **Web UI:** https://seomator.com/free-seo-audit-tool
+- **Agent skill:** `npx skills add seo-skills/seo-audit-skill`

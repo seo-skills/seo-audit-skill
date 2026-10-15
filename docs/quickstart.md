@@ -1,262 +1,251 @@
-# Quickstart
+# Quickstart: your first SEO audit
 
-> Install SEOmator and run your first SEO audit
+> **Type:** Tutorial
 
-## Installation
+In this tutorial you install SEOmator, audit one web page, read the report, and
+then compare two audits of the same site. SEOmator checks a page against
+**373 rules** across **20 categories** and gives it a score out of 100.
+
+You will audit https://example.com, a public page reserved for documentation
+examples. When you are done, swap in the URL of your own site.
+
+It takes about five minutes.
+
+## What you'll need
+
+- Node.js 20.3 or later. Check with `node --version`.
+- npm, which comes with Node.js.
+- An internet connection.
+- Google Chrome, Chromium or Microsoft Edge, if you want Core Web Vitals.
+  SEOmator uses the browser to load the page the way a visitor would. Without
+  one, the audit still runs and reports Core Web Vitals and the other checks
+  that need a browser as "not measured".
+
+## 1. Install SEOmator
+
+Install the package globally. It adds the `seomator` command:
 
 ```bash
 npm install -g @seomator/seo-audit
 ```
 
-This installs the `seomator` command globally.
+On npm 11 you may see an `install-scripts` warning about `better-sqlite3`. The
+install still completes.
 
-**Requirements:**
-- Node.js 20.3+
-- Chrome, Chromium, or Edge (for Core Web Vitals - auto-detected)
+Check the version:
 
-After installation, run `seomator self doctor` to verify everything is set up correctly.
+```bash
+seomator --version
+```
 
-## Three Ways to Use SEOmator
+```
+6.0.0
+```
 
-### CLI for Humans
+Then check your setup:
 
-Run audits directly with human-readable terminal output:
+```bash
+seomator self doctor
+```
+
+```
+SEOmator Doctor
+Checking system setup...
+
+  ✓ Node.js: Node.js v24.21.0 installed
+  ✓ npm: npm v11.19.0 installed
+  ✓ Chrome/Chromium: Browser found (Google Chrome 155.0.8059.79)
+  ...
+
+All 7 checks passed. Ready to audit!
+```
+
+Your versions will differ. If the `Chrome/Chromium` line is a warning, carry
+on: only the browser checks are affected.
+
+## 2. Audit a page
+
+Run an audit of example.com:
 
 ```bash
 seomator audit https://example.com
 ```
 
-### AI Agent Skill
-
-Install the skill for autonomous AI workflows:
-
-```bash
-npx skills add seo-skills/seo-audit-skill
-```
-
-Then run `/seo-audit` or prompt your AI agent:
+SEOmator prints a banner, then one line per category as each finishes. The
+audit takes about ten seconds. You will see output like this (trimmed):
 
 ```
-Use the seo-audit skill to audit this site and fix all issues
-```
+ ███████╗███████╗ ██████╗ ███╗   ███╗ █████╗ ████████╗ ██████╗ ██████╗
+ ██╔════╝██╔════╝██╔═══██╗████╗ ████║██╔══██╗╚══██╔══╝██╔═══██╗██╔══██╗
+ ███████╗█████╗  ██║   ██║██╔████╔██║███████║   ██║   ██║   ██║██████╔╝
+ ╚════██║██╔══╝  ██║   ██║██║╚██╔╝██║██╔══██║   ██║   ██║   ██║██╔══██╗
+ ███████║███████╗╚██████╔╝██║ ╚═╝ ██║██║  ██║   ██║   ╚██████╔╝██║  ██║
+ ╚══════╝╚══════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝
 
-For best results, use the skill in **plan mode** if your agent supports it. This lets the agent analyze issues and create an implementation plan before making changes.
+  v6.0.0  •  https://seomator.com
+──────────────────────────────────────────────────
+Config: (none, using defaults)
+Auditing: example.com
 
-### Pipe to AI
+  ✗ Core                  75 16 passed, 3 warnings, 4 failed, 1 not measured
+  ✗ Technical SEO         93 12 passed, 2 warnings, 4 failed
+  ⚠ Performance           99 25 passed, 1 warnings, 2 not measured
+  ✓ Images               100 14 passed
+  ...
+  ✗ AI/GEO Readiness      45 5 passed, 4 warnings, 2 failed, 2 not measured
 
-Export reports to Claude or other AI assistants:
-
-```bash
-seomator audit https://example.com --format llm | claude
-```
-
-See [AI Agent Integration](./ai-agent-integration.md) for detailed guidance on using SEOmator with Claude Code, Cursor, and other AI coding assistants.
-
-## Run Your First Audit
-
-Audit a website with a single command:
-
-```bash
-seomator audit https://example.com
-```
-
-You'll see output like:
-
-```
-╔═══════════════════════════════════════════════════════════════════════╗
-║                                                                       ║
-║   ███████╗███████╗ ██████╗ ███╗   ███╗ █████╗ ████████╗ ██████╗ ██████╗
-║   ██╔════╝██╔════╝██╔═══██╗████╗ ████║██╔══██╗╚══██╔══╝██╔═══██╗██╔══██╗
-║   ███████╗█████╗  ██║   ██║██╔████╔██║███████║   ██║   ██║   ██║██████╔╝
-║   ╚════██║██╔══╝  ██║   ██║██║╚██╔╝██║██╔══██║   ██║   ██║   ██║██╔══██╗
-║   ███████║███████╗╚██████╔╝██║ ╚═╝ ██║██║  ██║   ██║   ╚██████╔╝██║  ██║
-║   ╚══════╝╚══════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝
-║                                                                       ║
-║   v6.0.0  •  373 rules  •  20 categories                              ║
-║   https://seomator.com                                                ║
-║                                                                       ║
-╚═══════════════════════════════════════════════════════════════════════╝
-
-Auditing: https://example.com
-Max pages: 10
-
-✓ Audited 5 pages in 3.2s
+✓ Audited 1 page in 9.8s
+  Saved as 2026-10-15-431da7 — compare with: seomator compare example.com
 
 ──────────────────────────────────────────────────
 SEOMATOR REPORT
-https://example.com • 5 pages • 85/100 (B)
+example.com • 1 page • 86/100 (B)
 ──────────────────────────────────────────────────
 
+Health Score: 86/100 (B)
+```
+
+That is your first result: example.com scores 86 out of 100, a B. Your numbers
+may differ, because some checks time the page on every run and the page itself
+can change.
+
+The `Saved as` line tells you the audit was stored on your machine. You will use
+that in step 4.
+
+## 3. Read the report
+
+The report continues below the score. Read it from the top.
+
+**The score and grade.** The grade comes from the score: A is 90 or more, B is
+80 or more, C is 70 or more, D is 50 or more, and F is below 50. A score of 70
+or more also passes in scripts. Check the exit status of the audit you just ran:
+
+```bash
+echo $?
+```
+
+```
+0
+```
+
+An audit that scores below 70 exits with `1`, and one that could not run at all
+exits with `2`.
+
+**The category breakdown.** Each category gets its own score, worst first:
+
+```
 Category Breakdown:
 --------------------------------------------------
-Core SEO             ████████░░ 82%
-Performance          █████████░ 91%
-Links                █████████░ 88%
-Images               ███████░░░ 75%
-Security             ██████████ 100%
+Social               ██░░░░░░░░ 17%
+  Passed: 0 | Warnings: 3 | Failed: 6
+AI/GEO Readiness     █████░░░░░ 45%
+  Passed: 5 | Warnings: 4 | Failed: 2 | Not measured: 2
+Security             ███████░░░ 71%
+  Passed: 14 | Warnings: 5 | Failed: 5 | Not measured: 2
 ...
+HTML Validation      ██████████ 100%
+  Passed: 11
 
+Total: 260 passed, 30 warnings, 29 errors, 54 not measured
+```
+
+Social scores lowest because example.com has no Open Graph or Twitter Card
+tags.
+
+**The issues.** Below the breakdown, every check that did not pass is listed,
+grouped by category. The categories with the most failures come first:
+
+```
 ISSUES
 
-Core SEO (1 error, 2 warnings)
-  core/meta-description (error)
-    ✗ Missing meta description
-      → /about
-      → /contact
-
-  core/og-tags (warning)
-    ⚠ Missing og:image
+Social (6 errors, 3 warnings)
+  social-og-description Open Graph Description (error)
+    ✗ social-og-description: No <meta property="og:description"> tag found in the document
       → /
-
-Images (3 warnings)
-  images/alt-text (warning)
-    ⚠ Missing alt attribute
-      → /products (3 images)
-
-──────────────────────────────────────────────────
-125 passed • 15 warnings • 8 failed
-──────────────────────────────────────────────────
+...
+Core (4 errors, 3 warnings, 1 not measured)
+  core-description-present Meta Description Present (error)
+    ✗ core-description-present: No <meta name="description"> tag found in the document
+      → /
+...
+  core-title-unique Title Uniqueness (not measured)
+    – core-title-unique: Title uniqueness needs other pages to compare against - run with --crawl
+      → /
 ```
 
-## Common Options
+Each issue shows the rule ID (`social-og-description`), the rule name, and its
+result: `error` for a failed check, `warning` for one that needs attention, or
+`not measured`. The next line says what was found, and the `→` line names the
+page.
 
-### 1. Multi-page crawl
+**Checks marked "not measured".** Lines that start with `–` are checks that
+could not take a reading on this run. They do not count toward the score. The
+message says what the check needs. `core-title-unique` compares titles across
+pages, so it needs a multi-page audit (`--crawl`).
 
-Crawl multiple pages instead of just the homepage:
+## 4. Audit again and compare
+
+Every audit is stored unless you pass `--no-save`, so SEOmator can tell you what
+changed between two runs. Run the same audit again, then compare:
 
 ```bash
-seomator audit https://example.com --crawl -m 20
+seomator audit https://example.com
+seomator compare example.com
 ```
 
-### 2. Skip Core Web Vitals
-
-For faster audits without browser-based metrics:
-
-```bash
-seomator audit https://example.com --no-cwv
-```
-
-### 3. Export to JSON
-
-Output machine-readable JSON for CI/CD or AI processing:
-
-```bash
-seomator audit https://example.com --format json -o report.json
-```
-
-### 4. Generate HTML report
-
-Create a visual HTML report with interactive features:
-
-```bash
-seomator audit https://example.com --format html -o report.html
-```
-
-The HTML report includes:
-- **Category progress bars** - Visual overview of all category scores at a glance
-- **Rule names & descriptions** - Human-readable titles instead of just rule IDs
-- **Collapsible pages lists** - "N pages affected" toggles for multi-page issues
-- **Fix suggestions** - Prominent "How to Fix" guidance for each issue
-- **Dark mode toggle** - Switch between light and dark themes
-- **Status filtering** - Filter by All/Failures/Warnings/Passed
-- **URL filtering** - Filter issues by specific page (multi-page crawls)
-- **Sidebar navigation** - Quick jump to any category section
-
-### 5. Fresh crawl
-
-Ignore cache and fetch all pages fresh:
-
-```bash
-```
-
-### 6. Filter categories
-
-Audit specific categories only:
-
-```bash
-seomator audit https://example.com -c core,perf,security
-```
-
-## Output Formats
-
-| Format | Flag | Use Case |
-|--------|------|----------|
-| `console` | (default) | Human-readable terminal output |
-| `json` | `--format json` | CI/CD pipelines, programmatic processing |
-| `html` | `--format html` | Interactive visual reports with dark mode, filtering, progress bars |
-| `markdown` | `--format markdown` | Documentation, GitHub |
-| `llm` | `--format llm` | Compact AI-optimized (50-70% smaller) |
-
-## Configuration
-
-Create a `seomator.toml` config file for consistent settings:
-
-```bash
-seomator init              # Interactive setup
-seomator init -y           # Use defaults
-seomator init --preset blog # Use blog preset
-```
-
-Example configuration:
-
-```toml
-[project]
-name = "my-website"
-domains = ["example.com", "www.example.com"]
-
-[crawler]
-max_pages = 100
-concurrency = 3
-timeout_ms = 30000
-exclude = ["/admin/**", "/api/**"]
-
-[rules]
-enable = ["*"]
-disable = ["perf-inp"]
-
-[output]
-format = "console"
-```
-
-## Exit Codes
-
-SEOmator uses exit codes for CI/CD integration:
-
-| Code | Meaning |
-|------|---------|
-| `0` | Passed (score >= 70) |
-| `1` | Failed (score < 70) |
-| `2` | Error |
-
-## Using with AI Agents
-
-SEOmator is designed for AI workflows. Two primary methods:
-
-### 1. Install the Skill (Recommended)
-
-```bash
-npx skills add seo-skills/seo-audit-skill
-```
-
-Then use with Claude Code, Cursor, or any skill-compatible agent:
+`compare` matches the newest audit of example.com against the one before it:
 
 ```
-Use the seo-audit skill to audit example.com and fix all issues
+Comparing example.com
+  previous  2026-10-15-431da7  2026-10-15 14:32  score 86
+  current   2026-10-15-6553b1  2026-10-15 14:34  score 86
+
+  Overall  86 → 86  = 0
+
+┌────────────────────────┬─────────┬─────────┬──────────┐
+│ Category               │ Before  │ After   │ Change   │
+├────────────────────────┼─────────┼─────────┼──────────┤
+│ Performance            │ 99      │ 96      │ -3       │
+└────────────────────────┴─────────┴─────────┴──────────┘
+
+  Regressed (1)
+    ✗ cwv-ttfb pass → warn
+      TTFB is 978ms (needs improvement, should be under 800ms)
 ```
 
-### 2. Pipe Output to AI
+The page did not change between the two runs, yet one check moved. `cwv-ttfb`
+times the server's first response on every run, and the second request was
+slower. Your comparison may show a different small change, or
+`No category scores changed.`
 
-```bash
-# Audit and pipe directly to Claude
-seomator audit https://example.com --format llm | claude "analyze and prioritize fixes"
-```
+If `compare` says there is only one stored audit, run the audit command again.
+Audits are stored by default, so no extra flag is needed.
 
-The `--format llm` provides compact, token-optimized output designed specifically for AI agents.
+On your own site, fix one issue from step 3, audit again, and compare. The rule
+you fixed appears under `Improved`.
 
-See [AI Agent Integration](./ai-agent-integration.md) for advanced workflows including plan mode, subagents, and continuous monitoring.
+## What you built
 
-## Next Steps
+You installed SEOmator, audited a page, read its score, categories and issues,
+and compared two stored audits. From here:
 
-- Run `seomator --help` for all available commands
-- See the main [README](../CLAUDE.md) for full CLI reference
-- Check the [GitHub repo](https://github.com/seo-skills/seo-audit-skill) for updates
+- Learn why the score works the way it does, including caps and "not measured"
+  checks: [Introduction](./introduction.md).
+- Audit a whole site instead of one page with `--crawl`. Run
+  `seomator audit --help` for every option.
+- Give the report to an AI assistant with `--format llm`:
+  [AI Agent Integration](./ai-agent-integration.md).
+- Keep project settings in a `seomator.toml` file:
+  [Configuration](./configuration.md).
+- Browse your stored audits in a browser with `seomator serve`:
+  [Web dashboard](./WEB-DASHBOARD.md).
+- Look up any rule ID from the report: [SEO Audit Rules](./SEO-AUDIT-RULES.md).
+
+## Related
+
+- [Introduction](./introduction.md)
+- [Configuration](./configuration.md)
+- [SEO Audit Rules](./SEO-AUDIT-RULES.md)
+- [AI Agent Integration](./ai-agent-integration.md)
+- [Web dashboard](./WEB-DASHBOARD.md)
+- [Documentation index](./README.md)

@@ -1,439 +1,383 @@
-# SEOmator Desktop App — Architecture Guide
+# How to run and package the desktop app
 
-The Electron desktop app wraps the existing Node.js audit engine in a native macOS/Windows application with a React UI. **Zero changes were made to `src/`** — the entire Electron layer is additive, living in the `electron/` directory.
+> **Type:** How-to
 
-## Table of Contents
+Run the SEOmator desktop app from a source checkout, switch its native database
+module between the Electron and Node.js builds, and build or package the app.
 
-- [How It Works](#how-it-works)
-- [Directory Structure](#directory-structure)
-- [The Three-Process Model](#the-three-process-model)
-- [IPC Bridge Architecture](#ipc-bridge-architecture)
-- [State Management](#state-management)
-- [Design System](#design-system)
-- [Build System](#build-system)
-- [Distribution & Packaging](#distribution--packaging)
-- [Development Workflow](#development-workflow)
-- [Key Design Decisions](#key-design-decisions)
+This page has two parts: contributor tasks, then an
+[Explanation](#explanation) of how the app reuses the engine and the UI, how
+the IPC bridge works, and why the native module has to be rebuilt and
+re-signed. The desktop app is not published to npm; only the CLI is.
 
----
+## Prerequisites
 
-## How It Works
+- A clone of the repository with dependencies installed:
 
-The desktop app reuses the CLI's `Auditor` class directly — no HTTP APIs, no child processes, no re-implementation. The connection works through Electron's IPC (Inter-Process Communication):
+  ```bash
+  git clone https://github.com/seo-skills/seo-audit-skill.git
+  cd seo-audit-skill
+  npm install
+  ```
 
-```
-┌───────────────────────────────────────────────────────────────┐
-│  Renderer Process (React UI)                                  │
-│                                                               │
-│  useAudit() hook ──► window.electronAPI.runAudit(url)         │
-│                         │                                     │
-│                         │ ipcRenderer.send('audit:run')       │
-└─────────────────────────┼─────────────────────────────────────┘
-                          │
-              ┌───────────┼───────────┐
-              │  Preload Script       │
-              │  contextBridge        │
-              └───────────┼───────────┘
-                          │
-┌─────────────────────────┼─────────────────────────────────────┐
-│  Main Process (Node.js)  │                                     │
-│                          ▼                                     │
-│  audit-bridge.ts ──► AuditSession (src/dashboard/)             │
-│                        .start(args) / .cancel()                │
-│                        .subscribe(state =>                     │
-│                          win.webContents.send(                 │
-│                            'audit:state', state))              │
-│                                                                │
-│  AuditSession ──► Auditor (from src/auditor.ts)                │
-│    └── fetchPage() → Cheerio parse → runAllCategories()        │
-│        └── 373 rules across 20 categories                      │
-│    └── saveAuditToDatabase(source: 'desktop')                  │
-│                                                                │
-│  db-bridge.ts ──► src/dashboard/queries.ts                     │
-│    └── getAuditDetail, listAudits, listDomains, getTrend       │
-└────────────────────────────────────────────────────────────────┘
-```
+- Node.js 20.3 or later.
+- On macOS, `codesign` from the Xcode command line tools. The rebuild scripts
+  use it to re-sign the native module.
 
-**The key insight**: the run itself is not Electron's. `AuditSession` (`src/dashboard/audit-session.ts`) owns it — one run at a time, bounded state, real cancellation, persistence — and the bridge is only transport. That is why the same run logic serves the desktop app and the web dashboard, and why the renderer receives one whole state object per change rather than four separate event streams it has to reassemble.
+## Run the app in development
 
----
+1. Build `better-sqlite3` for Electron:
 
-## Directory Structure
+   ```bash
+   npm run rebuild:electron
+   ```
 
-```
-electron/
-├── electron-vite.config.ts       # Triple-target Vite build (main + preload + renderer)
-├── tsconfig.json                 # TypeScript config with @core/* and @renderer/* aliases
-│
-├── main/                         # Main process (Node.js context — full system access)
-│   ├── index.ts                  # BrowserWindow creation, IPC handler registration
-│   ├── audit-bridge.ts           # Wraps Auditor class → IPC events
-│   └── db-bridge.ts              # Wraps AuditsDatabase → IPC invoke/handle
-│
-├── preload/                      # Preload script (security boundary)
-│   └── index.ts                  # contextBridge — exposes typed electronAPI
-│
-└── (the renderer lives in `ui/`, one level up — see below)
+   On macOS it ends with:
 
-ui/                               # Renderer process (browser context — React app)
-│   ├── index.html                # HTML shell
-│   ├── main.tsx                  # React entry point
-│   ├── App.tsx                   # Root component — header + page routing
-│   ├── components/               # 15 React components
-│   │   ├── Header.tsx            # App header with navigation tabs
-│   │   ├── AuditRunner.tsx       # URL input + run/cancel controls
-│   │   ├── ProgressStream.tsx    # Live category-by-category progress
-│   │   ├── ScoreCircle.tsx       # Animated circular score gauge
-│   │   ├── ScoreStats.tsx        # Pass/warn/fail summary cards
-│   │   ├── CategoryGrid.tsx      # Grid of category score cards
-│   │   ├── CategorySection.tsx   # Expandable category with rules
-│   │   ├── CategoryBar.tsx       # Horizontal score bar
-│   │   ├── RuleCard.tsx          # Individual rule result display
-│   │   ├── IssuesTable.tsx       # Filterable table of all issues
-│   │   ├── FilterTabs.tsx        # Pass/warn/fail tab filters
-│   │   ├── Sidebar.tsx           # Navigation sidebar
-│   │   ├── AuditList.tsx         # History list of past audits
-│   │   ├── DomainPicker.tsx      # Domain selector for history
-│   │   └── ScoreTrend.tsx        # Recharts line chart of score over time
-│   ├── pages/
-│   │   ├── AuditPage.tsx         # Main audit view (runner + results)
-│   │   └── HistoryPage.tsx       # Audit history with trend charts
-│   ├── hooks/
-│   │   ├── useAudit.ts           # Audit lifecycle via IPC (subscribe/run/cancel)
-│   │   ├── useAuditHistory.ts    # Database queries via IPC
-│   │   └── useTheme.ts           # Light/dark theme with localStorage
-│   ├── stores/
-│   │   └── audit-store.ts        # Zustand — audit state machine
-│   ├── lib/
-│   │   ├── ipc-client.ts         # Typed accessor for window.electronAPI
-│   │   ├── format.ts             # Score color/label helpers
-│   │   └── fix-suggestions.ts    # Rule fix suggestion registry
-│   └── styles/
-│       ├── tailwind.css           # Tailwind v4 entry
-│       └── globals.css            # Design tokens (light + dark themes)
-│
-├── shared/                       # Shared between main and renderer
-│   └── ipc-types.ts              # IPC channel names + payload types
-│
-└── resources/                    # Build assets
-    └── icon.png                  # App icon (1024x1024, auto-converts to .icns/.ico)
+   ```
+   resign-native: re-signed node_modules/better-sqlite3/build/Release/better_sqlite3.node
+   resign-native: 1 module(s) signed.
+   ```
+
+2. Start the app:
+
+   ```bash
+   npm run electron:dev
+   ```
+
+   A window titled **SEOmator** opens with DevTools attached. It shows the same
+   History view as the web dashboard, read from `~/.seomator/audits.db`.
+
+3. Edit and watch. Changes under `ui/` reload in the window through Vite. Changes
+   to `electron/main/` or `electron/preload/` need a restart, or start with
+   `npm run electron:dev -- --watch` to have electron-vite rebuild them on save.
+
+4. When you are done, put the CLI build back before you use the CLI or run the
+   tests:
+
+   ```bash
+   npm run rebuild:cli
+   ```
+
+To keep test audits out of your own history, give the app its own data
+directory: `SEOMATOR_HOME=$(mktemp -d) npm run electron:dev`.
+
+**Verification.** In the window's DevTools console, `window.electronAPI` is an
+object with methods such as `runAudit`, `listAudits` and `getAppInfo`. Click
+**New audit**, run one, and the result opens when it finishes. Its subtitle
+shows the source `desktop`.
+
+To check the Electron build of the native module without opening a window,
+load it under Electron's own Node.js. No output means it loaded:
+
+```bash
+ELECTRON_RUN_AS_NODE=1 npx electron -e "new (require('better-sqlite3'))(':memory:')"
 ```
 
----
+## Switch the native module between Electron and the CLI
 
-## The Three-Process Model
+The checkout holds one compiled copy of `better-sqlite3`, built for either
+Electron or Node.js. Rebuild it whenever you change which one you run.
 
-Electron applications run three isolated processes. This is fundamental to understanding the architecture:
-
-### 1. Main Process (`electron/main/`)
-
-- **Runs Node.js** — full access to file system, native modules, `src/` code.
-- Creates the `BrowserWindow` and manages the app lifecycle.
-- Hosts the two IPC bridges:
-  - **`audit-bridge.ts`** — drives the shared `AuditSession` from `src/dashboard/audit-session.ts` and streams its state to the renderer.
-  - **`db-bridge.ts`** — calls the shared read queries in `src/dashboard/queries.ts`, which the web dashboard uses too.
-- Configured in `electron/main/index.ts`:
-  - Window: 1280x820, macOS hidden inset title bar, traffic lights at (16, 16).
-  - `sandbox: false` is required because `better-sqlite3` is a native C++ addon.
-  - Dev mode loads from Vite dev server (`ELECTRON_RENDERER_URL`); production loads `renderer/index.html`.
-
-### 2. Preload Script (`electron/preload/`)
-
-- **Security boundary** between main and renderer processes.
-- Uses Electron's `contextBridge.exposeInMainWorld()` to create `window.electronAPI`.
-- Provides a fully typed interface (`ElectronAPI`) — the renderer never touches `ipcRenderer` directly.
-- The preload script is the **only** code that can access both Node.js APIs and the DOM.
-
-### 3. Renderer Process (`ui/`)
-
-- **Standard browser context** — runs the React app. No Node.js access.
-- Lives outside `electron/` because the web dashboard serves the same app;
-  Electron is one host of it, not its owner.
-- Under Electron it talks to `window.electronAPI` (exposed by preload). The
-  `getAPI()` seam in `ui/lib/ipc-client.ts` returns `null` anywhere else,
-  which is where the dashboard's HTTP adapter plugs in.
-- Built with Vite + React + Tailwind CSS v4.
-
----
-
-## IPC Bridge Architecture
-
-IPC channels are defined in `electron/shared/ipc-types.ts` and follow a `namespace:action` naming convention.
-
-### Audit Channels
-
-Starting and cancelling use **invoke/handle**, so the renderer learns whether
-the run actually started. Progress arrives as one event carrying the whole run
-state.
-
-| Direction | Channel | Payload | Purpose |
-|---|---|---|---|
-| Renderer → Main | `audit:run` | `AuditRunArgs` → `AuditStartResult` | Start an audit; answers with `{ started, error? }` |
-| Renderer → Main | `audit:cancel` | — → `boolean` | Cancel the running audit |
-| Renderer → Main | `audit:get-state` | — → `RunState` | Current state, for a window opened mid-run |
-| Main → Renderer | `audit:state` | `RunState` | The whole run state, on every change |
-| Main → Renderer | `audit:complete` | `AuditCompletePayload` | Entire audit done |
-| Main → Renderer | `audit:error` | `RunError` | `{ code, message, hint? }` |
-
-One state event replaced four progress channels. The renderer used to
-reassemble those into its own copy of the run, which is how a crawl ended up
-appending one category row per page; now it mirrors a state the main process
-already keeps bounded.
-
-The `AuditCompletePayload` carries the full `AuditResult`, a `ruleMetadata` map
-(`ruleId → { name, description, fix }`) from the rule registry, the stored
-`auditId`, and a `saveError` when the audit finished but could not be stored.
-
-### Database Channels (request/response)
-
-These use the **invoke/handle pattern** — async request-response, like an RPC call.
-
-| Channel | Args | Returns | Purpose |
-|---|---|---|---|
-| `db:list-audits` | `{ domain?, limit?, offset? }` | `AuditSummaryDto[]` | List past audits |
-| `db:get-score-trend` | `{ domain, limit? }` | `ScoreTrendPointDto[]` | Score history for charts |
-| `db:get-audited-domains` | — | `string[]` | Unique domains audited |
-| `db:list-domains` | — | `DomainSummary[]` | One row per domain: latest audit, movement, sparkline |
-| `db:get-audit-detail` | `auditId` | `AuditDetail \| null` | A stored audit, aggregated per rule |
-| `app:get-info` | — | `AppInfoIpc` | Rule and category counts, version, capabilities, data directory |
-
-### How the Audit Bridge Connects to `src/`
-
-The bridge holds no run state of its own. `AuditSession` owns the run and the
-bridge forwards it:
-
-```typescript
-// In audit-bridge.ts — this is the entire connection
-const session = new AuditSession({
-  source: 'desktop',
-  capabilities: DESKTOP_CAPABILITIES,
-  auditorOptions: { browserFetcher: fetchPageWithBrowserWindow },
-});
-
-// Every change goes to whichever window is open
-session.subscribe((state) => getWindow()?.webContents.send('audit:state', state));
-
-ipcMain.handle('audit:run', (_event, args) => session.start(args));
-ipcMain.handle('audit:cancel', () => session.cancel());
-```
-
-`DESKTOP_CAPABILITIES` reports `mobileParity` and `simulateInteraction` as
-false: pages render in a `BrowserWindow`, which measures Core Web Vitals and
-gives a rendered DOM but cannot emulate a mobile viewport or drive a synthetic
-interaction. The UI hides those options rather than offering settings that
-would quietly do nothing.
-
----
-
-## State Management
-
-### Zustand Store (`ui/stores/audit-store.ts`)
-
-The store **mirrors** the main process's run state rather than building its
-own from events. The state machine lives in `AuditSession`:
-
-```
-idle ──[start]──► running ──► complete
-                     ├──────► cancelled
-                     └──────► error
-```
-
-State shape:
-- `run`: the `RunState` streamed from the main process —
-  `status`, `phase` (`crawling | auditing | saving | done`), `crawl` discovery
-  counters, `pages`, one `categories` row per category, the last 50
-  `recentRules`, the stored `auditId`, and a typed `error`
-- `result`: Full `AuditResult` (same TypeScript type from `src/types.ts`)
-- `ruleMetadata`: Rule names, descriptions and fixes from the registry
-- `saveError`: set when a finished audit could not be stored
-
-### Data Flow
-
-```
-User clicks "Run"
-  └─► useAudit().runAudit(url)
-        └─► electronAPI.runAudit({ url })     // invoke; answers { started }
-              └─► AuditSession.start(...)      // slot reserved synchronously
-                    └─► Auditor runs...
-                          ├─► every change ──► audit:state ──► store.setRunState()
-                          ├─► saved to ~/.seomator/audits.db
-                          └─► audit:complete ──► store.setComplete(result)
-
-User clicks "Cancel"
-  └─► electronAPI.cancelAudit()
-        └─► AuditSession.cancel() → AbortSignal → fetches and renders stop
-              └─► audit:state (status: 'cancelled')
-```
-
-### Hooks
-
-| Hook | Purpose |
-|---|---|
-| `useAudit()` | Mirrors the streamed run state into the store; asks for the current state on mount so a window opened mid-run is correct. Returns `{ runAudit, cancel, status, run, result, error, saveError }` |
-| `useAppInfo()` | Rule and category counts, version, capabilities and data directory from the main process |
-| `useAuditHistory()` | Fetches audit history + score trends from SQLite via IPC |
-| `useTheme()` | Light/dark toggle persisted in localStorage |
-
----
-
-## Design System
-
-The desktop app shares the same visual language as the CLI's HTML report output.
-
-### Design Tokens (`globals.css`)
-
-Extracted from `src/reporters/html-reporter.ts` into CSS custom properties:
-
-- **Colors**: `--color-pass` (#10b981), `--color-warn` (#f59e0b), `--color-fail` (#ef4444)
-- **Backgrounds**: `--color-bg`, `--color-bg-elevated`, `--color-bg-hover`
-- **Typography**: IBM Plex Sans (body), IBM Plex Mono (code)
-- **Layout**: `--header-height: 64px`, `--sidebar-width: 260px`
-- **Dark mode**: `[data-theme='dark']` overrides all token values
-
-### Tailwind CSS v4
-
-Uses the new Tailwind v4 syntax with `@theme {}` blocks for custom properties. The `@tailwindcss/vite` plugin handles the build integration.
-
-### Electron-Specific CSS
-
-```css
-.drag-region  { -webkit-app-region: drag; }    /* Header is draggable */
-.no-drag      { -webkit-app-region: no-drag; } /* Buttons inside header are clickable */
-```
-
-The macOS window uses `titleBarStyle: 'hiddenInset'` with traffic lights positioned at `(16, 16)`, which gives the native frameless look while keeping window controls.
-
----
-
-## Build System
-
-The app uses **electron-vite**, which runs three parallel Vite builds:
-
-```
-electron-vite build
-  ├── electron/main/index.ts    → dist-electron/main/index.js      (Node.js, ESM)
-  ├── electron/preload/index.ts → dist-electron/preload/index.mjs  (Node.js, ESM)
-  └── ui/index.html             → dist-electron/renderer/          (Browser, React+CSS)
-```
-
-Configuration in `electron/electron-vite.config.ts`:
-
-- **Main**: Uses `externalizeDepsPlugin()` — all `node_modules` are left as external `require()` calls, not bundled. This is critical for native modules like `better-sqlite3`.
-- **Preload**: Same externalization strategy.
-- **Renderer**: Standard Vite build with React and Tailwind plugins.
-- **Path aliases**: `@core` → `../src`, `@renderer` → `../ui`
-
----
-
-## Distribution & Packaging
-
-### Configuration
-
-Packaging is handled by **electron-builder** (v26.7.0), configured in `electron-builder.yml`:
-
-| Setting | Value |
-|---|---|
-| `appId` | `com.seomator.desktop` |
-| `productName` | `SEOmator` |
-| `buildResources` | `electron/resources/` |
-| `output` | `release/` |
-| `asar` | `true` (with `.node` files unpacked) |
-
-### Platform Targets
-
-| Platform | Format | Notes |
+| Before you run | Run first | What it does |
 |---|---|---|
-| macOS | `.dmg` + `.zip` | Universal binary (Intel + Apple Silicon) |
-| Windows | `.exe` (NSIS) | User-selectable install directory |
-| Linux | `.AppImage` | Portable, no install needed |
+| `npm run electron:dev` | `npm run rebuild:electron` | `electron-rebuild -f -w better-sqlite3`, then `node scripts/resign-native.mjs` |
+| The CLI, `npm run test:run`, `seomator serve` from the checkout | `npm run rebuild:cli` | `npm rebuild better-sqlite3`, then `node scripts/resign-native.mjs` |
 
-### Scripts
+1. Run the script from the table.
+2. Check the result. For the CLI build:
+
+   ```bash
+   node -e "new (require('better-sqlite3'))(':memory:')"
+   ```
+
+   No output and exit code 0 means Node.js can load it. For the Electron build,
+   use the `ELECTRON_RUN_AS_NODE` command above.
+
+Use the npm scripts rather than `electron-rebuild` on its own. On Apple Silicon
+the module `electron-rebuild` leaves behind is killed at load until it is
+re-signed, and only the scripts re-sign it.
+
+## Build and package the app
+
+1. Build the three bundles:
+
+   ```bash
+   npm run electron:build
+   ```
+
+   | Output | From |
+   |---|---|
+   | `dist-electron/main/index.js` | `electron/main/index.ts` |
+   | `dist-electron/preload/index.mjs` | `electron/preload/index.ts` |
+   | `dist-electron/renderer/` | `ui/index.html` and the React app in `ui/` |
+
+2. Package it. Each of these first runs `electron-builder install-app-deps` and
+   `npm run electron:build`:
+
+   | Script | Produces, in `release/` |
+   |---|---|
+   | `npm run electron:pack` | An unpacked app for this machine, for a quick check. On an Apple Silicon Mac: `release/mac-arm64/SEOmator.app`. |
+   | `npm run electron:dist` | The installers for the current platform |
+   | `npm run electron:dist:mac` | A universal (Intel and Apple Silicon) `.dmg`, `SEOmator-<version>-mac.dmg`, and a `.zip` |
+   | `npm run electron:dist:win` | An NSIS installer for x64, `SEOmator-<version>-win-x64.exe` |
+
+   On Linux, `npm run electron:dist` builds `SEOmator-<version>-linux-<arch>.AppImage`.
+
+3. Rebuild the native module for what you run next. `install-app-deps` leaves
+   `better-sqlite3` in your `node_modules` built for Electron and does not
+   re-sign it. Run `npm run rebuild:cli` before the CLI, or
+   `npm run rebuild:electron` before `npm run electron:dev`.
+
+**Verification.** `release/` holds the app or installers. In the macOS app,
+`better_sqlite3.node` sits outside the archive, in
+`SEOmator.app/Contents/Resources/app.asar.unpacked/node_modules/better-sqlite3/build/Release/`,
+because native modules cannot load from inside an asar file.
+
+`electron-builder.yml` configures no signing identity and no notarization, so a
+build is not ready to hand out: macOS Gatekeeper warns when it is opened on
+another Mac.
+
+### Regenerate the app icon
+
+`electron/resources/icon.png` is rendered from the brand mark,
+`electron/resources/brand/seomator-mark.svg`:
 
 ```bash
-npm run electron:icon       # Generate icon.png from scripts/generate-icon.mjs
-npm run electron:pack       # Quick test build (unpacked .app directory)
-npm run electron:dist       # Full distributable for current platform
-npm run electron:dist:mac   # macOS .dmg + .zip
-npm run electron:dist:win   # Windows .exe installer
+npm run gen:icons                  # write icon.png
+node scripts/gen-icons.mjs --check # compare without writing
+# gen-icons: icon.png is in sync with 1024px render of the brand mark.
 ```
 
-### Icon Pipeline
+Do not run `npm run electron:icon`. It runs an older generator,
+`scripts/generate-icon.mjs`, which overwrites `icon.png` with a placeholder
+design.
 
-1. `scripts/generate-icon.mjs` renders an HTML-designed icon using Playwright → `electron/resources/icon.png` (1024x1024)
-2. electron-builder auto-converts the PNG to `.icns` (macOS) and `.ico` (Windows) at build time
-3. To use a custom icon, replace `electron/resources/icon.png` with any 1024x1024+ PNG
+## Troubleshooting
 
-### Native Module Handling
+### `npm run electron:dev` opens no window and prints no error (Apple Silicon)
 
-`better-sqlite3` is a C++ addon that must be compiled for the target Electron version:
+The main process died while loading `better_sqlite3.node`. The only evidence is
+a crash report in `~/Library/Logs/DiagnosticReports/Electron-*.ips`:
 
-1. `electron-builder install-app-deps` rebuilds native modules against Electron's Node.js headers
-2. `asarUnpack: ["**/*.node"]` extracts compiled `.node` files from the asar archive (they can't be loaded from within an asar)
+```
+Exception:   EXC_BAD_ACCESS, SIGKILL (Code Signature Invalid)
+Termination: CODESIGNING, code 2, "Invalid Page"
+```
 
-### Code Signing (Production)
+Run `npm run rebuild:electron`, which re-signs the module, then start again.
+It can happen whenever the module was rebuilt for Electron without the re-sign
+step: `electron-rebuild` on its own, or one of the packaging scripts.
 
-For distribution outside your team:
-- **macOS**: Requires an Apple Developer ID certificate + notarization. Add `CSC_LINK` and `CSC_KEY_PASSWORD` env vars, plus `notarize` config in `electron-builder.yml`.
-- **Windows**: Requires an Authenticode code signing certificate. Add `CSC_LINK` and `CSC_KEY_PASSWORD` env vars.
-- **Without signing**: Users see "unidentified developer" warnings. On macOS, users can bypass via right-click → Open.
+### `was compiled against a different Node.js version using NODE_MODULE_VERSION`
+
+The module is built for the other runtime. From Electron, run
+`npm run rebuild:electron`. From the CLI or the tests, run `npm run rebuild:cli`.
+
+### Electron prints the CLI help and exits
+
+`main` in `package.json` must stay `./dist-electron/main/index.js`. Electron
+starts whatever `main` names, and `./dist/cli.js` is the CLI.
+
+### `resign-native: could not sign ...`
+
+`codesign` is missing. Install the Xcode command line tools
+(`xcode-select --install`) and run the rebuild script again. The CLI does not
+need the signature; Electron does.
+
+### Mobile parity and Simulate interaction never appear
+
+Expected. The desktop app renders pages in a hidden Electron window, which
+cannot emulate a mobile viewport or drive an interaction, so the form hides
+both. Use `seomator audit <url> --mobile --simulate-interaction` or the web
+dashboard.
+
+### "Retry save is not available in the desktop app yet."
+
+The desktop app cannot retry a failed save or export an unsaved audit. Run the
+audit again. Audits run from the web dashboard have both actions.
+
+### Compare with previous stays on "Comparing…"
+
+For the first audit of a site there is nothing to compare with. The web
+dashboard says "Nothing to compare yet"; the desktop app gets an empty answer
+and keeps waiting. Audit the site again, then compare.
 
 ---
 
-## Development Workflow
+## Explanation
 
-```bash
-# Start dev mode (Vite HMR + Electron hot reload)
-npm run electron:dev
+> **Type:** Explanation
 
-# In dev mode:
-# - Renderer loads from Vite dev server (localhost:5173)
-# - Main process restarts on file changes
-# - DevTools open automatically
+### The problem
+
+SEOmator has one audit engine and three ways to use it: the CLI, the web
+dashboard (`seomator serve`) and this desktop app. The desktop app needs the
+engine's runs, history and reports without becoming a second copy of them, and
+it has to load `better-sqlite3`, a C++ addon compiled for one runtime, from the
+same `node_modules` the CLI uses.
+
+A second copy is what it used to be. Before commit `948f648` the desktop app
+had its own run logic: it never stored a result, its Cancel button only stopped
+the UI listening while the audit carried on, and its progress list grew one row
+per category per page, so a 50-page crawl rendered a thousand rows.
+
+### One UI, two hosts, one engine
+
+```
+                        ui/  (one React app)
+                 ┌───────────────┴────────────────┐
+         Electron window                     browser tab
+         window.electronAPI                  no electronAPI
+         (set by the preload)                → HTTP adapter, ui/lib/http-api.ts
+                 │ IPC                            │ HTTP + Server-Sent Events
+         electron/main/audit-bridge.ts       src/dashboard/server.ts
+         electron/main/db-bridge.ts          src/dashboard/api.ts, run-api.ts
+                 └───────────────┬────────────────┘
+                 src/dashboard/audit-session.ts   one run at a time
+                 src/dashboard/queries.ts         stored-audit reads
+                                 │
+                 src/auditor.ts, rules, scoring → ~/.seomator/audits.db
 ```
 
-### Adding New IPC Channels
+- **Electron code stays in `electron/`.** It reaches the engine through the
+  `@core` alias, which points at `src/`. Nothing in `src/` knows about Electron.
+- **The renderer is `ui/`, outside `electron/`.** Commit `d663be3` moved it out
+  of `electron/renderer/` so the web dashboard could serve the same app.
+  electron-vite builds `ui/` into `dist-electron/renderer/`; `vite.web.config.ts`
+  builds the same sources into `dist/web` for `seomator serve`.
+- **The host is picked at runtime.** `getHost()` in `ui/lib/api-client.ts`
+  returns `electron` when the preload has put `electronAPI` on `window`, and
+  `web` otherwise, so `getAPI()` in `ui/lib/ipc-client.ts` returns `null` in a
+  browser. Under Electron the app uses a hash router, because a packaged build
+  loads from `file://`; on the web it uses real paths.
+- **Types are shared, channel names are not.** `electron/shared/ipc-types.ts`
+  re-exports the shapes from `src/dashboard/contract.ts` and
+  `src/dashboard/audit-session.ts`. Only the channel names belong to Electron.
+- **Colours come from `src/design/tokens.ts`.** A Vite plugin regenerates
+  `ui/styles/tokens.css` from it whenever `electron:dev` or `electron:build`
+  starts, the same way the web build does.
 
-1. Define the channel name and payload types in `electron/shared/ipc-types.ts`
-2. Add the handler in the relevant bridge (`audit-bridge.ts` or `db-bridge.ts`)
-3. Expose it through the preload script (`electron/preload/index.ts`)
-4. Call it from the renderer via `getAPI()` from `ui/lib/ipc-client.ts`
+The result: a rule fix, a scoring change or a new query reaches the CLI, the web
+dashboard and the desktop app at once. A UI change in `ui/` ships to both
+hosts, so it has to be checked in both.
 
-### Adding New Pages/Components
+### The IPC bridge
 
-1. Create the component in `ui/components/`
-2. If it needs IPC data, create a hook in `ui/hooks/`
-3. If it needs shared state, extend the Zustand store in `ui/stores/audit-store.ts`
-4. Add routing in `ui/App.tsx`
+`AuditSession` owns the run: one at a time, real cancellation, bounded state,
+and storage with `source: 'desktop'`. The bridge is only transport.
 
----
+```
+renderer                    preload (contextBridge)        main
+useAudit() ──runAudit()────► invoke 'audit:run' ─────────► session.start(args)
+           ◄── { started, error? } ◄──────────────────────  answers at once
+store.setRunState ◄── 'audit:state' (the whole RunState) ◄─ session.subscribe(...)
+                  ◄── 'audit:complete' { result, ruleMetadata, auditId, saveError? }
+                  ◄── 'audit:error' { code, message, hint? }
+```
 
-## Key Design Decisions
+- **Runs.** `audit:run`, `audit:cancel` and `audit:get-state` use
+  invoke/handle, so the renderer learns whether the run started. Progress
+  arrives on one channel, `audit:state`, carrying the whole run state. The
+  store in `ui/stores/audit-store.ts` mirrors that state instead of rebuilding
+  it from events. Four progress channels used to do that job, and reassembling
+  them is how a crawl ended up with one category row per page.
+- **Reads.** `db:list-audits`, `db:get-score-trend`, `db:get-audited-domains`,
+  `db:list-domains`, `db:get-audit-detail`, `db:compare`, `db:delete-audit`,
+  `db:export-audit` and `app:get-info` call the same functions in
+  `src/dashboard/queries.ts` that the web API calls. `db:export-audit` is the
+  one place the hosts differ on purpose: the browser downloads a file, the
+  desktop app opens a save dialog.
+- **A window opened mid-run** asks for the current state on mount
+  (`audit:get-state`), so it shows the run rather than an empty form.
 
-### Why No Changes to `src/`?
+The full channel list, with payload types, is `IPC_CHANNELS` in
+`electron/shared/ipc-types.ts`.
 
-The Electron app is purely additive. The CLI and desktop app share the same `Auditor` class, rule registry, and scoring engine through direct imports (via the `@core` alias). This means:
-- Bug fixes to rules automatically apply to both CLI and desktop.
-- No sync issues between two codebases.
-- The CLI remains independently publishable to npm.
+**Isolation.** The app window runs with `contextIsolation: true` and
+`nodeIntegration: false`, and the renderer sees only the typed `electronAPI`
+the preload exposes. With `nodeIntegration` on, any script injection in the
+renderer would get Node.js. The window also sets `sandbox: false`. Its code
+comment credits `better-sqlite3`, but only the main process loads that module.
+The constraint the build output shows is the preload itself: it is emitted as an
+ES module (`index.mjs`), and Electron runs ES module preloads only outside the
+sandbox. The hidden windows that load the pages being audited do run sandboxed,
+each in its own session.
 
-### Why `send/on` Instead of `invoke/handle` for Audits?
+### Rendering pages without Playwright
 
-Audits are long-running operations (5-30 seconds) with streaming progress updates. The `invoke/handle` pattern returns a single promise — it can't stream intermediate results. Using `send/on` lets us push 20+ category progress events to the renderer in real time, showing the user a live progress stream instead of a spinner.
+The CLI renders pages with Playwright. The desktop app renders them in a hidden
+`BrowserWindow` instead (`electron/main/electron-fetcher.ts`), because a
+Playwright Chromium binary inside the `.app` bundle is blocked by macOS
+Gatekeeper. The hidden window returns the rendered HTML, the status code and
+Core Web Vitals read from the page's performance APIs, in the same shape
+Playwright's fetcher returns, so the auditor cannot tell them apart.
 
-Database queries use `invoke/handle` because they're simple request-response operations (query → rows).
+The trade-off is reach. A `BrowserWindow` cannot emulate a mobile viewport or
+drive a synthetic interaction, so the desktop build reports `mobileParity` and
+`simulateInteraction` as unavailable and the form hides both, rather than
+offering settings that would do nothing.
 
-### Why `contextBridge` Instead of `nodeIntegration: true`?
+Two more differences from the CLI: a run started in the app does not read
+`seomator.toml`, because the shared session never loads it, and the run form
+leaves Core Web Vitals off by default while `seomator audit` measures them. A
+desktop audit and a CLI audit of one site are therefore often measured
+differently, and `seomator compare` says so. See
+[Compare two runs of a site](WEB-DASHBOARD.md#compare-two-runs-of-a-site).
 
-Security. With `nodeIntegration: true`, any XSS vulnerability in the renderer gives an attacker full Node.js access (file system, network, child processes). The `contextBridge` pattern ensures the renderer can only call the specific functions we expose — nothing more.
+### Why the native module has to be rebuilt
 
-### Why `sandbox: false`?
+`better-sqlite3` is a compiled C++ addon. A compiled addon works only with the
+Node.js ABI it was built against, identified by `NODE_MODULE_VERSION`. Your
+Node.js and the Node.js inside Electron 40 have different ABIs, and the
+checkout holds a single `better_sqlite3.node`:
 
-`better-sqlite3` is a native C++ addon that uses Node.js N-API. Electron's sandbox restricts native module loading. Since the preload script needs to bridge to the main process (which loads `better-sqlite3`), the sandbox is disabled. The `contextBridge` still provides the security boundary.
+```
+node_modules/better-sqlite3/build/Release/better_sqlite3.node   (one file)
 
-### Why Zustand Over Redux/Context?
+  npm run rebuild:cli          → built for your Node.js  → CLI, tests, seomator serve
+  npm run rebuild:electron     → built for Electron      → npm run electron:dev
+  npm run electron:pack, :dist → built for Electron, not re-signed
+```
 
-Zustand is 1KB, has zero boilerplate, and works perfectly for the audit state machine pattern. The store is a single flat object with actions — no reducers, no action types, no providers. It also supports subscriptions outside React (useful for future IPC patterns).
+Loading the wrong build fails with a `NODE_MODULE_VERSION` error, so every
+switch between the CLI and the app costs a rebuild. That is why the two rebuild
+scripts exist. The npm package is not affected: `files: ["dist"]` ships only the
+CLI, and `npm install` gives its users a `better-sqlite3` for their own Node.js.
 
-### Why Design Tokens from HTML Reporter?
+### Why the module is re-signed on Apple Silicon
 
-The HTML report (`src/reporters/html-reporter.ts`) established the visual language — score colors, typography, spacing. Extracting those values into CSS custom properties in `globals.css` ensures the desktop app and HTML report look identical. Users see consistent branding across all output formats.
+On Apple Silicon, macOS refuses to run code whose signature it does not
+accept. The `better_sqlite3.node` that `electron-rebuild` leaves behind carries
+such a signature, although `codesign -v` reports it valid. The Electron main
+process dies inside `dlopen` before it draws a window, with no output and no
+stack trace; the only trace is the crash report in
+`~/Library/Logs/DiagnosticReports/`. That cost four sessions in which the
+desktop app was written off as untestable, until commit `d05f01e` found the
+cause.
+
+`codesign --force --sign -` replaces the signature with a fresh ad-hoc one, and
+the module loads. `scripts/resign-native.mjs` runs that after every rebuild
+instead of trying to detect the bad case, because re-signing a good binary is
+harmless. Off macOS the script does nothing, and if `codesign` fails it warns
+without failing the rebuild, since only Electron needs the signature.
+
+### Trade-offs
+
+| Choice | Gain | Cost |
+|---|---|---|
+| Shared `AuditSession` and queries | One run model and one history for every surface | One audit at a time; the desktop app has no retry save or unsaved export yet |
+| `ui/` shared with the web dashboard | One UI to build and fix | Every UI change has to be checked in two hosts |
+| Hidden `BrowserWindow` instead of Playwright | No Chromium binary for Gatekeeper to block | No mobile parity, no simulated interaction |
+| One `better-sqlite3` build in the checkout | A plain `npm install` works for the CLI | A rebuild on every switch between the CLI and the app |
+| Re-sign after every rebuild | No guessing which artifact is bad | A macOS-only step, and a dependency on `codesign` |
+| Preload emitted as an ES module, following the package's `"type": "module"` | No separate CommonJS build for one file | The app window runs with `sandbox: false` |
+
+## Related
+
+- [How to use the local dashboard](WEB-DASHBOARD.md)
+- [Technical architecture](technical-architecture.md)
+- [Storage architecture](STORAGE-ARCHITECTURE.md)
+- [Configuration](configuration.md)
+- [Local web dashboard PRD](PRD-local-web-dashboard.md)
+- [Design system PRD](PRD-design-system.md)

@@ -68,6 +68,9 @@ const rewrites = [
   // and stale again the same day, because the version rewrite only ever
   // reached the skill frontmatter.
   [/(Current version: \*\*)\d+\.\d+\.\d+(\*\*)/g, `$1${version}$2`],
+  // The CLI banner as pasted in the quickstart: "v6.0.0  •  https://seomator.com".
+  // The doc now shows the banner the CLI really prints, which carries no totals.
+  [/\bv\d+\.\d+\.\d+(\s*•\s*https:\/\/seomator\.com)/g, `v${version}$1`],
   // The quickstart's ASCII banner: "v2.2.0  •  148 rules  •  16 categories".
   [/v\d+\.\d+\.\d+(\s*•\s*)\d+ rules(\s*•\s*)\d+ categories/g,
     `v${version}$1${ruleCount} rules$2${categoryCount} categories`],
@@ -97,6 +100,13 @@ const targets = [
   { file: 'skill/README.md', rules: rewrites },
   { file: 'docs/technical-architecture.md', rules: rewrites },
   { file: 'docs/configuration.md', rules: rewrites },
+  // Rewritten to the Diataxis structure on 2026-10-15. Totals in any page a
+  // reader treats as current belong under the guard, not just the five above.
+  { file: 'docs/introduction.md', rules: rewrites },
+  { file: 'docs/ai-agent-integration.md', rules: rewrites },
+  { file: 'docs/WEB-DASHBOARD.md', rules: rewrites },
+  { file: 'docs/ELECTRON-APP.md', rules: rewrites },
+  { file: 'docs/STORAGE-ARCHITECTURE.md', rules: rewrites },
 ];
 
 // Deliberately not targets: docs/PRD-*.md. A PRD records what was true when it
@@ -138,7 +148,9 @@ const seenCategoryIds = new Set();
 // "**Label** (N rules)" in SKILL.md, "### Label (N rules)" in README.md.
 const CATEGORY_LINE = /(\*\*|### )([A-Za-z0-9/ -]+?)(\*\*)? \((\d+) rules?\)/g;
 
-for (const file of ['SKILL.md', 'skill/SKILL.md', 'README.md']) {
+// docs/SEO-AUDIT-RULES.md heads each category "### <Category> (N rules)"; it
+// was only ever checked for totals, so a per-category count there could drift.
+for (const file of ['SKILL.md', 'skill/SKILL.md', 'README.md', 'docs/SEO-AUDIT-RULES.md']) {
   const path = join(root, file);
   if (!existsSync(path)) continue;
 

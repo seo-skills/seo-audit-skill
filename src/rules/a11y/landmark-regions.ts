@@ -128,9 +128,10 @@ export const landmarkRegionsRule = defineRule({
 
     if (missing.includes('main')) {
       // Missing main is more serious
+      const others = missing.filter((name) => name !== 'main');
       return warn(
         'a11y-landmark-regions',
-        `Missing essential landmark: <main>. Also missing: ${missing.join(', ')}`,
+        `Missing essential landmark: <main>${others.length > 0 ? `. Also missing: ${others.join(', ')}` : ''}`,
         {
           missing,
           landmarks,
@@ -140,10 +141,15 @@ export const landmarkRegionsRule = defineRule({
       );
     }
 
-    // Other missing landmarks are informational
+    // Other missing landmarks are informational; with none missing, the
+    // warn comes from the landmark warnings, which the message must name.
+    const problems = [
+      ...(missing.length > 0 ? [`missing: ${missing.join(', ')}`] : []),
+      ...warnings,
+    ];
     return warn(
       'a11y-landmark-regions',
-      `${missing.length} landmark region(s) missing`,
+      `Landmark issues: ${problems.join('; ')}`,
       {
         missing,
         landmarks,

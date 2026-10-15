@@ -13,6 +13,7 @@ import { describe, it, expect } from 'vitest';
 import { createTestContext } from '../test-context.js';
 import { touchTargetsRule } from './touch-targets.js';
 import { formLabelsRule } from './form-labels.js';
+import { landmarkRegionsRule } from './landmark-regions.js';
 
 const withCss = (css: string) =>
   createTestContext(`<html><head><style>${css}</style></head><body><a href="/">Home</a></body></html>`);
@@ -61,5 +62,27 @@ describe('a11y-form-labels wrapping labels (ISSUE-014)', () => {
   it('does not take a select\'s option text for its label', async () => {
     const result = await formLabelsRule.run(form('<label><select name="s"><option>Pick one</option></select></label>'));
     expect(result.status).not.toBe('pass');
+  });
+});
+
+// Regression: ISSUE-015 — a11y-landmark-regions warned "0 landmark region(s) missing"
+// Found by /qa on 2026-10-15
+// Report: .gstack/qa-reports/run-20261015T075717Z/qa-report-developer-mozilla-org-2026-10-15.md
+//
+// developer.mozilla.org has every landmark but four unlabelled <nav>s. The
+// warn was right; its message said nothing was missing and hid the reason.
+describe('a11y-landmark-regions messages (ISSUE-015)', () => {
+  it('names the problem when every landmark is present but navs are unlabelled', async () => {
+    const html = '<html><body><header></header><nav></nav><nav></nav><main></main><footer></footer></body></html>';
+    const result = await landmarkRegionsRule.run(createTestContext(html));
+    expect(result.status).toBe('warn');
+    expect(result.message).not.toMatch(/^0 landmark/);
+    expect(result.message).toMatch(/lack labels/);
+  });
+
+  it('does not list <main> twice when it is missing', async () => {
+    const html = '<html><body><nav></nav></body></html>';
+    const result = await landmarkRegionsRule.run(createTestContext(html));
+    expect(result.message).toBe('Missing essential landmark: <main>. Also missing: banner/header, contentinfo/footer');
   });
 });

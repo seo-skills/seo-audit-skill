@@ -90,7 +90,7 @@ seomator self doctor
 ```
 
 This checks:
-- Node.js version (18+ recommended)
+- Node.js version (20.3 or later required)
 - npm availability
 - Chrome/Chromium for Core Web Vitals and JS rendering
 - Write permissions for ~/.seomator
@@ -108,7 +108,8 @@ seomator init --preset ecommerce # E-commerce config
 seomator init --preset ci        # Minimal CI config
 ```
 
-If there is no `seomator.toml` in the directory, CREATE ONE with `seomator init` before running audits.
+If there is no `seomator.toml` in the directory, CREATE ONE with `seomator init -y` before running audits.
+Plain `seomator init` asks questions, and without a terminal it exits 0 without writing a file.
 
 ## Usage
 
@@ -178,7 +179,8 @@ seomator audit https://example.com --format llm -v
 ## Exit codes
 
 An agent must be able to tell "the audit failed" from "the site scored badly".
-Every command uses the same three:
+`audit` and `compare` use these codes (other commands, such as `config` and
+`self doctor`, exit `1` on an error of their own):
 
 | Code | Meaning |
 |------|---------|
@@ -189,12 +191,19 @@ Every command uses the same three:
 
 **A non-zero exit is not automatically a failure.** `1` means the tool worked
 and is telling you something about the site. Only `2` means it could not do the
-job. Under `--format json` or `--format llm`, a `2` also puts a structured
-error on stdout with a stable `code` field:
+job. Under `--format json`, a `2` also puts a structured error on stdout with a
+stable `code` field (`hint` appears only when there is one):
 
 ```json
-{ "error": true, "code": "http-error", "message": "...", "hint": "..." }
+{ "error": true, "code": "http-error", "message": "...", "hint": "...", "timestamp": "..." }
 ```
+
+Under `--format llm` the same error is XML:
+`<seo-audit ok="false"><error code="http-error"><message>…</message><hint>…</hint></error></seo-audit>`.
+
+A command line the parser rejects (an unknown flag, an invalid URL or option
+value) exits `1` with the reason on stderr and nothing on stdout. Treat a `1`
+with empty stdout as a usage error, not as a low score.
 
 `code` is one of `dns`, `unreachable` (nothing answered: refused, reset or no
 route), `tls` (certificate rejected), `timeout`, `http-error`, `non-html`,
@@ -216,6 +225,7 @@ route), `tls` (certificate rejected), `timeout`, `http-error`, `non-html`,
 | `--output <path>` | `-o` | Output file path | |
 | `--config <path>` | | Config file path | |
 | `--no-save` | | Do not store this audit in ~/.seomator | |
+| `--staging` | | Audit a staging site: waive the noindex and robots.txt caps and crawl past robots.txt; the waived caps are listed | false |
 
 Audits are stored by default, so `compare` and `report` always have history.
 
@@ -236,7 +246,7 @@ audit is stored unless it ran with `--no-save`.
 | `--against <auditId>` | Compare against a specific audit instead of the previous run | latest-but-one |
 | `--trend` | Show score history for the domain instead of a two-run diff | false |
 | `--json` / `-j` | Machine-readable diff | false |
-| `--fail-on-regression` | Exit 1 when the score dropped or new failures appeared | false |
+| `--fail-on-regression` | Exit 1 when the score dropped or any rule's status got worse. Two audits measured differently (Core Web Vitals, scoring model, rule filters, staging) are reported as not like-for-like and never fail | false |
 
 Rules are diffed by ID, so a rule that broke and a different one that was fixed
 are reported separately rather than cancelling out in a count.
@@ -428,7 +438,9 @@ nor against the site — you cannot score what you did not measure. This is why:
 - Checks that compare a page with the rest of the site (`core-title-unique`,
   `content-duplicate-description`, `content-duplicate-exact`,
   `content-duplicate-near`, `crawl-sitemap-orphan-urls`) report unmeasured on a
-  single page. **Run with `--crawl`** to measure them.
+  single page. A page with no title or no meta description still fails
+  `core-title-unique` or `content-duplicate-description`: that is a missing
+  field, not a uniqueness question. **Run with `--crawl`** to measure them.
 - A check with nothing to grade reports unmeasured rather than passing: the
   JSON-LD validators on a page without JSON-LD (`schema-present` reports the
   absence), `eeat-author-expertise` when the page has no author, and

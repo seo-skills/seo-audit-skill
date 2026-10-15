@@ -337,7 +337,7 @@ One SQLite file per domain, written only by `db migrate` from `.seomator/crawls/
 
 ### Tables `links`, `images` and `frontier`
 
-These tables are created in every project database, and no SEOmator command writes rows to them in 6.0.0.
+These tables are created in every project database, and no SEOmator command writes rows to them.
 
 | Table | Columns |
 |---|---|
@@ -349,7 +349,7 @@ Indexes: `idx_crawls_project`, `idx_crawls_status`, `idx_crawls_started` (`start
 
 ## Link cache (`link-cache.db`)
 
-`src/storage/link-cache.ts` defines a cache of external link checks. No command, rule or surface opens it in 6.0.0, so the file is never created by normal use. `[external_links] cache_ttl_days` in `seomator.toml` is read into the config but has no effect: `seomator config validate` checks that it is between 0 and 365, and warns that it is not implemented when it differs from its default.
+`src/storage/link-cache.ts` defines a cache of external link checks. No command, rule or surface opens it, so the file is never created by normal use. `[external_links] cache_ttl_days` in `seomator.toml` is read into the config but has no effect: `seomator config validate` checks that it is between 0 and 365, and warns that it is not implemented when it differs from its default.
 
 | Column | Type | Constraint | Contents |
 |---|---|---|---|

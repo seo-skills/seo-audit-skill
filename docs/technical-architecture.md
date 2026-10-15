@@ -153,7 +153,7 @@ Every step rounds to a whole number. A rule's weight sets how far it moves its c
 | 1 | Through 4.1.0 | The original model. |
 | 2 | 5.0.0 | The five core presence checks (title, description, h1, viewport, canonical) were raised from weight 1. A blank document had scored 84. |
 | 3 | 6.0.0 | Page-level score caps. |
-| 4 | After 6.0.0 | A crawl is capped when its start page cannot be indexed. |
+| 4 | 7.0.0 | A crawl is capped when its start page cannot be indexed. |
 
 The version is stored in each audit's run profile, and `compare` treats a different version, or one that was never recorded, as a material difference rather than a regression.
 

@@ -71,6 +71,14 @@ const rewrites = [
   // The CLI banner as pasted in the quickstart: "v6.0.0  •  https://seomator.com".
   // The doc now shows the banner the CLI really prints, which carries no totals.
   [/\bv\d+\.\d+\.\d+(\s*•\s*https:\/\/seomator\.com)/g, `v${version}$1`],
+  // The version the guides show and require: `seomator --version` output in the
+  // quickstart and the agent guide, the configuration how-to's prerequisite, and
+  // the dashboard guide's prerequisite and sample row. All four stayed at 6.0.0
+  // while 7.0.0 was being cut and check:docs reported them in sync.
+  [/(seomator --version\n```\n\n```\n)\d+\.\d+\.\d+(\n```)/g, `$1${version}$2`],
+  [/(`seomator --version` prints `)\d+\.\d+\.\d+(`)/g, `$1${version}$2`],
+  [/\b(SEOmator )\d+\.\d+\.\d+( on Node\.js)/g, `$1${version}$2`],
+  [/("engineVersion":")\d+\.\d+\.\d+(")/g, `$1${version}$2`],
   // The quickstart's ASCII banner: "v2.2.0  •  148 rules  •  16 categories".
   [/v\d+\.\d+\.\d+(\s*•\s*)\d+ rules(\s*•\s*)\d+ categories/g,
     `v${version}$1${ruleCount} rules$2${categoryCount} categories`],

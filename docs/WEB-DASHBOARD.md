@@ -11,7 +11,7 @@ This page has two parts: four tasks, then the [Reference](#reference) for every
 
 ## Prerequisites
 
-- SEOmator 6.0.0 on Node.js 20.3 or later: `npm install -g @seomator/seo-audit`.
+- SEOmator 7.0.0 on Node.js 20.3 or later: `npm install -g @seomator/seo-audit`.
   In a source checkout, run `node dist/cli.js serve` instead of `seomator serve`.
 - Stored audits to look at. `seomator audit <url>` stores each audit by default
   (`--no-save` skips it), and the dashboard can run audits itself.
@@ -133,7 +133,7 @@ machine.
    ```json
    [{"id":2,"auditId":"2026-10-15-be6048","domain":"example.com","projectName":null,
      "startUrl":"https://example.com/","overallScore":87,"pagesAudited":1, ...
-     "status":"completed","source":"cli","engineVersion":"6.0.0"}]
+     "status":"completed","source":"cli","engineVersion":"7.0.0"}]
    ```
 
 4. Start an audit and keep its run id:
@@ -198,7 +198,7 @@ The dashboard UI ships in the package as `dist/web`.
 
 - **Installed package.** `serve` prints "Web assets are missing from this
   install" with the path, and exits with code 1. Reinstall:
-  `npm install -g @seomator/seo-audit@6.0.0`.
+  `npm install -g @seomator/seo-audit`.
 - **Source checkout.** `serve` warns that the web assets are not built, keeps
   running, and answers `/api` only. Every other path returns `503` with "The
   dashboard UI is not built in this install." Build the UI with

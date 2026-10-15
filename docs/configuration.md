@@ -600,7 +600,7 @@ Write a `seomator.toml` for your project from one of the four presets.
 
 #### Prerequisites
 
-- SEOmator installed: `seomator --version` prints `6.0.0`.
+- SEOmator installed: `seomator --version` prints `7.0.0`.
 - A terminal open in your project's directory.
 
 #### Steps

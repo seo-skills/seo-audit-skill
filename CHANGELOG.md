@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0] - 2026-10-15
+
 ### Added
 
 - **`--staging`, for auditing a site kept out of search on purpose.** On `audit`
@@ -40,7 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the registry, which corrected 182 rule names, 88 severities and 123
   descriptions. Claims the code contradicted are gone, such as `--refresh`,
   `--resume` and a global `config.toml`. `npm run check:docs` now checks five
-  more pages and the per-category rule counts in the rules reference.
+  more pages, the per-category rule counts in the rules reference, and the
+  version the guides show.
 
 ### Removed
 

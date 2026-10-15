@@ -11,9 +11,9 @@ interface SmallTarget {
 /**
  * Rule: Touch Targets
  *
- * Checks for minimum touch target sizing hints in CSS.
- * WCAG 2.2 requires 44x44 CSS pixels for touch targets (Level AAA).
- * WCAG 2.1 recommends 44x44 pixels.
+ * Checks for minimum touch target sizing hints in CSS, against 44x44 CSS
+ * pixels: WCAG 2.5.5 Target Size (Enhanced, Level AAA), and Apple's and
+ * Google's touch guidance. The Level AA minimum, 2.5.8, is 24x24.
  *
  * This rule checks for:
  * - Inline styles with small dimensions on interactive elements
@@ -82,22 +82,23 @@ export const touchTargetsRule = defineRule({
       }
     });
 
-    // Check style tags for patterns that create small targets
+    // Check style tags for rules that size links or buttons small
     $('style').each((_, el) => {
       const css = $(el).html() || '';
 
-      // Check for button/link styles with small dimensions
-      const smallButtonPattern =
-        /(button|\.btn|a)[^{]*\{[^}]*(width\s*:\s*(\d+)px|height\s*:\s*(\d+)px)/gi;
-      let match;
+      for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const target = rule[1].split(',').map((s) => s.trim()).find(isInteractiveSubject);
+        if (!target) continue;
 
-      while ((match = smallButtonPattern.exec(css)) !== null) {
-        const dimension = parseInt(match[3] || match[4], 10);
-        if (dimension > 0 && dimension < 44) {
-          issues.push({
-            element: match[1],
-            issue: `CSS sets small dimension (${dimension}px) on interactive elements`,
-          });
+        for (const prop of rule[2].matchAll(/(?<![-\w])(width|height)\s*:\s*(\d+)px/gi)) {
+          const dimension = parseInt(prop[2], 10);
+          if (dimension > 0 && dimension < 44) {
+            issues.push({
+              element: target,
+              issue: `CSS sets small ${prop[1].toLowerCase()} (${dimension}px) on interactive elements`,
+            });
+            break;
+          }
         }
       }
     });
@@ -135,11 +136,28 @@ export const touchTargetsRule = defineRule({
         issues: issues.slice(0, 10),
         totalIssues: issues.length,
         recommendation: 'Ensure interactive elements are at least 44x44 CSS pixels',
-        wcagReference: 'WCAG 2.2 Success Criterion 2.5.8 (Level AAA)',
+        wcagReference: 'WCAG 2.2 SC 2.5.5 Target Size (Enhanced, Level AAA): 44x44; SC 2.5.8 (Level AA): 24x24',
       }
     );
   },
 });
+
+/**
+ * Whether a selector's subject (its last compound) is a link or button
+ * itself. A pseudo-element such as ::before is a decoration, not the target,
+ * and a class merely containing the letter "a" is not a link.
+ */
+function isInteractiveSubject(selector: string): boolean {
+  const subject = selector.split(/[\s>+~]+/).filter(Boolean).pop() ?? '';
+  if (/::?(before|after|placeholder|marker|selection|first-line|first-letter)\b/i.test(subject)) {
+    return false;
+  }
+  return (
+    /^(a|button)(?![\w-])/i.test(subject) ||
+    /\.btn(?![\w-])/i.test(subject) ||
+    /\[role=["']?button/i.test(subject)
+  );
+}
 
 /**
  * Parse CSS size value to pixels (approximation)

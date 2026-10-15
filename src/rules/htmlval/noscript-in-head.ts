@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn } from '../define-rule.js';
+import { headSource, noscriptBodies, startTags } from './head-source.js';
 
 /**
  * Rule: Check for invalid content inside <noscript> in <head>
@@ -22,8 +23,9 @@ export const noscriptInHeadRule = defineRule({
   category: 'htmlval',
   weight: 5,
   run: async (context: AuditContext) => {
-    const { $ } = context;
-    const headNoscripts = $('head noscript');
+    // The source, not the parsed tree: parse5 keeps <noscript> content as
+    // text, so its children were always empty.
+    const headNoscripts = noscriptBodies(headSource(context.html) ?? '');
 
     if (headNoscripts.length === 0) {
       return pass(
@@ -32,20 +34,11 @@ export const noscriptInHeadRule = defineRule({
       );
     }
 
-    const invalidElements: string[] = [];
-
-    headNoscripts.each((_, noscript) => {
-      $(noscript).children().each((_, child) => {
-        if (child.type === 'tag') {
-          const tagName = child.tagName.toLowerCase();
-          if (!PERMITTED_NOSCRIPT_HEAD_ELEMENTS.has(tagName)) {
-            if (!invalidElements.includes(tagName)) {
-              invalidElements.push(tagName);
-            }
-          }
-        }
-      });
-    });
+    const invalidElements = [
+      ...new Set(
+        headNoscripts.flatMap(startTags).filter((tag) => !PERMITTED_NOSCRIPT_HEAD_ELEMENTS.has(tag))
+      ),
+    ];
 
     if (invalidElements.length > 0) {
       return warn(

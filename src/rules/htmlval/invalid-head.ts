@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn } from '../define-rule.js';
+import { headSource, startTags, withoutNoscript } from './head-source.js';
 
 /**
  * Rule: Check for elements in <head> that belong in <body>
@@ -44,28 +45,21 @@ export const invalidHeadRule = defineRule({
   category: 'htmlval',
   weight: 10,
   run: async (context: AuditContext) => {
-    const { $ } = context;
-    const head = $('head');
+    // The source, not the parsed tree: the parser moves a <div> written in
+    // <head> into <body>, so the tree never shows it. <noscript> content is
+    // htmlval-noscript-in-head's to judge.
+    const head = headSource(context.html);
 
-    if (head.length === 0) {
+    if (head === null) {
       return pass(
         'htmlval-invalid-head',
         'No <head> element found to validate'
       );
     }
 
-    const invalidElements: string[] = [];
-
-    head.children().each((_, el) => {
-      if (el.type === 'tag') {
-        const tagName = el.tagName.toLowerCase();
-        if (INVALID_HEAD_ELEMENTS.has(tagName)) {
-          if (!invalidElements.includes(tagName)) {
-            invalidElements.push(tagName);
-          }
-        }
-      }
-    });
+    const invalidElements = [
+      ...new Set(startTags(withoutNoscript(head)).filter((tag) => INVALID_HEAD_ELEMENTS.has(tag))),
+    ];
 
     if (invalidElements.length > 0) {
       return warn(

@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail } from '../define-rule.js';
+import { countHeadStartTags } from './head-source.js';
 
 /**
  * Rule: Check that the document has only one <head> element
@@ -15,8 +16,8 @@ export const multipleHeadsRule = defineRule({
   category: 'htmlval',
   weight: 10,
   run: async (context: AuditContext) => {
-    const { $ } = context;
-    const headCount = $('head').length;
+    // The source, not the parsed tree: the parser drops a second <head>.
+    const headCount = countHeadStartTags(context.html);
 
     if (headCount <= 1) {
       return pass(

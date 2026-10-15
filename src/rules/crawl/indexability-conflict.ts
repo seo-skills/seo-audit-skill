@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
 import { fetchPage } from '../../crawler/fetcher.js';
+import { RobotsMatcher } from '../../crawler/robots.js';
 
 /**
  * Extracts the base URL (origin) from a full URL
@@ -22,77 +23,6 @@ function getPath(url: string): string {
     return new URL(url).pathname;
   } catch {
     return '/';
-  }
-}
-
-/**
- * Parse robots.txt content to extract disallow rules for user-agents
- */
-function parseRobotsTxt(content: string): {
-  disallowedPaths: string[];
-  allowedPaths: string[];
-} {
-  const lines = content.split('\n').map((line) => line.trim());
-  const disallowedPaths: string[] = [];
-  const allowedPaths: string[] = [];
-
-  let inRelevantUserAgent = false;
-  let sawAnyUserAgent = false;
-
-  for (const line of lines) {
-    // Skip comments
-    if (line.startsWith('#') || !line) {
-      continue;
-    }
-
-    const colonIndex = line.indexOf(':');
-    if (colonIndex === -1) continue;
-
-    const directive = line.substring(0, colonIndex).trim().toLowerCase();
-    const value = line.substring(colonIndex + 1).trim();
-
-    if (directive === 'user-agent') {
-      sawAnyUserAgent = true;
-      // Check if this applies to all bots or googlebot
-      inRelevantUserAgent =
-        value === '*' ||
-        value.toLowerCase().includes('googlebot') ||
-        value.toLowerCase().includes('bingbot');
-    } else if (inRelevantUserAgent || !sawAnyUserAgent) {
-      if (directive === 'disallow' && value) {
-        disallowedPaths.push(value);
-      } else if (directive === 'allow' && value) {
-        allowedPaths.push(value);
-      }
-    }
-  }
-
-  return { disallowedPaths, allowedPaths };
-}
-
-/**
- * Check if a path matches a robots.txt rule
- * Supports * and $ wildcards
- */
-function pathMatchesRule(path: string, rule: string): boolean {
-  // Convert robots.txt pattern to regex
-  let pattern = rule
-    .replace(/[.+?^${}()|[\]\\]/g, '\\$&') // Escape special regex chars except * and $
-    .replace(/\*/g, '.*'); // * matches anything
-
-  // $ at end means exact match
-  if (pattern.endsWith('\\$')) {
-    pattern = pattern.slice(0, -2) + '$';
-  } else {
-    // Otherwise, match prefix
-    pattern = '^' + pattern;
-  }
-
-  try {
-    return new RegExp(pattern).test(path);
-  } catch {
-    // If regex is invalid, do simple prefix match
-    return path.startsWith(rule.replace(/\*/g, '').replace(/\$/g, ''));
   }
 }
 
@@ -151,43 +81,34 @@ export const indexabilityConflictRule = defineRule({
     const pagePath = getPath(url);
 
     let robotsTxtStatus: 'accessible' | 'not-found' | 'error' = 'not-found';
-    let disallowedPaths: string[] = [];
-    let allowedPaths: string[] = [];
-    let isDisallowed = false;
-    let matchedRule: string | null = null;
-
-    try {
-      const result = await fetchPage(robotsTxtUrl);
-      if (result.statusCode === 200) {
-        robotsTxtStatus = 'accessible';
-        const parsed = parseRobotsTxt(result.html);
-        disallowedPaths = parsed.disallowedPaths;
-        allowedPaths = parsed.allowedPaths;
-
-        // Check if current path is disallowed
-        // Allow rules take precedence over disallow rules (most specific wins)
-        for (const rule of disallowedPaths) {
-          if (pathMatchesRule(pagePath, rule)) {
-            // Check if there's a more specific allow rule
-            const hasAllowOverride = allowedPaths.some(
-              (allowRule) =>
-                pathMatchesRule(pagePath, allowRule) && allowRule.length >= rule.length
-            );
-            if (!hasAllowOverride) {
-              isDisallowed = true;
-              matchedRule = rule;
-              break;
-            }
-          }
+    // The audit has usually fetched robots.txt already; fetch it here only to
+    // tell a missing file from an unreachable one when it has not.
+    let robotsTxt = context.robotsTxtContent;
+    if (robotsTxt !== undefined) {
+      robotsTxtStatus = 'accessible';
+    } else {
+      try {
+        const result = await fetchPage(robotsTxtUrl);
+        if (result.statusCode === 200) {
+          robotsTxtStatus = 'accessible';
+          robotsTxt = result.html;
+        } else if (result.statusCode !== 404) {
+          robotsTxtStatus = 'error';
         }
-      } else if (result.statusCode === 404) {
-        robotsTxtStatus = 'not-found';
-      } else {
+      } catch {
         robotsTxtStatus = 'error';
       }
-    } catch {
-      robotsTxtStatus = 'error';
     }
+
+    // A search engine obeys only the most specific group naming it, so read
+    // Googlebot's group, as the score cap does. Pooling the Disallow lines of
+    // every group flagged pages Googlebot is allowed to crawl.
+    const verdict =
+      robotsTxt !== undefined
+        ? new RobotsMatcher(robotsTxt, 'Googlebot').explain(url)
+        : { allowed: true, pattern: null };
+    const isDisallowed = !verdict.allowed;
+    const matchedRule = verdict.pattern;
 
     const details = {
       url: pagePath,

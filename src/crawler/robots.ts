@@ -146,25 +146,36 @@ export class RobotsMatcher {
   /**
    * Whether the crawler is permitted to fetch this URL.
    *
-   * The longest matching pattern decides; when an Allow and a Disallow match
-   * with equal length, Allow wins, which is what the spec requires.
-   *
    * @param url - Absolute URL to test
    * @returns True when fetching is permitted
    */
   isAllowed(url: string): boolean {
-    if (this.rules.length === 0) return true;
+    return this.explain(url).allowed;
+  }
+
+  /**
+   * The decision for a URL, and the pattern of the rule that made it.
+   *
+   * The longest matching pattern decides; when an Allow and a Disallow match
+   * with equal length, Allow wins, which is what the spec requires.
+   *
+   * @param url - Absolute URL to test
+   * @returns Whether fetching is permitted, and the deciding pattern (null when no rule matched)
+   */
+  explain(url: string): { allowed: boolean; pattern: string | null } {
+    if (this.rules.length === 0) return { allowed: true, pattern: null };
 
     let path: string;
     try {
       const parsed = new URL(url);
       path = parsed.pathname + parsed.search;
     } catch {
-      return true;
+      return { allowed: true, pattern: null };
     }
 
     let decision = true;
     let decidedBy = -1;
+    let pattern: string | null = null;
 
     for (const rule of this.rules) {
       if (!rule.regex.test(path)) continue;
@@ -172,9 +183,10 @@ export class RobotsMatcher {
       if (specificity > decidedBy || (specificity === decidedBy && rule.allow)) {
         decision = rule.allow;
         decidedBy = specificity;
+        pattern = rule.pattern;
       }
     }
 
-    return decision;
+    return { allowed: decision, pattern: decision ? null : pattern };
   }
 }

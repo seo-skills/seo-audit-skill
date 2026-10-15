@@ -22,8 +22,10 @@ export const structuredDataPresentRule = defineRule({
     const microdataElements = $('[itemscope]');
     const hasMicrodata = microdataElements.length > 0;
 
-    // Check for RDFa (bonus check)
-    const rdfaElements = $('[typeof], [property]');
+    // Check for RDFa (bonus check). An RDFa item declares its type; a bare
+    // property= attribute is how Open Graph tags are written, and counting
+    // those told pages with no structured data at all that they had RDFa.
+    const rdfaElements = $('[typeof]');
     const hasRdfa = rdfaElements.length > 0;
 
     if (!hasJsonLd && !hasMicrodata && !hasRdfa) {

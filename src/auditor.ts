@@ -310,6 +310,8 @@ export class Auditor {
     context.sitemapUrlSources = sitemap.urlSources;
     context.sitemapEntries = sitemap.entries;
     context.sitemapIsIndex = sitemap.isIndex;
+    context.sitemapDocuments = sitemap.documents;
+    context.sitemapSkippedCount = sitemap.skippedSitemaps;
   }
 
   /**

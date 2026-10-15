@@ -1,7 +1,7 @@
 import { gunzipSync } from 'node:zlib';
 import { getUserAgent } from './user-agent.js';
 import { rethrowIfAborted, throwIfAborted } from '../errors.js';
-import type { SitemapEntry, SitemapFetchResult } from '../types.js';
+import type { SitemapDocument, SitemapEntry, SitemapFetchResult } from '../types.js';
 
 /**
  * Sitemap discovery and parsing.
@@ -174,6 +174,7 @@ export async function fetchSitemap(
     sources: [],
     isIndex: false,
     skippedSitemaps: 0,
+    documents: [],
   };
 
   let origin: string;
@@ -189,6 +190,7 @@ export async function fetchSitemap(
 
   const entries: SitemapEntry[] = [];
   const sources: string[] = [];
+  const documents: SitemapDocument[] = [];
   /** Which sitemap document each URL came from; several means duplicate listing */
   const sourceByLoc = new Map<string, string[]>();
   const seen = new Set<string>();
@@ -198,7 +200,14 @@ export async function fetchSitemap(
   let childBudget = MAX_CHILD_SITEMAPS;
 
   const collectEntries = (documentUrl: string, xml: string): void => {
-    for (const entry of parseSitemapEntries(xml)) {
+    const parsed = parseSitemapEntries(xml);
+    documents.push({
+      url: documentUrl,
+      urlCount: parsed.length,
+      bytes: Buffer.byteLength(xml, 'utf8'),
+      isIndex: false,
+    });
+    for (const entry of parsed) {
       entries.push(entry);
       const known = sourceByLoc.get(entry.loc);
       if (known) {
@@ -221,6 +230,7 @@ export async function fetchSitemap(
 
     if (isSitemapIndex(xml)) {
       sawIndex = true;
+      documents.push({ url: start, urlCount: 0, bytes: Buffer.byteLength(xml, 'utf8'), isIndex: true });
       const children = parseSitemapIndex(xml);
       for (const child of children) {
         if (childBudget <= 0 || entries.length >= MAX_URLS) {
@@ -256,6 +266,7 @@ export async function fetchSitemap(
     sources,
     isIndex: sawIndex,
     skippedSitemaps,
+    documents,
     // Omitted when nothing was fetched, so "unknown" stays distinguishable
     // from "fetched, and no URL is listed twice".
     ...(sources.length > 0 && { urlSources }),

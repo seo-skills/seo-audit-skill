@@ -191,6 +191,22 @@ export interface SitemapEntry {
 }
 
 /**
+ * One sitemap document that was fetched. The protocol's limits (50,000 URLs,
+ * 50 MB uncompressed) apply to each file, so an index is never the file to
+ * judge: the sitemaps it lists are.
+ */
+export interface SitemapDocument {
+  /** Document URL */
+  url: string;
+  /** `<url>` entries it lists; 0 for an index */
+  urlCount: number;
+  /** Decompressed size in bytes */
+  bytes: number;
+  /** Whether it is a sitemap index */
+  isIndex: boolean;
+}
+
+/**
  * Result of discovering and fetching a site's sitemap(s)
  */
 export interface SitemapFetchResult {
@@ -206,6 +222,8 @@ export interface SitemapFetchResult {
   isIndex: boolean;
   /** Child sitemaps discovered but not fetched, because a limit was reached */
   skippedSitemaps: number;
+  /** Every sitemap document fetched, in fetch order */
+  documents: SitemapDocument[];
   /**
    * Which sitemap documents listed each page URL.
    *
@@ -527,6 +545,10 @@ export interface AuditContext {
   sitemapEntries?: SitemapEntry[];
   /** Whether the site's entry-point sitemap is an index of other sitemaps */
   sitemapIsIndex?: boolean;
+  /** Every sitemap document fetched, with its URL count and size */
+  sitemapDocuments?: SitemapDocument[];
+  /** Child sitemaps an index listed that were not fetched, because a limit was reached */
+  sitemapSkippedCount?: number;
   /** Redirect chain followed to reach this page */
   redirectChain?: RedirectChainEntry[];
 

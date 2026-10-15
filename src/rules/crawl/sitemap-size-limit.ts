@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { defineRule, pass, warn, fail, notMeasured } from '../define-rule.js';
 
 /**
  * Maximum uncompressed sitemap size in bytes (50 MB)
@@ -38,9 +38,9 @@ export const sitemapSizeLimitRule = defineRule({
   category: 'crawl',
   weight: 5,
   run: async (context: AuditContext) => {
-    const sitemapContent = (context as any).sitemapContent as string | undefined;
+    const { sitemapContent, sitemapDocuments } = context;
 
-    if (!sitemapContent) {
+    if (!sitemapContent && !sitemapDocuments?.length) {
       return pass(
         'crawl-sitemap-size-limit',
         'No sitemap content available to check',
@@ -48,10 +48,30 @@ export const sitemapSizeLimitRule = defineRule({
       );
     }
 
-    const sizeBytes = Buffer.byteLength(sitemapContent, 'utf8');
+    // The limit is per file; an index is not one of the files it applies to.
+    const files = sitemapDocuments
+      ? sitemapDocuments.filter((doc) => !doc.isIndex)
+      : [{ url: 'sitemap', bytes: Buffer.byteLength(sitemapContent ?? '', 'utf8'), isIndex: false }];
+    const skippedSitemaps = context.sitemapSkippedCount ?? 0;
+
+    if (files.length === 0) {
+      return notMeasured(
+        'crawl-sitemap-size-limit',
+        'The sitemap is an index, and none of the sitemaps it lists could be fetched',
+        { sitemapsChecked: 0, skippedSitemaps }
+      );
+    }
+
+    const largest = files.reduce((max, doc) => (doc.bytes > max.bytes ? doc : max));
+    const sizeBytes = largest.bytes;
+    const fromIndex = sitemapDocuments?.some((doc) => doc.isIndex) ?? false;
+    const subject = fromIndex || files.length > 1 ? `Sitemap ${largest.url}` : 'Sitemap';
 
     const details = {
       sizeBytes,
+      largestSitemap: largest.url,
+      sitemapsChecked: files.length,
+      skippedSitemaps,
       sizeFormatted: formatBytes(sizeBytes),
       maxSizeBytes: MAX_SIZE_BYTES,
       maxSizeFormatted: formatBytes(MAX_SIZE_BYTES),
@@ -60,7 +80,7 @@ export const sitemapSizeLimitRule = defineRule({
     if (sizeBytes > MAX_SIZE_BYTES) {
       return fail(
         'crawl-sitemap-size-limit',
-        `Sitemap is ${formatBytes(sizeBytes)}, exceeding the 50 MB limit`,
+        `${subject} is ${formatBytes(sizeBytes)}, exceeding the 50 MB limit`,
         {
           ...details,
           impact: 'Search engines will reject sitemaps exceeding 50 MB uncompressed',
@@ -72,7 +92,7 @@ export const sitemapSizeLimitRule = defineRule({
     if (sizeBytes > WARN_SIZE_BYTES) {
       return warn(
         'crawl-sitemap-size-limit',
-        `Sitemap is ${formatBytes(sizeBytes)}, approaching the 50 MB limit`,
+        `${subject} is ${formatBytes(sizeBytes)}, approaching the 50 MB limit`,
         {
           ...details,
           recommendation: 'Consider splitting into multiple sitemaps before reaching the limit',
@@ -82,7 +102,9 @@ export const sitemapSizeLimitRule = defineRule({
 
     return pass(
       'crawl-sitemap-size-limit',
-      `Sitemap size is ${formatBytes(sizeBytes)} (within 50 MB limit)`,
+      files.length > 1
+        ? `Largest of ${files.length} sitemaps is ${formatBytes(sizeBytes)} (within 50 MB limit)`
+        : `${subject} size is ${formatBytes(sizeBytes)} (within 50 MB limit)`,
       details
     );
   },

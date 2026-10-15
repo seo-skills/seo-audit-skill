@@ -3,7 +3,8 @@ import type { Element } from 'domhandler';
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn } from '../define-rule.js';
 
-function hasName($: CheerioAPI, el: Element): boolean {
+/** Whether a button-like element has an accessible name. */
+export function hasName($: CheerioAPI, el: Element): boolean {
   const node = $(el);
   if (node.attr('aria-label')?.trim()) return true;
   if (node.attr('aria-labelledby')?.trim()) return true;

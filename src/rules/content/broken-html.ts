@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { hasName as hasButtonName } from '../a11y/button-name.js';
 
 /**
  * Issue severity thresholds
@@ -99,12 +100,10 @@ export const brokenHtmlRule = defineRule({
       }
     });
 
-    // 6. Check for empty buttons
+    // 6. Check for empty buttons, by the same accessible-name test as
+    // a11y-button-name (which also accepts aria-labelledby and an image alt)
     $('button').each((_, el) => {
-      const text = $(el).text().trim();
-      const hasAriaLabel = $(el).attr('aria-label');
-      const hasTitle = $(el).attr('title');
-      if (!text && !hasAriaLabel && !hasTitle) {
+      if (!hasButtonName($, el)) {
         issues.push({
           type: 'empty-element',
           element: '<button>',

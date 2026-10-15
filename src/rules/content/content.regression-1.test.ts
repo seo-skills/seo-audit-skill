@@ -11,6 +11,7 @@
 import { describe, it, expect } from 'vitest';
 import { createTestContext } from '../test-context.js';
 import { metaInBodyRule } from './meta-in-body.js';
+import { brokenHtmlRule } from './broken-html.js';
 
 describe('content-meta-in-body and structured data (ISSUE-003)', () => {
   it('passes RDFa metadata inside a typeof scope', async () => {
@@ -40,5 +41,37 @@ describe('content-meta-in-body and structured data (ISSUE-003)', () => {
     expect(result.status).toBe('fail');
     const tags = (result.details?.issues as { tag: string }[]).map((issue) => issue.tag);
     expect(tags).toEqual(['<meta property="og:title">', '<meta name="description">']);
+  });
+});
+
+// Regression: ISSUE-007 — content-broken-html called labelled buttons empty
+// Found by /qa on 2026-10-15
+// Report: .gstack/qa-reports/run-20261015T075717Z/qa-report-developer-mozilla-org-2026-10-15.md
+//
+// developer.mozilla.org's sidebar toggle, survey and clear-filter buttons are
+// named through aria-labelledby. content-broken-html's empty-button check
+// read only text, aria-label and title, so it failed the page on 4 "empty
+// buttons" that a11y-button-name, on the same page, passed.
+describe('content-broken-html empty-button check (ISSUE-007)', () => {
+  it('accepts buttons named by aria-labelledby or an image alt', async () => {
+    const html = `<html><head><title>T</title></head><body>
+      <span id="toggle-label" hidden>Toggle sidebar</span>
+      <button aria-labelledby="toggle-label"><svg></svg></button>
+      <button><img src="x.png" alt="Search"></button>
+    </body></html>`;
+    const result = await brokenHtmlRule.run(createTestContext(html));
+    const buttons = ((result.details?.issues ?? []) as { element: string }[]).filter(
+      (issue) => issue.element === '<button>'
+    );
+    expect(buttons).toEqual([]);
+  });
+
+  it('still reports a button with no name at all', async () => {
+    const html = '<html><head><title>T</title></head><body><button><svg></svg></button></body></html>';
+    const result = await brokenHtmlRule.run(createTestContext(html));
+    const buttons = ((result.details?.issues ?? []) as { element: string }[]).filter(
+      (issue) => issue.element === '<button>'
+    );
+    expect(buttons).toHaveLength(1);
   });
 });

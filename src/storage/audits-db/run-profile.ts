@@ -74,8 +74,12 @@ function render(option: string, value: unknown): string {
   // Audits saved before a field was recorded have no value for it
   if (value === undefined || value === null) return 'not recorded';
   // An empty list means "all" for categories and enabled rules, but "none"
-  // for disabled rules
-  if (Array.isArray(value)) return value.length ? value.join(', ') : option === 'disableRules' ? 'none' : 'all';
+  // for disabled rules. The CLI writes enableRules as ["*"] and the dashboard
+  // as [], so both spellings of "every rule" read the same.
+  if (Array.isArray(value)) {
+    if (option === 'enableRules' && value.length === 1 && value[0] === '*') return 'all';
+    return value.length ? value.join(', ') : option === 'disableRules' ? 'none' : 'all';
+  }
   return String(value);
 }
 

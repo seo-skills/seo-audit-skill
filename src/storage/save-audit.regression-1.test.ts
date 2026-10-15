@@ -85,3 +85,26 @@ describe('run profile differences read correctly (ISSUE-027)', () => {
     expect(compareRunProfiles(CALLER_RUN, { ...CALLER_RUN, categories: ['core'] })[0]?.previous).toBe('all');
   });
 });
+
+// Follow-up: storing the engine's run profile (above) exposed a spelling
+// difference. The CLI records enableRules ['*'] and the dashboard and desktop
+// app record [], both meaning "every rule", so compare called the pair not
+// like-for-like and --fail-on-regression could never fail between them.
+describe('equivalent rule filters are like-for-like (ISSUE-027)', () => {
+  it('treats an empty enable list and ["*"] as the same filter', () => {
+    const differences = compareRunProfiles(
+      { ...CALLER_RUN, enableRules: [] },
+      { ...CALLER_RUN, enableRules: ['*'] }
+    );
+    expect(differences).toEqual([]);
+    expect(hasMaterialDifference(differences)).toBe(false);
+  });
+
+  it('still reports a real rule filter as a material difference', () => {
+    const differences = compareRunProfiles(
+      { ...CALLER_RUN, enableRules: ['*'] },
+      { ...CALLER_RUN, enableRules: ['core-*'] }
+    );
+    expect(hasMaterialDifference(differences)).toBe(true);
+  });
+});

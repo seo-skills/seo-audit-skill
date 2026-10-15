@@ -2,75 +2,65 @@ import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn } from '../define-rule.js';
 
 /**
- * Analyzes trailing slash consistency across internal links
+ * Analyzes trailing slash usage across internal links, per distinct path.
+ *
+ * Linking different paths in different forms (/en-US/ for a directory,
+ * /docs/a for a document) is ordinary. What can split one page across two
+ * URLs is the same path linked both ways, so that is the inconsistency.
  */
 function analyzeTrailingSlashes(currentUrl: string, internalLinks: string[]): {
   currentHasTrailingSlash: boolean;
   withSlash: string[];
   withoutSlash: string[];
-  isConsistent: boolean;
+  conflictingPaths: string[];
   dominantStyle: 'with-slash' | 'without-slash' | 'mixed';
 } {
-  let currentHasTrailingSlash = false;
-
+  let currentPath = '';
   try {
-    const urlObj = new URL(currentUrl);
-    // Ignore query strings and fragments
-    const path = urlObj.pathname;
-    // Check if path has trailing slash (excluding root "/")
-    currentHasTrailingSlash = path.length > 1 && path.endsWith('/');
+    currentPath = new URL(currentUrl).pathname;
   } catch {
     // Invalid URL
   }
+  const currentHasTrailingSlash = currentPath.length > 1 && currentPath.endsWith('/');
 
-  const withSlash: string[] = [];
-  const withoutSlash: string[] = [];
-
+  // Path without its trailing slash -> the forms it is linked in
+  const forms = new Map<string, Set<'slash' | 'none'>>();
   for (const link of internalLinks) {
     try {
-      const linkUrl = new URL(link);
-      const path = linkUrl.pathname;
+      const path = new URL(link).pathname;
 
-      // Skip root path, files with extensions, and paths that naturally don't have trailing slashes
-      if (path === '/' || /\.\w+$/.test(path)) {
+      // Skip root path, files with extensions, and links to this page itself
+      // (skip links and #fragments say nothing about URL style)
+      if (path === '/' || /\.\w+$/.test(path) || path === currentPath) {
         continue;
       }
 
-      if (path.endsWith('/')) {
-        withSlash.push(link);
-      } else {
-        withoutSlash.push(link);
-      }
+      const key = path.endsWith('/') ? path.slice(0, -1) : path;
+      const seen = forms.get(key) ?? new Set();
+      seen.add(path.endsWith('/') ? 'slash' : 'none');
+      forms.set(key, seen);
     } catch {
       // Invalid URL, skip
     }
   }
 
-  const total = withSlash.length + withoutSlash.length;
-  let isConsistent = true;
-  let dominantStyle: 'with-slash' | 'without-slash' | 'mixed' = 'mixed';
-
-  if (total === 0) {
-    // No analyzable links, consider consistent
-    isConsistent = true;
-    dominantStyle = 'mixed';
-  } else if (withSlash.length === 0) {
-    dominantStyle = 'without-slash';
-  } else if (withoutSlash.length === 0) {
-    dominantStyle = 'with-slash';
-  } else {
-    // Mixed usage - determine dominant style
-    isConsistent = false;
-    dominantStyle = withSlash.length > withoutSlash.length ? 'with-slash' : 'without-slash';
+  const withSlash: string[] = [];
+  const withoutSlash: string[] = [];
+  const conflictingPaths: string[] = [];
+  for (const [key, seen] of forms) {
+    if (seen.has('slash')) withSlash.push(`${key}/`);
+    if (seen.has('none')) withoutSlash.push(key);
+    if (seen.size > 1) conflictingPaths.push(key);
   }
 
-  return {
-    currentHasTrailingSlash,
-    withSlash,
-    withoutSlash,
-    isConsistent,
-    dominantStyle,
-  };
+  const dominantStyle: 'with-slash' | 'without-slash' | 'mixed' =
+    withSlash.length === 0 && withoutSlash.length > 0
+      ? 'without-slash'
+      : withoutSlash.length === 0 && withSlash.length > 0
+        ? 'with-slash'
+        : 'mixed';
+
+  return { currentHasTrailingSlash, withSlash, withoutSlash, conflictingPaths, dominantStyle };
 }
 
 /**
@@ -103,26 +93,25 @@ export const trailingSlashRule = defineRule({
       sampleWithoutSlash: analysis.withoutSlash.slice(0, 3),
     };
 
-    if (analysis.isConsistent) {
+    if (analysis.conflictingPaths.length === 0) {
+      const total = analysis.withSlash.length + analysis.withoutSlash.length;
       return pass(
         'technical-trailing-slash',
-        `Trailing slash usage is consistent (${analysis.dominantStyle === 'mixed' ? 'no internal paths to analyze' : analysis.dominantStyle})`,
+        total === 0
+          ? 'Trailing slash usage is consistent (no internal paths to analyze)'
+          : `Each internal path is linked in one form (${analysis.withSlash.length} with a trailing slash, ${analysis.withoutSlash.length} without)`,
         details
       );
     }
 
-    // Calculate inconsistency percentage
-    const total = analysis.withSlash.length + analysis.withoutSlash.length;
-    const minority =
-      analysis.dominantStyle === 'with-slash'
-        ? analysis.withoutSlash.length
-        : analysis.withSlash.length;
-    const inconsistencyPercent = Math.round((minority / total) * 100);
-
     return warn(
       'technical-trailing-slash',
-      `Inconsistent trailing slash usage: ${analysis.withSlash.length} URLs with slash, ${analysis.withoutSlash.length} without (${inconsistencyPercent}% inconsistency)`,
-      details
+      `${analysis.conflictingPaths.length} path(s) linked both with and without a trailing slash: ${analysis.conflictingPaths.slice(0, 3).join(', ')}`,
+      {
+        ...details,
+        conflictingPaths: analysis.conflictingPaths.slice(0, 10),
+        recommendation: 'Link each page in the form the server serves, and redirect the other form to it',
+      }
     );
   },
 });

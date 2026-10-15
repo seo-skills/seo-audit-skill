@@ -1,5 +1,6 @@
 import type { AuditContext, RuleResult } from '../../types.js';
 import { defineRule } from '../define-rule.js';
+import { bodyText as visibleBodyText } from '../content/utils/visible-text.js';
 
 /**
  * Affiliate link patterns
@@ -138,7 +139,7 @@ export const affiliateDisclosureRule = defineRule({
     });
 
     // 2. Detect disclosures
-    const bodyText = $('body').text();
+    const bodyText = visibleBodyText($);
     const foundDisclosures: Array<{ location: string; text: string }> = [];
 
     // Check disclosure areas first

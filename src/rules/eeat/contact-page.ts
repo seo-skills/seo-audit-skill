@@ -2,6 +2,7 @@ import type { AuditContext, RuleResult } from '../../types.js';
 import { defineRule } from '../define-rule.js';
 import type { CheerioAPI } from 'cheerio';
 import type { Element } from 'domhandler';
+import { bodyText as visibleBodyText } from '../content/utils/visible-text.js';
 
 /**
  * Contact page detection patterns
@@ -102,7 +103,7 @@ export const contactPageRule = defineRule({
     if ($(CONTACT_METHODS.email.selector).length > 0) {
       foundMethods.push('email');
     } else {
-      const bodyText = $('body').text();
+      const bodyText = visibleBodyText($);
       if (CONTACT_METHODS.email.pattern.test(bodyText)) {
         foundMethods.push('email (visible)');
       }
@@ -112,7 +113,7 @@ export const contactPageRule = defineRule({
     if ($(CONTACT_METHODS.phone.selector).length > 0) {
       foundMethods.push('phone');
     } else {
-      const bodyText = $('body').text();
+      const bodyText = visibleBodyText($);
       if (CONTACT_METHODS.phone.pattern.test(bodyText)) {
         foundMethods.push('phone (visible)');
       }

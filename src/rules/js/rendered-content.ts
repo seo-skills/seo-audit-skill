@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail, notMeasured } from '../define-rule.js';
+import { bodyText } from '../content/utils/visible-text.js';
 
 /**
  * Rule: Rendered Content Check
@@ -24,8 +25,8 @@ export const renderedContentRule = defineRule({
       );
     }
 
-    const rawLen = context.$('body').text().trim().length;
-    const renderedLen = rendered$('body').text().trim().length;
+    const rawLen = bodyText(context.$).length;
+    const renderedLen = bodyText(rendered$).length;
 
     const details = {
       rawContentLength: rawLen,

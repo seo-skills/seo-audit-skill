@@ -1,5 +1,6 @@
 import type { AuditContext, RuleResult } from '../../types.js';
 import { defineRule } from '../define-rule.js';
+import { bodyText as visibleBodyText } from '../content/utils/visible-text.js';
 
 /**
  * Trust badge and certification patterns
@@ -149,7 +150,7 @@ export const trustSignalsRule = defineRule({
   run(context: AuditContext): RuleResult {
     const { $ } = context;
     const foundSignals: Array<{ type: string; evidence: string }> = [];
-    const bodyText = $('body').text();
+    const bodyText = visibleBodyText($);
 
     // Check each trust signal category
     for (const [category, config] of Object.entries(TRUST_BADGES)) {

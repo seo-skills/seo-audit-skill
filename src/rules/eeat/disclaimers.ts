@@ -1,6 +1,7 @@
 import type { AuditContext, RuleResult } from '../../types.js';
 import { defineRule } from '../define-rule.js';
 import { detectYMYL } from './ymyl-detection.js';
+import { bodyText as visibleBodyText } from '../content/utils/visible-text.js';
 
 /**
  * Disclaimer patterns by content type
@@ -75,7 +76,7 @@ export const disclaimersRule = defineRule({
     const ymylResult = detectYMYL($);
 
     // Get all page text for disclaimer detection
-    const bodyText = $('body').text();
+    const bodyText = visibleBodyText($);
 
     // Check disclaimer areas specifically
     let disclaimerAreaText = '';

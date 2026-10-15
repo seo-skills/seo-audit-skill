@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail } from '../define-rule.js';
 import { registerResettable } from '../registry.js';
+import { bodyText as visibleBodyText } from './utils/visible-text.js';
 
 /**
  * Module-level registry storing content hashes mapped to their first-seen URL.
@@ -48,7 +49,7 @@ export const duplicateExactRule = defineRule({
   run: async (context: AuditContext) => {
     const { $, url } = context;
 
-    const bodyText = $('body').text().replace(/\s+/g, ' ').trim();
+    const bodyText = visibleBodyText($);
 
     if (!bodyText || bodyText.length < 50) {
       return pass(

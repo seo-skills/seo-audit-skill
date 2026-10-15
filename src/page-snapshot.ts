@@ -1,6 +1,7 @@
 import type { AuditContext, PageSnapshot, SnapshotHeading } from './types.js';
 import { findOgTag } from './rules/social/open-graph.js';
 import { DOCUMENT_TITLE } from './rules/document-title.js';
+import { bodyText as visibleBodyText } from './rules/content/utils/visible-text.js';
 
 /** Headings worth showing in an outline; deeper levels add noise, not structure */
 const HEADING_SELECTOR = 'h1, h2, h3, h4, h5, h6';
@@ -45,7 +46,7 @@ export function buildPageSnapshot(context: AuditContext): PageSnapshot {
 
   // Text-to-HTML ratio uses the body only: <head> markup is never rendered
   // text, so counting it would understate every page equally.
-  const bodyText = $('body').text().replace(/\s+/g, ' ').trim();
+  const bodyText = visibleBodyText($);
   const words = bodyText ? bodyText.split(' ').length : 0;
 
   return {

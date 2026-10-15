@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail } from '../define-rule.js';
 import { DOCUMENT_TITLE } from '../document-title.js';
+import { bodyText as visibleBodyText } from '../content/utils/visible-text.js';
 
 /**
  * Patterns in the page title that indicate a soft 404
@@ -115,7 +116,7 @@ export const soft404Rule = defineRule({
     }
 
     // Check body text for soft 404 patterns combined with thin content
-    const bodyText = $('body').text();
+    const bodyText = visibleBodyText($);
     const wordCount = countWords(bodyText);
 
     if (wordCount < MIN_WORD_COUNT) {

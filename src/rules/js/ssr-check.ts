@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { bodyText as visibleBodyText } from '../content/utils/visible-text.js';
 
 /**
  * Common root element selectors used by client-side rendering frameworks.
@@ -36,7 +37,7 @@ export const ssrCheckRule = defineRule({
   run: async (context: AuditContext) => {
     const { $ } = context;
 
-    const bodyText = $('body').text().trim();
+    const bodyText = visibleBodyText($);
     const bodyTextLength = bodyText.length;
 
     // Check for CSR root elements

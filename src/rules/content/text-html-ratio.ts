@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { bodyText } from './utils/visible-text.js';
 
 /**
  * Thresholds for text-to-HTML ratio
@@ -33,7 +34,7 @@ export const textHtmlRatioRule = defineRule({
       });
     }
 
-    const visibleText = $('body').text().replace(/\s+/g, ' ').trim();
+    const visibleText = bodyText($);
     const textLength = visibleText.length;
     const ratio = (textLength / htmlLength) * 100;
     const roundedRatio = Math.round(ratio * 10) / 10;

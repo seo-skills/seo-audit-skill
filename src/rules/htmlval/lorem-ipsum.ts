@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail } from '../define-rule.js';
+import { bodyText as visibleBodyText } from '../content/utils/visible-text.js';
 
 /**
  * Rule: Detect placeholder/dummy text in the page
@@ -22,7 +23,7 @@ export const loremIpsumRule = defineRule({
   weight: 5,
   run: async (context: AuditContext) => {
     const { $ } = context;
-    const bodyText = $('body').text();
+    const bodyText = visibleBodyText($);
 
     const matched: string[] = [];
     for (const pattern of PLACEHOLDER_PATTERNS) {

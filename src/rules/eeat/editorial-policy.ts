@@ -1,5 +1,6 @@
 import type { AuditContext, RuleResult } from '../../types.js';
 import { defineRule } from '../define-rule.js';
+import { bodyText as visibleBodyText } from '../content/utils/visible-text.js';
 
 /**
  * Editorial policy page detection patterns
@@ -96,7 +97,7 @@ export const editorialPolicyRule = defineRule({
     });
 
     // Check for editorial signals in page content
-    const bodyText = $('body').text();
+    const bodyText = visibleBodyText($);
 
     for (const [signalType, patterns] of Object.entries(EDITORIAL_SIGNALS)) {
       for (const pattern of patterns) {

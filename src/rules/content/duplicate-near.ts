@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
 import { registerResettable } from '../registry.js';
+import { extractMainContent } from './utils/text-extractor.js';
 
 /**
  * Similarity thresholds for near-duplicate detection
@@ -120,7 +121,9 @@ export const duplicateNearRule = defineRule({
   run: async (context: AuditContext) => {
     const { $, url } = context;
 
-    const bodyText = $('body').text().replace(/\s+/g, ' ').trim();
+    // Main content only: the first 500 words of the whole body are site
+    // navigation on most sites, which made every page "similar" to the next.
+    const bodyText = extractMainContent($).replace(/\s+/g, ' ').trim();
 
     if (!bodyText || bodyText.length < 100) {
       return pass(

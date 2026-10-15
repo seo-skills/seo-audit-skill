@@ -1,10 +1,15 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, fail } from '../define-rule.js';
+import { defineRule, pass, warn, fail } from '../define-rule.js';
 import { fetchUrl } from '../../crawler/fetcher.js';
 import { rethrowIfAborted } from '../../errors.js';
 
+function withoutFragment(url: string): string {
+  const hash = url.indexOf('#');
+  return hash === -1 ? url : url.slice(0, hash);
+}
+
 /**
- * Rule: Check that internal links return 200 (fail if 404/5xx)
+ * Rule: Check that internal links return 200 (fail if 404/410/5xx)
  */
 export const brokenInternalRule = defineRule({
   id: 'links-broken-internal',
@@ -24,44 +29,69 @@ export const brokenInternalRule = defineRule({
       );
     }
 
+    // A fragment never reaches the server, so /a and /a#b are one request, and
+    // a link back to this page (skip links, "#content") is already known to
+    // load. On developer.mozilla.org this is 448 links but 355 requests.
+    const pageUrl = withoutFragment(context.url);
+    const targets = [
+      ...new Set(internalLinks.map((link) => withoutFragment(link.href))),
+    ].filter((target) => target !== pageUrl);
+
     const brokenLinks: Array<{ href: string; statusCode: number }> = [];
+    // Status 0 means the check got no answer (timeout or network error). That
+    // says nothing about the page, and on developer.mozilla.org every such URL
+    // answered 200 when asked again, so it is reported apart from broken.
+    const uncheckedLinks: string[] = [];
 
-    // Check each internal link
-    for (const link of internalLinks) {
+    for (const href of targets) {
+      let statusCode: number;
       try {
-        const statusCode = await fetchUrl(link.href, 10000, context.signal);
-
-        if (statusCode === 404 || statusCode >= 500 || statusCode === 0) {
-          brokenLinks.push({
-            href: link.href,
-            statusCode,
-          });
-        }
+        statusCode = await fetchUrl(href, 10000, context.signal);
       } catch (error) {
         rethrowIfAborted(error, context.signal);
-        brokenLinks.push({
-          href: link.href,
-          statusCode: 0,
-        });
+        statusCode = 0;
+      }
+
+      if (statusCode === 0) {
+        uncheckedLinks.push(href);
+      } else if (statusCode === 404 || statusCode === 410 || statusCode >= 500) {
+        brokenLinks.push({ href, statusCode });
       }
     }
+
+    const details = {
+      totalChecked: targets.length,
+      totalLinks: internalLinks.length,
+      ...(uncheckedLinks.length > 0 && {
+        uncheckedCount: uncheckedLinks.length,
+        uncheckedLinks: uncheckedLinks.slice(0, 10),
+      }),
+    };
 
     if (brokenLinks.length > 0) {
       return fail(
         'links-broken-internal',
-        `Found ${brokenLinks.length} broken internal link(s) out of ${internalLinks.length}`,
+        `Found ${brokenLinks.length} broken internal link(s) out of ${targets.length}`,
         {
+          ...details,
           brokenCount: brokenLinks.length,
-          totalChecked: internalLinks.length,
           brokenLinks: brokenLinks.slice(0, 10), // Limit to first 10
         }
       );
     }
 
+    if (uncheckedLinks.length > 0) {
+      return warn(
+        'links-broken-internal',
+        `No broken internal links found, but ${uncheckedLinks.length} of ${targets.length} could not be checked (timeout or network error)`,
+        details
+      );
+    }
+
     return pass(
       'links-broken-internal',
-      `All ${internalLinks.length} internal link(s) are accessible`,
-      { totalChecked: internalLinks.length }
+      `All ${targets.length} internal link(s) are accessible`,
+      details
     );
   },
 });

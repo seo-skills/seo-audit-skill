@@ -253,25 +253,47 @@ export async function fetchPage(
 }
 
 /**
- * Fetch URL with HEAD request for link checking
+ * Fetch a URL's status for link checking: HEAD first, confirmed with GET when
+ * HEAD fails.
+ *
+ * Some servers answer HEAD with an error that GET does not get (bsky.app
+ * returns 404, others 405 or 501) or drop it, and a single check that times
+ * out is often transient. Callers report this status as the one a visitor
+ * would get, so a failure is only returned once GET agrees.
+ *
  * @param url - URL to check
- * @param timeout - Request timeout in milliseconds (default: 10000)
+ * @param timeout - Request timeout in milliseconds per attempt (default: 10000)
  * @param signal - The run's cancellation signal; a cancelled check throws
  * @returns HTTP status code, or 0 for a timeout or network error
  */
 export async function fetchUrl(url: string, timeout = 10000, signal?: AbortSignal): Promise<number> {
+  const headStatus = await requestStatus(url, 'HEAD', timeout, signal);
+  if (headStatus !== 0 && headStatus < 400) return headStatus;
+
+  const getStatus = await requestStatus(url, 'GET', timeout, signal);
+  return getStatus === 0 ? headStatus : getStatus;
+}
+
+/** One status request; GET bodies are discarded unread. */
+async function requestStatus(
+  url: string,
+  method: 'HEAD' | 'GET',
+  timeout: number,
+  signal?: AbortSignal
+): Promise<number> {
   throwIfAborted(signal);
   const request = requestSignal(timeout, signal);
 
   try {
     const response = await fetch(url, {
-      method: 'HEAD',
+      method,
       signal: request.signal,
       headers: {
         'User-Agent': getUserAgent(),
       },
       redirect: 'follow',
     });
+    await response.body?.cancel().catch(() => {});
 
     return response.status;
   } catch (error) {

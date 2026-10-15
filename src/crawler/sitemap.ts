@@ -211,7 +211,9 @@ export async function fetchSitemap(
       entries.push(entry);
       const known = sourceByLoc.get(entry.loc);
       if (known) {
-        known.push(documentUrl);
+        // A repeat inside one document is a duplicate in that file, not a
+        // second document declaring the URL.
+        if (!known.includes(documentUrl)) known.push(documentUrl);
       } else {
         sourceByLoc.set(entry.loc, [documentUrl]);
       }

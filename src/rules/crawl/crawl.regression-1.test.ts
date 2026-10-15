@@ -101,3 +101,21 @@ describe('sitemap limits are checked per sitemap file (ISSUE-009)', () => {
     expect(result.details?.sizeBytes).toBe(Buffer.byteLength(urlset(40)));
   });
 });
+
+// Regression: ISSUE-021 — a URL repeated inside one sitemap read as declared by two sitemaps
+// Found by /qa on 2026-10-15
+// Report: .gstack/qa-reports/run-20261015T075717Z/qa-report-developer-mozilla-org-2026-10-15.md
+//
+// MDN's en-us sitemap lists /en-US/blog/ twice. The loader recorded that
+// file once per occurrence, so crawl-sitemap-cross-duplicates reported the
+// URL as "declared in more than one sitemap document" with the same file
+// listed twice. A repeat within one file is crawl-sitemap-duplicate-urls'.
+describe('sitemap URL sources (ISSUE-021)', () => {
+  it('records each sitemap document once per URL', async () => {
+    const repeated = `<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+      <url><loc>${ORIGIN}/blog/</loc></url><url><loc>${ORIGIN}/blog/</loc></url></urlset>`;
+    stubSite({ [`${ORIGIN}/sitemap.xml`]: repeated });
+    const sitemap = await fetchSitemap(`${ORIGIN}/`);
+    expect(sitemap.urlSources?.get(`${ORIGIN}/blog/`)).toEqual([`${ORIGIN}/sitemap.xml`]);
+  });
+});

@@ -12,6 +12,7 @@ import { describe, it, expect } from 'vitest';
 import { createTestContext } from '../test-context.js';
 import { metaInBodyRule } from './meta-in-body.js';
 import { brokenHtmlRule } from './broken-html.js';
+import { mimeTypeRule } from './mime-type.js';
 
 describe('content-meta-in-body and structured data (ISSUE-003)', () => {
   it('passes RDFa metadata inside a typeof scope', async () => {
@@ -73,5 +74,39 @@ describe('content-broken-html empty-button check (ISSUE-007)', () => {
       (issue) => issue.element === '<button>'
     );
     expect(buttons).toHaveLength(1);
+  });
+});
+
+// Regression: ISSUE-012 — content-mime-type ignored a <meta charset> the browser reads
+// Found by /qa on 2026-10-15
+// Report: .gstack/qa-reports/run-20261015T075717Z/qa-report-developer-mozilla-org-2026-10-15.md
+//
+// developer.mozilla.org sends "content-type: text/html" and declares
+// <meta charset="UTF-8"> at byte 167. The HTML encoding sniffing algorithm
+// reads a <meta charset> within the first 1,024 bytes, so the encoding is
+// unambiguous, but the rule warned that the charset was missing.
+describe('content-mime-type and <meta charset> (ISSUE-012)', () => {
+  const page = (head: string) => `<!doctype html><html><head>${head}<title>T</title></head><body></body></html>`;
+  const headers = { 'content-type': 'text/html' };
+
+  it('passes a UTF-8 <meta charset> inside the first 1,024 bytes', async () => {
+    const html = page('<meta charset="UTF-8">');
+    const result = await mimeTypeRule.run(createTestContext(html, { headers }));
+    expect(result.status).toBe('pass');
+    expect(result.details?.charsetSource).toBe('meta');
+  });
+
+  it('reads the http-equiv form too', async () => {
+    const html = page('<meta http-equiv="Content-Type" content="text/html; charset=utf-8">');
+    expect((await mimeTypeRule.run(createTestContext(html, { headers }))).status).toBe('pass');
+  });
+
+  it('still warns when the declaration comes too late for the browser to use', async () => {
+    const html = page(`<!-- ${'x'.repeat(1100)} --><meta charset="UTF-8">`);
+    expect((await mimeTypeRule.run(createTestContext(html, { headers }))).status).toBe('warn');
+  });
+
+  it('still warns when no charset is declared anywhere', async () => {
+    expect((await mimeTypeRule.run(createTestContext(page(''), { headers }))).status).toBe('warn');
   });
 });

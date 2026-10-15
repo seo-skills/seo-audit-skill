@@ -9,6 +9,20 @@ import { defineRule, pass, warn, fail } from '../define-rule.js';
  * - MIME type is text/html
  * - Charset is specified (utf-8 preferred)
  */
+/**
+ * Charset from a <meta charset> or <meta http-equiv="content-type"> in the
+ * first 1,024 bytes, the window the HTML encoding sniffing algorithm scans.
+ * A declaration further in is too late for the browser to use.
+ */
+function prescanMetaCharset(html: string): string | undefined {
+  const head = Buffer.from(html, 'utf8').subarray(0, 1024).toString('latin1');
+  for (const tag of head.match(/<meta\b[^>]*>/gi) ?? []) {
+    const match = tag.match(/charset\s*=\s*["']?\s*([\w.:-]+)/i);
+    if (match) return match[1];
+  }
+  return undefined;
+}
+
 export const mimeTypeRule = defineRule({
   id: 'content-mime-type',
   name: 'MIME Type Validation',
@@ -16,7 +30,7 @@ export const mimeTypeRule = defineRule({
   category: 'content',
   weight: 5,
   run: async (context: AuditContext) => {
-    const { headers } = context;
+    const { headers, html } = context;
 
     // Get Content-Type header (case-insensitive)
     const contentType =
@@ -47,9 +61,13 @@ export const mimeTypeRule = defineRule({
       });
     }
 
-    // Check for charset
+    // Check for charset: the header, or failing that a <meta> declaration the
+    // browser's encoding prescan reads (the first 1,024 bytes)
     const charsetPart = parts.find((p) => p.startsWith('charset='));
-    const charset = charsetPart?.replace('charset=', '').trim();
+    const headerCharset = charsetPart?.replace('charset=', '').trim();
+    const metaCharset = headerCharset ? undefined : prescanMetaCharset(html);
+    const charset = headerCharset ?? metaCharset;
+    const charsetSource = headerCharset ? 'header' : metaCharset ? 'meta' : null;
 
     if (!charset) {
       return warn('content-mime-type', 'Content-Type header missing charset specification', {
@@ -73,6 +91,7 @@ export const mimeTypeRule = defineRule({
           header: contentType,
           mimeType,
           charset,
+          charsetSource,
           recommendation: 'Use UTF-8 encoding for maximum compatibility: "text/html; charset=utf-8"',
           impact: 'Non-UTF-8 charsets may cause display issues with special characters',
         }
@@ -81,11 +100,14 @@ export const mimeTypeRule = defineRule({
 
     return pass(
       'content-mime-type',
-      'Content-Type header is correctly configured',
+      charsetSource === 'meta'
+        ? 'Content-Type is correct; UTF-8 is declared by <meta> within the first 1,024 bytes'
+        : 'Content-Type header is correctly configured',
       {
         header: contentType,
         mimeType,
         charset,
+        charsetSource,
       }
     );
   },

@@ -116,14 +116,17 @@ export const wwwRedirectRule = defineRule({
       canonicalHostname,
     };
 
-    // If one version is not accessible, that's fine (means redirect is working)
+    // A status of 0 is no answer at all (no DNS, refused, timed out). It is
+    // not a redirect: fetchUrl follows redirects, so a redirecting host
+    // answers with its target's status. A host that does not respond cannot
+    // serve a duplicate, so this passes, for that reason.
     if (results.wwwStatus === 0 || results.nonWwwStatus === 0) {
-      // One version is not directly accessible - likely redirecting
+      const silentHost = new URL(results.wwwStatus === 0 ? wwwUrl : nonWwwUrl).hostname;
       const accessibleVersion = results.wwwStatus !== 0 ? 'www' : 'non-www';
 
       return pass(
         'technical-www-redirect',
-        `Only ${accessibleVersion} version is directly accessible (redirect likely in place)`,
+        `${silentHost} does not respond, so only the ${accessibleVersion} version serves the site`,
         details
       );
     }

@@ -381,9 +381,10 @@ A category score is the average of its rule results — `pass` 100, `warn` 50,
 `security-https` moves the category far more than a minor one. The overall score
 is the weighted average of category scores using the weights above.
 
-**A page-level condition can cap the overall score** (single-page audits only).
-An average cannot say "nothing else matters", so while one of these holds, the
-overall score stays at or under its ceiling whatever the categories average:
+**A page-level condition can cap the overall score.** An average cannot say
+"nothing else matters", so while one of these holds, the overall score stays at
+or under its ceiling whatever the categories average. A crawl takes only the
+first two, read from its start page:
 
 | Condition | Ceiling |
 |-----------|---------|
@@ -395,8 +396,14 @@ overall score stays at or under its ceiling whatever the categories average:
 
 The JSON result then carries `scoreCap: { uncappedScore, caps: [{ id, ceiling,
 reason }] }`, and `--format llm` a `<score-cap>` element. **Fix the cap first:**
-no other fix moves the score while it holds. On a staging site that is noindex
-on purpose, read `uncappedScore` instead.
+no other fix moves the score while it holds.
+
+**Audit a staging site with `--staging`.** It waives the noindex and robots.txt
+caps (the content caps stay), and a crawl ignores robots.txt so a `Disallow: /`
+site is crawled past its first page. What it waived is in `waivedCaps`, and in a
+`<waived-caps>` element under `--format llm`: that list is what must change at
+launch. Never compare a staging audit to a production one as like-for-like;
+`compare` flags the difference.
 
 **Unmeasured checks carry weight 0 and do not affect the score.** A check whose
 input was unavailable is reported so the gap is visible, but scores neither for

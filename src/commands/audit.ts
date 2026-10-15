@@ -44,6 +44,8 @@ export interface AuditOptions {
   cwv: boolean;
   mobile?: boolean;
   simulateInteraction?: boolean;
+  /** Audit a staging site: waive the noindex and robots.txt caps */
+  staging?: boolean;
   refresh: boolean;
   resume: boolean;
   config?: string;
@@ -297,6 +299,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       mobileParity,
       simulateInteraction,
       respectRobots: config.crawler.respect_robots,
+      staging: options.staging ?? false,
       urlFilter: toUrlFilterOptions(config.crawler),
       enableRules: config.rules.enable,
       disableRules: config.rules.disable,
@@ -368,6 +371,11 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
           config,
           source: 'cli',
           run: {
+            // The auditor's own record first: it carries the scoring model,
+            // the rule filters and staging. Without it `compare` read audits
+            // from two scoring models as like-for-like, and could fail
+            // --fail-on-regression over a model change.
+            ...result.run,
             crawl: isCrawlMode,
             maxPages: config.crawler.max_pages,
             concurrency: config.crawler.concurrency,

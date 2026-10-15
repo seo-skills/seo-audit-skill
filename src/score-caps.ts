@@ -15,8 +15,10 @@
  * and the result records which condition and what the average would have
  * been. Category scores are untouched; they still describe what was measured.
  *
- * Applied to single-page audits only. A crawl's score aggregates many pages,
- * where one noindex page among fifty is usually deliberate.
+ * A single-page audit is capped by its own page. A crawl is capped by its
+ * start page only, and only when search engines cannot index it: one noindex
+ * page among fifty is usually deliberate, a noindex start page is not. A
+ * staging audit waives the indexability caps and records them instead.
  */
 import type { AuditContext, AuditResult, ScoreCap } from './types.js';
 import { parseRobotsDirectives } from './rules/core/robots-meta.js';
@@ -130,13 +132,11 @@ const MIN_CONTENT_WORDS = 20;
 
 const words = (n: number) => `${n} ${n === 1 ? 'word' : 'words'}`;
 
-/**
- * The caps a page's facts impose: which conditions outweigh everything else,
- * and how far each holds the score down.
- *
- * Severity follows what the condition leaves a search engine to work with.
- * The verdict bands are A ≥ 90, B ≥ 80, C ≥ 70, D ≥ 50, F below, and `audit`
- * exits 1 below 70, so every one of these fails a CI run.
+/*
+ * The policy: which conditions outweigh everything else, and how far each
+ * holds the score down. Severity follows what the condition leaves a search
+ * engine to work with. The verdict bands are A ≥ 90, B ≥ 80, C ≥ 70, D ≥ 50,
+ * F below, and `audit` exits 1 below 70, so every one of these fails a CI run.
  *
  * | Cap               | Ceiling | The page...                                  |
  * |-------------------|---------|----------------------------------------------|
@@ -146,33 +146,63 @@ const words = (n: number) => `${n} ${n === 1 ? 'word' : 'words'}`;
  * | thin-content      | 49      | has almost no content to match a query to    |
  * | no-title          | 69      | has no headline; search engines write one    |
  *
- * "Almost no content" is fewer than 20 words, far below the 100 at which
- * `content-word-count` fails. Google sets no minimum length, and an ordinary
- * short page — a contact page, the baseline fixture's 80 words — must not be
- * capped. A page whose words could not be counted gets no content cap.
+ * The first two are indexability: the page is kept out of search. The rest
+ * are content: the page is in search with nothing to be found for. The split
+ * matters twice. A staging site is kept out of search on purpose, so staging
+ * waives indexability and keeps content. And a crawl is capped by
+ * indexability alone, read from its start page — every page's content is
+ * already scored, but only the entry point shows a site-wide block.
+ */
+
+/**
+ * Caps for a page search engines are told, or kept, from indexing.
+ *
+ * The reason ends with what to do: in production, point a staging site at
+ * `--staging`; in staging, where the cap is waived, lift it at launch.
  *
  * @param facts - What was read from the page
- * @returns Every cap that applies; empty when none does
+ * @param subject - How the reason names the page
+ * @param staging - Whether the caps are being waived for a staging site
  */
-export function scoreCaps(facts: PageFacts): ScoreCap[] {
+export function indexabilityCaps(facts: PageFacts, subject = 'this page', staging = false): ScoreCap[] {
   const caps: ScoreCap[] = [];
-  const count = facts.mainContentWords;
-  const thin = count !== null && count < MIN_CONTENT_WORDS;
-
   if (facts.noindex) {
     caps.push({
       id: 'noindex',
       ceiling: 20,
-      reason: "A noindex directive (robots meta tag or X-Robots-Tag) keeps this page out of Google's index: expected on staging, a defect anywhere else.",
+      reason:
+        `A noindex directive (robots meta tag or X-Robots-Tag) keeps ${subject} out of Google's index. ` +
+        (staging ? 'Remove it at launch.' : 'On a staging site that is expected: audit it with --staging.'),
     });
   }
   if (facts.robotsDisallowed) {
     caps.push({
       id: 'robots-disallowed',
       ceiling: 20,
-      reason: 'robots.txt blocks Googlebot from fetching this page, so search engines cannot read its content. Remove or narrow the Disallow rule that matches it.',
+      reason:
+        `robots.txt blocks Googlebot from fetching ${subject}, so search engines cannot read its content. ` +
+        (staging
+          ? 'Remove the Disallow rule that matches it at launch.'
+          : 'Remove or narrow the Disallow rule that matches it, or audit a staging site with --staging.'),
     });
   }
+  return caps;
+}
+
+/**
+ * Caps for a page that gives a search engine nothing to be found for.
+ *
+ * "Almost no content" is fewer than 20 words, far below the 100 at which
+ * `content-word-count` fails. Google sets no minimum length, and an ordinary
+ * short page — a contact page, the baseline fixture's 80 words — must not be
+ * capped. A page whose words could not be counted gets no content cap.
+ *
+ * @param facts - What was read from the page
+ */
+export function contentCaps(facts: PageFacts): ScoreCap[] {
+  const caps: ScoreCap[] = [];
+  const count = facts.mainContentWords;
+  const thin = count !== null && count < MIN_CONTENT_WORDS;
 
   // One content cap, the most specific: an empty page is also untitled and
   // thin, and listing all three would say the same thing three times.
@@ -199,25 +229,68 @@ export function scoreCaps(facts: PageFacts): ScoreCap[] {
   return caps;
 }
 
+/** Whether the site is a staging site, blocked from search on purpose */
+export interface CapOptions {
+  staging?: boolean;
+}
+
+/** The caps that hold a score down, and those staging waived */
+export interface CapSet {
+  caps: ScoreCap[];
+  waived: ScoreCap[];
+}
+
+/**
+ * The caps a page imposes on its own score.
+ *
+ * @param facts - What was read from the page
+ * @param options - `staging` waives the indexability caps
+ */
+export function pageCaps(facts: PageFacts, { staging = false }: CapOptions = {}): CapSet {
+  const blocked = indexabilityCaps(facts, 'this page', staging);
+  return staging
+    ? { caps: contentCaps(facts), waived: blocked }
+    : { caps: [...blocked, ...contentCaps(facts)], waived: [] };
+}
+
+/**
+ * The caps a crawl's start page imposes on the whole site's score.
+ *
+ * Indexability only. A site-wide block — noindex shipped from staging,
+ * `Disallow: /` — always reaches the start page, while a page kept out of
+ * search on purpose (a login, a thank-you page) almost never is the start
+ * page. Capping on any page would mark down every site with one of those.
+ *
+ * @param facts - What was read from the start page
+ * @param url - The start page's URL, named in the reason
+ * @param options - `staging` waives the caps
+ */
+export function siteCaps(facts: PageFacts, url: string, { staging = false }: CapOptions = {}): CapSet {
+  const blocked = indexabilityCaps(facts, `the start page (${url})`, staging);
+  return staging ? { caps: [], waived: blocked } : { caps: blocked, waived: [] };
+}
+
 /**
  * Hold the overall score at the lowest applicable ceiling.
  *
  * Only caps below the weighted average are recorded: a ceiling the page
  * already scores under changed nothing, and listing it would read as though
- * it had.
+ * it had. Waived caps are recorded whatever the score, as a reminder of what
+ * to lift at launch.
  *
  * @param result - The audit result with its weighted-average score
- * @param caps - The caps from {@link scoreCaps}
+ * @param capSet - From {@link pageCaps} or {@link siteCaps}
  * @returns The result, capped and annotated when any cap binds
  */
-export function applyScoreCaps(result: AuditResult, caps: ScoreCap[]): AuditResult {
+export function applyScoreCaps(result: AuditResult, { caps, waived }: CapSet): AuditResult {
   const binding = caps
     .filter((cap) => cap.ceiling < result.overallScore)
     .sort((a, b) => a.ceiling - b.ceiling);
-  if (binding.length === 0) return result;
+  const annotated = waived.length > 0 ? { ...result, waivedCaps: waived } : result;
+  if (binding.length === 0) return annotated;
 
   return {
-    ...result,
+    ...annotated,
     overallScore: binding[0].ceiling,
     scoreCap: { uncappedScore: result.overallScore, caps: binding },
   };

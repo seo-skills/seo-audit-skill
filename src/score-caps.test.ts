@@ -9,7 +9,15 @@
 import { describe, it, expect } from 'vitest';
 import * as cheerio from 'cheerio';
 import { createTestContext } from './rules/test-context.js';
-import { readPageFacts, applyScoreCaps, scoreCaps, type PageFacts } from './score-caps.js';
+import {
+  readPageFacts,
+  applyScoreCaps,
+  pageCaps,
+  siteCaps,
+  indexabilityCaps,
+  contentCaps,
+  type PageFacts,
+} from './score-caps.js';
 import type { AuditResult, ScoreCap } from './types.js';
 
 const BODY = '<body><main><p>Five words of main content.</p></main></body>';
@@ -105,52 +113,106 @@ describe('reading the title and the content', () => {
   });
 });
 
-describe('the cap policy', () => {
-  const facts = (over: Partial<PageFacts> = {}): PageFacts => ({
-    noindex: false,
-    robotsDisallowed: false,
-    hasTitle: true,
-    mainContentWords: 500,
-    ...over,
-  });
-  const ids = (f: PageFacts) => scoreCaps(f).map((cap) => `${cap.id}:${cap.ceiling}`);
+const facts = (over: Partial<PageFacts> = {}): PageFacts => ({
+  noindex: false,
+  robotsDisallowed: false,
+  hasTitle: true,
+  mainContentWords: 500,
+  ...over,
+});
+const ids = (caps: ScoreCap[]) => caps.map((cap) => `${cap.id}:${cap.ceiling}`);
+
+describe('the cap policy for a page', () => {
+  const applied = (f: PageFacts) => ids(pageCaps(f).caps);
 
   it('caps nothing on a complete page', () => {
-    expect(scoreCaps(facts())).toEqual([]);
+    expect(pageCaps(facts())).toEqual({ caps: [], waived: [] });
   });
 
   it('holds an unindexable page in the F band', () => {
-    expect(ids(facts({ noindex: true }))).toEqual(['noindex:20']);
-    expect(ids(facts({ robotsDisallowed: true }))).toEqual(['robots-disallowed:20']);
+    expect(applied(facts({ noindex: true }))).toEqual(['noindex:20']);
+    expect(applied(facts({ robotsDisallowed: true }))).toEqual(['robots-disallowed:20']);
   });
 
   it('names an empty page once, not three times', () => {
-    expect(ids(facts({ hasTitle: false, mainContentWords: 1 }))).toEqual(['empty-page:30']);
+    expect(applied(facts({ hasTitle: false, mainContentWords: 1 }))).toEqual(['empty-page:30']);
   });
 
   it('ranks the content and title caps by what they leave to index', () => {
-    expect(ids(facts({ mainContentWords: 4 }))).toEqual(['thin-content:49']);
-    expect(ids(facts({ hasTitle: false }))).toEqual(['no-title:69']);
+    expect(applied(facts({ mainContentWords: 4 }))).toEqual(['thin-content:49']);
+    expect(applied(facts({ hasTitle: false }))).toEqual(['no-title:69']);
   });
 
   it('leaves an ordinary short page alone', () => {
     // The baseline fixture is an ordinary page with 80 words of main content
-    expect(scoreCaps(facts({ mainContentWords: 80 }))).toEqual([]);
-    expect(scoreCaps(facts({ mainContentWords: 20 }))).toEqual([]);
+    expect(applied(facts({ mainContentWords: 80 }))).toEqual([]);
+    expect(applied(facts({ mainContentWords: 20 }))).toEqual([]);
   });
 
   it('does not cap content it could not count', () => {
-    expect(scoreCaps(facts({ mainContentWords: null }))).toEqual([]);
-    expect(ids(facts({ mainContentWords: null, hasTitle: false }))).toEqual(['no-title:69']);
+    expect(applied(facts({ mainContentWords: null }))).toEqual([]);
+    expect(applied(facts({ mainContentWords: null, hasTitle: false }))).toEqual(['no-title:69']);
   });
 
   it('keeps independent conditions apart', () => {
-    expect(ids(facts({ noindex: true, hasTitle: false }))).toEqual(['noindex:20', 'no-title:69']);
+    expect(applied(facts({ noindex: true, hasTitle: false }))).toEqual(['noindex:20', 'no-title:69']);
   });
 
   it('writes a reason that names the count', () => {
-    expect(scoreCaps(facts({ mainContentWords: 1 }))[0].reason).toContain('1 word of main content');
-    expect(scoreCaps(facts({ mainContentWords: 4 }))[0].reason).toContain('4 words of main content');
+    expect(contentCaps(facts({ mainContentWords: 1 }))[0].reason).toContain('1 word of main content');
+    expect(contentCaps(facts({ mainContentWords: 4 }))[0].reason).toContain('4 words of main content');
+  });
+
+  it('points a blocked page at --staging', () => {
+    expect(indexabilityCaps(facts({ noindex: true }))[0].reason).toContain('audit it with --staging');
+  });
+});
+
+describe('staging', () => {
+  it('waives the indexability caps and records them', () => {
+    const set = pageCaps(facts({ noindex: true, robotsDisallowed: true }), { staging: true });
+    expect(set.caps).toEqual([]);
+    expect(ids(set.waived)).toEqual(['noindex:20', 'robots-disallowed:20']);
+  });
+
+  it('turns the reason into a launch reminder', () => {
+    const [noindex, robots] = pageCaps(facts({ noindex: true, robotsDisallowed: true }), { staging: true }).waived;
+    expect(noindex.reason).toContain('Remove it at launch');
+    expect(noindex.reason).not.toContain('--staging');
+    expect(robots.reason).toContain('at launch');
+  });
+
+  it('keeps the content caps: an empty staging page is still empty', () => {
+    const set = pageCaps(facts({ noindex: true, hasTitle: false, mainContentWords: 1 }), { staging: true });
+    expect(ids(set.caps)).toEqual(['empty-page:30']);
+    expect(ids(set.waived)).toEqual(['noindex:20']);
+  });
+});
+
+describe('the cap policy for a crawl', () => {
+  const START = 'https://example.com/';
+
+  it('caps the site when its start page cannot be indexed, and names the page', () => {
+    const { caps } = siteCaps(facts({ noindex: true }), START);
+    expect(ids(caps)).toEqual(['noindex:20']);
+    expect(caps[0].reason).toContain(`keeps the start page (${START}) out of Google's index`);
+  });
+
+  it('reads cleanly for a robots.txt block', () => {
+    const { caps } = siteCaps(facts({ robotsDisallowed: true }), START);
+    expect(caps[0].reason).toContain(`blocks Googlebot from fetching the start page (${START}), so`);
+  });
+
+  it('leaves content to the per-page scores', () => {
+    // Every page's title and words already count in the category averages;
+    // only an indexability block at the entry point is site-wide.
+    expect(siteCaps(facts({ hasTitle: false, mainContentWords: 1 }), START)).toEqual({ caps: [], waived: [] });
+  });
+
+  it('waives a staging site', () => {
+    const set = siteCaps(facts({ noindex: true }), START, { staging: true });
+    expect(set.caps).toEqual([]);
+    expect(ids(set.waived)).toEqual(['noindex:20']);
   });
 });
 
@@ -163,13 +225,14 @@ describe('applying caps', () => {
     crawledPages: 1,
   });
   const cap = (id: string, ceiling: number): ScoreCap => ({ id, ceiling, reason: `${id} holds` });
+  const only = (caps: ScoreCap[]) => ({ caps, waived: [] });
 
   it('leaves the result alone when no cap applies', () => {
-    expect(applyScoreCaps(result(94), [])).toEqual(result(94));
+    expect(applyScoreCaps(result(94), only([]))).toEqual(result(94));
   });
 
   it('holds the score at the lowest ceiling and records the average', () => {
-    const capped = applyScoreCaps(result(94), [cap('no-title', 49), cap('noindex', 20)]);
+    const capped = applyScoreCaps(result(94), only([cap('no-title', 49), cap('noindex', 20)]));
     expect(capped.overallScore).toBe(20);
     expect(capped.scoreCap).toEqual({
       uncappedScore: 94,
@@ -180,12 +243,19 @@ describe('applying caps', () => {
   it('records only the caps that lowered the score', () => {
     // A page averaging 40 is already under a ceiling of 49; saying it was
     // capped there would claim the cap did something.
-    const capped = applyScoreCaps(result(40), [cap('no-title', 49), cap('noindex', 20)]);
+    const capped = applyScoreCaps(result(40), only([cap('no-title', 49), cap('noindex', 20)]));
     expect(capped.overallScore).toBe(20);
     expect(capped.scoreCap?.caps.map((c) => c.id)).toEqual(['noindex']);
   });
 
   it('is not a cap when the score already sits at or under every ceiling', () => {
-    expect(applyScoreCaps(result(20), [cap('noindex', 20)])).toEqual(result(20));
+    expect(applyScoreCaps(result(20), only([cap('noindex', 20)]))).toEqual(result(20));
+  });
+
+  it('records waived caps without touching the score', () => {
+    const staged = applyScoreCaps(result(94), { caps: [], waived: [cap('noindex', 20)] });
+    expect(staged.overallScore).toBe(94);
+    expect(staged.scoreCap).toBeUndefined();
+    expect(staged.waivedCaps).toEqual([cap('noindex', 20)]);
   });
 });

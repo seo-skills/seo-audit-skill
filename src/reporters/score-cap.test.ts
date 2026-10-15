@@ -91,4 +91,31 @@ describe('an uncapped score', () => {
     expect(renderLlmReport(uncapped)).not.toContain('score-cap');
     expect(renderHtmlReport(uncapped)).not.toContain('Capped from');
   });
+
+  it('says nothing about staging either', () => {
+    expect(terminal(uncapped)).not.toContain('Waived for staging');
+    expect(renderLlmReport(uncapped)).not.toContain('waived-caps');
+  });
+});
+
+describe('a staging audit', () => {
+  const LAUNCH = "A noindex directive keeps this page out of Google's index. Remove it at launch.";
+  const staged: AuditResult = {
+    ...uncapped,
+    waivedCaps: [{ id: 'noindex', ceiling: 20, reason: LAUNCH }],
+  };
+
+  it('lists what it waived on every surface, as the launch checklist', () => {
+    const out = terminal(staged);
+    expect(out).toContain('Waived for staging, would cap the score in production:');
+    expect(out).toContain(`${LAUNCH} (cap 20)`);
+    expect(renderMarkdownReport(staged)).toContain(`- ${LAUNCH} (cap 20)`);
+    expect(renderLlmReport(staged)).toContain('<waived-caps reason="staging">');
+    expect(renderHtmlReport(staged)).toContain('Waived for staging');
+  });
+
+  it('does not present the waived cap as a capped score', () => {
+    expect(terminal(staged)).toContain('Health Score: 94/100');
+    expect(terminal(staged)).not.toContain('Capped from');
+  });
 });

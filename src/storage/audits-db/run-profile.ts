@@ -34,6 +34,16 @@ const LABELS: Record<string, string> = {
   enableRules: 'enabled rules',
   disableRules: 'disabled rules',
   maxPages: 'page limit',
+  staging: 'staging mode',
+};
+
+/**
+ * Options recorded only when set. Absent reads as the default, so an audit
+ * stored before the option existed compares like-for-like with one that did
+ * not use it, instead of differing by "undefined".
+ */
+const ABSENT_MEANS: Partial<Record<keyof AuditRunOptions, unknown>> = {
+  staging: false,
 };
 
 /**
@@ -55,6 +65,9 @@ const MATERIAL = new Set([
   // A weight change moves every score without the site changing, which is the
   // one thing this module exists to stop being read as a regression.
   'scoringVersion',
+  // Staging waives the noindex and robots.txt caps: the same site scores 20
+  // in production and its average in staging.
+  'staging',
 ]);
 
 function render(value: unknown): string {
@@ -78,8 +91,9 @@ export function compareRunProfiles(
 
   const differences: ProfileDifference[] = [];
   for (const option of Object.keys(LABELS)) {
-    const before = previous[option as keyof AuditRunOptions];
-    const after = current[option as keyof AuditRunOptions];
+    const key = option as keyof AuditRunOptions;
+    const before = previous[key] ?? ABSENT_MEANS[key];
+    const after = current[key] ?? ABSENT_MEANS[key];
     if (render(before) === render(after)) continue;
     differences.push({
       option: LABELS[option] ?? option,

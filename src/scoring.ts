@@ -72,11 +72,15 @@ export function calculateCategoryScore(results: RuleResult[]): number {
  *     running to 25, where a page missing a title lost one weight-point while
  *     ten canonical edge cases passed vacuously at 6-8. A blank document
  *     scored 84/100.
- * 3 — page-level score caps (`score-caps.ts`). The category average cannot
- *     say "nothing else matters": a noindex page scored 94 and a one-word
- *     page 85, held up by server checks that read the same on every page.
+ * 3 — 6.0.0. Page-level score caps (`score-caps.ts`). The category average
+ *     cannot say "nothing else matters": a noindex page scored 94 and a
+ *     one-word page 85, held up by server checks that read the same on every
+ *     page.
+ * 4 — a crawl is capped when its start page cannot be indexed. A site that
+ *     was noindex on every page crawled to 92, and one behind `Disallow: /`
+ *     to 93, while a single-page audit of either scored 20.
  */
-export const SCORING_VERSION = 3;
+export const SCORING_VERSION = 4;
 
 /**
  * Calculate the overall audit score from category results

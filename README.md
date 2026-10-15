@@ -152,6 +152,7 @@ Run SEO audit on a URL.
 | `--no-cwv` | - | Skip Core Web Vitals measurement | false |
 | `--mobile` | - | Second render at a mobile viewport + mobile-first parity checks (single-page) | false |
 | `--simulate-interaction` | - | Scroll and click the page so INP can be measured (reported as synthetic, unscored) | false |
+| `--staging` | - | Audit a staging site: waive the noindex and robots.txt caps, and crawl past robots.txt | false |
 | `--verbose` | `-v` | Show progress | false |
 | `--config <path>` | - | Config file path | - |
 | `--no-save` | - | Do not store this audit in your history | - |
@@ -283,9 +284,13 @@ seomator self doctor -v          # Verbose diagnostics
 A page that cannot rank fails whatever its other checks score. In a single-page
 audit, the overall score is capped while a page-level condition holds: `noindex`
 or a robots.txt block (20), an empty page (30), fewer than 20 words of main
-content (49), no `<title>` (69). The report prints the cap under the score, and
-JSON output keeps the uncapped average in `scoreCap.uncappedScore`, for a
-staging site that is noindex on purpose.
+content (49), no `<title>` (69). A crawl takes the noindex and robots.txt caps of
+its start page, so a site blocked everywhere fails. The report prints the cap
+under the score, and JSON keeps the uncapped average in `scoreCap.uncappedScore`.
+
+A staging site is blocked on purpose: audit it with `--staging`. That waives the
+noindex and robots.txt caps, crawls past robots.txt, and lists what it waived as
+the launch checklist.
 
 ## Categories & Rules (373 total)
 

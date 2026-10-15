@@ -29,7 +29,7 @@ import {
 } from './crawler/index.js';
 import { buildPageSnapshot } from './page-snapshot.js';
 import { SCORING_VERSION } from './scoring.js';
-import { applyScoreCaps, readPageFacts, scoreCaps } from './score-caps.js';
+import { applyScoreCaps, pageCaps, readPageFacts, siteCaps } from './score-caps.js';
 import { AuditError, rethrowIfAborted, throwIfAborted } from './errors.js';
 import { getUserAgent } from './crawler/user-agent.js';
 import type { UrlFilterOptions } from './crawler/url-filter.js';
@@ -129,8 +129,18 @@ export interface AuditorOptions {
    * Requires measureCwv. The resulting INP is flagged as synthetic.
    */
   simulateInteraction?: boolean;
-  /** Whether a crawl obeys the site's robots.txt. Defaults to true. */
+  /**
+   * Whether a crawl obeys the site's robots.txt. Defaults to true; `staging`
+   * turns it off.
+   */
   respectRobots?: boolean;
+  /**
+   * Audit a staging site, which is kept out of search on purpose. The noindex
+   * and robots.txt caps are waived and reported as `waivedCaps`, and a crawl
+   * ignores robots.txt so a `Disallow: /` staging site can be crawled at all.
+   * The content caps still apply. Defaults to false.
+   */
+  staging?: boolean;
   /**
    * Which URLs a crawl may visit and how they are normalised, from the
    * `[crawler]` include/exclude and query-parameter keys.
@@ -195,8 +205,11 @@ export class Auditor {
       measureCwv: options.measureCwv ?? false,
       mobileParity: options.mobileParity ?? false,
       simulateInteraction: options.simulateInteraction ?? false,
-      // Defaults to true so a programmatic crawl is polite unless asked not to be.
-      respectRobots: options.respectRobots ?? true,
+      // Defaults to true so a programmatic crawl is polite unless asked not to
+      // be. A staging site's robots.txt blocks everything on purpose, and it
+      // is the user's own site, so staging crawls past it.
+      respectRobots: options.staging ? false : (options.respectRobots ?? true),
+      staging: options.staging ?? false,
       // 0 rather than the config's 100/200: a programmatic Auditor is not
       // silently slowed down. The CLI passes the configured values.
       urlFilter: options.urlFilter ?? {},
@@ -456,7 +469,7 @@ export class Auditor {
       this.runOptions(false, 1, 1),
       { pages: [url], detail: 'per-page' }
     );
-    return applyScoreCaps(result, scoreCaps(readPageFacts(context)));
+    return applyScoreCaps(result, pageCaps(readPageFacts(context), { staging: this.options.staging }));
   }
 
   /**
@@ -550,9 +563,11 @@ export class Auditor {
     // Aggregate results from all pages
     const allCategoryResults = await this.auditPages(crawledPages);
 
-    // Build final result
+    // Build the final result, then cap it if search engines cannot index the
+    // start page. A site-wide block always reaches it; averaged with the
+    // pages behind it, it moved the score by a point (see score-caps.ts).
     const timestamp = new Date().toISOString();
-    return buildAuditResult(
+    const result = buildAuditResult(
       url,
       allCategoryResults,
       this.categoriesToAudit,
@@ -561,6 +576,12 @@ export class Auditor {
       undefined,
       this.runOptions(true, maxPages, concurrency),
       { pages: crawledPages.map((p) => p.url), detail: 'per-page' }
+    );
+    const start = crawledPages.find((page) => page.url === site.entryUrl && !page.error);
+    if (!start) return result;
+    return applyScoreCaps(
+      result,
+      siteCaps(readPageFacts(start.context), start.url, { staging: this.options.staging })
     );
   }
 
@@ -723,6 +744,9 @@ export class Auditor {
       scoringVersion: SCORING_VERSION,
       enableRules: this.options.enableRules,
       disableRules: this.options.disableRules,
+      // Recorded only when set: absent reads as a production audit, which is
+      // what every audit stored before the option existed was.
+      ...(this.options.staging && { staging: true }),
       timeout: this.options.timeout,
     };
   }

@@ -1623,8 +1623,10 @@ disable = ["*"]
 4. In a single-page audit, a page-level condition caps the overall score while
    it holds: `noindex` for Google or a robots.txt disallow (20), no `<title>` and
    fewer than 20 words of main content (30), fewer than 20 words (49), no
-   `<title>` (69). The result's `scoreCap` records the uncapped average and the
-   reasons. Category scores are not capped.
+   `<title>` (69). A crawl takes the noindex and robots.txt caps of its start
+   page. The result's `scoreCap` records the uncapped average and the reasons.
+   Category scores are not capped. `--staging` waives the noindex and robots.txt
+   caps and records them in `waivedCaps`.
 
 ### Example
 - Core SEO: 85/100 x 11% = 9.35

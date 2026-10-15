@@ -283,25 +283,34 @@ and `qa-report-developer-mozilla-org-2026-10-15.md`.
 ## From the page-level score caps (2026-10-15)
 
 `src/score-caps.ts` holds a single-page score under a ceiling for noindex,
-robots.txt disallow, an empty page, almost no content, and a missing title.
-`src/score-ladder.test.ts` is the contract. These were left out of that change.
+robots.txt disallow, an empty page, almost no content, and a missing title. A
+crawl takes the first two from its start page, and `--staging` waives them.
+`src/score-ladder.test.ts` and `src/crawl-ladder.test.ts` are the contract.
+These were left out.
 
 ### P1 — a capped score shown without its reason
 
-- **Stored audits drop `scoreCap`.** The `audits` table keeps `run_json`, not the
-  result, so history, `report`, and the score card in `ui/` (dashboard and
-  desktop app) show a capped score with no reason, the confusion the cap was
-  added to prevent. Persist it beside `run_json`, return it from
-  `getAuditDetail`, and render it under the score in `ui/`.
+- **Stored audits drop `scoreCap` and `waivedCaps`.** The `audits` table keeps
+  `run_json`, not the result, so history, `report`, and the score card in `ui/`
+  (dashboard and desktop app) show a capped score with no reason, the confusion
+  the cap was added to prevent. Persist both beside `run_json`, return them from
+  `getAuditDetail`, and render them under the score in `ui/`.
 
 ### P2
 
-- **Crawl audits are not capped.** Decide whether a capped start URL caps the
-  site score, or the share of capped pages does. One noindex page among fifty is
-  usually deliberate; a noindex homepage is not.
-- **A noindex staging site now fails CI.** `audit` exits 1 below a hard-coded 70.
-  A threshold option, or a way to waive the noindex cap, needs a real consumer
-  in `audit.ts`, not just a config key.
+- **The dashboard and desktop app cannot run a staging audit.** `--staging` is
+  CLI-only. The run form in `ui/` needs a toggle, carried through
+  `normalizeRunArgs` to `AuditorOptions.staging`, so the GUI can audit a
+  noindex staging site without a failing grade.
+- **A crawl blocked on part of the site is not capped.** Only the start page
+  caps a crawl, so a site whose whole `/blog/` went noindex passes. A cap on the
+  share of crawled pages that cannot be indexed would catch it, once there is a
+  threshold that does not flag the default 10-page crawl's one login page.
+- **`analyze` cannot apply the robots.txt cap.** A stored crawl keeps pages, not
+  the site's robots.txt, so a replay caps on noindex only. Storing robots.txt
+  with the crawl would close it. `crawl` also stores depth 0 for every page
+  (`src/commands/crawl.ts`), which is why `analyze` finds the start page by
+  crawl order.
 - **No category can be wholly unmeasured yet.** `calculateCategoryScore()`
   returns 0 when every result is unmeasured, and `calculateOverallScore()` still
   counts that category at full weight. `images` scores 100 on a page with no

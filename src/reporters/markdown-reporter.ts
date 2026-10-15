@@ -100,6 +100,14 @@ export function renderMarkdownReport(result: AuditResult): string {
     }
     lines.push('');
   }
+  if (result.waivedCaps) {
+    lines.push('Waived for staging, would cap the score in production:');
+    lines.push('');
+    for (const cap of result.waivedCaps) {
+      lines.push(`- ${cap.reason} (cap ${cap.ceiling})`);
+    }
+    lines.push('');
+  }
 
   // Category Breakdown
   lines.push('## Category Breakdown');

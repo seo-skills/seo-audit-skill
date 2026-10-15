@@ -71,4 +71,19 @@ describe('compareRunProfiles', () => {
       'page limit',
     ]);
   });
+
+  it('treats a staging audit as material against a production one', () => {
+    // The same noindex site scores 20 in production and its average in
+    // staging. Reading that as a regression is the trap this module prevents.
+    const differences = compareRunProfiles(base, { ...base, staging: true });
+    expect(differences).toEqual([
+      { option: 'staging mode', previous: 'false', current: 'true', material: true },
+    ]);
+  });
+
+  it('reads an audit stored before staging existed as a production audit', () => {
+    // Recorded only when set, so every older audit lacks the field. It must
+    // not differ from a new production audit by "undefined".
+    expect(compareRunProfiles(base, { ...base, staging: false })).toEqual([]);
+  });
 });

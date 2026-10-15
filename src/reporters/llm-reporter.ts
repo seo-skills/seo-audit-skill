@@ -200,6 +200,14 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
     }
     lines.push(`${t1}</score-cap>${nl}`);
   }
+  // Waived by --staging: not in the score, but what to lift before launch.
+  if (result.waivedCaps) {
+    lines.push(`${t1}<waived-caps reason="staging">${nl}`);
+    for (const cap of result.waivedCaps) {
+      lines.push(`${t2}<cap id="${escapeXml(cap.id)}" ceiling="${cap.ceiling}">${escapeXml(cap.reason)}</cap>${nl}`);
+    }
+    lines.push(`${t1}</waived-caps>${nl}`);
+  }
 
   // Categories (compact format)
   lines.push(`${t1}<categories>${nl}`);

@@ -2521,6 +2521,10 @@ export function renderHtmlReport(result: AuditResult): string {
             Capped from ${result.scoreCap.uncappedScore}, the category average:
             <ul>${result.scoreCap.caps.map((cap) => `<li>${escapeHtml(cap.reason)}</li>`).join('')}</ul>
           </div>` : ''}
+          ${result.waivedCaps ? `<div class="score-cap">
+            Waived for staging, would cap the score in production:
+            <ul>${result.waivedCaps.map((cap) => `<li>${escapeHtml(cap.reason)} (cap ${cap.ceiling})</li>`).join('')}</ul>
+          </div>` : ''}
           <div class="score-stats">
             <div class="score-stat">
               <span class="score-stat-value fail">${failures.length}</span>

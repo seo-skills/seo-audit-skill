@@ -142,6 +142,7 @@ program
   .option('--no-cwv', 'Skip Core Web Vitals')
   .option('--mobile', 'Also render at a mobile viewport and run mobile-first parity checks (single-page)', false)
   .option('--simulate-interaction', 'Click and scroll the page so INP can be measured (reported as synthetic)', false)
+  .option('--staging', 'Audit a staging site: waive the noindex and robots.txt caps, and crawl past robots.txt', false)
   .addOption(new Option('-r, --refresh').hideHelp().default(false))
   .addOption(new Option('--resume').hideHelp().default(false))
   .option('--config <path>', 'Config file path')
@@ -212,6 +213,7 @@ program
   .option('--json-report', 'Also write the legacy JSON report to .seomator/reports/', false)
   .option('-j, --json', 'Output as JSON', false)
   .option('-v, --verbose', 'Show progress', false)
+  .option('--staging', 'Analyze a staging crawl: waive the noindex cap', false)
   .action((crawlId: string | undefined, options: AnalyzeOptions, command: Command) =>
     runAnalyze(crawlId, {
       ...options,

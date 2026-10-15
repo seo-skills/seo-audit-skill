@@ -733,6 +733,12 @@ export interface AuditRunOptions {
   enableRules?: string[];
   /** `rules.disable` patterns in force. */
   disableRules?: string[];
+  /**
+   * Audited as a staging site: the noindex and robots.txt caps were waived
+   * and a crawl ignored robots.txt. Recorded only when set, so an audit from
+   * before the option existed reads as a production audit.
+   */
+  staging?: boolean;
   timeout: number;
 }
 
@@ -792,8 +798,8 @@ export interface AuditResult {
    * weighted average of the categories. Records the average and every cap
    * that lowered it, so no surface shows a capped score unexplained.
    *
-   * Single-page audits only: a crawl's score is a site aggregate. Absent on
-   * stored audits, which do not persist it yet.
+   * A crawl is capped only by its start page, and only when search engines
+   * cannot index it. Absent on stored audits, which do not persist it yet.
    */
   scoreCap?: {
     /** The weighted category average the caps overrode */
@@ -801,6 +807,12 @@ export interface AuditResult {
     /** The caps below that average, lowest ceiling first */
     caps: ScoreCap[];
   };
+  /**
+   * Caps a staging audit waived: the noindex and robots.txt conditions that
+   * would hold the score down in production. A reminder of what to lift at
+   * launch; `overallScore` does not reflect them.
+   */
+  waivedCaps?: ScoreCap[];
   /** Results grouped by category */
   categoryResults: CategoryResult[];
   /** Timestamp of when the audit was performed */

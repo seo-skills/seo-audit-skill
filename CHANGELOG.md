@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`--staging`, for auditing a site kept out of search on purpose.** On `audit`
+  it waives the noindex and robots.txt caps, and a crawl ignores robots.txt, so a
+  staging site behind `Disallow: /` can be crawled past its first page. The
+  content caps still apply. What it waived is listed under the score as the
+  launch checklist (`waivedCaps` in JSON, `<waived-caps>` for `--format llm`).
+  `analyze --staging` waives the noindex cap on a replayed crawl. A staging
+  audit is recorded on its run, and `compare` reports it as not like-for-like
+  against a production audit.
+
+### Changed
+
+- **Breaking: a crawl is capped when its start page cannot be indexed.** 6.0.0
+  capped single-page audits only, so the same site scored 20 in a single-page
+  audit and 92 in a crawl when every page was noindex, and 93 behind
+  `Disallow: /`, from the one page robots.txt let the crawler fetch. Those are
+  the two common launch accidents, staging settings shipped to production, and
+  the mode meant to check a whole site missed both. A crawl now takes the
+  noindex (20) and robots.txt (20) caps of its start page. A noindex page deeper
+  in the site, usually deliberate, caps nothing: content caps stay per-page.
+  `analyze` applies the noindex cap to a replayed crawl, robots.txt not being
+  stored with one. A crawl of a staging site now exits `1` unless run with
+  `--staging`. `SCORING_VERSION` is 4.
+
 ## [6.0.0] - 2026-10-15
 
 ### Added

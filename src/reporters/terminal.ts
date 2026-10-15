@@ -288,6 +288,13 @@ export function renderTerminalReport(result: AuditResult): void {
       console.log(chalk.gray(`  • ${cap.reason}`));
     }
   }
+  // A staging audit scores as if live; what it waived is the launch list.
+  if (result.waivedCaps) {
+    console.log(chalk.gray('  Waived for staging, would cap the score in production:'));
+    for (const cap of result.waivedCaps) {
+      console.log(chalk.gray(`  • ${cap.reason} (cap ${cap.ceiling})`));
+    }
+  }
   console.log();
 
   // Category Breakdown

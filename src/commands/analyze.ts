@@ -23,6 +23,7 @@ import { resetCrossPageState } from '../rules/registry.js';
 import type { AuditContext } from '../types.js';
 import { emitCommandError } from './machine-error.js';
 import { SCORING_VERSION } from '../scoring.js';
+import { applyScoreCaps, readPageFacts, siteCaps } from '../score-caps.js';
 
 export interface AnalyzeOptions {
   categories?: string[];
@@ -35,6 +36,8 @@ export interface AnalyzeOptions {
   jsonReport?: boolean;
   json: boolean;
   verbose: boolean;
+  /** Analyze a staging crawl: waive the noindex cap */
+  staging?: boolean;
 }
 
 /**
@@ -219,7 +222,7 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
 
     // Build final result
     const timestamp = new Date().toISOString();
-    const result = buildAuditResult(
+    const built = buildAuditResult(
       crawl.url,
       categoryResults,
       auditor.getCategoriesToAudit(),
@@ -229,6 +232,17 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
       undefined,
       { pages: pages.map((p) => p.url), detail: 'per-page' }
     );
+
+    // Capped like `audit --crawl` when search engines cannot index the start
+    // page. That is the first stored page: the crawler records the entry
+    // before it queues a single link, and `crawl` stores depth 0 for every
+    // page, so depth cannot say. robots.txt is not stored with a crawl, so a
+    // replay caps on noindex only.
+    const start = pages[0];
+    const result =
+      start && !start.error
+        ? applyScoreCaps(built, siteCaps(readPageFacts(start.context), start.url, { staging: options.staging }))
+        : built;
 
     progress.stop();
 
@@ -264,6 +278,7 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
             // them or `compare` reads a filtered analysis as like-for-like.
             enableRules: config.rules.enable,
             disableRules: config.rules.disable,
+            ...(options.staging && { staging: true }),
             timeout: config.crawler.timeout_ms,
           },
         });

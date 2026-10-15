@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, fail } from '../define-rule.js';
+import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { findOgTag, nameAttributeMessage } from './open-graph.js';
 
 /**
  * Rule: Check that an og:title meta tag exists in the document
@@ -12,9 +13,9 @@ export const ogTitleRule = defineRule({
   weight: 1,
   run: async (context: AuditContext) => {
     const { $ } = context;
-    const ogTitleElement = $('meta[property="og:title"]');
+    const tag = findOgTag($, 'og:title');
 
-    if (ogTitleElement.length === 0) {
+    if (!tag) {
       return fail(
         'social-og-title',
         'No <meta property="og:title"> tag found in the document',
@@ -22,13 +23,21 @@ export const ogTitleRule = defineRule({
       );
     }
 
-    const content = ogTitleElement.first().attr('content')?.trim();
+    const content = tag.content;
 
     if (!content) {
       return fail(
         'social-og-title',
         'Open Graph title tag exists but has no content',
         { found: true, empty: true }
+      );
+    }
+
+    if (tag.attribute === 'name') {
+      return warn(
+        'social-og-title',
+        nameAttributeMessage('Open Graph title', 'og:title'),
+        { found: true, ogTitle: content, attribute: 'name' }
       );
     }
 

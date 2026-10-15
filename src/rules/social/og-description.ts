@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, fail } from '../define-rule.js';
+import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { findOgTag, nameAttributeMessage } from './open-graph.js';
 
 /**
  * Rule: Check that an og:description meta tag exists in the document
@@ -12,9 +13,9 @@ export const ogDescriptionRule = defineRule({
   weight: 1,
   run: async (context: AuditContext) => {
     const { $ } = context;
-    const ogDescElement = $('meta[property="og:description"]');
+    const tag = findOgTag($, 'og:description');
 
-    if (ogDescElement.length === 0) {
+    if (!tag) {
       return fail(
         'social-og-description',
         'No <meta property="og:description"> tag found in the document',
@@ -22,13 +23,21 @@ export const ogDescriptionRule = defineRule({
       );
     }
 
-    const content = ogDescElement.first().attr('content')?.trim();
+    const content = tag.content;
 
     if (!content) {
       return fail(
         'social-og-description',
         'Open Graph description tag exists but has no content',
         { found: true, empty: true }
+      );
+    }
+
+    if (tag.attribute === 'name') {
+      return warn(
+        'social-og-description',
+        nameAttributeMessage('Open Graph description', 'og:description'),
+        { found: true, ogDescription: content, attribute: 'name' }
       );
     }
 

@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { findOgTag } from './open-graph.js';
 
 /**
  * Normalize URL for comparison
@@ -46,7 +47,8 @@ export const ogUrlCanonicalRule = defineRule({
     const { $ } = context;
 
     // Get og:url
-    const ogUrl = $('meta[property="og:url"]').first().attr('content')?.trim();
+    // Either attribute counts: social-og-url reports a name= deviation once.
+    const ogUrl = findOgTag($, 'og:url')?.content;
 
     // Get canonical URL
     const canonical = $('link[rel="canonical"]').first().attr('href')?.trim();

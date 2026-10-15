@@ -1,4 +1,5 @@
 import type { AuditContext, PageSnapshot, SnapshotHeading } from './types.js';
+import { findOgTag } from './rules/social/open-graph.js';
 
 /** Headings worth showing in an outline; deeper levels add noise, not structure */
 const HEADING_SELECTOR = 'h1, h2, h3, h4, h5, h6';
@@ -30,7 +31,7 @@ export function buildPageSnapshot(context: AuditContext): PageSnapshot {
   const meta = (name: string): string | undefined =>
     clean($(`meta[name="${name}"]`).attr('content'));
   const property = (name: string): string | undefined =>
-    clean($(`meta[property="${name}"]`).attr('content'));
+    clean(findOgTag($, name)?.content);
 
   const headings: SnapshotHeading[] = [];
   $(HEADING_SELECTOR).each((_, el) => {

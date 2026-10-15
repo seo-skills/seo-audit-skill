@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { findOgTag } from './open-graph.js';
 
 /**
  * Recommended Open Graph image dimensions
@@ -28,7 +29,9 @@ export const ogImageSizeRule = defineRule({
     const { $ } = context;
 
     // First check if og:image exists
-    const ogImage = $('meta[property="og:image"]').first().attr('content')?.trim();
+    // Either attribute counts here: social-og-image reports a name= deviation,
+    // so penalising it again for the size check would score one fact twice.
+    const ogImage = findOgTag($, 'og:image')?.content;
     if (!ogImage) {
       return fail(
         'social-og-image-size',
@@ -38,8 +41,8 @@ export const ogImageSizeRule = defineRule({
     }
 
     // Check for dimension meta tags
-    const widthMeta = $('meta[property="og:image:width"]').first().attr('content')?.trim();
-    const heightMeta = $('meta[property="og:image:height"]').first().attr('content')?.trim();
+    const widthMeta = findOgTag($, 'og:image:width')?.content;
+    const heightMeta = findOgTag($, 'og:image:height')?.content;
 
     const width = widthMeta ? parseInt(widthMeta, 10) : null;
     const height = heightMeta ? parseInt(heightMeta, 10) : null;

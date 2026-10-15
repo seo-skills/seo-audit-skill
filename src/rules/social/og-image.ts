@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { findOgTag, nameAttributeMessage } from './open-graph.js';
 
 /**
  * Validates if a string is a valid URL
@@ -24,9 +25,9 @@ export const ogImageRule = defineRule({
   weight: 1,
   run: async (context: AuditContext) => {
     const { $ } = context;
-    const ogImageElement = $('meta[property="og:image"]');
+    const tag = findOgTag($, 'og:image');
 
-    if (ogImageElement.length === 0) {
+    if (!tag) {
       return fail(
         'social-og-image',
         'No <meta property="og:image"> tag found in the document',
@@ -34,7 +35,7 @@ export const ogImageRule = defineRule({
       );
     }
 
-    const content = ogImageElement.first().attr('content')?.trim();
+    const content = tag.content;
 
     if (!content) {
       return fail(
@@ -49,6 +50,14 @@ export const ogImageRule = defineRule({
         'social-og-image',
         `Open Graph image URL is not a valid absolute URL: "${content}"`,
         { ogImage: content, isValidUrl: false }
+      );
+    }
+
+    if (tag.attribute === 'name') {
+      return warn(
+        'social-og-image',
+        nameAttributeMessage('Open Graph image', 'og:image'),
+        { found: true, ogImage: content, isValidUrl: true, attribute: 'name' }
       );
     }
 

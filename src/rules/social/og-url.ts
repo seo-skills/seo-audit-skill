@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { findOgTag, nameAttributeMessage } from './open-graph.js';
 
 /**
  * Validates if a string is a valid URL
@@ -24,9 +25,9 @@ export const ogUrlRule = defineRule({
   weight: 1,
   run: async (context: AuditContext) => {
     const { $ } = context;
-    const ogUrlElement = $('meta[property="og:url"]');
+    const tag = findOgTag($, 'og:url');
 
-    if (ogUrlElement.length === 0) {
+    if (!tag) {
       return fail(
         'social-og-url',
         'No <meta property="og:url"> tag found in the document',
@@ -34,7 +35,7 @@ export const ogUrlRule = defineRule({
       );
     }
 
-    const content = ogUrlElement.first().attr('content')?.trim();
+    const content = tag.content;
 
     if (!content) {
       return fail(
@@ -49,6 +50,14 @@ export const ogUrlRule = defineRule({
         'social-og-url',
         `Open Graph URL is not a valid absolute URL: "${content}"`,
         { ogUrl: content, isValidUrl: false }
+      );
+    }
+
+    if (tag.attribute === 'name') {
+      return warn(
+        'social-og-url',
+        nameAttributeMessage('Open Graph URL', 'og:url'),
+        { found: true, ogUrl: content, isValidUrl: true, attribute: 'name' }
       );
     }
 

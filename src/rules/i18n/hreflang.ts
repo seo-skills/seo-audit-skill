@@ -32,6 +32,45 @@ interface HreflangIssue {
  *
  * Sources: <link rel="alternate" hreflang="..."> or HTTP headers
  */
+/** A path segment shaped like a language tag: de, fr, pt-BR, zh-Hant */
+const LOCALE_SEGMENT = /^[a-z]{2}(?:-[a-z0-9]{2,4})?$/i;
+
+/**
+ * Internal links to this page's path under another locale prefix, as in
+ * /en-US/docs/Web/HTML -> /fr/docs/Web/HTML. Only when the page's own first
+ * segment matches its <html lang>, so /api/users and /app/users never read as
+ * translations of each other.
+ */
+function findTranslationLinks(context: AuditContext): string[] {
+  let page: URL;
+  try {
+    page = new URL(context.url);
+  } catch {
+    return [];
+  }
+  const [locale, ...rest] = page.pathname.split('/').filter(Boolean);
+  const lang = context.$('html').attr('lang')?.trim().toLowerCase();
+  if (!locale || !lang || locale.toLowerCase() !== lang || rest.length === 0) return [];
+  const remainder = rest.join('/').replace(/\/$/, '');
+
+  const found = new Set<string>();
+  for (const link of context.links) {
+    if (!link.isInternal) continue;
+    let target: URL;
+    try {
+      target = new URL(link.href);
+    } catch {
+      continue;
+    }
+    const [otherLocale, ...otherRest] = target.pathname.split('/').filter(Boolean);
+    if (!otherLocale || otherLocale.toLowerCase() === locale.toLowerCase()) continue;
+    if (!LOCALE_SEGMENT.test(otherLocale)) continue;
+    if (otherRest.join('/').replace(/\/$/, '') !== remainder) continue;
+    found.add(`${target.origin}${target.pathname}`);
+  }
+  return [...found];
+}
+
 export const hreflangRule = defineRule({
   id: 'i18n-hreflang',
   name: 'Hreflang Tags',
@@ -52,9 +91,33 @@ export const hreflangRule = defineRule({
       hreflangTags.push({ hreflang, href });
     });
 
-    // No hreflang tags - this is fine for single-language sites
     if (hreflangTags.length === 0) {
-      return pass('i18n-hreflang', 'No hreflang tags found (single-language site)', {
+      // The HTTP Link header is an equally valid place for hreflang.
+      if ((context.headers['link'] ?? '').toLowerCase().includes('hreflang')) {
+        return pass('i18n-hreflang', 'Hreflang is declared in the HTTP Link header, not in the HTML', {
+          count: 0,
+          method: 'header',
+        });
+      }
+
+      // Whether the site has other languages cannot be known from one page,
+      // but a link to this same path under another locale shows that it does.
+      const translationLinks = findTranslationLinks(context);
+      if (translationLinks.length > 0) {
+        return warn(
+          'i18n-hreflang',
+          `Page links to ${translationLinks.length} other-language version(s) of itself but declares no hreflang in the HTML or HTTP headers`,
+          {
+            count: 0,
+            translationLinks: translationLinks.slice(0, 10),
+            note: 'Ignore if hreflang is declared in the XML sitemap, which this rule does not read',
+            recommendation:
+              'Add <link rel="alternate" hreflang="..."> for every language version, including this page itself',
+          }
+        );
+      }
+
+      return pass('i18n-hreflang', 'No hreflang tags found, and no links to other-language versions of this page', {
         count: 0,
         note: 'Add hreflang tags if you have multi-language or regional versions',
       });

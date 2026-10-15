@@ -25,7 +25,7 @@ export const hreflangReturnLinksRule = defineRule({
     const hreflangElements = $('link[rel="alternate"][hreflang]');
 
     if (hreflangElements.length === 0) {
-      return pass('i18n-hreflang-return-links', 'No hreflang tags found (single-language site)', {
+      return pass('i18n-hreflang-return-links', 'No hreflang tags found (nothing to check)', {
         count: 0,
       });
     }

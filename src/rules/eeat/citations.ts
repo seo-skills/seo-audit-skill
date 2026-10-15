@@ -72,6 +72,23 @@ const CITATION_SELECTORS = [
  * Quality content often cites authoritative sources to back up claims.
  * This is especially important for YMYL content.
  */
+/** Site chrome: links here are navigation, not citations */
+const CHROME = 'nav, header, footer, aside, [role="navigation"], [role="banner"], [role="contentinfo"]';
+
+/**
+ * The registrable part of a hostname, approximately: the last two labels, or
+ * three under a country second level such as co.uk. Enough to tell a
+ * publisher's own subdomains from the sources it cites.
+ */
+function siteOf(hostname: string): string {
+  const labels = hostname.toLowerCase().split('.');
+  const countrySecondLevel =
+    labels.length > 2 &&
+    labels[labels.length - 1].length === 2 &&
+    /^(co|com|ac|gov|org|net|edu)$/.test(labels[labels.length - 2]);
+  return labels.slice(countrySecondLevel ? -3 : -2).join('.');
+}
+
 export const citationsRule = defineRule({
   id: 'eeat-citations',
   name: 'Citations',
@@ -82,6 +99,7 @@ export const citationsRule = defineRule({
   run(context: AuditContext): RuleResult {
     const { $, url } = context;
     const currentDomain = new URL(url).hostname;
+    const currentSite = siteOf(currentDomain);
 
     const citations: Array<{
       href: string;
@@ -90,8 +108,10 @@ export const citationsRule = defineRule({
       hasNofollow: boolean;
     }> = [];
 
-    // Check external links
+    // Check external links. Citations live in the content: links in the
+    // navigation, header, footer or sidebar are site chrome, not sources.
     $('a[href^="http"]').each((_, el) => {
+      if ($(el).closest(CHROME).length > 0) return;
       const href = $(el).attr('href') || '';
       const rel = $(el).attr('rel') || '';
 
@@ -99,15 +119,17 @@ export const citationsRule = defineRule({
         const linkUrl = new URL(href);
         const domain = linkUrl.hostname;
 
-        // Skip same-domain links
-        if (domain === currentDomain || domain.endsWith(`.${currentDomain}`)) {
+        // Skip the publisher's own sites (developer.mozilla.org citing
+        // www.mozilla.org is not an outside source)
+        if (siteOf(domain) === currentSite) {
           return;
         }
 
         // Check if it's an authoritative domain
         for (const [type, patterns] of Object.entries(AUTHORITATIVE_DOMAINS)) {
           for (const pattern of patterns) {
-            if (pattern.test(domain) || pattern.test(href)) {
+            // The hostname only: the full href let bsky.app/profile/x.org match .org$
+            if (pattern.test(domain)) {
               citations.push({
                 href: href.slice(0, 100),
                 domain,

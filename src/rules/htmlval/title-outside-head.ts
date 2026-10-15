@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail } from '../define-rule.js';
+import { DOCUMENT_TITLE } from '../document-title.js';
 
 /**
  * Rule: Check that every <title> element is inside <head>
@@ -19,7 +20,7 @@ export const titleOutsideHeadRule = defineRule({
     const { $ } = context;
 
     const outsideTitles: string[] = [];
-    $('title').each((_, el) => {
+    $(DOCUMENT_TITLE).each((_, el) => {
       if ($(el).closest('head').length === 0) {
         outsideTitles.push($(el).text().trim());
       }
@@ -28,10 +29,10 @@ export const titleOutsideHeadRule = defineRule({
     if (outsideTitles.length === 0) {
       return pass(
         'htmlval-title-outside-head',
-        $('title').length === 0
+        $(DOCUMENT_TITLE).length === 0
           ? 'No <title> element found (checked by core-title-present)'
           : 'All <title> elements are inside <head>',
-        { count: $('title').length }
+        { count: $(DOCUMENT_TITLE).length }
       );
     }
 

@@ -8,6 +8,7 @@ import { countWords, extractMainContent } from '../rules/content/utils/text-extr
 import { UrlFilter, type UrlFilterOptions } from './url-filter.js';
 import { RobotsMatcher } from './robots.js';
 import { getUserAgent } from './user-agent.js';
+import { DOCUMENT_TITLE } from '../rules/document-title.js';
 
 /**
  * Progress callback for reporting crawl status
@@ -524,7 +525,7 @@ export class Crawler {
     const h1 = $('h1').first().text().trim();
     if (h1) info.h1 = h1;
 
-    const title = $('title').first().text().replace(/\s+/g, ' ').trim();
+    const title = $(DOCUMENT_TITLE).first().text().replace(/\s+/g, ' ').trim();
     if (title) info.title = title;
     info.wordCount = countWords(extractMainContent($));
 

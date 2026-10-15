@@ -1,6 +1,7 @@
 import type { AuditContext, RuleResult } from '../../types.js';
 import { defineRule } from '../define-rule.js';
 import type { CheerioAPI } from 'cheerio';
+import { DOCUMENT_TITLE } from '../document-title.js';
 
 /**
  * YMYL (Your Money Your Life) content categories and detection patterns
@@ -68,7 +69,7 @@ export function detectYMYL($: CheerioAPI): YMYLDetectionResult {
   const bodyText = mainContent || $('body').text();
 
   // Also check title and meta description
-  const title = $('title').text() || '';
+  const title = $(DOCUMENT_TITLE).first().text() || '';
   const metaDesc = $('meta[name="description"]').attr('content') || '';
   const fullText = `${title} ${metaDesc} ${bodyText}`;
 

@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail } from '../define-rule.js';
+import { DOCUMENT_TITLE } from '../document-title.js';
 
 /**
  * Patterns in the page title that indicate a soft 404
@@ -100,7 +101,7 @@ export const soft404Rule = defineRule({
     const indicators: string[] = [];
 
     // Check title for soft 404 patterns
-    const title = $('title').text().toLowerCase();
+    const title = $(DOCUMENT_TITLE).first().text().toLowerCase();
     const titleMatch = matchesAny(title, TITLE_SOFT_404_PATTERNS);
     if (titleMatch) {
       indicators.push(`Title contains "${titleMatch}"`);

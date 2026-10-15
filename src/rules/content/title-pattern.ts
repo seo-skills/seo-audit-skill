@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, notMeasured, pass, warn } from '../define-rule.js';
+import { DOCUMENT_TITLE } from '../document-title.js';
 
 const MIN_TITLES = 4;
 const DOMINANT_SHARE = 0.6;
@@ -68,7 +69,7 @@ export const titlePatternRule = defineRule({
     }
 
     const own = pages.get(context.site!.normalize(context.url))?.title
-      ?? context.$('title').first().text().replace(/\s+/g, ' ').trim();
+      ?? context.$(DOCUMENT_TITLE).first().text().replace(/\s+/g, ' ').trim();
     if (!own) {
       return pass('content-title-pattern', 'This page has no title to compare', { dominant });
     }

@@ -2,6 +2,7 @@ import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
 import { extractMainContent, countWords } from '../content/utils/text-extractor.js';
 import { parityInputs, firstText, firstAttr } from './utils/parity.js';
+import { DOCUMENT_TITLE } from '../document-title.js';
 
 /**
  * Mobile-first parity rules.
@@ -91,8 +92,8 @@ export const mobileParityTitleRule = defineRule({
     const inputs = parityInputs('mobile-parity-title', context);
     if (!inputs.available) return inputs.result;
 
-    const desktopTitle = firstText(inputs.desktop, 'title');
-    const mobileTitle = firstText(inputs.mobile, 'title');
+    const desktopTitle = firstText(inputs.desktop, DOCUMENT_TITLE);
+    const mobileTitle = firstText(inputs.mobile, DOCUMENT_TITLE);
     const desktopDesc = firstAttr(inputs.desktop, 'meta[name="description"]', 'content');
     const mobileDesc = firstAttr(inputs.mobile, 'meta[name="description"]', 'content');
 

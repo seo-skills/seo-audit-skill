@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
 import { registerResettable } from '../registry.js';
+import { DOCUMENT_TITLE } from '../document-title.js';
 
 // Global store for tracking titles across pages during a crawl
 // This is reset at the start of each audit run
@@ -57,7 +58,7 @@ export const titleUniqueRule = defineRule({
     const { $, url } = context;
 
     // Get the page title
-    const titleElement = $('title');
+    const titleElement = $(DOCUMENT_TITLE);
     const title = titleElement.first().text()?.trim();
 
     if (!title) {

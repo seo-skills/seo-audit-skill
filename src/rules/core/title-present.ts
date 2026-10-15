@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail } from '../define-rule.js';
+import { DOCUMENT_TITLE } from '../document-title.js';
 
 /**
  * Rule: Check that a <title> tag exists in the document
@@ -17,7 +18,7 @@ export const titlePresentRule = defineRule({
   weight: 25,
   run: async (context: AuditContext) => {
     const { $ } = context;
-    const titleElement = $('title');
+    const titleElement = $(DOCUMENT_TITLE);
 
     if (titleElement.length === 0) {
       return fail(

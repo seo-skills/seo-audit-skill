@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail, notMeasured } from '../define-rule.js';
+import { DOCUMENT_TITLE } from '../document-title.js';
 
 /**
  * Rule: Rendered Title Present
@@ -24,7 +25,7 @@ export const renderedTitleRule = defineRule({
       );
     }
 
-    const titleText = rendered$('title').text().trim();
+    const titleText = rendered$(DOCUMENT_TITLE).first().text().trim();
 
     if (!titleText) {
       return fail(

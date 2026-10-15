@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn } from '../define-rule.js';
+import { DOCUMENT_TITLE } from '../document-title.js';
 
 /**
  * Normalize text for comparison: lowercase, collapse whitespace, trim
@@ -26,7 +27,7 @@ export const titleSameAsH1Rule = defineRule({
   run: async (context: AuditContext) => {
     const { $ } = context;
 
-    const title = $('title').text().trim();
+    const title = $(DOCUMENT_TITLE).first().text().trim();
     const h1 = $('h1').first().text().trim();
 
     // If either is missing, this rule is not applicable (other rules handle those)

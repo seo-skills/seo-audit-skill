@@ -1,5 +1,6 @@
 import type { AuditContext, PageSnapshot, SnapshotHeading } from './types.js';
 import { findOgTag } from './rules/social/open-graph.js';
+import { DOCUMENT_TITLE } from './rules/document-title.js';
 
 /** Headings worth showing in an outline; deeper levels add noise, not structure */
 const HEADING_SELECTOR = 'h1, h2, h3, h4, h5, h6';
@@ -48,7 +49,7 @@ export function buildPageSnapshot(context: AuditContext): PageSnapshot {
   const words = bodyText ? bodyText.split(' ').length : 0;
 
   return {
-    title: clean($('title').first().text()),
+    title: clean($(DOCUMENT_TITLE).first().text()),
     description: meta('description'),
     canonical: clean($('link[rel="canonical"]').attr('href')),
     og: {

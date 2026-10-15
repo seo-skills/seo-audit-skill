@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn } from '../define-rule.js';
+import { DOCUMENT_TITLE } from '../document-title.js';
 
 // Reference hint: on-page/title-and-meta-description-are-the-same
 
@@ -28,7 +29,7 @@ export const titleSameAsDescriptionRule = defineRule({
   run: async (context: AuditContext) => {
     const { $ } = context;
 
-    const title = $('title').first().text().trim();
+    const title = $(DOCUMENT_TITLE).first().text().trim();
     const description = ($('meta[name="description"]').attr('content') || '').trim();
 
     // If either is missing, this rule is not applicable (other rules handle those)

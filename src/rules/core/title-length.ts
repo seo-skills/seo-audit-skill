@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { DOCUMENT_TITLE } from '../document-title.js';
 
 const MIN_LENGTH = 30;
 const MAX_LENGTH = 60;
@@ -15,7 +16,7 @@ export const titleLengthRule = defineRule({
   weight: 1,
   run: async (context: AuditContext) => {
     const { $ } = context;
-    const titleElement = $('title');
+    const titleElement = $(DOCUMENT_TITLE);
 
     if (titleElement.length === 0) {
       return fail(

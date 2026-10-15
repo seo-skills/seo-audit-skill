@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, notMeasured } from '../define-rule.js';
 import { compareDomElement } from './utils/compare-dom.js';
+import { DOCUMENT_TITLE } from '../document-title.js';
 
 /**
  * Rule: Title Modified by JavaScript
@@ -26,7 +27,7 @@ export const titleModifiedRule = defineRule({
       );
     }
 
-    const comparison = compareDomElement(context.$, rendered$, 'title');
+    const comparison = compareDomElement(context.$, rendered$, DOCUMENT_TITLE);
 
     if (!comparison) {
       return pass(

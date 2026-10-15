@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail } from '../define-rule.js';
+import { DOCUMENT_TITLE } from '../document-title.js';
 
 /**
  * Rule: Detect meta tags incorrectly placed in document body
@@ -30,7 +31,7 @@ export const metaInBodyRule = defineRule({
     });
 
     // Check for <title> inside <body>
-    const bodyTitle = $('body title');
+    const bodyTitle = $(`body ${DOCUMENT_TITLE}`);
     if (bodyTitle.length > 0) {
       issues.push({
         tag: '<title>',

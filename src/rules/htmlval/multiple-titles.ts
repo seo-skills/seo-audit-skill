@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail } from '../define-rule.js';
+import { DOCUMENT_TITLE } from '../document-title.js';
 
 /**
  * Rule: Check for multiple <title> elements
@@ -16,7 +17,7 @@ export const multipleTitlesRule = defineRule({
   weight: 12,
   run: async (context: AuditContext) => {
     const { $ } = context;
-    const titleCount = $('title').length;
+    const titleCount = $(DOCUMENT_TITLE).length;
 
     if (titleCount <= 1) {
       return pass(
@@ -29,7 +30,7 @@ export const multipleTitlesRule = defineRule({
     }
 
     const titles: string[] = [];
-    $('title').each((_, el) => {
+    $(DOCUMENT_TITLE).each((_, el) => {
       titles.push($(el).text().trim());
     });
 

@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
 import { estimatePixelWidth } from './utils/pixel-width.js';
+import { DOCUMENT_TITLE } from '../document-title.js';
 
 /**
  * Google SERP title pixel width thresholds
@@ -26,7 +27,7 @@ export const titlePixelWidthRule = defineRule({
   run: async (context: AuditContext) => {
     const { $ } = context;
 
-    const title = $('title').text().trim();
+    const title = $(DOCUMENT_TITLE).first().text().trim();
 
     if (!title) {
       // Missing title is handled by core rules

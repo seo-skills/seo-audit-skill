@@ -31,6 +31,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `analyze` applies the noindex cap to a replayed crawl, robots.txt not being
   stored with one. A crawl of a staging site now exits `1` unless run with
   `--staging`. `SCORING_VERSION` is 4.
+- **The guides in `docs/` are rewritten and checked against the code.** Each
+  page now does one job, following [Diataxis](https://diataxis.fr/): a tutorial
+  (the quickstart), how-to guides (AI agents, the local dashboard, the desktop
+  app), references (rules, configuration, storage) and explanations (the
+  introduction and the architecture). `docs/README.md` indexes them by type and
+  by task, and every file path is unchanged. The rules reference now matches the
+  registry, which corrected 182 rule names, 88 severities and 123 descriptions.
+  Claims the code contradicted are gone, such as `--refresh`, `--resume` and a
+  global `config.toml`. `npm run check:docs` now checks five more pages and the
+  per-category rule counts in the rules reference.
 
 ### Fixed
 
@@ -62,6 +72,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The skill documents the new not-measured checks and the error codes.**
   `SKILL.md` lists the cross-page checks that are not measured on a single page,
   and the checks that report not measured when there is nothing to grade.
+- **`compare --json` output stays parseable.** With `--fail-on-regression`, a
+  pair of audits measured differently printed the JSON document and then a
+  plain-text "Not failing on regression" line, so piping it to `jq` failed. The
+  note now goes to stderr; the document already says `"comparable": false`.
+  `compare --trend --json` with no stored audits printed plain text and exited
+  `1`, the below-threshold code. It now prints the structured `no-audits` error
+  and exits `2`. The no-audits hint names a command that runs,
+  `seomator audit https://<domain>`, instead of a bare domain with `--save`.
+- **The skill's instructions match the CLI.** `SKILL.md` showed a JSON error
+  object for `--format llm`, which prints XML. It said every command shares the
+  same three exit codes, but a command line the parser rejects exits `1` with
+  nothing on stdout, which an agent would read as a low score. It told agents to
+  create a config with `seomator init`, which writes nothing without a terminal
+  (`init -y` does), and recommended Node 18 when the package requires 20.3. It
+  now also lists `--staging` and says what `--fail-on-regression` counts as a
+  regression.
 
 ## [6.0.0] - 2026-10-15
 

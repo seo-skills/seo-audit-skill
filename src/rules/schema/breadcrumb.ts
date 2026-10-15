@@ -1,6 +1,39 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn } from '../define-rule.js';
+import type { CheerioAPI } from 'cheerio';
 import { findItemsByType, hasField } from './utils.js';
+
+type BreadcrumbSyntax = 'JSON-LD' | 'RDFa' | 'microdata';
+
+interface FoundBreadcrumb {
+  syntax: BreadcrumbSyntax;
+  /** Number of itemListElement entries */
+  itemCount: number;
+  /** Why itemListElement cannot be counted, when it cannot */
+  problem?: string;
+}
+
+/**
+ * BreadcrumbLists declared in the markup itself. RDFa and microdata are both
+ * valid for breadcrumbs (Google documents all three syntaxes), and
+ * developer.mozilla.org uses RDFa.
+ */
+function markupBreadcrumb(syntax: BreadcrumbSyntax, itemCount: number): FoundBreadcrumb {
+  return itemCount === 0
+    ? { syntax, itemCount, problem: `BreadcrumbList (${syntax}) missing itemListElement` }
+    : { syntax, itemCount };
+}
+
+function findMarkupBreadcrumbs($: CheerioAPI): FoundBreadcrumb[] {
+  const found: FoundBreadcrumb[] = [];
+  $('[typeof~="BreadcrumbList"]').each((_, el) => {
+    found.push(markupBreadcrumb('RDFa', $(el).find('[property~="itemListElement"]').length));
+  });
+  $('[itemscope][itemtype$="/BreadcrumbList"]').each((_, el) => {
+    found.push(markupBreadcrumb('microdata', $(el).find('[itemprop~="itemListElement"]').length));
+  });
+  return found;
+}
 
 /**
  * Rule: Validate BreadcrumbList schema structured data
@@ -25,8 +58,19 @@ export const structuredDataBreadcrumbRule = defineRule({
     const pathname = parsedUrl.pathname;
     const isHomepage = pathname === '/' || pathname === '';
 
-    // Find BreadcrumbList schemas
-    const breadcrumbs = findItemsByType($, 'BreadcrumbList');
+    // Find BreadcrumbList schemas, in every syntax a search engine reads
+    const breadcrumbs: FoundBreadcrumb[] = [
+      ...findItemsByType($, 'BreadcrumbList').map((item): FoundBreadcrumb => {
+        if (!hasField(item, 'itemListElement')) {
+          return { syntax: 'JSON-LD', itemCount: 0, problem: 'BreadcrumbList missing itemListElement' };
+        }
+        const itemListElement = item.data.itemListElement;
+        return Array.isArray(itemListElement)
+          ? { syntax: 'JSON-LD', itemCount: itemListElement.length }
+          : { syntax: 'JSON-LD', itemCount: 0, problem: 'itemListElement should be an array' };
+      }),
+      ...findMarkupBreadcrumbs($),
+    ];
 
     // No breadcrumb found
     if (breadcrumbs.length === 0) {
@@ -45,26 +89,18 @@ export const structuredDataBreadcrumbRule = defineRule({
       );
     }
 
+    const syntax = [...new Set(breadcrumbs.map((breadcrumb) => breadcrumb.syntax))];
+
     // Validate breadcrumb structure
     const issues: string[] = [];
 
     for (const breadcrumb of breadcrumbs) {
-      // Check itemListElement exists
-      if (!hasField(breadcrumb, 'itemListElement')) {
-        issues.push('BreadcrumbList missing itemListElement');
-        continue;
-      }
-
-      // Check itemListElement has at least 2 items
-      const itemListElement = breadcrumb.data.itemListElement;
-      if (Array.isArray(itemListElement)) {
-        if (itemListElement.length < 2) {
-          issues.push(
-            `BreadcrumbList should have at least 2 items, found ${itemListElement.length}`
-          );
-        }
-      } else {
-        issues.push('itemListElement should be an array');
+      if (breadcrumb.problem) {
+        issues.push(breadcrumb.problem);
+      } else if (breadcrumb.itemCount < 2) {
+        issues.push(
+          `BreadcrumbList should have at least 2 items, found ${breadcrumb.itemCount}`
+        );
       }
     }
 
@@ -74,6 +110,7 @@ export const structuredDataBreadcrumbRule = defineRule({
         `BreadcrumbList validation issues: ${issues.join('; ')}`,
         {
           breadcrumbsFound: breadcrumbs.length,
+          syntax,
           issues,
           isHomepage,
         }
@@ -82,9 +119,10 @@ export const structuredDataBreadcrumbRule = defineRule({
 
     return pass(
       'schema-breadcrumb',
-      `Valid BreadcrumbList schema found with proper structure`,
+      `Valid BreadcrumbList schema found with proper structure (${syntax.join(', ')})`,
       {
         breadcrumbsFound: breadcrumbs.length,
+        syntax,
         isHomepage,
       }
     );

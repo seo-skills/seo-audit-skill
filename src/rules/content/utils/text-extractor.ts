@@ -1,5 +1,11 @@
 import type { CheerioAPI } from 'cheerio';
 
+/** Elements that are not the page's main content: code, chrome, hidden copy */
+export const NON_CONTENT_SELECTOR =
+  'script, style, noscript, nav, footer, header, aside, ' +
+  '[role="navigation"], [role="banner"], [role="contentinfo"], ' +
+  '[aria-hidden="true"], .nav, .navigation, .footer, .header, .sidebar';
+
 /**
  * Extract readable text content from page body
  * Excludes: scripts, styles, navigation, headers, footers
@@ -9,13 +15,7 @@ export function extractMainContent($: CheerioAPI): string {
   const body = $('body').clone();
 
   // Remove non-content elements
-  body
-    .find(
-      'script, style, noscript, nav, footer, header, aside, ' +
-        '[role="navigation"], [role="banner"], [role="contentinfo"], ' +
-        '[aria-hidden="true"], .nav, .navigation, .footer, .header, .sidebar'
-    )
-    .remove();
+  body.find(NON_CONTENT_SELECTOR).remove();
 
   return body.text().trim();
 }

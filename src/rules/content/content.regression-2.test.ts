@@ -16,6 +16,7 @@ import { createTestContext } from '../test-context.js';
 import { bodyText } from './utils/visible-text.js';
 import { textHtmlRatioRule } from './text-html-ratio.js';
 import { duplicateNearRule, resetNearDuplicateRegistry } from './duplicate-near.js';
+import { articleLinksRule } from './article-links.js';
 import type { SiteContext } from '../../types.js';
 
 // Near-duplicate detection compares pages, so it only measures inside a crawl.
@@ -63,5 +64,25 @@ describe('page text excludes code that never renders (ISSUE-006)', () => {
     await duplicateNearRule.run(createTestContext(page(copy), { url: 'https://example.com/a', site }));
     const result = await duplicateNearRule.run(createTestContext(page(copy), { url: 'https://example.com/b', site }));
     expect(result.status).toBe('fail');
+  });
+});
+
+// Regression: ISSUE-019 — content-article-links divided every link on the page by main-content words
+// Found by /qa on 2026-10-15
+// Report: .gstack/qa-reports/run-20261015T075717Z/qa-report-developer-mozilla-org-2026-10-15.md
+//
+// developer.mozilla.org: 466 links (navigation, a 261-link sidebar, footer)
+// over 1,119 main-content words gave "41.64 links per 100 words". Measured on
+// one scope, the content has 67 links: 5.99.
+describe('content-article-links scope (ISSUE-019)', () => {
+  it('counts only links in the content it counts words in', async () => {
+    const nav = Array.from({ length: 100 }, (_, i) => `<a href="/n/${i}">Nav ${i}</a>`).join(' ');
+    const footer = Array.from({ length: 20 }, (_, i) => `<a href="/f/${i}">Foot ${i}</a>`).join(' ');
+    const words = Array.from({ length: 300 }, (_, i) => `word${i}`).join(' ');
+    const body = `${words} <a href="/a">one</a> <a href="/b">two</a> <a href="https://example.org/c">three</a>`;
+    const html = `<html><body><nav>${nav}</nav><aside>${nav}</aside><main><p>${body}</p></main><footer>${footer}</footer></body></html>`;
+    const result = await articleLinksRule.run(createTestContext(html, { url: 'https://example.com/post' }));
+    expect(result.details?.totalLinks).toBe(3);
+    expect(result.details?.externalLinks).toBe(1);
   });
 });

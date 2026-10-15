@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn } from '../define-rule.js';
-import { extractMainContent, countWords } from './utils/text-extractor.js';
+import type { CheerioAPI } from 'cheerio';
+import { extractMainContent, countWords, NON_CONTENT_SELECTOR } from './utils/text-extractor.js';
 
 /**
  * Thresholds for link density (links per 100 words)
@@ -16,6 +17,23 @@ const MIN_WORDS_FOR_CHECK = 100; // Skip check for very short content
  * Too few links = missed opportunities for internal linking and citations.
  * Too many links = potential link spam or poor user experience.
  */
+/** http(s) links outside the elements extractMainContent drops */
+function contentLinks($: CheerioAPI, pageUrl: string): Array<{ isInternal: boolean }> {
+  const host = new URL(pageUrl).hostname;
+  const found: Array<{ isInternal: boolean }> = [];
+  $('body a[href]').each((_, el) => {
+    if ($(el).closest(NON_CONTENT_SELECTOR).length > 0) return;
+    try {
+      const target = new URL($(el).attr('href') ?? '', pageUrl);
+      if (target.protocol !== 'http:' && target.protocol !== 'https:') return;
+      found.push({ isInternal: target.hostname === host });
+    } catch {
+      // Malformed href: not a link a reader can follow
+    }
+  });
+  return found;
+}
+
 export const articleLinksRule = defineRule({
   id: 'content-article-links',
   name: 'Article Link Density',
@@ -24,7 +42,7 @@ export const articleLinksRule = defineRule({
   category: 'content',
   weight: 4,
   run: async (context: AuditContext) => {
-    const { $, links } = context;
+    const { $, url } = context;
 
     // Extract main content and count words
     const mainContent = extractMainContent($);
@@ -37,17 +55,20 @@ export const articleLinksRule = defineRule({
         `Content too short for link density check (${wordCount} words)`,
         {
           wordCount,
-          linkCount: links.length,
+          linkCount: contentLinks($, url).length,
           skipped: true,
           reason: `Minimum ${MIN_WORDS_FOR_CHECK} words required for meaningful link density analysis`,
         }
       );
     }
 
-    // Count links (from context.links which are already extracted)
+    // Count links in the same scope as the words: dividing every link on the
+    // page (navigation, sidebar, footer) by main-content words reported 41.64
+    // per 100 on developer.mozilla.org, where the content has 5.99.
+    const links = contentLinks($, url);
     const totalLinks = links.length;
     const internalLinks = links.filter((l) => l.isInternal).length;
-    const externalLinks = links.filter((l) => !l.isInternal).length;
+    const externalLinks = totalLinks - internalLinks;
 
     // Calculate density (links per 100 words)
     const linksPer100Words = (totalLinks / wordCount) * 100;

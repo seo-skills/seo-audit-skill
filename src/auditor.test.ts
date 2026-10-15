@@ -83,11 +83,13 @@ describe('Programmatic API (createAuditor / Auditor)', () => {
     expect(core.categoryId).toBe('core');
     expect(core.score).toBeGreaterThanOrEqual(0);
     expect(core.score).toBeLessThanOrEqual(100);
-    expect(core.passCount + core.warnCount + core.failCount).toBe(core.results.length);
+    expect(
+      core.passCount + core.warnCount + core.failCount + (core.notMeasuredCount ?? 0)
+    ).toBe(core.results.length);
     expect(core.results.length).toBeGreaterThan(0);
 
     for (const ruleResult of core.results) {
-      expect(['pass', 'warn', 'fail']).toContain(ruleResult.status);
+      expect(['pass', 'warn', 'fail', 'not-measured']).toContain(ruleResult.status);
       expect(ruleResult.ruleId).toMatch(/^core-/);
       expect(ruleResult.details?.pageUrl).toBe(PAGE_URL);
     }
@@ -156,13 +158,15 @@ describe('Programmatic API (createAuditor / Auditor)', () => {
     const titleUniqueOf = (result: Awaited<ReturnType<Auditor['audit']>>) =>
       result.categoryResults[0].results.find((r) => r.ruleId === 'core-title-unique');
 
+    // Crawl mode: a single-page audit leaves core-title-unique unmeasured, so
+    // the registry would never be written and a leak could not show.
     const auditorA = createAuditor({ categories: ['core'], measureCwv: false });
-    const first = titleUniqueOf(await auditorA.audit(SITE_A));
+    const first = titleUniqueOf(await auditorA.auditWithCrawl(SITE_A, 1));
     expect(first?.status).toBe('pass');
 
     // A fresh Auditor instance is not enough — the registries are module-level.
     const auditorB = createAuditor({ categories: ['core'], measureCwv: false });
-    const second = titleUniqueOf(await auditorB.audit(SITE_B));
+    const second = titleUniqueOf(await auditorB.auditWithCrawl(SITE_B, 1));
     expect(second?.status).toBe('pass');
     expect(second?.message).not.toMatch(/duplicate/i);
   });

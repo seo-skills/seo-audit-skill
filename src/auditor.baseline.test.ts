@@ -79,18 +79,24 @@ export function makeBaselineFetch() {
  * perf, security, technical, and eeat. Crawl-only rules stay unmeasured.
  * Origin probes that 404 (AGENTS.md, agent manifests, Markdown) add geo
  * warnings. The overall score is re-pinned when those counts move it.
+ *
+ * Five cross-page rules (core-title-unique, content-duplicate-description,
+ * -exact, -near, crawl-sitemap-orphan-urls) are unmeasured on a single page
+ * since they have nothing to compare it with: one pass leaves core and crawl,
+ * three leave content, whose score drops 97 -> 96 because those passes were
+ * claims about pages never seen.
  */
 const EXPECTED_CATEGORIES: Record<string, [number, number, number, number, number]> = {
-  core: [99, 22, 1, 1, 0],
+  core: [99, 21, 1, 1, 1],
   technical: [99, 17, 0, 1, 0],
   perf: [90, 15, 5, 0, 8],
   links: [97, 17, 1, 1, 8],
   images: [59, 8, 4, 2, 0],
   security: [78, 15, 6, 3, 2],
-  crawl: [99, 21, 1, 0, 16],
+  crawl: [99, 20, 1, 0, 17],
   schema: [92, 13, 2, 0, 4],
   a11y: [98, 35, 1, 0, 0],
-  content: [97, 23, 0, 1, 3],
+  content: [96, 20, 0, 1, 6],
   social: [61, 4, 3, 2, 0],
   eeat: [87, 12, 3, 0, 1],
   url: [100, 14, 0, 0, 0],

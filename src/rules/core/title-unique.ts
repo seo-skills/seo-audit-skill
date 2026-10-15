@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { defineRule, pass, warn, fail, notMeasured } from '../define-rule.js';
 import { registerResettable } from '../registry.js';
 import { DOCUMENT_TITLE } from '../document-title.js';
 
@@ -67,6 +67,12 @@ export const titleUniqueRule = defineRule({
         'Page has no title tag',
         { title: null, url }
       );
+    }
+
+    // Without a crawl the registry holds only this page, so a pass here
+    // would compare it against nothing.
+    if (!context.site) {
+      return notMeasured('core-title-unique', 'Title uniqueness needs other pages to compare against - run with --crawl');
     }
 
     const normalizedTitle = normalizeTitle(title);

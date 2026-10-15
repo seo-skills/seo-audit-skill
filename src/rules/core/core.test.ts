@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { load } from 'cheerio';
-import type { AuditContext } from '../../types.js';
+import type { AuditContext, SiteContext } from '../../types.js';
 import { canonicalHeaderRule } from './canonical-header.js';
 import { nosnippetRule } from './nosnippet.js';
 import { robotsMetaRule } from './robots-meta.js';
@@ -204,13 +204,18 @@ describe('Core SEO Rules', () => {
   });
 
   describe('titleUniqueRule', () => {
+    // core-title-unique compares pages, so it only measures inside a crawl.
+    const crawlContext = (...args: Parameters<typeof createContext>): AuditContext => ({
+      ...createContext(...args),
+      site: { pageCount: 2, normalize: (url: string) => url } as unknown as SiteContext,
+    });
     beforeEach(() => {
       resetTitleRegistry();
     });
 
     it('should fail when page has no title', async () => {
       const html = '<html><head></head></html>';
-      const context = createContext(html);
+      const context = crawlContext(html);
       const result = await titleUniqueRule.run(context);
       expect(result.status).toBe('fail');
       expect(result.message).toContain('no title tag');
@@ -218,7 +223,7 @@ describe('Core SEO Rules', () => {
 
     it('should pass for first occurrence of a title', async () => {
       const html = '<html><head><title>Unique Page Title</title></head></html>';
-      const context = createContext(html, {}, 'https://example.com/page1');
+      const context = crawlContext(html, {}, 'https://example.com/page1');
       const result = await titleUniqueRule.run(context);
       expect(result.status).toBe('pass');
       expect(result.message).toContain('unique');
@@ -228,8 +233,8 @@ describe('Core SEO Rules', () => {
       const html1 = '<html><head><title>Same Title</title></head></html>';
       const html2 = '<html><head><title>Same Title</title></head></html>';
 
-      const context1 = createContext(html1, {}, 'https://example.com/page1');
-      const context2 = createContext(html2, {}, 'https://example.com/page2');
+      const context1 = crawlContext(html1, {}, 'https://example.com/page1');
+      const context2 = crawlContext(html2, {}, 'https://example.com/page2');
 
       await titleUniqueRule.run(context1);
       const result = await titleUniqueRule.run(context2);
@@ -244,8 +249,8 @@ describe('Core SEO Rules', () => {
       const html1 = '<html><head><title>Same Title</title></head></html>';
       const html2 = '<html><head><title>SAME TITLE</title></head></html>';
 
-      const context1 = createContext(html1, {}, 'https://example.com/page1');
-      const context2 = createContext(html2, {}, 'https://example.com/page2');
+      const context1 = crawlContext(html1, {}, 'https://example.com/page1');
+      const context2 = crawlContext(html2, {}, 'https://example.com/page2');
 
       await titleUniqueRule.run(context1);
       const result = await titleUniqueRule.run(context2);
@@ -258,9 +263,9 @@ describe('Core SEO Rules', () => {
       const html2 = '<html><head><title>Title B</title></head></html>';
       const html3 = '<html><head><title>Title A</title></head></html>'; // Duplicate
 
-      await titleUniqueRule.run(createContext(html1, {}, 'https://example.com/1'));
-      await titleUniqueRule.run(createContext(html2, {}, 'https://example.com/2'));
-      await titleUniqueRule.run(createContext(html3, {}, 'https://example.com/3'));
+      await titleUniqueRule.run(crawlContext(html1, {}, 'https://example.com/1'));
+      await titleUniqueRule.run(crawlContext(html2, {}, 'https://example.com/2'));
+      await titleUniqueRule.run(crawlContext(html3, {}, 'https://example.com/3'));
 
       const stats = getTitleRegistryStats();
       expect(stats.totalTitles).toBe(2);
@@ -270,10 +275,10 @@ describe('Core SEO Rules', () => {
     it('should reset registry between audits', async () => {
       const html = '<html><head><title>Test Title</title></head></html>';
 
-      await titleUniqueRule.run(createContext(html, {}, 'https://example.com/1'));
+      await titleUniqueRule.run(crawlContext(html, {}, 'https://example.com/1'));
       resetTitleRegistry();
 
-      const result = await titleUniqueRule.run(createContext(html, {}, 'https://example.com/2'));
+      const result = await titleUniqueRule.run(crawlContext(html, {}, 'https://example.com/2'));
       expect(result.status).toBe('pass'); // No duplicate after reset
     });
   });

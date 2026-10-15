@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, fail } from '../define-rule.js';
+import { defineRule, pass, fail, notMeasured } from '../define-rule.js';
 import { registerResettable } from '../registry.js';
 import { bodyText as visibleBodyText } from './utils/visible-text.js';
 
@@ -47,6 +47,12 @@ export const duplicateExactRule = defineRule({
   category: 'content',
   weight: 8,
   run: async (context: AuditContext) => {
+    // Without a crawl the registry holds only this page, so a pass here
+    // would compare it against nothing.
+    if (!context.site) {
+      return notMeasured('content-duplicate-exact', 'Duplicate content detection needs other pages to compare against - run with --crawl');
+    }
+
     const { $, url } = context;
 
     const bodyText = visibleBodyText($);

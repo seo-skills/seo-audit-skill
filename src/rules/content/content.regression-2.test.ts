@@ -16,6 +16,10 @@ import { createTestContext } from '../test-context.js';
 import { bodyText } from './utils/visible-text.js';
 import { textHtmlRatioRule } from './text-html-ratio.js';
 import { duplicateNearRule, resetNearDuplicateRegistry } from './duplicate-near.js';
+import type { SiteContext } from '../../types.js';
+
+// Near-duplicate detection compares pages, so it only measures inside a crawl.
+const site = { pageCount: 2, normalize: (url: string) => url } as unknown as SiteContext;
 
 const SHADOW_CSS = `<template shadowrootmode="open"><style>${'.menu{display:flex;gap:1rem;color:var(--text-primary)} '.repeat(40)}</style><slot></slot></template>`;
 
@@ -49,15 +53,15 @@ describe('page text excludes code that never renders (ISSUE-006)', () => {
   it('content-duplicate-near compares main content, not shared navigation and CSS', async () => {
     const first = page('Elements are the building blocks of documents and each one has a purpose described here in detail.');
     const second = page('Attributes adjust how elements behave, and global attributes apply to every element in the language.');
-    await duplicateNearRule.run(createTestContext(first, { url: 'https://example.com/a' }));
-    const result = await duplicateNearRule.run(createTestContext(second, { url: 'https://example.com/b' }));
+    await duplicateNearRule.run(createTestContext(first, { url: 'https://example.com/a', site }));
+    const result = await duplicateNearRule.run(createTestContext(second, { url: 'https://example.com/b', site }));
     expect(result.status).toBe('pass');
   });
 
   it('content-duplicate-near still flags pages whose main content is the same', async () => {
     const copy = 'This exact paragraph is published twice on the site with the same wording in both places so it is a duplicate of itself.';
-    await duplicateNearRule.run(createTestContext(page(copy), { url: 'https://example.com/a' }));
-    const result = await duplicateNearRule.run(createTestContext(page(copy), { url: 'https://example.com/b' }));
+    await duplicateNearRule.run(createTestContext(page(copy), { url: 'https://example.com/a', site }));
+    const result = await duplicateNearRule.run(createTestContext(page(copy), { url: 'https://example.com/b', site }));
     expect(result.status).toBe('fail');
   });
 });

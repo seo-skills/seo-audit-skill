@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { defineRule, pass, warn, fail, notMeasured } from '../define-rule.js';
 import { registerResettable } from '../registry.js';
 
 // Global store for tracking descriptions across pages during a crawl
@@ -73,6 +73,12 @@ export const duplicateDescriptionRule = defineRule({
         recommendation:
           'Add a unique, compelling meta description between 120-160 characters',
       });
+    }
+
+    // Without a crawl the registry holds only this page, so a pass here
+    // would compare it against nothing.
+    if (!context.site) {
+      return notMeasured('content-duplicate-description', 'Description uniqueness needs other pages to compare against - run with --crawl');
     }
 
     // Check for very short descriptions

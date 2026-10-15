@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn } from '../define-rule.js';
+import { defineRule, pass, warn, notMeasured } from '../define-rule.js';
 import { registerResettable } from '../registry.js';
 
 /**
@@ -79,6 +79,12 @@ export const sitemapOrphanUrlsRule = defineRule({
   category: 'crawl',
   weight: 7,
   run: async (context: AuditContext) => {
+    // Without a crawl the registry holds only this page, so a pass here
+    // would compare it against nothing.
+    if (!context.site) {
+      return notMeasured('crawl-sitemap-orphan-urls', 'Orphan detection needs the links of crawled pages - run with --crawl to build them');
+    }
+
     const { links, url } = context;
     const sitemapUrls = (context as any).sitemapUrls as string[] | undefined;
 

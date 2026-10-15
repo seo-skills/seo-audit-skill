@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { defineRule, pass, warn, fail, notMeasured } from '../define-rule.js';
 import { registerResettable } from '../registry.js';
 import { extractMainContent } from './utils/text-extractor.js';
 
@@ -119,6 +119,12 @@ export const duplicateNearRule = defineRule({
   category: 'content',
   weight: 7,
   run: async (context: AuditContext) => {
+    // Without a crawl the registry holds only this page, so a pass here
+    // would compare it against nothing.
+    if (!context.site) {
+      return notMeasured('content-duplicate-near', 'Near-duplicate detection needs other pages to compare against - run with --crawl');
+    }
+
     const { $, url } = context;
 
     // Main content only: the first 500 words of the whole body are site

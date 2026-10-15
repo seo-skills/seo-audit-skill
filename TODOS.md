@@ -318,6 +318,60 @@ Fixed on `qa/cli-skill-2026-10-15`: ISSUE-026 to 029 and ISSUE-032. Still open:
     policy; if npm starts enforcing that, default-on saving breaks on fresh
     installs and doctor would not notice.
 
+### Found while rewriting docs/ (2026-10-15)
+
+Each item was found by checking a doc claim against the code. "Run" means it
+was reproduced; "read" means it comes from the source only. Already fixed on
+`qa/cli-skill-2026-10-15`: compare --json output, compare hints, enableRules
+spelling (ISSUE-034 to 036).
+
+- **P2: usage errors exit 1.** A command line Commander rejects (unknown
+  flag, invalid URL) exits 1 with empty stdout, the code the exit table
+  reserves for "below threshold" (run). SKILL.md now tells agents; exiting 2
+  would match the contract (`program.exitOverride` in `src/cli.ts`).
+- **P2: Ctrl-C during a browser render exits 130 before the `aborted` error
+  document is written.** Playwright's own SIGINT handler wins
+  (`processLauncher.js:59-75`); SIGTERM works (run).
+- **P2: a TOML syntax error reports code `unknown`, not `config`.** `config`,
+  `crawl` and `analyze` print a stack trace and exit 1 on the same file (run).
+- **P2: config surface gaps.**
+  - The presets ship `*.pdf` exclude patterns that match nothing, because
+    patterns match the whole path (run).
+  - `config <key> <value>` writes the JSON settings file, never
+    `seomator.toml`, and `--local` does nothing (run).
+  - `project.domains` is read by no command (read).
+  - The audit banner says "Config: (none, using defaults)" when a
+    `seomator.toml` was loaded (run).
+  - The `ci` preset's `delay_ms = 0` still leaves 200 ms between requests,
+    because the gap is the larger of `delay_ms` and `per_host_delay_ms` (run).
+- **P2: dashboard and desktop.**
+  - `npm run web:dev` returns 403: the Vite proxy's Host header fails
+    `checkOrigin`, and the page never gets the token cookie (run).
+  - The desktop compare page hangs on a site's first audit, because
+    `db:compare` returns null instead of throwing (read).
+  - Unknown category ids in `POST /api/runs` are dropped silently (run).
+- **P3: rule verdicts (read).**
+  - `core-nosnippet` treats `max-snippet:-1` as blocking.
+  - `core-canonical-header` and `core-canonical-conflicting` penalise one
+    mismatch twice.
+  - `redirect-broken` fails a crawled 4xx/5xx page that had no redirect.
+  - `technical-www-redirect` follows redirects, so it can report "both
+    accessible" on a site that redirects correctly.
+  - `links-localhost` flags dev ports on any host.
+  - `links-local-file` matches `href="/home/"`.
+  - `crawl-blocked-images` reads SEOmator's own robots.txt group, not
+    Googlebot's.
+  - `crawl-pdf-size` sends HEAD requests to PDFs on any host, even with
+    external links disabled.
+  - `analyze` can grade a synthetic INP, because the crawl stores INP without
+    its synthetic flag (`project-db/pages.ts:21`).
+- **P3: housekeeping.**
+  - `npm run electron:icon` runs the old generator and overwrites the brand
+    icon; `gen:icons` is the current one.
+  - The `sandbox: false` comment in `electron/main/index.ts` credits
+    better-sqlite3, but the real constraint is the ES-module preload.
+  - CLAUDE.md says the Electron main bundle is CJS; it builds as ESM.
+
 ## From the page-level score caps (2026-10-15)
 
 `src/score-caps.ts` holds a single-page score under a ceiling for noindex,

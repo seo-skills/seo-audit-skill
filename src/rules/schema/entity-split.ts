@@ -1,6 +1,6 @@
 import type { AuditContext, SchemaNodeSummary } from '../../types.js';
 import { defineRule, notMeasured, pass, warn } from '../define-rule.js';
-import { isAbsoluteId, loadSchemaNodes, NEEDS_ENTITY_CRAWL } from './entity-graph.js';
+import { isAbsoluteId, loadSchemaNodes, NEEDS_ENTITY_CRAWL, NO_SCHEMA_NODES } from './entity-graph.js';
 
 function isIdentity(node: SchemaNodeSummary): boolean {
   return node.types.some(
@@ -28,6 +28,9 @@ export const entitySplitRule = defineRule({
     const nodes = loadSchemaNodes(context);
     if (!nodes) {
       return notMeasured('schema-entity-split', NEEDS_ENTITY_CRAWL);
+    }
+    if (nodes.length === 0) {
+      return notMeasured('schema-entity-split', NO_SCHEMA_NODES);
     }
 
     const idsByName = new Map<string, Set<string>>();

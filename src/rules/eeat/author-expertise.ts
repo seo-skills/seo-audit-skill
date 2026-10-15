@@ -1,5 +1,5 @@
 import type { AuditContext, RuleResult } from '../../types.js';
-import { defineRule } from '../define-rule.js';
+import { defineRule, notMeasured } from '../define-rule.js';
 
 /**
  * Credential patterns for expertise detection
@@ -249,15 +249,10 @@ export const authorExpertiseRule = defineRule({
       };
     }
 
-    return {
-      ruleId: 'eeat-author-expertise',
-      status: 'warn',
-      score: 50,
-      message: 'No author present - expertise check not applicable',
-      details: {
-        signals: [],
-        note: 'This check requires author attribution. See eeat-author-byline rule.',
-      },
-    };
+    // No author to judge: eeat-author-byline reports the missing byline.
+    return notMeasured('eeat-author-expertise', 'No author present - expertise check not applicable', {
+      signals: [],
+      note: 'This check requires author attribution. See eeat-author-byline rule.',
+    });
   },
 });

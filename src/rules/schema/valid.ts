@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { defineRule, pass, warn, fail, notMeasured } from '../define-rule.js';
 
 /**
  * Represents parsed JSON-LD data
@@ -28,11 +28,11 @@ export const structuredDataValidRule = defineRule({
     const jsonLdScripts = $('script[type="application/ld+json"]');
 
     if (jsonLdScripts.length === 0) {
-      return warn(
-        'schema-valid',
-        'No JSON-LD scripts found to validate',
-        { found: false }
-      );
+      // Absence is schema-present's finding; grading it again here would
+      // penalise the same gap a second time.
+      return notMeasured('schema-valid', 'No JSON-LD to check (schema-present reports its absence)', {
+        found: false,
+      });
     }
 
     const parseResults: JsonLdParseResult[] = [];

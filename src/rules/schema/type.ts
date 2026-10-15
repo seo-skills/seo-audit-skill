@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { defineRule, pass, warn, fail, notMeasured } from '../define-rule.js';
 
 /**
  * Common schema.org types that are SEO-relevant
@@ -75,11 +75,11 @@ export const structuredDataTypeRule = defineRule({
     const jsonLdScripts = $('script[type="application/ld+json"]');
 
     if (jsonLdScripts.length === 0) {
-      return warn(
-        'schema-type',
-        'No JSON-LD scripts found to check for @type',
-        { found: false }
-      );
+      // Absence is schema-present's finding; grading it again here would
+      // penalise the same gap a second time.
+      return notMeasured('schema-type', 'No JSON-LD to check (schema-present reports its absence)', {
+        found: false,
+      });
     }
 
     const allTypes: string[] = [];

@@ -4,6 +4,9 @@ import type { AuditContext, SchemaNodeSummary } from '../../types.js';
 export const NEEDS_ENTITY_CRAWL =
   'Schema identity across pages needs a crawl of at least two pages — run with --crawl';
 
+/** A crawl whose pages carry no JSON-LD gives the entity checks nothing to compare. */
+export const NO_SCHEMA_NODES = 'No structured data on the crawled pages to compare';
+
 /**
  * Every JSON-LD summary recorded for the crawl.
  *

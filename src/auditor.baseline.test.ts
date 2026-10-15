@@ -85,6 +85,10 @@ export function makeBaselineFetch() {
  * since they have nothing to compare it with: one pass leaves core and crawl,
  * three leave content, whose score drops 97 -> 96 because those passes were
  * claims about pages never seen.
+ *
+ * a11y-color-contrast (no inline colours on the fixture) and
+ * eeat-author-expertise (no author) report not measured instead of a pass and
+ * a "not applicable" warn: a11y keeps 98, eeat rises 87 -> 90.
  */
 const EXPECTED_CATEGORIES: Record<string, [number, number, number, number, number]> = {
   core: [99, 21, 1, 1, 1],
@@ -95,10 +99,10 @@ const EXPECTED_CATEGORIES: Record<string, [number, number, number, number, numbe
   security: [78, 15, 6, 3, 2],
   crawl: [99, 20, 1, 0, 17],
   schema: [92, 13, 2, 0, 4],
-  a11y: [98, 35, 1, 0, 0],
+  a11y: [98, 34, 1, 0, 1],
   content: [96, 20, 0, 1, 6],
   social: [61, 4, 3, 2, 0],
-  eeat: [87, 12, 3, 0, 1],
+  eeat: [90, 12, 2, 0, 2],
   url: [100, 14, 0, 0, 0],
   mobile: [90, 6, 1, 0, 5],
   i18n: [100, 12, 0, 0, 1],

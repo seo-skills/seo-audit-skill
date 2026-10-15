@@ -1,6 +1,6 @@
 import type { AuditContext, SchemaNodeSummary } from '../../types.js';
 import { defineRule, notMeasured, pass, warn } from '../define-rule.js';
-import { loadSchemaNodes, NEEDS_ENTITY_CRAWL } from '../schema/entity-graph.js';
+import { loadSchemaNodes, NEEDS_ENTITY_CRAWL, NO_SCHEMA_NODES } from '../schema/entity-graph.js';
 
 function isIdentity(node: SchemaNodeSummary): boolean {
   return node.types.some(
@@ -37,6 +37,9 @@ export const napConsistencyRule = defineRule({
     const nodes = loadSchemaNodes(context);
     if (!nodes) {
       return notMeasured('eeat-nap-consistency', NEEDS_ENTITY_CRAWL);
+    }
+    if (nodes.length === 0) {
+      return notMeasured('eeat-nap-consistency', NO_SCHEMA_NODES);
     }
 
     const phones = new Map<string, Set<string>>();

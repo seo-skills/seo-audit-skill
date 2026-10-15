@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn } from '../define-rule.js';
+import { defineRule, pass, warn, notMeasured } from '../define-rule.js';
 
 interface ContrastIssue {
   /** Element selector/description */
@@ -30,6 +30,17 @@ export const colorContrastRule = defineRule({
     const { $ } = context;
 
     const issues: ContrastIssue[] = [];
+
+    // The checks below read inline styles only. A page coloured entirely from
+    // stylesheets gives them nothing to examine, and a pass would vouch for
+    // contrast nobody measured.
+    const examined = $('[style*="color"], [style*="background-image"]').length;
+    if (examined === 0) {
+      return notMeasured(
+        'a11y-color-contrast',
+        'No inline colours to check; contrast set in stylesheets needs a rendered check'
+      );
+    }
 
     // Check for text elements with inline styles that may have low contrast
     $('[style*="color"]').each((_, el) => {

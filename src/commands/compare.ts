@@ -74,9 +74,15 @@ function renderTrend(domain: string, json: boolean): number {
   const trend = db.getScoreTrend(domain, 20);
 
   if (trend.length === 0) {
-    console.log(chalk.yellow(`No stored audits for ${domain}.`));
-    console.log(chalk.dim(`Run: seomator audit https://${domain} --save`));
-    return 1;
+    // A failure, not a low score: exit 2, and keep --json output parseable.
+    emitCommandError({
+      json,
+      code: 'no-audits',
+      message: `No stored audits for ${domain}.`,
+      hint: `Run: seomator audit https://${domain}`,
+      exitCode: 2,
+    });
+    return 2;
   }
 
   if (json) {
@@ -142,7 +148,7 @@ export async function runCompare(
         json: options.json === true,
         code: 'no-audits',
         message: `No stored audits for ${domain}.`,
-        hint: `Run: seomator audit ${target} --save`,
+        hint: `Run: seomator audit https://${domain}`,
         exitCode: 2,
       });
       return;
@@ -168,7 +174,7 @@ export async function runCompare(
           json: options.json === true,
           code: 'nothing-to-compare',
           message: `Only one stored audit for ${domain}, so there is nothing to compare against.`,
-          hint: `Run another: seomator audit ${target} --save`,
+          hint: `Run another: seomator audit https://${domain}`,
           exitCode: 2,
         });
         return;
@@ -338,7 +344,9 @@ export async function runCompare(
     const notComparable = hasMaterialDifference(profileDifferences);
     const regressionFound = !notComparable && (scoreDelta < 0 || regressed.length > 0);
     if (options.failOnRegression && notComparable) {
-      console.log(
+      // With --json, stdout is the JSON document alone (it already says
+      // comparable: false); the note goes to stderr for whoever reads the log.
+      (options.json ? console.error : console.log)(
         chalk.yellow(
           '  Not failing on regression: the two audits were measured differently, so any difference is not attributable to the site.'
         )

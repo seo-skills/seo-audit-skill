@@ -2,6 +2,7 @@ import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
 import { fetchUrlWithRedirects } from '../../crawler/fetcher.js';
 import { rethrowIfAborted } from '../../errors.js';
+import { internalLinkTargets } from './link-targets.js';
 
 /**
  * Rule: Check for redirect chains in internal links
@@ -18,9 +19,9 @@ export const redirectChainsRule = defineRule({
   run: async (context: AuditContext) => {
     const { links } = context;
 
-    // Get unique internal links
-    const internalLinks = links.filter((link) => link.isInternal);
-    const uniqueUrls = [...new Set(internalLinks.map((l) => l.href))];
+    // Distinct other pages: a sample spent on fragments of this page, or on
+    // the page itself, checks nothing (3 of 20 on developer.mozilla.org)
+    const uniqueUrls = internalLinkTargets(links, context.url);
 
     if (uniqueUrls.length === 0) {
       return pass(

@@ -13,6 +13,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createTestContext } from '../test-context.js';
 import { brokenInternalRule } from './broken-internal.js';
+import { redirectChainsRule } from './redirect-chains.js';
 import { fetchUrl } from '../../crawler/fetcher.js';
 import type { LinkInfo } from '../../types.js';
 
@@ -91,5 +92,23 @@ describe('links-broken-internal (ISSUE-005)', () => {
     expect(result.status).toBe('pass');
     expect(calls).toEqual([`HEAD ${PAGE}/a`, `HEAD ${PAGE}/b`]);
     expect(result.details?.totalChecked).toBe(2);
+  });
+});
+
+// Regression: ISSUE-024 — links-redirect-chains spent its sample on links to the page itself
+// Found by /qa on 2026-10-15
+// Report: .gstack/qa-reports/run-20261015T075717Z/qa-report-developer-mozilla-org-2026-10-15.md
+//
+// The rule checks 20 internal links. On developer.mozilla.org 3 of those 20
+// were the audited page (#content, #mdn-search, the bare URL), and /a and
+// /a#b counted as two. The page's real redirects (/ -> /en-US/, /discord)
+// were outside the sample.
+describe('links-redirect-chains sample (ISSUE-024)', () => {
+  it('samples distinct other pages, fragments stripped', async () => {
+    const calls = stubServer({});
+    const links = [link(`${PAGE}#content`), link(PAGE), link(`${PAGE}/a`), link(`${PAGE}/a#b`), link(`${PAGE}/c`)];
+    const result = await redirectChainsRule.run(createTestContext('<html></html>', { url: PAGE, links }));
+    expect(result.details?.totalChecked).toBe(2);
+    expect(new Set(calls.map((call) => call.split(' ')[1]))).toEqual(new Set([`${PAGE}/a`, `${PAGE}/c`]));
   });
 });

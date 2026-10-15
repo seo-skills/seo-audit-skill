@@ -2,11 +2,7 @@ import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
 import { fetchUrl } from '../../crawler/fetcher.js';
 import { rethrowIfAborted } from '../../errors.js';
-
-function withoutFragment(url: string): string {
-  const hash = url.indexOf('#');
-  return hash === -1 ? url : url.slice(0, hash);
-}
+import { internalLinkTargets } from './link-targets.js';
 
 /**
  * Rule: Check that internal links return 200 (fail if 404/410/5xx)
@@ -29,13 +25,7 @@ export const brokenInternalRule = defineRule({
       );
     }
 
-    // A fragment never reaches the server, so /a and /a#b are one request, and
-    // a link back to this page (skip links, "#content") is already known to
-    // load. On developer.mozilla.org this is 448 links but 355 requests.
-    const pageUrl = withoutFragment(context.url);
-    const targets = [
-      ...new Set(internalLinks.map((link) => withoutFragment(link.href))),
-    ].filter((target) => target !== pageUrl);
+    const targets = internalLinkTargets(links, context.url);
 
     const brokenLinks: Array<{ href: string; statusCode: number }> = [];
     // Status 0 means the check got no answer (timeout or network error). That

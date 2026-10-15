@@ -170,6 +170,13 @@ export function saveAuditToDatabase(result: AuditResult, options: SaveAuditOptio
     }
   }
 
+  // The engine records how it measured (scoring version, rule filters) on the
+  // result; callers add what they know, such as the configured page limit.
+  // Storing only the caller's hand-built copy lost the scoring version on
+  // every surface but `analyze`, so compare read a model change as a site
+  // regression.
+  const run = options.run ? { ...result.run, ...options.run } : result.run;
+
   const write = db.getDb().transaction((): SavedAudit => {
     const audit = db.createAudit({
       auditId,
@@ -177,7 +184,7 @@ export function saveAuditToDatabase(result: AuditResult, options: SaveAuditOptio
       startUrl,
       source: options.source ?? 'cli',
       engineVersion: getVersion(),
-      ...(options.run && { run: options.run }),
+      ...(run && { run }),
       ...(options.projectName && { projectName: options.projectName }),
       ...(options.config && { config: options.config }),
     });

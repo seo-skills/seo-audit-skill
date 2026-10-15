@@ -70,8 +70,12 @@ const MATERIAL = new Set([
   'staging',
 ]);
 
-function render(value: unknown): string {
-  if (Array.isArray(value)) return value.length ? value.join(', ') : 'all';
+function render(option: string, value: unknown): string {
+  // Audits saved before a field was recorded have no value for it
+  if (value === undefined || value === null) return 'not recorded';
+  // An empty list means "all" for categories and enabled rules, but "none"
+  // for disabled rules
+  if (Array.isArray(value)) return value.length ? value.join(', ') : option === 'disableRules' ? 'none' : 'all';
   return String(value);
 }
 
@@ -94,11 +98,11 @@ export function compareRunProfiles(
     const key = option as keyof AuditRunOptions;
     const before = previous[key] ?? ABSENT_MEANS[key];
     const after = current[key] ?? ABSENT_MEANS[key];
-    if (render(before) === render(after)) continue;
+    if (render(option, before) === render(option, after)) continue;
     differences.push({
       option: LABELS[option] ?? option,
-      previous: render(before),
-      current: render(after),
+      previous: render(option, before),
+      current: render(option, after),
       material: MATERIAL.has(option),
     });
   }

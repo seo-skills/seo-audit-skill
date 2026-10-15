@@ -33,6 +33,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Wrong or misleading verdicts in about 60 rules, found by reverse-checking all
+  373 rules against developer.mozilla.org.** Each verdict was compared with the raw page,
+  not with the rule's own logic. Every fix carries a regression test.
+  - **False failures.** Open Graph tags written as `<meta name="og:*">` were
+    reported as missing (6 rules); they are now found, with a warn for the
+    deviation from `property=`. Inline SVG `<title>` elements no longer count as
+    document titles. RDFa and microdata `<meta>` in `<body>`, buttons named by
+    `aria-labelledby`, and RDFa or microdata breadcrumbs now pass. A
+    case-normalizing 301 is no longer a "redirect loop".
+  - **Link checks.** A check that got no answer (timeout or network error) is
+    reported as unchecked, not broken. Every status check confirms a failed HEAD
+    with GET, since some servers reject HEAD. Each distinct URL is checked once:
+    448 links became 355 requests on MDN.
+  - **Page text.** Script and stylesheet source, including CSS inside
+    declarative shadow roots, is no longer counted as page text.
+    `content-text-html-ratio` had passed MDN at 33.6% (really 6.4%), and
+    `content-duplicate-near` flagged 5 of 6 MDN pages as near-duplicates. It now
+    compares main content.
+  - **Sitemaps.** The URL and size limits apply to each sitemap file behind an
+    index instead of the index itself, which reported "0 URLs".
+    `crawl-sitemap-domain` checks the page URLs. A URL repeated inside one file
+    is no longer reported as listed by two sitemaps.
+  - **Not measured instead of a guess.**
+    - Five cross-page rules no longer pass a single page they have nothing to
+      compare with.
+    - The three JSON-LD validators no longer each warn about a missing JSON-LD
+      that `schema-present` already reports.
+    - `a11y-color-contrast` no longer passes after examining nothing.
+    - The entity rules no longer pass a crawl with no structured data.
+  - **Smaller corrections.**
+    - `i18n-hreflang` no longer claims a "single-language site". It now warns
+      when a page links to its own translations without hreflang.
+    - `content-mime-type` accepts a `<meta charset>` in the first 1,024 bytes.
+    - `security-csp` counts `default-src` and `X-Frame-Options`.
+    - `a11y-touch-targets` reads real CSS rules and cites the right success
+      criteria.
+    - Wrapping labels with nested text count as labels.
+    - `eeat-citations` counts only outside sources in the content.
+    - `content-article-links` measures links and words on one scope.
+    - `technical-trailing-slash` flags only a path linked both ways.
+    - `links-redirect-chains` samples distinct pages.
+    - The `htmlval` head checks read the source the parser repairs, so they can
+      fail at all.
+  - **Scores move** on sites these affected. On the pinned fixture: content
+    97 → 96, eeat 87 → 90, overall unchanged at 91.
 - The README features list and contents link still said 332 rules. The catalog
   weights now match the registry (core 11%, performance 10%, accessibility 7%),
   and the lines for DOM size, response time, page weight, inline JavaScript,

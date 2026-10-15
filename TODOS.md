@@ -191,6 +191,95 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
 - **Persist one `audit_rule_summaries` row per rule at save time**, so dashboard reads
   and exports stop rescanning raw history.
 
+## From the rule reverse-verification (/qa, 2026-10-15)
+
+All 373 verdicts on developer.mozilla.org/en-US/docs/Web/HTML (plus a 6-page
+crawl) were checked against the raw page. 25 root causes were fixed on
+`qa/rule-verification-2026-10-15`. These were verified and deferred. Evidence
+and file:line for each item: `.gstack/qa-reports/run-20261015T075717Z/verify-*.md`
+and `qa-report-developer-mozilla-org-2026-10-15.md`.
+
+### P1 — speed
+
+- **Link checks are sequential and uncached.** One page sends about 489 HEAD/GET
+  requests for 374 distinct URLs; the audited URL itself is requested 23 times.
+  Categories, rules and each rule's loop run one request at a time
+  (`auditor.ts`), and `LinkCache` (`src/storage/link-cache.ts`) exists but no
+  rule uses it. Wall time: 4 min per page at 240 ms latency, 11.6 min at 1.9 s.
+  The 6-page crawl took 27.5 min for 25 s of CPU and repeated every check on
+  every page. Fix: one shared per-run status cache keyed by URL (crawl-wide),
+  and bounded per-host concurrency. Both need a politeness decision, which is
+  why they were not patched. ISSUE-005 and ISSUE-024 already removed the
+  duplicate fragment and self-link checks.
+
+### P2 — wrong verdicts that need data the engine does not collect yet
+
+- `perf-http2` judges by `alt-svc` alone; MDN negotiates h2. Read
+  `nextHopProtocol` from the render, or probe ALPN.
+- `perf-minify-css` / `-js` flag hashed, minified bundles. They compare the
+  compressed `content-length` with 2048 and read only URLs. Inspect bodies from
+  the render (`response.body()`), or use Resource Timing's `decodedBodySize`.
+- `perf-source-maps` passes while all 45 MDN assets reference public maps. It
+  reads inline scripts and document headers only.
+- `cwv-cls` is one unthrottled lab sample: 0 in 4 of 7 reruns, 0.159-0.194 in
+  the other 3, because of a late `font-display: swap`. Throttle, or take N
+  samples.
+- `security-ssl-expiry` never reads the certificate. `security-ssl-protocol`
+  never reads the TLS version, and demands HSTS preload on a subdomain, which
+  cannot be preloaded. `security-csp-xss` ignores host allowlists without
+  `'strict-dynamic'`.
+- Declarative shadow DOM: names projected through `<slot>` read as empty
+  (`a11y-aria-labels`, `a11y-form-labels`, `a11y-link-text`), and Playwright's
+  `page.content()` drops shadow roots, so `rendered$` does not help.
+- The schema rules other than `schema-breadcrumb` and `schema-present` read
+  JSON-LD only, so a microdata or RDFa site is told "No X schema found".
+- The crawler fetches the slash-stripped form of a URL and resolves links
+  against the requested URL, not the final one (`url-filter.ts`,
+  `crawler.ts`): `/en-US` was audited where MDN serves `/en-US/`.
+- `crawl-sitemap-lastmod` and the sitemap loader stop at 50,000 URLs and 10
+  child sitemaps, silently: 17,325 of MDN's 67,325 URLs were never read.
+  The skipped count is now on the context, but only `crawl-sitemap-url-limit`
+  mentions it.
+
+### P2 — judgment calls, left for a decision
+
+- `technical-url-structure` fails an uppercase path (score 0, "critical") that
+  `url-uppercase` already warns on. MDN 301s the lowercase form, so no
+  duplicate exists. Downgrade, or leave uppercase to one rule.
+- `perf-css-file-size` fails on 17 stylesheets that total 14.5 KB compressed
+  over HTTP/2. The rule counts files and never measures sizes.
+  `perf-render-blocking` already warns on the same 17.
+- `crawl-canonical-form-drift` compares the trailing-slash form across
+  unrelated paths (the locale home `/en-US/` against `/docs/...` pages). Flag
+  only one path in both forms, or a canonical that differs from the form served.
+- `eeat-author-byline` misses a visible "by MDN contributors".
+  `eeat-editorial-policy` misses a "Writing guidelines" link.
+  `eeat-trust-signals` matches `[class*="member"]` inside "remember" and can
+  never fail.
+- `content-title-pattern` and `content-thin-vs-site` hold the homepage to the
+  docs pages' template and length (`pageKindFrom` buckets them together).
+- `links-chrome-inbound` should exempt locale roots as well as the entry page.
+- `crawl-sitemap-orphan-urls` in a crawl: 6 crawled pages cannot show that
+  67,000 sitemap URLs are orphans. Consider not measuring it below some coverage.
+
+### P3 — messages
+
+- `url-stop-words` splits acronyms into letters (`H, T, M, L`).
+- `perf-font-loading` claims `display=swap` from an empty array.
+- `security-password-http` and `security-brand-impersonation` describe elements
+  that are absent.
+- The eeat privacy and terms counts include docs pages
+  (`/Web/Privacy`, `Define_terms_with_HTML`).
+- `content-date-agreement` treats a "last modified" `<time>` as a published date.
+- `a11y-identical-links-purpose` strips punctuation, so `<title>` and "title"
+  read as one name.
+- `crawl-sitemap-duplicate-urls` shows the normalized URL, not the one in the file.
+- `schema-website-search` still recommends the sitelinks search box Google
+  retired in November 2024.
+- Latent: `crawl-canonical-redirect` sends HEAD without a User-Agent.
+  `links-nofollow-appropriate` does not accept `rel="sponsored"`.
+  `crawl-noindex-in-sitemap` would read gzipped child sitemaps undecompressed.
+
 ## Dashboard
 
 ### Publish the Electron app as a GitHub Release

@@ -10,6 +10,8 @@
 
 export type AuditErrorCode =
   | 'dns'
+  | 'unreachable'
+  | 'tls'
   | 'timeout'
   | 'non-html'
   | 'http-error'
@@ -21,6 +23,8 @@ export type AuditErrorCode =
 
 const HINTS: Partial<Record<AuditErrorCode, string>> = {
   dns: 'Check the hostname for typos and that you are online.',
+  unreachable: 'Nothing answered at that address. Check the URL and port, that the site is running, and any firewall or proxy in between.',
+  tls: 'The HTTPS certificate was rejected. Check it is valid for this hostname and not expired, or audit the http:// URL if the site has no certificate.',
   timeout: 'Try again, raise --timeout, or audit without --crawl.',
   'non-html': 'Point the audit at an HTML page rather than a file, API or feed.',
   'http-error': 'Make sure the URL is publicly reachable and returns 200.',
@@ -100,7 +104,7 @@ export function classifyError(error: unknown): AuditError {
   if (error instanceof AuditError) return error;
 
   const message = error instanceof Error ? error.message : String(error);
-  const cause = error instanceof Error ? (error.cause as { code?: string } | undefined) : undefined;
+  const cause = error instanceof Error ? (error.cause as { code?: string; message?: string } | undefined) : undefined;
   const causeCode = cause?.code ?? '';
   const text = `${message} ${causeCode}`;
 
@@ -108,6 +112,14 @@ export function classifyError(error: unknown): AuditError {
 
   if (/ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(text)) {
     return new AuditError('dns', `Could not resolve the hostname: ${message}`, { cause: error });
+  }
+  if (/ECONNREFUSED|ECONNRESET|EHOSTUNREACH|ENETUNREACH|EPIPE|UND_ERR_SOCKET/.test(causeCode)) {
+    return new AuditError('unreachable', `Could not connect to the site (${causeCode}): ${cause?.message ?? message}`, {
+      cause: error,
+    });
+  }
+  if (/CERT|SELF_SIGNED|UNABLE_TO_VERIFY|ERR_TLS|ERR_SSL/.test(causeCode)) {
+    return new AuditError('tls', `The site's TLS certificate was rejected (${causeCode})`, { cause: error });
   }
   if (/TimeoutError|timed out|timeout|ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT|UND_ERR_HEADERS_TIMEOUT/i.test(text)) {
     return new AuditError('timeout', `The site did not respond in time: ${message}`, { cause: error });

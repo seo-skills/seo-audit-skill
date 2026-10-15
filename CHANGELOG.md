@@ -32,6 +32,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stored with one. A crawl of a staging site now exits `1` unless run with
   `--staging`. `SCORING_VERSION` is 4.
 
+### Fixed
+
+- **`compare` reads a 5.x → 6.0.0 upgrade as a model change again.** 6.0.0
+  raised the scoring version so that `compare` would not count an upgrade as a
+  regression. But only `analyze` stored the scoring version; `seomator audit`, the
+  dashboard and the desktop app did not. So after upgrading,
+  `compare --fail-on-regression` exited 1 on any page whose score dropped, such
+  as a noindex staging page going from 90 to its cap of 20. Every surface now
+  stores the scoring version and rule filters the engine recorded.
+
+  Audits saved before this fix have no recorded scoring version, so `compare`
+  treats the first comparison against one of them as a model change
+  ("scoring model: not recorded → 4"). That is the correct reading, and it
+  happens once per site after upgrading. `compare` also now shows an empty
+  disabled-rules list as "none" instead of "all".
+- **`schema-present` no longer treats Open Graph tags as structured data.** It
+  counted any `property=` attribute as RDFa. A page with ordinary
+  `<meta property="og:*">` tags and no structured data was told "Structured data
+  found (RDFa)" and got a warn instead of a fail.
+- **`crawl-indexability-conflict` reads Googlebot's robots.txt group**, as the
+  score cap does. It used to merge the Disallow lines of every group, so it
+  could warn "blocked by robots.txt" about a page Googlebot is allowed to crawl.
+  It also no longer downloads robots.txt a second time.
+- **A refused connection now has its own error code.** `seomator audit`
+  reported `{"code":"unknown","message":"fetch failed"}` for a URL nothing listens
+  on. Refused, reset and unroutable connections are now `unreachable`, and
+  rejected TLS certificates are `tls`. Each comes with a hint.
+- **The skill documents the new not-measured checks and the error codes.**
+  `SKILL.md` lists the cross-page checks that are not measured on a single page,
+  and the checks that report not measured when there is nothing to grade.
+
 ## [6.0.0] - 2026-10-15
 
 ### Added

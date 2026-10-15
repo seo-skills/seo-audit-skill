@@ -280,6 +280,44 @@ and `qa-report-developer-mozilla-org-2026-10-15.md`.
   `links-nofollow-appropriate` does not accept `rel="sponsored"`.
   `crawl-noindex-in-sitemap` would read gzipped child sitemaps undecompressed.
 
+### Follow-up: CLI and skill QA on 6.0.0 (/qa, 2026-10-15)
+
+Probed the 6.0.0 CLI and the published package end to end against an owned
+fixture site. Evidence is in `.gstack/qa-reports/run-20261015T102121Z/`.
+Fixed on `qa/cli-skill-2026-10-15`: ISSUE-026 to 029 and ISSUE-032. Still open:
+
+- **P2: URL rules judge the requested URL, not the one served.**
+  Auditing `/en-us/docs/page`, which 301s to `/en-US/Docs/Page`, gets
+  `url-uppercase` "URL path is all lowercase" and passes
+  `technical-url-structure`. The page actually lives at an uppercase URL.
+  `context.url` is the requested URL throughout, so fixing this means deciding
+  which URL every rule (and stored result) should name. Related to the crawler
+  item above.
+- **P2: `seomator.toml` crawl settings never apply to `seomator audit`.**
+  `commands/audit.ts:189-210` always passes the CLI defaults (`-m 10`,
+  concurrency 3, timeout 30000) into `loadConfig` as overrides. So
+  `[crawler] max_pages` and the presets (`init --preset ecommerce` writes 1000,
+  `blog` 500) are ignored, while `seomator config --list` shows 100. The fix is
+  to stop defaulting those flags in Commander so the config applies. That
+  changes the default crawl size from 10 to the config default (100) unless the
+  default is also changed, so it needs a decision.
+- **P2: The installed skill is out of date and not visible to Claude Code.**
+  `~/.agents/skills/seo-audit` is 29 commits behind (`version: "5.1.0"`, no
+  score-cap docs), and the `~/.claude/skills/seo-audit` symlink is gone. Fix
+  on the machine: `git -C ~/.agents/skills/seo-audit pull --ff-only` and
+  `ln -s ~/.agents/skills/seo-audit ~/.claude/skills/seo-audit`.
+- **P3: smaller issues.**
+  - A fetch-blocked port (e.g. `:1`) still classifies as `unknown`
+    ("bad port").
+  - `security-csp` says "configured with 1 directives".
+  - `report --list` keeps ANSI colours when piped with `NO_COLOR=1`.
+  - `db stats` counts legacy report files from the working directory rather
+    than `SEOMATOR_HOME`.
+  - `self doctor` never loads the native SQLite module. npm 11.19 warns that
+    `better-sqlite3`'s install script is not covered by an `allowScripts`
+    policy; if npm starts enforcing that, default-on saving breaks on fresh
+    installs and doctor would not notice.
+
 ## From the page-level score caps (2026-10-15)
 
 `src/score-caps.ts` holds a single-page score under a ceiling for noindex,

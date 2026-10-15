@@ -13,8 +13,7 @@ scores and reports.
 
 - `src/` — the shared audit engine (CLI + Electron both import it)
 - `electron/` — desktop app, purely additive, **never modifies `src/`**
-- `docs/` — documentation, including `SEO-AUDIT-RULES.md` (rule reference) and
-  PRDs
+- `docs/` — documentation, including `SEO-AUDIT-RULES.md` (rule reference)
 - `skill/` + `SKILL.md` — the published agent skill wrapper
 
 ## Commands
@@ -67,8 +66,7 @@ Electron, `npm rebuild better-sqlite3` before CLI/tests. Mismatch →
 
 ## Adding a Rule Without Breaking the Stable Audit
 
-This is the checklist for the hint-coverage-expansion rules (see
-`docs/PRD-hint-coverage-expansion.md`):
+This is the checklist for the hint-coverage-expansion rules:
 
 1. **File**: `src/rules/<category>/<rule-name>.ts`, ID `<category>-<name>`
    (e.g. `crawl-canonical-outside-of-head`). Register it in the category's
@@ -108,8 +106,6 @@ This is the checklist for the hint-coverage-expansion rules (see
 
 ## Reference Material for the Hint-Coverage Work
 
-- `docs/PRD-hint-coverage-expansion.md` — the PRD: 240 reference-catalog hints
-  mapped, 47 missing / 44 partial, phased P0/P1/P2
 - `reports/hints-catalog.json` — extracted hint inventory
 - `reports/hints-mapping.json` — per-hint COVERED/PARTIAL/MISSING
   verdict with our rule IDs

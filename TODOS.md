@@ -415,6 +415,10 @@ These were left out.
 
 ## Dashboard
 
+The E numbers, T-4, DD-9 and the phases in this section refer to the local web
+dashboard PRD, removed from `docs/` on 2026-10-15. Read it with
+`git show v6.0.0:docs/PRD-local-web-dashboard.md`.
+
 ### Publish the Electron app as a GitHub Release
 
 **What:** Build, sign, notarize, and attach the dmg/zip/nsis/AppImage artifacts that `electron-builder.yml` already targets.
@@ -425,7 +429,7 @@ These were left out.
 
 **Effort:** M
 **Priority:** P2
-**Depends on:** 3.4.0 foundations (Phase 1 of `docs/PRD-local-web-dashboard.md`)
+**Depends on:** 3.4.0 foundations (Phase 1 of the dashboard PRD)
 
 ### Static history + diff page (`seomator report --history` / `compare --format html`)
 
@@ -557,7 +561,7 @@ These were left out.
 
 **Effort:** S
 **Priority:** P3
-**Depends on:** Phase 2 of `docs/PRD-local-web-dashboard.md` (final token values)
+**Depends on:** Phase 2 of the dashboard PRD (final token values)
 
 ### Automate the better-sqlite3 ABI switch
 

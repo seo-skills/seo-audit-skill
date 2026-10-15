@@ -120,13 +120,4 @@ describe('the docs do not teach them either', () => {
       );
     }
   });
-
-  it('leaves the PRD alone, because it records what was true when written', async () => {
-    const { readFileSync, existsSync } = await import('node:fs');
-    const path = ROOT + 'docs/PRD-design-system.md';
-    if (!existsSync(path)) return;
-    // That PRD predicted this exact finding. Rewriting it would falsify the
-    // record, which is why it is not in LIVE_DOCS.
-    expect(readFileSync(path, 'utf8')).toContain('--refresh');
-  });
 });

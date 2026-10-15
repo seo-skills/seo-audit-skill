@@ -379,5 +379,3 @@ without failing the rebuild, since only Electron needs the signature.
 - [Technical architecture](technical-architecture.md)
 - [Storage architecture](STORAGE-ARCHITECTURE.md)
 - [Configuration](configuration.md)
-- [Local web dashboard PRD](PRD-local-web-dashboard.md)
-- [Design system PRD](PRD-design-system.md)

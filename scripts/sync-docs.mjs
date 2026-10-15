@@ -109,11 +109,6 @@ const targets = [
   { file: 'docs/STORAGE-ARCHITECTURE.md', rules: rewrites },
 ];
 
-// Deliberately not targets: docs/PRD-*.md. A PRD records what was true when it
-// was written — "148 rules / 16 categories" in a problem statement is the
-// evidence for the work, and rewriting it to today's total would falsify the
-// record rather than fix a drift.
-
 const changed = [];
 for (const { file, rules } of targets) {
   const path = join(root, file);

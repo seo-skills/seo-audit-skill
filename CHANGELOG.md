@@ -36,11 +36,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (the quickstart), how-to guides (AI agents, the local dashboard, the desktop
   app), references (rules, configuration, storage) and explanations (the
   introduction and the architecture). `docs/README.md` indexes them by type and
-  by task, and every file path is unchanged. The rules reference now matches the
-  registry, which corrected 182 rule names, 88 severities and 123 descriptions.
-  Claims the code contradicted are gone, such as `--refresh`, `--resume` and a
-  global `config.toml`. `npm run check:docs` now checks five more pages and the
-  per-category rule counts in the rules reference.
+  by task, and every guide keeps its file path. The rules reference now matches
+  the registry, which corrected 182 rule names, 88 severities and 123
+  descriptions. Claims the code contradicted are gone, such as `--refresh`,
+  `--resume` and a global `config.toml`. `npm run check:docs` now checks five
+  more pages and the per-category rule counts in the rules reference.
+
+### Removed
+
+- **The four PRDs in `docs/`.** They recorded plans as they stood when written
+  and were not kept current. Git history keeps them; read one with, for example,
+  `git show v6.0.0:docs/PRD-local-web-dashboard.md`.
 
 ### Fixed
 

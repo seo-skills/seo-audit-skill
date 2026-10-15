@@ -50,18 +50,6 @@ seomator serve                                 # local dashboard on 127.0.0.1:73
 seomator init -y                               # write a seomator.toml with defaults
 ```
 
-## Design records
-
-These PRDs record what was decided and why, at the time they were written.
-They are not kept current; the pages above describe today's behaviour.
-
-| Record | What it decided |
-|--------|-----------------|
-| [Local web dashboard](./PRD-local-web-dashboard.md) | `seomator serve`: the HTTP API, the token model, running audits from a browser |
-| [Design system](./PRD-design-system.md) | One verdict and one ordering across the CLI, reports and dashboard |
-| [Lighthouse parity and coverage](./PRD-lighthouse-and-coverage-expansion.md) | Instant Web Vitals and Lighthouse-equivalent rules |
-| [Hint coverage expansion](./PRD-hint-coverage-expansion.md) | Rules added to match a reference audit catalog |
-
 ## External resources
 
 - **npm:** https://www.npmjs.com/package/@seomator/seo-audit

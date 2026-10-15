@@ -196,6 +196,10 @@ error on stdout with a stable `code` field:
 { "error": true, "code": "http-error", "message": "...", "hint": "..." }
 ```
 
+`code` is one of `dns`, `unreachable` (nothing answered: refused, reset or no
+route), `tls` (certificate rejected), `timeout`, `http-error`, `non-html`,
+`playwright-missing`, `no-pages`, `config`, `aborted` or `unknown`.
+
 ## Command Reference
 
 ### Audit Command Options
@@ -421,6 +425,14 @@ nor against the site — you cannot score what you did not measure. This is why:
   links cannot be known from one page.
 - The `mobile-parity-*` rules need a second render at a mobile viewport. **Run
   with `--mobile`** (and without `--no-cwv`) to measure them.
+- Checks that compare a page with the rest of the site (`core-title-unique`,
+  `content-duplicate-description`, `content-duplicate-exact`,
+  `content-duplicate-near`, `crawl-sitemap-orphan-urls`) report unmeasured on a
+  single page. **Run with `--crawl`** to measure them.
+- A check with nothing to grade reports unmeasured rather than passing: the
+  JSON-LD validators on a page without JSON-LD (`schema-present` reports the
+  absence), `eeat-author-expertise` when the page has no author, and
+  `a11y-color-contrast` when every colour comes from a stylesheet.
 
 > **Scores changed in v3.1.0.** Earlier versions weighted failing rules 100×
 > less than passing ones, which inflated scores. If comparing against a report

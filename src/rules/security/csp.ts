@@ -22,6 +22,9 @@ function parseCspDirectives(value: string): string[] {
   return directives;
 }
 
+/** Fetch directives that fall back to default-src when absent (CSP Level 3) */
+const FETCH_DIRECTIVES = new Set(['script-src', 'style-src', 'img-src']);
+
 // Important CSP directives to check for
 const RECOMMENDED_DIRECTIVES = [
   'default-src',
@@ -73,9 +76,17 @@ export const cspRule = defineRule({
 
     // CSP is present
     const directives = parseCspDirectives(cspHeader);
-    const missingRecommended = RECOMMENDED_DIRECTIVES.filter(
-      (d) => !directives.includes(d)
-    );
+    // frame-ancestors does not fall back to default-src, but X-Frame-Options
+    // DENY or SAMEORIGIN blocks the same framing (security-x-frame-options
+    // accepts either).
+    const xfo = (headers['x-frame-options'] ?? '').trim().toLowerCase();
+    const framingBlocked = xfo === 'deny' || xfo === 'sameorigin';
+    const missingRecommended = RECOMMENDED_DIRECTIVES.filter((d) => {
+      if (directives.includes(d)) return false;
+      if (FETCH_DIRECTIVES.has(d) && directives.includes('default-src')) return false;
+      if (d === 'frame-ancestors' && framingBlocked) return false;
+      return true;
+    });
 
     const details = {
       url,

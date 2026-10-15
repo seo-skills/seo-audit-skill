@@ -12,6 +12,7 @@ import { createTestContext } from '../test-context.js';
 import { fetchSitemap } from '../../crawler/sitemap.js';
 import { sitemapUrlLimitRule } from './sitemap-url-limit.js';
 import { sitemapSizeLimitRule } from './sitemap-size-limit.js';
+import { sitemapDomainRule } from './sitemap-domain.js';
 
 const ORIGIN = 'https://example.com';
 
@@ -117,5 +118,33 @@ describe('sitemap URL sources (ISSUE-021)', () => {
     stubSite({ [`${ORIGIN}/sitemap.xml`]: repeated });
     const sitemap = await fetchSitemap(`${ORIGIN}/`);
     expect(sitemap.urlSources?.get(`${ORIGIN}/blog/`)).toEqual([`${ORIGIN}/sitemap.xml`]);
+  });
+});
+
+// Regression: ISSUE-025 — crawl-sitemap-domain checked the sitemap index, not the pages it lists
+// Found by /qa on 2026-10-15
+// Report: .gstack/qa-reports/run-20261015T075717Z/qa-report-developer-mozilla-org-2026-10-15.md
+//
+// The rule fetched /sitemap.xml again and read its <loc>s. For
+// developer.mozilla.org that is an index, so "All 10 sitemap URLs belong to
+// the expected domain" described the 10 child-sitemap files; none of the
+// 67,325 page URLs was checked. The auditor had already loaded them.
+describe('crawl-sitemap-domain (ISSUE-025)', () => {
+  it('checks the page URLs the auditor loaded, without fetching the sitemap again', async () => {
+    const fetchSpy = vi.fn(async () => {
+      throw new Error('crawl-sitemap-domain should not fetch');
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const context = createTestContext('<html></html>', {
+      url: `${ORIGIN}/`,
+      sitemapContent: INDEX,
+      sitemapIsIndex: true,
+      sitemapUrls: [`${ORIGIN}/a`, `${ORIGIN}/b`, 'https://elsewhere.test/c'],
+    });
+    const result = await sitemapDomainRule.run(context);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(result.status).not.toBe('pass');
+    expect(result.details?.totalUrls).toBe(3);
+    expect(result.details?.invalidCount).toBe(1);
   });
 });

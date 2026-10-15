@@ -108,49 +108,61 @@ export const sitemapDomainRule = defineRule({
     const sitemapUrl = `${baseUrl}/sitemap.xml`;
     const robotsTxtUrl = `${baseUrl}/robots.txt`;
 
-    // Try to fetch sitemap
-    let sitemapContent: string | null = null;
+    let sitemapUrls: string[];
+    let isIndex: boolean;
     let fetchedSitemapUrl = sitemapUrl;
 
-    try {
-      const result = await fetchPage(sitemapUrl);
-      if (result.statusCode === 200) {
-        sitemapContent = result.html;
-      }
-    } catch {
-      // Try from robots.txt
-    }
+    if (context.sitemapContent !== undefined && context.sitemapUrls) {
+      // The auditor already loaded every page URL, through any index. The
+      // root alone would be the index, whose <loc>s are sitemap files, not
+      // pages: "All 10 sitemap URLs" on developer.mozilla.org's 67,325.
+      sitemapUrls = context.sitemapUrls;
+      isIndex = context.sitemapIsIndex ?? false;
+      fetchedSitemapUrl = context.sitemapDocuments?.[0]?.url ?? sitemapUrl;
+    } else {
+      // Try to fetch sitemap
+      let sitemapContent: string | null = null;
 
-    // If not found, try from robots.txt
-    if (!sitemapContent) {
       try {
-        const robotsResult = await fetchPage(robotsTxtUrl);
-        if (robotsResult.statusCode === 200) {
-          const sitemapsInRobots = extractSitemapUrlsFromRobotsTxt(robotsResult.html);
-          if (sitemapsInRobots.length > 0) {
-            fetchedSitemapUrl = sitemapsInRobots[0];
-            const result = await fetchPage(fetchedSitemapUrl);
-            if (result.statusCode === 200) {
-              sitemapContent = result.html;
-            }
-          }
+        const result = await fetchPage(sitemapUrl);
+        if (result.statusCode === 200) {
+          sitemapContent = result.html;
         }
       } catch {
-        // Could not fetch
+        // Try from robots.txt
       }
-    }
 
-    if (!sitemapContent) {
-      return warn(
-        'crawl-sitemap-domain',
-        'Could not find sitemap to validate',
-        { checkedUrls: [sitemapUrl, robotsTxtUrl] }
-      );
-    }
+      // If not found, try from robots.txt
+      if (!sitemapContent) {
+        try {
+          const robotsResult = await fetchPage(robotsTxtUrl);
+          if (robotsResult.statusCode === 200) {
+            const sitemapsInRobots = extractSitemapUrlsFromRobotsTxt(robotsResult.html);
+            if (sitemapsInRobots.length > 0) {
+              fetchedSitemapUrl = sitemapsInRobots[0];
+              const result = await fetchPage(fetchedSitemapUrl);
+              if (result.statusCode === 200) {
+                sitemapContent = result.html;
+              }
+            }
+          }
+        } catch {
+          // Could not fetch
+        }
+      }
 
-    // Extract URLs from sitemap
-    const sitemapUrls = extractUrlsFromSitemap(sitemapContent);
-    const isIndex = isSitemapIndex(sitemapContent);
+      if (!sitemapContent) {
+        return warn(
+          'crawl-sitemap-domain',
+          'Could not find sitemap to validate',
+          { checkedUrls: [sitemapUrl, robotsTxtUrl] }
+        );
+      }
+
+      // Extract URLs from sitemap
+      sitemapUrls = extractUrlsFromSitemap(sitemapContent);
+      isIndex = isSitemapIndex(sitemapContent);
+    }
 
     if (sitemapUrls.length === 0) {
       return warn(

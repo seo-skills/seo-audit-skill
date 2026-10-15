@@ -17,6 +17,14 @@ interface RedirectChainEntry {
  * ERR_TOO_MANY_REDIRECTS errors and make pages inaccessible
  * to both users and search engine crawlers.
  */
+function normalizeChainUrl(url: string): string {
+  try {
+    return new URL(url).href;
+  } catch {
+    return url;
+  }
+}
+
 export const redirectLoopRule = defineRule({
   id: 'redirect-loop',
   name: 'No Redirect Loops',
@@ -37,7 +45,10 @@ export const redirectLoopRule = defineRule({
     const duplicates: string[] = [];
 
     for (const entry of redirectChain) {
-      const normalizedUrl = entry.url.toLowerCase();
+      // Only the scheme and host are case-insensitive, and URL parsing already
+      // lowercases them. Lowercasing the path as well turned a
+      // case-normalizing 301 (/en-us -> /en-US) into a "loop".
+      const normalizedUrl = normalizeChainUrl(entry.url);
       if (seenUrls.has(normalizedUrl)) {
         duplicates.push(entry.url);
       }

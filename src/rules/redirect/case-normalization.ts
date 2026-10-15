@@ -16,7 +16,11 @@ export const caseNormalizationRule = defineRule({
   category: 'redirect',
   weight: 8,
   run: (context: AuditContext) => {
-    const { $, url } = context;
+    const { $, redirectChain } = context;
+    // Judge the URL the server actually served. A requested case variant that
+    // 301s to the canonical is the normalization this rule asks for, not a
+    // reason to ask for it.
+    const url = redirectChain?.at(-1)?.url ?? context.url;
 
     const canonicalElement = $('link[rel="canonical"]');
 

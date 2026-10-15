@@ -1,5 +1,5 @@
 import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn } from '../define-rule.js';
+import { defineRule, pass, warn, notMeasured } from '../define-rule.js';
 
 /** HTTP status codes that represent permanent redirects */
 const PERMANENT_REDIRECTS = new Set([301, 308]);
@@ -22,30 +22,44 @@ export const redirectTypeRule = defineRule({
   category: 'redirect',
   weight: 12,
   run: (context: AuditContext) => {
-    const { statusCode } = context;
+    // The page's own status is the final one, after the fetcher followed any
+    // redirects, so it can never be a 3xx. The hops live in the chain.
+    const { redirectChain } = context;
 
-    // Not a redirect at all
-    if (!PERMANENT_REDIRECTS.has(statusCode) && !TEMPORARY_REDIRECTS.has(statusCode)) {
+    if (!redirectChain || redirectChain.length === 0) {
+      return notMeasured('redirect-type', 'Redirect chain was not recorded for this page');
+    }
+
+    const hops = redirectChain.filter(
+      (entry) => PERMANENT_REDIRECTS.has(entry.statusCode) || TEMPORARY_REDIRECTS.has(entry.statusCode)
+    );
+
+    if (hops.length === 0) {
       return pass('redirect-type', 'Page is not a redirect', {
-        statusCode,
+        statusCode: context.statusCode,
       });
     }
 
-    // Permanent redirect - good for SEO
-    if (PERMANENT_REDIRECTS.has(statusCode)) {
-      return pass('redirect-type', `Permanent redirect (${statusCode}) correctly used`, {
-        statusCode,
-        type: 'permanent',
-      });
+    const statusCodes = hops.map((entry) => entry.statusCode);
+    const temporary = hops.filter((entry) => TEMPORARY_REDIRECTS.has(entry.statusCode));
+
+    // Permanent redirects only - good for SEO
+    if (temporary.length === 0) {
+      return pass(
+        'redirect-type',
+        `Permanent redirect (${statusCodes.join(' → ')}) correctly used`,
+        { statusCodes, type: 'permanent' }
+      );
     }
 
     // Temporary redirect - not ideal for SEO
     return warn(
       'redirect-type',
-      `Temporary redirect (${statusCode}) detected; use 301 or 308 for permanent moves to preserve link equity`,
+      `Temporary redirect (${temporary.map((entry) => entry.statusCode).join(', ')}) detected; use 301 or 308 for permanent moves to preserve link equity`,
       {
-        statusCode,
+        statusCodes,
         type: 'temporary',
+        temporaryHops: temporary.map((entry) => ({ url: entry.url, statusCode: entry.statusCode })),
         recommendation: 'Change to 301 (Moved Permanently) or 308 (Permanent Redirect) if the move is permanent',
       }
     );

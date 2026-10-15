@@ -22,10 +22,19 @@ export const metaInBodyRule = defineRule({
 
     // Check for <meta> tags inside <body>
     $('body meta').each((_, el) => {
-      const name = $(el).attr('name') || $(el).attr('property') || $(el).attr('http-equiv');
-      const content = $(el).attr('content')?.substring(0, 50);
+      const $el = $(el);
+      // Structured data, not document metadata: microdata allows <meta
+      // itemprop> in flow content, and HTML+RDFa allows <meta property> inside
+      // an item (a typeof/vocab scope), as in Google's BreadcrumbList example.
+      if ($el.attr('itemprop') !== undefined) return;
+      if ($el.attr('property') && $el.parents('[typeof], [vocab]').length > 0) return;
+
+      const attribute = ['name', 'property', 'http-equiv', 'charset'].find(
+        (attr) => $el.attr(attr) !== undefined
+      );
+      const content = $el.attr('content')?.substring(0, 50);
       issues.push({
-        tag: `<meta ${name ? `name="${name}"` : $(el).attr('property') ? `property="${$(el).attr('property')}"` : 'unknown'}>`,
+        tag: attribute ? `<meta ${attribute}="${$el.attr(attribute)}">` : '<meta>',
         content: content ? `${content}${content.length >= 50 ? '...' : ''}` : undefined,
       });
     });

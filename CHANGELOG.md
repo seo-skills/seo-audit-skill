@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking: the browser render is opt-in. Add `--cwv` to get it.** `seomator
+  audit` used to start headless Chrome on every run to measure Core Web Vitals
+  and capture the rendered DOM. That one step was most of the runtime: a small
+  local page took 8.6s with a cold browser and 1.3s warm, against 0.4s without
+  it, and example.com took 7.6s against 4.3s. Under `--crawl` it ran once per
+  page. `audit` and `serve --audit` now skip it unless you pass `--cwv`, and a
+  dashboard API request that leaves out `measureCwv` skips it too. The run form
+  shared by the dashboard and the desktop app already started with it off, so
+  every surface now has the same default. Without the render, the Core Web
+  Vitals, JavaScript-rendering and rendered-asset rules report "not measured".
+  They carry no weight, so they do not cost points. `--no-cwv` still parses, so
+  existing scripts keep working, but it now does what the default does. Your
+  next default audit of a site you used to audit with the render will show
+  `compare` a different run profile. `compare` reports that as a measurement
+  change, not a regression, and `--fail-on-regression` does not fail on it.
+  Pass `--cwv` to keep comparing like for like. `--mobile` and
+  `--simulate-interaction` still turn the render on by themselves, as before,
+  unless `--no-cwv` is also given.
+- The `--no-cwv` hints in rule messages now read "run with `--cwv`", and the
+  mobile-parity hint reads "run with `--cwv --mobile`".
+
 ## [7.0.0] - 2026-10-15
 
 ### Added

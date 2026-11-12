@@ -27,7 +27,7 @@ export const resourceLoopRedirectRule = defineRule({
     if (!assets) {
       return notMeasured(
         'redirect-resource-loop',
-        'Rendered page assets not captured - run without --no-cwv to measure resource redirects'
+        'Rendered page assets not captured - run with --cwv to measure resource redirects'
       );
     }
 

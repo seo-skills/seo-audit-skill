@@ -727,10 +727,10 @@ export class Auditor {
   /**
    * The options this audit ran with, recorded on the result.
    *
-   * Two scores are only comparable if they were measured the same way, and
-   * the CLI and the desktop app do not default the same: `--no-cwv` is
-   * opt-out, while the GUI's Core Web Vitals toggle is off. Both write to the
-   * same history.
+   * Two scores are only comparable if they were measured the same way. Every
+   * surface now starts with the browser render off, but `--cwv` and the GUI's
+   * Core Web Vitals toggle turn it on per run, and audits from before the
+   * default changed were rendered. All of them write to the same history.
    */
   private runOptions(crawl: boolean, maxPages: number, concurrency: number): AuditRunOptions {
     return {

@@ -103,9 +103,17 @@ describe('normalizeRunArgs', () => {
     expect(args.save).toBe(false);
   });
 
-  it('defaults to measuring and saving', () => {
+  // Regression: ISSUE-002 — a run request without measureCwv started a browser render
+  // Found by /qa on 2026-11-11
+  // Report: .gstack/qa-reports/run-20261111T093935Z/qa-report-seomator-audit-2026-11-11.md
+  // The run form sends measureCwv: false by default, but `serve --audit` and any
+  // API caller that left the field out got a render. The render is opt-in on
+  // every surface now, so leaving it out means the same as sending false.
+  it('defaults to saving, without a browser render', () => {
     const args = normalizeRunArgs({ url: URL_UNDER_TEST }, DEFAULT_CAPABILITIES);
-    expect(args.measureCwv).toBe(true);
+    expect(args.measureCwv).toBe(false);
+    expect(args.mobile).toBe(false);
+    expect(args.simulateInteraction).toBe(false);
     expect(args.save).toBe(true);
     expect(args.crawl).toBe(false);
     expect(args.maxPages).toBe(10);

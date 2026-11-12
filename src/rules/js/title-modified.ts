@@ -23,7 +23,7 @@ export const titleModifiedRule = defineRule({
     if (!rendered$) {
       return notMeasured(
         'js-title-modified',
-        'Rendered DOM not available - run without --no-cwv to enable JavaScript rendering checks'
+        'Rendered DOM not available - run with --cwv to enable JavaScript rendering checks'
       );
     }
 

@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Auditor } from '../auditor.js';
+import { resolveBrowserRender } from '../browser-render.js';
 import {
   ProgressReporter,
   renderTerminalReport,
@@ -41,7 +42,8 @@ export interface AuditOptions {
   concurrency: number;
   timeout: number;
   verbose: boolean;
-  cwv: boolean;
+  /** `--cwv` is true, `--no-cwv` is false, neither is undefined */
+  cwv?: boolean;
   mobile?: boolean;
   simulateInteraction?: boolean;
   /** Audit a staging site: waive the noindex and robots.txt caps */
@@ -180,11 +182,17 @@ export function isDocumentFormat(outputFormat: string): boolean {
 export async function runAudit(url: string, options: AuditOptions): Promise<void> {
   const isCrawlMode = options.crawl;
   const isVerbose = options.verbose;
-  const measureCwv = options.cwv !== false;
-  // Mobile parity needs a browser render, so --mobile implies CWV rendering.
-  const mobileParity = options.mobile === true && measureCwv;
-  // A synthetic interaction only means anything during a browser render.
-  const simulateInteraction = options.simulateInteraction === true && measureCwv;
+  // The browser render is opt-in. One resolver for the CLI and the dashboard,
+  // so a flag means the same thing on both.
+  const {
+    measureCwv,
+    mobile: mobileParity,
+    simulateInteraction,
+  } = resolveBrowserRender({
+    cwv: options.cwv,
+    mobile: options.mobile,
+    simulateInteraction: options.simulateInteraction,
+  });
   const selectedCategories: string[] = options.categories ?? [];
   const maxPages: number = options.maxPages;
   const concurrency: number = options.concurrency;

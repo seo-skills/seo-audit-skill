@@ -20,7 +20,7 @@ export const renderedCanonicalRule = defineRule({
     if (!rendered$) {
       return notMeasured(
         'js-rendered-canonical',
-        'Rendered DOM not available - run without --no-cwv to enable JavaScript rendering checks'
+        'Rendered DOM not available - run with --cwv to enable JavaScript rendering checks'
       );
     }
 

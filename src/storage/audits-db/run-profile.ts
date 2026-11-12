@@ -2,11 +2,12 @@
  * Whether two audits were measured the same way.
  *
  * A score only means something next to another score if both were produced the
- * same way. The CLI measures Core Web Vitals by default (`--no-cwv` opts out)
- * and the desktop app defaults them off — and both write to the same history.
- * So `compare --fail-on-regression` could fail a CI build whose only change was
- * that the baseline came from the desktop app: ~55 rules go from measured to
- * unmeasured and the score moves for reasons the site had nothing to do with.
+ * same way. The browser render is opt-in (`--cwv`, or the GUI's Core Web Vitals
+ * toggle), but through 7.0.0 the CLI rendered by default while the desktop app
+ * did not — and all of them write to the same history. So `compare --fail-on-regression`
+ * could fail a CI build whose only change was how the baseline was measured:
+ * ~55 rules go from measured to unmeasured and the score moves for reasons the
+ * site had nothing to do with.
  *
  * The run options were already persisted in `run_json` from 3.4.0 onward.
  * Nothing read them until now.

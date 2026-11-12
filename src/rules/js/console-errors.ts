@@ -54,7 +54,7 @@ export const consoleErrorsRule = defineRule({
     if (!diagnostics) {
       return notMeasured(
         'js-console-errors',
-        'Rendered DOM not available - run without --no-cwv to capture JavaScript errors'
+        'Rendered DOM not available - run with --cwv to capture JavaScript errors'
       );
     }
 

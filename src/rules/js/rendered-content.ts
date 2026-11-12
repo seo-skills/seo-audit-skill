@@ -21,7 +21,7 @@ export const renderedContentRule = defineRule({
     if (!rendered$) {
       return notMeasured(
         'js-rendered-content',
-        'Rendered DOM not available - run without --no-cwv to enable JavaScript rendering checks'
+        'Rendered DOM not available - run with --cwv to enable JavaScript rendering checks'
       );
     }
 

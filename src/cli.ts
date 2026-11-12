@@ -139,9 +139,13 @@ program
   .option('--concurrency <n>', 'Concurrent requests', (v) => parseIntValue(v, 'concurrency', 1, 20), 3)
   .option('--timeout <ms>', 'Request timeout', (v) => parseIntValue(v, 'timeout', 1000, 120000), 30000)
   .option('-v, --verbose', 'Show progress', false)
-  .option('--no-cwv', 'Skip Core Web Vitals')
-  .option('--mobile', 'Also render at a mobile viewport and run mobile-first parity checks (single-page)', false)
-  .option('--simulate-interaction', 'Click and scroll the page so INP can be measured (reported as synthetic)', false)
+  // `--cwv` first, so the default stays unset: a lone `--no-cwv` would make it
+  // true, which is how every audit used to launch a browser nobody asked for.
+  .option('--cwv', 'Render the page in a browser for Core Web Vitals and rendered-page checks (slower)')
+  // Still parses so existing scripts keep working; skipping the render is the default now.
+  .addOption(new Option('--no-cwv').hideHelp())
+  .option('--mobile', 'Also render at a mobile viewport and run mobile-first parity checks (single-page; implies --cwv)', false)
+  .option('--simulate-interaction', 'Click and scroll the page so INP can be measured (reported as synthetic; implies --cwv)', false)
   .option('--staging', 'Audit a staging site: waive the noindex and robots.txt caps, and crawl past robots.txt', false)
   .addOption(new Option('-r, --refresh').hideHelp().default(false))
   .addOption(new Option('--resume').hideHelp().default(false))
@@ -167,10 +171,11 @@ program
   .option('--audit <url>', 'Audit this URL as soon as the server starts', validateUrl)
   .option('--crawl', 'With --audit: crawl the site', false)
   .option('-m, --max-pages <n>', 'With --audit: max pages to crawl', (v) => parseIntValue(v, 'max-pages', 1, 1000))
-  .option('--no-cwv', 'With --audit: skip Core Web Vitals')
+  .option('--cwv', 'With --audit: render in a browser for Core Web Vitals (slower)')
+  .addOption(new Option('--no-cwv').hideHelp())
   .option('-c, --categories <list>', 'With --audit: categories to run', parseCategories)
-  .option('--mobile', 'With --audit: also render at a mobile viewport', false)
-  .option('--simulate-interaction', 'With --audit: click and scroll so INP can be measured', false)
+  .option('--mobile', 'With --audit: also render at a mobile viewport (implies --cwv)', false)
+  .option('--simulate-interaction', 'With --audit: click and scroll so INP can be measured (implies --cwv)', false)
   .action(async (options: ServeOptions) => {
     // Imported lazily so `seomator audit` does not pay for the server module.
     const { runServe } = await import('./commands/serve.js');

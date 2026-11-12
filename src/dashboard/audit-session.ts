@@ -12,6 +12,7 @@
  */
 
 import { Auditor, type AuditorOptions } from '../auditor.js';
+import { resolveBrowserRender } from '../browser-render.js';
 import type { AuditResult, CategoryResult, RuleResult } from '../types.js';
 import { categories as categoryDefinitions, getCategoryById } from '../categories/index.js';
 import { AuditAbortedError, classifyError, type AuditErrorCode } from '../errors.js';
@@ -200,7 +201,15 @@ export function normalizeRunArgs(args: AuditRunArgs, capabilities: Capabilities)
   const known = new Set(categoryDefinitions.map((c) => c.id));
   const requested = (args.categories ?? []).filter((id) => known.has(id));
 
-  const measureCwv = (args.measureCwv ?? true) && capabilities.browserRender;
+  // The render is opt-in, as on the CLI: leaving measureCwv out means no
+  // browser. Requests this build cannot serve are dropped before resolving, so
+  // they cannot start a render on their own.
+  const render = resolveBrowserRender({
+    cwv: args.measureCwv,
+    mobile: args.mobile === true && capabilities.mobileParity,
+    simulateInteraction: args.simulateInteraction === true && capabilities.simulateInteraction,
+  });
+  const measureCwv = render.measureCwv && capabilities.browserRender;
 
   return {
     url: parsed.href,
@@ -209,9 +218,8 @@ export function normalizeRunArgs(args: AuditRunArgs, capabilities: Capabilities)
     concurrency: clamp(args.concurrency, RUN_LIMITS.concurrency),
     timeout: clamp(args.timeout, RUN_LIMITS.timeout),
     measureCwv,
-    mobile: args.mobile === true && measureCwv && capabilities.mobileParity,
-    simulateInteraction:
-      args.simulateInteraction === true && measureCwv && capabilities.simulateInteraction,
+    mobile: render.mobile && measureCwv,
+    simulateInteraction: render.simulateInteraction && measureCwv,
     categories: requested,
     save: (args.save ?? true) && capabilities.persistence,
   };

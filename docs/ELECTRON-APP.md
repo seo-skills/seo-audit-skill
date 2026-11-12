@@ -189,8 +189,8 @@ need the signature; Electron does.
 
 Expected. The desktop app renders pages in a hidden Electron window, which
 cannot emulate a mobile viewport or drive an interaction, so the form hides
-both. Use `seomator audit <url> --mobile --simulate-interaction` or the web
-dashboard.
+both. Use `seomator audit <url> --cwv --mobile --simulate-interaction` or the
+web dashboard.
 
 ### "Retry save is not available in the desktop app yet."
 
@@ -318,10 +318,10 @@ drive a synthetic interaction, so the desktop build reports `mobileParity` and
 `simulateInteraction` as unavailable and the form hides both, rather than
 offering settings that would do nothing.
 
-Two more differences from the CLI: a run started in the app does not read
-`seomator.toml`, because the shared session never loads it, and the run form
-leaves Core Web Vitals off by default while `seomator audit` measures them. A
-desktop audit and a CLI audit of one site are therefore often measured
+One more difference from the CLI: a run started in the app does not read
+`seomator.toml`, because the shared session never loads it. Core Web Vitals
+start off in both the run form and `seomator audit`. A desktop audit with them
+on and a CLI audit without them, or the other way round, are measured
 differently, and `seomator compare` says so. See
 [Compare two runs of a site](WEB-DASHBOARD.md#compare-two-runs-of-a-site).
 

@@ -16,10 +16,10 @@ It takes about five minutes.
 - Node.js 20.3 or later. Check with `node --version`.
 - npm, which comes with Node.js.
 - An internet connection.
-- Google Chrome, Chromium or Microsoft Edge, if you want Core Web Vitals.
-  SEOmator uses the browser to load the page the way a visitor would. Without
-  one, the audit still runs and reports Core Web Vitals and the other checks
-  that need a browser as "not measured".
+- Google Chrome, Chromium or Microsoft Edge, if you want Core Web Vitals
+  (`--cwv`). SEOmator uses the browser to load the page the way a visitor
+  would. Without one, the audit still runs and reports Core Web Vitals and the
+  other checks that need a browser as "not measured".
 
 ## 1. Install SEOmator
 
@@ -68,8 +68,11 @@ on: only the browser checks are affected.
 Run an audit of example.com:
 
 ```bash
-seomator audit https://example.com
+seomator audit https://example.com --cwv
 ```
+
+`--cwv` also loads the page in a browser to measure Core Web Vitals. Leave it
+out for a faster audit that reports those checks as not measured.
 
 SEOmator prints a banner, then one line per category as each finishes. The
 audit takes about ten seconds. You will see output like this (trimmed):
@@ -186,10 +189,11 @@ pages, so it needs a multi-page audit (`--crawl`).
 ## 4. Audit again and compare
 
 Every audit is stored unless you pass `--no-save`, so SEOmator can tell you what
-changed between two runs. Run the same audit again, then compare:
+changed between two runs. Run the same audit again, with the same flags, then
+compare:
 
 ```bash
-seomator audit https://example.com
+seomator audit https://example.com --cwv
 seomator compare example.com
 ```
 

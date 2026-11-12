@@ -56,7 +56,7 @@ npm install -g @seomator/seo-audit
 seomator audit https://example.com
 ```
 
-> **Note:** The CLI automatically uses your system Chrome, Chromium, or Edge browser for Core Web Vitals measurement. No additional browser installation is required if you have Chrome installed.
+> **Note:** The CLI automatically uses your system Chrome, Chromium, or Edge browser for Core Web Vitals measurement (`--cwv`). No additional browser installation is required if you have Chrome installed.
 
 ### From source
 
@@ -111,8 +111,8 @@ npm run electron:pack     # Build + package distributable
 # Basic audit
 seomator audit https://example.com
 
-# Skip Core Web Vitals (faster)
-seomator audit https://example.com --no-cwv
+# Render in a browser for Core Web Vitals and rendered-page checks (slower)
+seomator audit https://example.com --cwv
 
 # Audit specific categories
 seomator audit https://example.com -c core,security,perf
@@ -124,7 +124,7 @@ seomator audit https://example.com --format json
 seomator audit https://example.com --format html -o report.html
 
 # LLM-optimized output (pipe to Claude)
-seomator audit https://example.com --format llm --no-cwv | claude "analyze and prioritize fixes"
+seomator audit https://example.com --format llm | claude "analyze and prioritize fixes"
 
 # Crawl multiple pages
 seomator audit https://example.com --crawl --max-pages 20
@@ -149,9 +149,9 @@ Run SEO audit on a URL.
 | `--max-pages <n>` | `-m` | Maximum pages to crawl | 10 |
 | `--concurrency <n>` | - | Concurrent requests | 3 |
 | `--timeout <ms>` | - | Request timeout in milliseconds | 30000 |
-| `--no-cwv` | - | Skip Core Web Vitals measurement | false |
-| `--mobile` | - | Second render at a mobile viewport + mobile-first parity checks (single-page) | false |
-| `--simulate-interaction` | - | Scroll and click the page so INP can be measured (reported as synthetic, unscored) | false |
+| `--cwv` | - | Render the page in a browser for Core Web Vitals, JavaScript rendering and rendered-asset checks (slower). `--no-cwv` is still accepted | false |
+| `--mobile` | - | Second render at a mobile viewport + mobile-first parity checks (single-page). Implies `--cwv` | false |
+| `--simulate-interaction` | - | Scroll and click the page so INP can be measured (reported as synthetic, unscored). Implies `--cwv` | false |
 | `--staging` | - | Audit a staging site: waive the noindex and robots.txt caps, and crawl past robots.txt | false |
 | `--verbose` | `-v` | Show progress | false |
 | `--config <path>` | - | Config file path | - |
@@ -703,11 +703,11 @@ the launch checklist.
 | `mobile-multiple-viewports` | Single viewport meta tag |
 | `mobile-image-maps` | No `<map>`/`<area>` image maps |
 | `mobile-viewport-content` | Viewport directives: width, initial-scale, no minimum-scale |
-| `mobile-parity-content` | Mobile render carries as much content as desktop (`--mobile`) |
-| `mobile-parity-title` | Title and meta description match mobile vs desktop (`--mobile`) |
-| `mobile-parity-canonical` | Canonical matches mobile vs desktop (`--mobile`) |
-| `mobile-parity-structured-data` | JSON-LD present on mobile as on desktop (`--mobile`) |
-| `mobile-parity-links` | Comparable internal link count mobile vs desktop (`--mobile`) |
+| `mobile-parity-content` | Mobile render carries as much content as desktop (`--cwv --mobile`) |
+| `mobile-parity-title` | Title and meta description match mobile vs desktop (`--cwv --mobile`) |
+| `mobile-parity-canonical` | Canonical matches mobile vs desktop (`--cwv --mobile`) |
+| `mobile-parity-structured-data` | JSON-LD present on mobile as on desktop (`--cwv --mobile`) |
+| `mobile-parity-links` | Comparable internal link count mobile vs desktop (`--cwv --mobile`) |
 
 ### Internationalization (13 rules) - 2% weight
 
@@ -883,7 +883,7 @@ jobs:
         run: npx playwright install chromium
 
       - name: Run SEO Audit
-        run: seomator audit https://your-staging-url.com --format json -o seo-report.json
+        run: seomator audit https://your-staging-url.com --cwv --format json -o seo-report.json
 
       - name: Upload Report
         uses: actions/upload-artifact@v4
@@ -900,7 +900,7 @@ seo-audit:
   script:
     - npm install -g @seomator/seo-audit
     - npx playwright install chromium
-    - seomator audit https://your-staging-url.com --format json -o seo-report.json
+    - seomator audit https://your-staging-url.com --cwv --format json -o seo-report.json
   artifacts:
     paths:
       - seo-report.json

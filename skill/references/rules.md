@@ -8,8 +8,8 @@ the category score is the average of its rule results weighted by each rule's
 declared `weight`, and the overall score is the weighted average of category
 scores.
 
-A check whose input could not be measured (for example Core Web Vitals under
-`--no-cwv`) is reported with weight 0, so it appears in the report but affects
+A check whose input could not be measured (for example Core Web Vitals without
+`--cwv`) is reported with weight 0, so it appears in the report but affects
 neither side of the average.
 
 ## Categories & Weights

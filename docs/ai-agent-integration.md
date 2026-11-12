@@ -83,7 +83,7 @@ All 7 checks passed. Ready to audit!
 
 - **`seomator: command not found`.** The global install failed, or npm's global bin directory is not on `PATH`. Run `npm install -g @seomator/seo-audit` again and read its output.
 - **`self doctor` says Node.js is too old.** SEOmator needs 20.3 or later.
-- **No browser found.** Install Chrome, or run `npx playwright install chromium`. Or audit with `--no-cwv` and accept that the browser checks report unmeasured.
+- **No browser found.** Install Chrome, or run `npx playwright install chromium`. Or audit without `--cwv` and accept that the browser checks report unmeasured.
 - **The agent does not use the skill.** Check that `npx skills list` shows it, then start a new session.
 - **The agent runs `seomator init` and no `seomator.toml` appears.** The skill tells the agent to create a config when the project has none. Plain `seomator init` asks questions, and with no terminal attached it exits 0 without writing a file. Use `seomator init -y`. An audit does not need a config file.
 
@@ -99,11 +99,11 @@ All 7 checks passed. Ready to audit!
 1. Run the audit:
 
    ```bash
-   seomator audit https://example.com --format llm --no-cwv --no-save
+   seomator audit https://example.com --format llm --no-save
    ```
 
    - `--format llm` writes one XML document to stdout and nothing else. Notices go to stderr.
-   - `--no-cwv` skips the browser render. The run is faster, but Core Web Vitals and most JavaScript rendering checks report unmeasured: 76 unmeasured checks on example.com, against 54 with the render.
+   - Without `--cwv`, the audit skips the browser render. The run is faster, but Core Web Vitals and most JavaScript rendering checks report unmeasured: 76 unmeasured checks on example.com, against 54 with the render. Add `--cwv` to measure them.
    - `--no-save` keeps a one-off run out of the audit history. Leave it off when you want to [compare](#check-what-a-deploy-changed) later.
    - To audit more than one page, add `--crawl -m 20` (up to 20 pages; the default is 10).
    - To write the report to a file instead, add `-o reports/audit.xml`. Then stdout stays empty and stderr says `LLM report saved to: reports/audit.xml`.
@@ -184,8 +184,8 @@ All 7 checks passed. Ready to audit!
 
 ### Troubleshooting
 
-- **`cwv-*` and `js-rendered-*` checks are in `<not-measured>` although you did not pass `--no-cwv`.** No browser could start, and the audit carried on without one. Run `seomator self doctor`.
-- **Checks you need are in `<not-measured>`.** They need a flag. `--crawl` measures the link graph and cross-page checks, such as `links-depth`, `links-orphan-pages`, `core-title-unique`, `content-duplicate-exact` and `crawl-sitemap-orphan-urls`. `--mobile` measures `mobile-parity-*`. Leaving out `--no-cwv` measures `cwv-*`, `js-console-errors` and `js-failed-requests`. `cwv-inp` is always unmeasured, because INP needs a real user's interaction.
+- **`cwv-*` and `js-rendered-*` checks are in `<not-measured>` although you passed `--cwv`.** No browser could start, and the audit carried on without one. Run `seomator self doctor`.
+- **Checks you need are in `<not-measured>`.** They need a flag. `--crawl` measures the link graph and cross-page checks, such as `links-depth`, `links-orphan-pages`, `core-title-unique`, `content-duplicate-exact` and `crawl-sitemap-orphan-urls`. `--cwv --mobile` measures `mobile-parity-*`. `--cwv` measures `cwv-*`, `js-console-errors` and `js-failed-requests`. `cwv-inp` is always unmeasured, because INP needs a real user's interaction.
 - **A crawl stops at 10 pages although `seomator.toml` sets `max_pages`.** `seomator audit` applies its own flag defaults over `[crawler] max_pages`, `concurrency` and `timeout_ms`. Pass `-m`, `--concurrency` and `--timeout` on the command line.
 - **`<issues>` has an `omitted` attribute.** The report kept the 150 highest-impact issues. Fix those and audit again, or use `--format json`, which carries every result.
 - **The score is 20 on a site you expect to rank.** The page, or a crawl's start page, is noindex or blocked by robots.txt, and `<score-cap>` says which. On a staging site, add `--staging`.
@@ -201,7 +201,7 @@ All 7 checks passed. Ready to audit!
 1. Capture stdout and the exit code separately:
 
    ```bash
-   seomator audit https://example.com --format llm --no-cwv > report.xml
+   seomator audit https://example.com --format llm > report.xml
    echo $?
    ```
 
@@ -220,7 +220,7 @@ All 7 checks passed. Ready to audit!
 3. On exit `2`, read the error. Under `--format json`:
 
    ```bash
-   seomator audit http://127.0.0.1:59999/ --format json --no-cwv --no-save
+   seomator audit http://127.0.0.1:59999/ --format json --no-save
    ```
 
    ```json
@@ -236,7 +236,7 @@ All 7 checks passed. Ready to audit!
    Under `--format llm`, the error is XML, with the report's root element and `ok="false"`:
 
    ```bash
-   seomator audit https://no-such-host.invalid/ --format llm --no-cwv --no-save
+   seomator audit https://no-such-host.invalid/ --format llm --no-save
    ```
 
    ```xml
@@ -262,7 +262,7 @@ All 7 checks passed. Ready to audit!
    | `non-html` | The response is not an HTML page, but a file, an API or a feed | Point the audit at an HTML page |
    | `no-pages` | A crawl found nothing to audit | Check robots.txt, the include and exclude patterns, and that the start URL links to other pages |
    | `config` | The `--config` file does not exist | Fix the path, or drop the flag so SEOmator searches for `seomator.toml` |
-   | `playwright-missing` | The browser could not start | Run `npx playwright install chromium`, or pass `--no-cwv`. `audit` usually carries on without the browser instead, so this code is rare |
+   | `playwright-missing` | The browser could not start | Run `npx playwright install chromium`, or audit without `--cwv`. `audit` usually carries on without the browser instead, so this code is rare |
    | `aborted` | The run was cancelled (exit `130`) | Nothing, unless you did not cancel it |
    | `unknown` | Anything else | Read `message` |
 
@@ -275,7 +275,7 @@ All 7 checks passed. Ready to audit!
 Force a failure and check that your handling sees exit `2` and the code `dns`:
 
 ```bash
-seomator audit https://no-such-host.invalid/ --format json --no-cwv --no-save; echo "exit=$?"
+seomator audit https://no-such-host.invalid/ --format json --no-save; echo "exit=$?"
 ```
 
 stdout holds a JSON object with `"code": "dns"`, followed by `exit=2`.
@@ -306,7 +306,7 @@ stdout holds a JSON object with `"code": "dns"`, followed by `exit=2`.
 1. Before you deploy, audit the site:
 
    ```bash
-   seomator audit https://example.com --format llm --no-cwv > before.xml
+   seomator audit https://example.com --format llm > before.xml
    ```
 
 2. Deploy.
@@ -314,7 +314,7 @@ stdout holds a JSON object with `"code": "dns"`, followed by `exit=2`.
 3. Run the same command again:
 
    ```bash
-   seomator audit https://example.com --format llm --no-cwv > after.xml
+   seomator audit https://example.com --format llm > after.xml
    ```
 
 4. Compare the two most recent audits of that host:
@@ -351,7 +351,7 @@ stdout holds a JSON object with `"code": "dns"`, followed by `exit=2`.
    - `Improved` lists rules that got better. `New in this audit` and `No longer measured` list rules measured in only one of the two audits; they never fail the check.
    - For a program, add `--json`. The diff is in `scoreDelta`, `comparable`, `runDifferences`, `categoryDeltas`, `regressed`, `improved`, `added` and `removed`.
 
-6. Check that both audits were measured the same way. When they were not, `compare` says so, and `--fail-on-regression` exits `0` whatever changed. Here the second audit ran without `--no-cwv`:
+6. Check that both audits were measured the same way. When they were not, `compare` says so, and `--fail-on-regression` exits `0` whatever changed. Here the second audit ran with `--cwv`:
 
    ```
    Comparing example.com
@@ -367,7 +367,7 @@ stdout holds a JSON object with `"code": "dns"`, followed by `exit=2`.
 
    With `--json`, the same pair has `"comparable": false`, and `runDifferences` holds `{ "option": "Core Web Vitals", "previous": "false", "current": "true", "material": true }`.
 
-   These differences make a pair not like-for-like: Core Web Vitals on or off, `--mobile`, `--simulate-interaction`, the `-c` categories, the `[rules]` enable and disable filters, the scoring model, and `--staging`. A different crawl mode or page limit is reported too, but on its own does not stop the check. An audit stored by an older SEOmator can show `scoring model: not recorded`; such a pair is not like-for-like either, so audit again for a new baseline.
+   These differences make a pair not like-for-like: Core Web Vitals on or off, `--mobile`, `--simulate-interaction`, the `-c` categories, the `[rules]` enable and disable filters, the scoring model, and `--staging`. A different crawl mode or page limit is reported too, but on its own does not stop the check. An audit stored by an older SEOmator can show `scoring model: not recorded`; such a pair is not like-for-like either, so audit again for a new baseline. Likewise, a baseline stored by 7.0.0 or earlier without `--no-cwv` was rendered, so the first audit after upgrading shows `Core Web Vitals: true → false` unless you pass `--cwv`.
 
 7. Optional: pin the baseline. `compare` takes the two most recent audits of the host, so any audit in between, from the dashboard, the desktop app or another agent, moves the baseline. Record the baseline's ID right after step 1:
 

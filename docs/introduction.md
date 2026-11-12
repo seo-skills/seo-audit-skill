@@ -49,7 +49,7 @@ structure, HTML validity, readiness for AI search, and legal compliance.
                ▼
   ┌─────────────────────────┐
   │ 2. Render (optional)    │  Headless browser: Core Web Vitals,
-  │                         │  rendered DOM, loaded assets. Off with --no-cwv.
+  │                         │  rendered DOM, loaded assets. On with --cwv.
   └────────────┬────────────┘
                ▼
   ┌─────────────────────────┐
@@ -74,7 +74,7 @@ structure, HTML validity, readiness for AI search, and legal compliance.
    page (a PDF, a JSON API, a feed), or its status is 400 or higher, the audit
    stops with an error instead of a score. [Refusing to score](#refusing-to-score)
    explains why.
-2. **Render.** Unless you pass `--no-cwv`, SEOmator opens the page in a headless
+2. **Render.** With `--cwv`, SEOmator opens the page in a headless
    browser. It tries the Chrome, Chromium or Edge installed on your machine
    first, then Playwright's own Chromium. The render measures Core Web Vitals,
    captures the page after JavaScript has run, and records every asset the page
@@ -198,21 +198,23 @@ measured**, and says what it needs. It carries weight 0, so it moves neither
 side of the average: you cannot score what you did not measure. The usual
 reasons:
 
-- **No render** (`--no-cwv`, or no browser found): Core Web Vitals and most
+- **No render** (no `--cwv`, or no browser found): Core Web Vitals and most
   JavaScript-rendering checks.
 - **A single page**: checks that compare pages or need the link graph, such as
   title uniqueness, duplicate content, click depth, inbound links and sitemap
   orphans. They need `--crawl`.
-- **No mobile render**: the mobile parity checks need `--mobile`.
-- **No interaction**: INP needs a real one. `--simulate-interaction` clicks and
-  scrolls during the render to give an indicative value, flagged as synthetic.
+- **No mobile render**: the mobile parity checks need `--cwv --mobile`.
+- **No interaction**: INP needs a real one. `--simulate-interaction` renders
+  the page and clicks and scrolls during the render to give an indicative
+  value, flagged as synthetic.
 - **Nothing to grade**: no Content-Security-Policy to grade, no JSON-LD to
   validate, no robots.txt to read.
 
 The trade-off: an audit that measured less can score higher, because the checks
-it skipped can no longer fail. A single-page audit of example.com reported 54
-checks as not measured and scored 86. The same audit with `--no-cwv` reported
-76 and scored 87. That is why SEOmator records how each audit was measured.
+it skipped can no longer fail. A single-page audit of example.com with `--cwv`
+reported 54 checks as not measured and scored 86. The same audit without it
+reported 76 and scored 87. That is why SEOmator records how each audit was
+measured.
 
 ## Comparing audits over time
 
@@ -237,10 +239,12 @@ The scoring model has a version number that changes whenever weights or the
 score arithmetic change, so a scoring update is not read as your site getting
 worse.
 
-This is not hypothetical. The desktop app leaves Core Web Vitals off by default
-and the CLI turns them on, and both write to the same history. A baseline from
-one against a run from the other moved about 55 rules between measured and not
-measured without the site changing.
+This is not hypothetical. Through 7.0.0 the desktop app left Core Web Vitals
+off by default and the CLI turned them on, and both write to the same history.
+A baseline from one against a run from the other moved about 55 rules between
+measured and not measured without the site changing. Every surface now starts
+with them off, but an audit with Core Web Vitals on is still not like-for-like
+with one without.
 
 ## Trade-offs
 

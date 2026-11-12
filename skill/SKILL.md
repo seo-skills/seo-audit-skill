@@ -42,7 +42,7 @@ This skill enables AI agents to audit websites for **373 rules** in **20 categor
 - **E-E-A-T** (16 rules): Author bylines, citations, trust signals, about/contact pages, YMYL detection
 - **URL Structure** (14 rules): Keyword slugs, stop words, uppercase, underscores, session IDs, tracking params
 - **Redirects** (11 rules): Redirect loops, types (301/302), meta refresh, JavaScript redirects, broken redirects
-- **Mobile** (12 rules): Font sizes, horizontal scroll, interstitials, viewport, mobile-first parity (content, title, canonical, structured data, links) via `--mobile`
+- **Mobile** (12 rules): Font sizes, horizontal scroll, interstitials, viewport, mobile-first parity (content, title, canonical, structured data, links) via `--cwv --mobile`
 - **Internationalization** (13 rules): lang attribute, hreflang validation (return links, conflicts, mismatches)
 - **HTML Validation** (11 rules): Doctype, charset, head structure, lorem ipsum, multiple titles/descriptions
 - **AI/GEO Readiness** (13 rules): Semantic HTML, AI bot access, llms.txt, schema drift
@@ -119,18 +119,19 @@ Plain `seomator init` asks questions, and without a terminal it exits 0 without 
 
 When auditing:
 1. **Prefer live websites** over local dev servers for accurate performance and rendering data
-2. **Use `--no-cwv` for faster audits**, but know what it costs: it skips the
-   browser render, so Core Web Vitals, the JavaScript rendering rules,
-   `js-console-errors`, `js-failed-requests` and all `mobile-parity-*` rules
-   report unmeasured rather than passing or failing
+2. **Add `--cwv` when you need the browser render.** Audits skip it by default
+   because it is slow, so without `--cwv` Core Web Vitals, the JavaScript
+   rendering rules, `js-console-errors`, `js-failed-requests`, the
+   rendered-asset checks and all `mobile-parity-*` rules report unmeasured
+   rather than passing or failing
 3. **Match the flags to the question.** Rules that need more than one page or
    more than one render are unmeasured without the right flag:
 
    | To check | Run with |
    |----------|----------|
    | Click depth, inbound internal links | `--crawl` (builds the site graph) |
-   | Mobile-first indexing parity | `--mobile` (second render at a phone viewport) |
-   | JS errors, failed subresources, Core Web Vitals | default (omit `--no-cwv`) |
+   | Mobile-first indexing parity | `--cwv --mobile` (second render at a phone viewport) |
+   | JS errors, failed subresources, Core Web Vitals | `--cwv` (renders the page in a browser) |
    | What a deploy changed | run before and after, then `seomator compare <domain>` |
 
 4. **Scope fixes as concurrent tasks** when implementing multiple fixes
@@ -150,20 +151,20 @@ If you have both local and live websites available, **suggest auditing the live 
 
 ```bash
 # Quick single-page audit with LLM output
-seomator audit https://example.com --format llm --no-cwv
+seomator audit https://example.com --format llm
 
 # Multi-page crawl (up to 50 pages)
-seomator audit https://example.com --crawl -m 50 --format llm --no-cwv
+seomator audit https://example.com --crawl -m 50 --format llm
 
 # Full audit with Core Web Vitals + JS rendering analysis
-seomator audit https://example.com --crawl -m 20 --format llm
+seomator audit https://example.com --crawl -m 20 --format llm --cwv
 ```
 
 ### Advanced Options
 
 Audit specific categories only:
 ```bash
-seomator audit https://example.com -c core,security,js --format llm --no-cwv
+seomator audit https://example.com -c core,security,js --format llm
 ```
 
 Save HTML report for sharing:
@@ -219,8 +220,8 @@ route), `tls` (certificate rejected), `timeout`, `http-error`, `non-html`,
 | `--max-pages <n>` | `-m` | Maximum pages to crawl | 10 |
 | `--crawl` | | Enable multi-page crawl | false |
 | `--categories <list>` | `-c` | Comma-separated categories to audit | All |
-| `--no-cwv` | | Skip Core Web Vitals + JS rendering | false |
-| `--mobile` | | Render mobile viewport + mobile-first parity (single-page) | false |
+| `--cwv` | | Render in a browser: Core Web Vitals + JS rendering | false |
+| `--mobile` | | Render mobile viewport + mobile-first parity (single-page); implies `--cwv` | false |
 | `--verbose` | `-v` | Show progress | false |
 | `--output <path>` | `-o` | Output file path | |
 | `--config <path>` | | Config file path | |
@@ -284,14 +285,14 @@ The `--format llm` output is a compact XML format optimized for token efficiency
 
 ```bash
 # User asks: "Check example.com for SEO issues"
-seomator audit https://example.com --format llm --no-cwv
+seomator audit https://example.com --format llm
 ```
 
 ### Example 2: Deep Crawl for Large Site
 
 ```bash
 # User asks: "Do a thorough audit with up to 100 pages"
-seomator audit https://example.com --crawl -m 100 --format llm --no-cwv
+seomator audit https://example.com --crawl -m 100 --format llm
 ```
 
 ### Example 3: Fresh Audit After Changes
@@ -299,7 +300,7 @@ seomator audit https://example.com --crawl -m 100 --format llm --no-cwv
 ```bash
 # User asks: "Re-audit the site, ignore cached results"
 # Every run fetches every page fresh — there is no cache to bypass.
-seomator audit https://example.com --format llm --no-cwv
+seomator audit https://example.com --format llm
 ```
 
 ### Example 4: Generate Shareable Report
@@ -313,7 +314,7 @@ seomator audit https://example.com --crawl -m 20 --format html -o seo-report.htm
 
 ```bash
 # User asks: "Just check my JavaScript rendering and redirects"
-seomator audit https://example.com -c js,redirect --format llm
+seomator audit https://example.com -c js,redirect --format llm --cwv
 ```
 
 ### Example 6: Did This Deploy Make Anything Worse?
@@ -336,8 +337,8 @@ another was fixed. Use `--fail-on-regression` to make this a CI gate.
 
 ```bash
 # js-console-errors and js-failed-requests need a real browser render,
-# so do NOT pass --no-cwv here.
-seomator audit https://example.com -c js --format llm
+# so pass --cwv here.
+seomator audit https://example.com -c js --format llm --cwv
 ```
 
 An uncaught exception halts the script that threw it, so content, structured
@@ -425,16 +426,16 @@ nor against the site — you cannot score what you did not measure. This is why:
 
 - `cwv-inp` always reports unmeasured. INP requires real user interaction, which
   an automated crawl does not perform. For real INP use field data (CrUX or RUM).
-- Running `--no-cwv` reports the Core Web Vitals rules and most JavaScript
+- Running without `--cwv` reports the Core Web Vitals rules and most JavaScript
   rendering rules as unmeasured rather than passing or failing them. **A site
-  audited with `--no-cwv` is not directly comparable to one audited without it**,
+  audited with `--cwv` is not directly comparable to one audited without it**,
   because a different set of rules contributed to the score.
 - `links-depth` and `links-orphan-pages` need the site-wide link graph, which
   only exists in crawl mode. **Run with `--crawl` to measure them**; a
   single-page audit reports them unmeasured because click distance and inbound
   links cannot be known from one page.
 - The `mobile-parity-*` rules need a second render at a mobile viewport. **Run
-  with `--mobile`** (and without `--no-cwv`) to measure them.
+  with `--cwv --mobile`** to measure them.
 - Checks that compare a page with the rest of the site (`core-title-unique`,
   `content-duplicate-description`, `content-duplicate-exact`,
   `content-duplicate-near`, `crawl-sitemap-orphan-urls`) report unmeasured on a
@@ -470,12 +471,13 @@ npm install -g @seomator/seo-audit
 
 ### Core Web Vitals not measured
 
-If CWV metrics are missing, Chrome/Chromium may not be available.
+If CWV metrics are missing, the audit may have run without `--cwv`, or
+Chrome/Chromium may not be available.
 
 **Solution:**
-1. Install Chrome, Chromium, or Edge
-2. Run `seomator self doctor` to verify browser detection
-3. Use `--no-cwv` to skip CWV if not needed
+1. Pass `--cwv`: audits skip the browser render by default
+2. Install Chrome, Chromium, or Edge
+3. Run `seomator self doctor` to verify browser detection
 
 ### Crawl timeout or slow performance
 
@@ -484,7 +486,7 @@ For large sites, audits may take several minutes.
 **Solution:**
 - Use `--verbose` to see progress
 - Limit pages with `-m 20` for faster results
-- Use `--no-cwv` to skip browser-based measurements
+- Leave out `--cwv`: it renders every crawled page in a browser
 
 ### Invalid URL
 

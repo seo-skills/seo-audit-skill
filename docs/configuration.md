@@ -78,7 +78,7 @@ timeout_ms = 5000
 ```
 
 ```
-$ seomator audit https://example.com --crawl --no-cwv --no-save --format json | jq '.run | {maxPages, concurrency, timeout}'
+$ seomator audit https://example.com --crawl --no-save --format json | jq '.run | {maxPages, concurrency, timeout}'
 {
   "maxPages": 10,
   "concurrency": 3,
@@ -524,7 +524,7 @@ Local settings:
 | `-m, --max-pages <n>` | `crawl` | `crawler.max_pages` | Applied only when given. Range 1 to 1000. |
 
 These exist only as flags, with no config key: `--crawl`, `-c, --categories`,
-`--no-cwv`, `--mobile`, `--simulate-interaction`, `--json-report` and
+`--cwv`, `--mobile`, `--simulate-interaction`, `--json-report` and
 `-v, --verbose` on `audit`. The `--output <path>` flag of `crawl` names the
 directory the crawl is stored under. It is not `[output] path`.
 
@@ -559,7 +559,7 @@ Config file: /path/to/shop/seomator.toml
 
 ⚠ rules: a rule filter is in force, so this score is not comparable to an unfiltered audit. `compare` reports the difference rather than calling it a regression.
   Value: {"enable":["*"],"disable":["cwv-*"]}
-$ seomator audit https://example.com --crawl -m 25 --no-cwv
+$ seomator audit https://example.com --crawl -m 25
 Note (/path/to/shop/seomator.toml): a rule filter is in force, so this score is not comparable to an unfiltered audit. `compare` reports the difference rather than calling it a regression.
 Report saved to: reports/audit.json
 $ jq '{url, overallScore, crawledPages}' reports/audit.json
@@ -692,7 +692,7 @@ only those rules.
 3. Run the audit:
 
    ```bash
-   seomator audit https://example.com --no-cwv
+   seomator audit https://example.com
    ```
 
 #### Verification
@@ -701,7 +701,7 @@ The audit prints `Note (<path>): a rule filter is in force, ...` on stderr, and
 the skipped rules are missing from the report. With the `disable` list above:
 
 ```
-$ seomator audit https://example.com --no-cwv --no-save --format json 2>/dev/null | grep -cE '"ruleId": "(cwv-|a11y-color-contrast)'
+$ seomator audit https://example.com --no-save --format json 2>/dev/null | grep -cE '"ruleId": "(cwv-|a11y-color-contrast)'
 0
 ```
 
@@ -726,8 +726,8 @@ Make every `seomator audit` in a pipeline write its report to
 #### Prerequisites
 
 - Node.js and SEOmator on the runner.
-- Playwright's Chromium (`npx playwright install chromium`), unless you pass
-  `--no-cwv`.
+- Playwright's Chromium (`npx playwright install chromium`), if you pass
+  `--cwv`.
 
 #### Steps
 
@@ -741,12 +741,12 @@ Make every `seomator audit` in a pipeline write its report to
 2. In the CI job, run the audit:
 
    ```bash
-   seomator audit https://example.com --no-cwv
+   seomator audit https://example.com
    ```
 
    For a crawl, set the limits with flags, because `audit` ignores
    `max_pages`, `concurrency` and `timeout_ms` in the file:
-   `seomator audit https://example.com --crawl -m 50 --concurrency 5 --no-cwv`.
+   `seomator audit https://example.com --crawl -m 50 --concurrency 5`.
 3. Let the exit code decide the job: `0` for a score of 70 or more, `1` below
    70, `2` when the audit failed, `130` when it was cancelled.
 4. Keep `reports/audit.json` as a build artifact. Add `--no-save` if the runner
@@ -757,7 +757,7 @@ Make every `seomator audit` in a pipeline write its report to
 Stdout stays empty. The `Report saved to` line goes to stderr:
 
 ```
-$ seomator audit https://example.com --no-cwv --no-save
+$ seomator audit https://example.com --no-save
 Report saved to: reports/audit.json
 $ echo $?
 0
@@ -775,7 +775,7 @@ $ jq '{url, overallScore}' reports/audit.json
 | Exit code 2, no file, JSON on stdout | The audit failed. Stdout carries `{ "error": true, "code", "message", "hint" }`, for example `"code": "dns"` for a host that does not resolve. Follow the `hint`. |
 | The report went to stdout instead of the file | `--format` or `--json` on the command line cancels `[output] path`. Add `-o reports/audit.json`, or drop the flag. |
 | A crawl stops at 10 pages | Pass `-m`. `audit` does not read `max_pages`. |
-| Exit code 2 with `"code": "playwright-missing"` | Run `npx playwright install chromium` on the runner, or pass `--no-cwv`. |
+| Exit code 2 with `"code": "playwright-missing"` | Run `npx playwright install chromium` on the runner, or audit without `--cwv`. |
 | Exit code 2 with `"code": "config"` | The path given to `--config` does not exist. |
 | A staging site scores 20 | The site is kept out of search on purpose (noindex, or robots.txt blocks Googlebot). Audit it with `--staging`. |
 

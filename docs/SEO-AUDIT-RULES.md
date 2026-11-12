@@ -17,12 +17,12 @@ Every rule returns one result for each audited page.
 | `fail` | 0 | Counts at the rule's weight |
 | `not-measured` | none | Weight 0: left out of every average |
 
-A rule reports `not-measured` when its input is missing: the audit skipped the browser render (`--no-cwv`), the check compares pages and the audit was not a crawl, or the page has nothing for the rule to grade. In JSON output such a result still carries `"score": 50`, next to `"weight": 0`, and the weight keeps it out of the score. A rule that throws an error is recorded as `fail`.
+A rule reports `not-measured` when its input is missing: the audit skipped the browser render (it runs only with `--cwv`), the check compares pages and the audit was not a crawl, or the page has nothing for the rule to grade. In JSON output such a result still carries `"score": 50`, next to `"weight": 0`, and the weight keeps it out of the score. A rule that throws an error is recorded as `fail`.
 
 To read individual results, filter the JSON report by rule ID:
 
 ```bash
-seomator audit https://example.com --no-cwv --no-save --format json \
+seomator audit https://example.com --no-save --format json \
   | jq '.categoryResults[].results[]
         | select(.ruleId == "core-title-present" or .ruleId == "core-title-unique")
         | {ruleId, status, score, weight, message}'
@@ -58,7 +58,7 @@ Page-level score caps can hold the overall score lower still. See [Score Calcula
 - **Name**: the name reports print.
 - **Weight**: the rule weight.
 - **Severity**: the result the rule gives when its check finds a problem: `warn`, `fail`, or `warn/fail` when it depends on how far the page is off. `pass only` marks a rule that reports a finding without ever lowering the score. `not measured` marks a rule that never scores in an audit.
-- **Description**: what the rule checks. A suffix marks a rule that reports `not-measured` unless the audit runs a certain way: `(requires --crawl)`; `(requires render; not measured with --no-cwv)` for rules that read the browser render that `--no-cwv` skips; `(requires --mobile)` for the mobile parity rules, which also need that render.
+- **Description**: what the rule checks. A suffix marks a rule that reports `not-measured` unless the audit runs a certain way: `(requires --crawl)`; `(requires render; not measured without --cwv)` for rules that read the browser render, which runs only with `--cwv`; `(requires --cwv --mobile)` for the mobile parity rules, which need that render and a second one at a mobile viewport.
 
 ## Categories and weights
 
@@ -219,11 +219,11 @@ Core Web Vitals measurements and static performance optimization hints.
 
 | Rule ID | Name | Weight | Severity | Description |
 |---------|------|-------:|----------|-------------|
-| `cwv-lcp` | Largest Contentful Paint (LCP) | 25 | warn/fail | Largest Contentful Paint: under 2.5s passes, over 4.0s fails (requires render; not measured with --no-cwv) |
-| `cwv-cls` | Cumulative Layout Shift (CLS) | 25 | warn/fail | Cumulative Layout Shift: under 0.1 passes, over 0.25 fails (requires render; not measured with --no-cwv) |
-| `cwv-inp` | Interaction to Next Paint (INP) | 20 | not measured | Interaction to Next Paint. Not scored: an audit has no real user input, and `--simulate-interaction` gives an indicative value only |
-| `cwv-ttfb` | Time to First Byte (TTFB) | 15 | warn/fail | Time to First Byte: under 800ms passes, over 1800ms fails (requires render; not measured with --no-cwv) |
-| `cwv-fcp` | First Contentful Paint (FCP) | 15 | warn/fail | First Contentful Paint: under 1.8s passes, over 3.0s fails (requires render; not measured with --no-cwv) |
+| `cwv-lcp` | Largest Contentful Paint (LCP) | 25 | warn/fail | Largest Contentful Paint: under 2.5s passes, over 4.0s fails (requires render; not measured without --cwv) |
+| `cwv-cls` | Cumulative Layout Shift (CLS) | 25 | warn/fail | Cumulative Layout Shift: under 0.1 passes, over 0.25 fails (requires render; not measured without --cwv) |
+| `cwv-inp` | Interaction to Next Paint (INP) | 20 | not measured | Interaction to Next Paint. Not scored: an audit has no real user input, and `--cwv --simulate-interaction` gives an indicative value only |
+| `cwv-ttfb` | Time to First Byte (TTFB) | 15 | warn/fail | Time to First Byte: under 800ms passes, over 1800ms fails (requires render; not measured without --cwv) |
+| `cwv-fcp` | First Contentful Paint (FCP) | 15 | warn/fail | First Contentful Paint: under 1.8s passes, over 3.0s fails (requires render; not measured without --cwv) |
 | `perf-dom-size` | DOM Size | 15 | warn/fail | Checks DOM node count, depth, and children |
 | `perf-css-file-size` | CSS File Size | 10 | warn/fail | Checks external CSS count and inline CSS size |
 | `perf-font-loading` | Font Loading | 15 | warn/fail | Checks font-display, preload, display=swap |
@@ -236,9 +236,9 @@ Core Web Vitals measurements and static performance optimization hints.
 | `perf-cache-policy` | Cache Policy | 7 | warn | Checks the page response for caching headers (Cache-Control, ETag, Last-Modified, Expires); none at all warns |
 | `perf-minify-css` | Minify Inline CSS | 5 | warn | Checks inline CSS is minified; with render data, also flags large external stylesheets lacking a `.min.` URL marker (heuristic) |
 | `perf-minify-js` | Minify Inline JS | 5 | warn | Checks inline JavaScript is minified; with render data, also flags large external scripts lacking a `.min.` URL marker (heuristic) |
-| `perf-asset-cache-policy` | Static Asset Cache Policy | 6 | warn | Per-asset check: static CSS/JS/image/font responses carry a cache-control max-age of at least 1 hour (requires render; not measured with --no-cwv) |
-| `perf-asset-compression` | Text Asset Compression | 6 | warn | Per-asset check: text-based assets over 2KB are served with gzip/Brotli (requires render; not measured with --no-cwv) |
-| `perf-image-encoding` | Efficient Image Encoding | 6 | warn/fail | Per-asset check: images transferred over 100KB (warn) or served in legacy BMP/TIFF formats (fail) (requires render; not measured with --no-cwv) |
+| `perf-asset-cache-policy` | Static Asset Cache Policy | 6 | warn | Per-asset check: static CSS/JS/image/font responses carry a cache-control max-age of at least 1 hour (requires render; not measured without --cwv) |
+| `perf-asset-compression` | Text Asset Compression | 6 | warn | Per-asset check: text-based assets over 2KB are served with gzip/Brotli (requires render; not measured without --cwv) |
+| `perf-image-encoding` | Efficient Image Encoding | 6 | warn/fail | Per-asset check: images transferred over 100KB (warn) or served in legacy BMP/TIFF formats (fail) (requires render; not measured without --cwv) |
 | `perf-response-time` | Response Time | 7 | warn/fail | Measures server response time for the page |
 | `perf-http2` | HTTP/2+ Support | 5 | warn | Warns when the response has no `alt-svc` header; the negotiated protocol is not checked |
 | `perf-page-weight` | Page Weight | 8 | warn/fail | Size of the HTML document: over 100KB warns, over 300KB fails |
@@ -259,8 +259,8 @@ Core Web Vitals measurements and static performance optimization hints.
 | FCP | < 1.8s | 1.8-3.0s | > 3.0s |
 
 #### cwv-lcp / cwv-cls / cwv-inp / cwv-ttfb / cwv-fcp
-- **Measured in a headless Chromium-based browser** through Playwright. Under `--no-cwv` all five report not measured, and so does any metric the render did not capture.
-- **INP is not scored.** An automated audit has no real user input, so `cwv-inp` reports not measured. `--simulate-interaction` clicks and scrolls to get an indicative value, which is shown but still not scored. Use field data (CrUX or RUM) for INP.
+- **Measured in a headless Chromium-based browser** through Playwright. Without `--cwv` all five report not measured, and so does any metric the render did not capture.
+- **INP is not scored.** An automated audit has no real user input, so `cwv-inp` reports not measured. With `--cwv`, `--simulate-interaction` clicks and scrolls to get an indicative value, which is shown but still not scored. Use field data (CrUX or RUM) for INP.
 - **Fix LCP:** Optimize largest image, use CDN, preload LCP element
 - **Fix CLS:** Set image dimensions, avoid inserting content above existing
 - **Fix INP:** Optimize JavaScript, break up long tasks
@@ -299,15 +299,15 @@ Core Web Vitals measurements and static performance optimization hints.
 - **Fix:** Use build tools (esbuild, terser, cssnano) to minify CSS and JavaScript
 
 #### perf-asset-cache-policy
-- **What it checks:** Static assets (stylesheets, scripts, images, fonts) seen during the rendered page load whose `cache-control` max-age is missing or below 1 hour. The Expires header is not read. Not measured under `--no-cwv`, because per-asset headers come from the Playwright render
+- **What it checks:** Static assets (stylesheets, scripts, images, fonts) seen during the rendered page load whose `cache-control` max-age is missing or below 1 hour. The Expires header is not read. Not measured without `--cwv`, because per-asset headers come from the Playwright render
 - **Fix:** Serve static assets with `Cache-Control: max-age=3600` or longer (a year for content-hashed URLs)
 
 #### perf-asset-compression
-- **What it checks:** Text-based assets (CSS, JS, JSON, XML, SVG) over 2KB observed during render with no gzip/Brotli/deflate/zstd content-encoding. Size is read from the content-length header; chunked responses without one are not judged. Not measured under `--no-cwv`
+- **What it checks:** Text-based assets (CSS, JS, JSON, XML, SVG) over 2KB observed during render with no gzip/Brotli/deflate/zstd content-encoding. Size is read from the content-length header; chunked responses without one are not judged. Not measured without `--cwv`
 - **Fix:** Enable gzip or Brotli compression for text resources
 
 #### perf-image-encoding
-- **What it checks:** Images observed during render: a transferred size over 100KB (content-length header) warns; legacy BMP/TIFF formats fail, since modern equivalents are smaller by an order of magnitude. Not measured under `--no-cwv`
+- **What it checks:** Images observed during render: a transferred size over 100KB (content-length header) warns; legacy BMP/TIFF formats fail, since modern equivalents are smaller by an order of magnitude. Not measured without `--cwv`
 - **Fix:** Compress oversized images; re-encode BMP/TIFF as WebP or AVIF
 
 #### perf-response-time
@@ -996,36 +996,36 @@ Compares the served HTML with the DOM after JavaScript runs, and checks the rend
 
 | Rule ID | Name | Weight | Severity | Description |
 |---------|------|-------:|----------|-------------|
-| `js-rendered-title` | Rendered Title Present | 10 | fail | A non-empty `<title>` exists in the rendered DOM after JavaScript runs (requires render; not measured with --no-cwv) |
-| `js-rendered-description` | Rendered Meta Description Present | 8 | fail | A meta description exists in the rendered DOM after JavaScript runs (requires render; not measured with --no-cwv) |
-| `js-rendered-h1` | Rendered H1 Present | 8 | fail | A non-empty H1 exists in the rendered DOM after JavaScript runs (requires render; not measured with --no-cwv) |
-| `js-rendered-canonical` | Rendered Canonical Present | 8 | fail | A canonical link exists in the rendered DOM after JavaScript runs (requires render; not measured with --no-cwv) |
-| `js-canonical-mismatch` | Canonical Mismatch (Raw vs Rendered) | 10 | fail | Canonical differs between HTML source and rendered DOM (requires render; not measured with --no-cwv) |
-| `js-noindex-mismatch` | Noindex/Nofollow Mismatch (Raw vs Rendered) | 10 | fail | Noindex or nofollow in `<meta name="robots">` differs between source and rendered DOM (requires render; not measured with --no-cwv) |
-| `js-title-modified` | Title Modified by JavaScript | 8 | warn | JavaScript modifies title after initial load (requires render; not measured with --no-cwv) |
-| `js-description-modified` | Meta Description Modified by JavaScript | 7 | warn | JavaScript modifies description after initial load (requires render; not measured with --no-cwv) |
-| `js-h1-modified` | H1 Modified by JavaScript | 7 | warn | JavaScript modifies H1 after initial load (requires render; not measured with --no-cwv) |
-| `js-rendered-content` | Rendered Content Dependency | 8 | warn/fail | Main content relies on JavaScript to render (requires render; not measured with --no-cwv) |
-| `js-rendered-links` | Rendered Links Dependency | 7 | warn | JavaScript adds most links: the rendered `a[href]` count is over double the source count and more than 10 higher (requires render; not measured with --no-cwv) |
+| `js-rendered-title` | Rendered Title Present | 10 | fail | A non-empty `<title>` exists in the rendered DOM after JavaScript runs (requires render; not measured without --cwv) |
+| `js-rendered-description` | Rendered Meta Description Present | 8 | fail | A meta description exists in the rendered DOM after JavaScript runs (requires render; not measured without --cwv) |
+| `js-rendered-h1` | Rendered H1 Present | 8 | fail | A non-empty H1 exists in the rendered DOM after JavaScript runs (requires render; not measured without --cwv) |
+| `js-rendered-canonical` | Rendered Canonical Present | 8 | fail | A canonical link exists in the rendered DOM after JavaScript runs (requires render; not measured without --cwv) |
+| `js-canonical-mismatch` | Canonical Mismatch (Raw vs Rendered) | 10 | fail | Canonical differs between HTML source and rendered DOM (requires render; not measured without --cwv) |
+| `js-noindex-mismatch` | Noindex/Nofollow Mismatch (Raw vs Rendered) | 10 | fail | Noindex or nofollow in `<meta name="robots">` differs between source and rendered DOM (requires render; not measured without --cwv) |
+| `js-title-modified` | Title Modified by JavaScript | 8 | warn | JavaScript modifies title after initial load (requires render; not measured without --cwv) |
+| `js-description-modified` | Meta Description Modified by JavaScript | 7 | warn | JavaScript modifies description after initial load (requires render; not measured without --cwv) |
+| `js-h1-modified` | H1 Modified by JavaScript | 7 | warn | JavaScript modifies H1 after initial load (requires render; not measured without --cwv) |
+| `js-rendered-content` | Rendered Content Dependency | 8 | warn/fail | Main content relies on JavaScript to render (requires render; not measured without --cwv) |
+| `js-rendered-links` | Rendered Links Dependency | 7 | warn | JavaScript adds most links: the rendered `a[href]` count is over double the source count and more than 10 higher (requires render; not measured without --cwv) |
 | `js-blocked-resources` | Blocked JavaScript Resources | 7 | warn | Same-host scripts disallowed for `User-agent: *` in robots.txt; stylesheets are not checked |
 | `js-ssr-check` | Server-Side Rendering Check | 10 | warn/fail | Checks if server-side rendering is implemented |
-| `js-console-errors` | JavaScript Console Errors | 8 | warn/fail | Uncaught exceptions (fail) and console errors (warn) captured while rendering (requires render; not measured with --no-cwv) |
-| `js-failed-requests` | Failed Resource Requests | 8 | warn/fail | Subresources that failed to load while rendering; a failed script, stylesheet, document, fetch or XHR fails (requires render; not measured with --no-cwv) |
+| `js-console-errors` | JavaScript Console Errors | 8 | warn/fail | Uncaught exceptions (fail) and console errors (warn) captured while rendering (requires render; not measured without --cwv) |
+| `js-failed-requests` | Failed Resource Requests | 8 | warn/fail | Subresources that failed to load while rendering; a failed script, stylesheet, document, fetch or XHR fails (requires render; not measured without --cwv) |
 | `js-document-write` | No document.write() | 7 | warn | Inline scripts do not use `document.write()` |
 
 #### js-rendered-title / js-rendered-description / js-rendered-h1 / js-rendered-canonical
-- **What it checks:** The title, meta description, H1 and canonical link in the DOM after JavaScript runs. Each rule fails when its element is missing or empty there, so an element injected by JavaScript passes. Not measured with `--no-cwv`.
+- **What it checks:** The title, meta description, H1 and canonical link in the DOM after JavaScript runs. Each rule fails when its element is missing or empty there, so an element injected by JavaScript passes. Not measured without `--cwv`.
 - **Fix:** Output these elements in the server HTML (SSR or static generation) so they are present before and after JavaScript runs.
 
 #### js-canonical-mismatch / js-noindex-mismatch
-- **What it checks:** The canonical URL, and `noindex` or `nofollow` in `<meta name="robots">`, compared between the served HTML and the rendered DOM. The X-Robots-Tag header is not compared. Not measured with `--no-cwv`.
+- **What it checks:** The canonical URL, and `noindex` or `nofollow` in `<meta name="robots">`, compared between the served HTML and the rendered DOM. The X-Robots-Tag header is not compared. Not measured without `--cwv`.
 - **Fix:** Ensure the rendered DOM matches the initial HTML for canonical and indexing directives (noindex, nofollow). Avoid JavaScript that modifies these elements, and set the directives in server-side HTML instead.
 
 #### js-title-modified / js-description-modified / js-h1-modified
 - **Fix:** Set title, description, and H1 server-side. Avoid client-side JavaScript that overwrites them.
 
 #### js-rendered-content
-- **What it checks:** Visible body text length in the served HTML against the rendered DOM. Fails when the served HTML has under 100 characters and the render over 500; warns when the render has more than three times the served text. Not measured with `--no-cwv`.
+- **What it checks:** Visible body text length in the served HTML against the rendered DOM. Fails when the served HTML has under 100 characters and the render over 500; warns when the render has more than three times the served text. Not measured without `--cwv`.
 - **Fix:** Render main content server-side. Use SSR or static generation for content-heavy pages.
 
 #### js-rendered-links
@@ -1383,9 +1383,9 @@ Validates redirect implementation, types, and common redirect issues.
 | `redirect-broken` | No Broken Redirects | 15 | fail | The page's final status after its redirect chain is 4xx or 5xx |
 | `redirect-resource` | No HTTP Resource Redirects | 10 | warn | HTTPS page loads stylesheets, scripts or images from `http://` URLs, which usually redirect |
 | `redirect-case-normalization` | URL Case Normalization | 8 | warn | The served URL differs from its canonical only by letter case |
-| `redirect-resource-broken` | No Broken Resource Redirects | 12 | fail | Redirected page resources resolve to a 4xx/5xx status (requires render; not measured with --no-cwv) |
-| `redirect-resource-loop` | No Resource Redirect Loops | 12 | fail | Page resources caught in a redirect loop and never resolve (requires render; not measured with --no-cwv) |
-| `redirect-resource-chain` | No Resource Redirect Chains | 8 | warn | Page resources resolve through multi-hop redirect chains (requires render; not measured with --no-cwv) |
+| `redirect-resource-broken` | No Broken Resource Redirects | 12 | fail | Redirected page resources resolve to a 4xx/5xx status (requires render; not measured without --cwv) |
+| `redirect-resource-loop` | No Resource Redirect Loops | 12 | fail | Page resources caught in a redirect loop and never resolve (requires render; not measured without --cwv) |
+| `redirect-resource-chain` | No Resource Redirect Chains | 8 | warn | Page resources resolve through multi-hop redirect chains (requires render; not measured without --cwv) |
 
 #### redirect-meta-refresh
 - **Fix:** Replace `<meta http-equiv="refresh">` with server-side 301 redirects.
@@ -1416,15 +1416,15 @@ Validates redirect implementation, types, and common redirect issues.
 - **Fix:** Redirect every other casing of the URL to the canonical form with a 301.
 
 #### redirect-resource-broken
-- **What it checks:** Page subresources (scripts, stylesheets, images, fonts and others) whose requests were redirected and ended in a 4xx or 5xx response. The page loads without the resource. js-failed-requests reports resources that fail without a redirect. Not measured under `--no-cwv`, because per-resource redirect chains come from the Playwright render
+- **What it checks:** Page subresources (scripts, stylesheets, images, fonts and others) whose requests were redirected and ended in a 4xx or 5xx response. The page loads without the resource. js-failed-requests reports resources that fail without a redirect. Not measured without `--cwv`, because per-resource redirect chains come from the Playwright render
 - **Fix:** Update the resource URLs to point directly at a working destination
 
 #### redirect-resource-loop
-- **What it checks:** A page resource request that loops back to a URL already present in its own redirect chain. The browser aborts with ERR_TOO_MANY_REDIRECTS, so the page loads without that script, stylesheet, or image. Not measured under `--no-cwv`
+- **What it checks:** A page resource request that loops back to a URL already present in its own redirect chain. The browser aborts with ERR_TOO_MANY_REDIRECTS, so the page loads without that script, stylesheet, or image. Not measured without `--cwv`
 - **Fix:** Fix the redirect target so the chain resolves to a final resource instead of looping
 
 #### redirect-resource-chain
-- **What it checks:** Page resources that resolve through redirect chains of 2 or more hops. Each extra hop adds latency. A single hop (http to https, trailing-slash normalisation) passes, and redirect-resource-loop reports looping resources instead. Not measured under `--no-cwv`
+- **What it checks:** Page resources that resolve through redirect chains of 2 or more hops. Each extra hop adds latency. A single hop (http to https, trailing-slash normalisation) passes, and redirect-resource-loop reports looping resources instead. Not measured without `--cwv`
 - **Fix:** Point resource URLs directly at the final destination
 
 ---
@@ -1442,11 +1442,11 @@ Mobile-friendliness checks for font size, viewport, and responsive layout.
 | `mobile-interstitials` | Intrusive Interstitials | 10 | warn/fail | Detects popups and overlays covering content |
 | `mobile-viewport-width` | Viewport Fixed Width | 10 | fail | Fails when the viewport meta tag sets a fixed pixel width instead of `device-width` |
 | `mobile-multiple-viewports` | Multiple Viewport Tags | 8 | fail | Detects multiple viewport meta tags |
-| `mobile-parity-content` | Mobile Content Parity | 10 | warn/fail | Mobile body content vs desktop render (requires --mobile) |
-| `mobile-parity-title` | Mobile Title & Description Parity | 8 | warn/fail | Title/description match between renders (requires --mobile) |
-| `mobile-parity-canonical` | Mobile Canonical Parity | 8 | fail | Canonical matches between renders (requires --mobile) |
-| `mobile-parity-structured-data` | Mobile Structured Data Parity | 8 | fail | JSON-LD present on mobile as on desktop (requires --mobile) |
-| `mobile-parity-links` | Mobile Internal Link Parity | 6 | warn | Mobile shows at least half as many links as desktop; counts every `a[href]` except fragments and `javascript:` (requires --mobile) |
+| `mobile-parity-content` | Mobile Content Parity | 10 | warn/fail | Mobile body content vs desktop render (requires --cwv --mobile) |
+| `mobile-parity-title` | Mobile Title & Description Parity | 8 | warn/fail | Title/description match between renders (requires --cwv --mobile) |
+| `mobile-parity-canonical` | Mobile Canonical Parity | 8 | fail | Canonical matches between renders (requires --cwv --mobile) |
+| `mobile-parity-structured-data` | Mobile Structured Data Parity | 8 | fail | JSON-LD present on mobile as on desktop (requires --cwv --mobile) |
+| `mobile-parity-links` | Mobile Internal Link Parity | 6 | warn | Mobile shows at least half as many links as desktop; counts every `a[href]` except fragments and `javascript:` (requires --cwv --mobile) |
 | `mobile-image-maps` | Image Maps | 8 | warn | Detects `<map>`/`<area>` image maps, whose fixed-coordinate tap targets do not adapt to mobile screens |
 | `mobile-viewport-content` | Viewport Meta Content | 10 | warn | Validates viewport directives: width present, initial-scale=1, no minimum-scale |
 

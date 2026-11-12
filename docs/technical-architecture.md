@@ -11,7 +11,7 @@ An audit has to turn one page, or a crawl of a few hundred, into a score from 0 
 1. **Inputs cost very different amounts.** The HTML is one request. Core Web Vitals and the rendered DOM need a real browser. Duplicate titles and orphan pages need every page of the site and the links between them.
 2. **A check can lack its input.** Most checks pass when the thing they look for is absent, so a check that could not look would pass silently and the score would lie.
 3. **An average cannot say "nothing else matters".** Most of the weight sits in checks that read the same on every page of a server: headers, TLS, compression. Before score caps, a page Google is told not to index scored 94, and a page holding one word scored 85.
-4. **Several surfaces share one history.** The CLI, the local dashboard and the desktop app all write to the same database, and they do not share defaults.
+4. **Several surfaces share one history.** The CLI, the local dashboard and the desktop app all write to the same database, and the audits in it were not all measured the same way.
 
 The sections below follow an audit from the command line to the database and show which part answers which problem.
 
@@ -48,7 +48,7 @@ The React app in `ui/` is the same code in the browser and in Electron. `ui/lib/
 
 The desktop app renders pages in an Electron `BrowserWindow` (`electron/main/electron-fetcher.ts`), passed to the engine as its `browserFetcher` option, instead of Playwright. That window gives Core Web Vitals and a rendered DOM, but no mobile emulation and no synthetic interaction, so the desktop build reports those two as unavailable.
 
-**Trade-off.** One engine means one score for one site, whichever surface ran it, and a fix to a rule lands everywhere at once. What it does not remove is the difference in defaults and capabilities. The CLI measures Core Web Vitals unless `--no-cwv`; the run form in `ui/` starts with them off. Only the CLI applies `[rules]` filters and offers `--staging`. A browser run and a no-browser run of the same site score differently for reasons that have nothing to do with the site, so every stored audit records how it was measured, and `seomator compare` will not call a measurement difference a regression. [Storage Architecture](./STORAGE-ARCHITECTURE.md#the-run-profile-run_json) lists the recorded fields.
+**Trade-off.** One engine means one score for one site, whichever surface ran it, and a fix to a rule lands everywhere at once. What it does not remove is the difference in capabilities. Core Web Vitals are off by default everywhere: the CLI measures them with `--cwv`, the run form in `ui/` when its Core Web Vitals option is on. Only the CLI applies `[rules]` filters and offers `--staging`. A browser run and a no-browser run of the same site score differently for reasons that have nothing to do with the site, so every stored audit records how it was measured, and `seomator compare` will not call a measurement difference a regression. [Storage Architecture](./STORAGE-ARCHITECTURE.md#the-run-profile-run_json) lists the recorded fields.
 
 ## How a single-page audit runs
 
@@ -63,7 +63,7 @@ The desktop app renders pages in an Electron `BrowserWindow` (`electron/main/ele
         |             empty body or not HTML  -> AuditError 'non-html'
         |             HTTP 400 or above       -> AuditError 'http-error'
         v
- 3. Render          src/crawler/playwright-fetcher.ts (skipped with --no-cwv)
+ 3. Render          src/crawler/playwright-fetcher.ts (only with --cwv)
         |             Core Web Vitals, rendered DOM, console errors, failed requests, assets
         |             --mobile: a second render at a mobile viewport
         v
@@ -88,7 +88,7 @@ The desktop app renders pages in an Electron `BrowserWindow` (`electron/main/ele
 
 **Refuse before scoring.** Step 2 turns some responses away because most rules pass when their subject is missing. An empty response body once scored 84, a JSON response 83, and a mistyped URL that returned 404 scored 87. The auditor now throws an `AuditError` instead of scoring such a response: a confident wrong score is worse than an error. The error carries a code (`dns`, `unreachable`, `tls`, `timeout`, `http-error`, `non-html`, `playwright-missing`, `no-pages`, `config`, `aborted` or `unknown`, from `src/errors.ts`) and usually a hint, so every surface can say what to do next. When the output is a document, the failure is written to stdout instead of stderr: a JSON error object under `--format json`, an `<error>` element under `llm`, `html` and `markdown`. An agent reading stdout would otherwise get an empty string that looks like a clean audit.
 
-**The browser is optional and allowed to fail.** The render is the expensive step, so it is the one you can turn off. When it is off, or when it fails, the audit continues on the HTTP response alone, and the checks that needed the render return `notMeasured()` instead of passing. One Chromium instance serves every render in an audit (`initBrowser()` caches it) and is closed when the audit ends, including when it is cancelled, because a leaked browser outlives the process that started it. `--mobile` adds a second render with the real Playwright renderer, roughly doubling render time, which is why it is off by default.
+**The browser is optional and allowed to fail.** The render is the expensive step, so it runs only when you ask for it with `--cwv`. When it is off, or when it fails, the audit continues on the HTTP response alone, and the checks that needed the render return `notMeasured()` instead of passing. One Chromium instance serves every render in an audit (`initBrowser()` caches it) and is closed when the audit ends, including when it is cancelled, because a leaked browser outlives the process that started it. `--mobile` adds a second render with the real Playwright renderer, roughly doubling render time, which is why it is off by default.
 
 **Order of enrichment.** robots.txt is fetched before the sitemaps because it can name them: the sitemap module reads every `Sitemap:` line, follows sitemap indexes and decompresses gzipped files. A robots.txt that cannot be fetched is treated as absent rather than as a failure.
 
@@ -144,7 +144,7 @@ Every step rounds to a whole number. A rule's weight sets how far it moves its c
 
 **Unmeasured means weight 0.** A check that could not take a reading returns `notMeasured()`: status `not-measured`, weight 0. It appears in every report, so the gap is visible, but it adds nothing to either side of an average and is counted apart from passes, warnings and failures. Earlier versions recorded it as a warning, which produced category rows reading "score 100, 13 warnings": a score that excluded the very rules the count advertised. Stored audits from those versions still read correctly; [Storage Architecture](./STORAGE-ARCHITECTURE.md#table-audit_results) lists the three encodings.
 
-**Trade-off.** Leaving unmeasured checks out keeps a score honest about what was seen, but two scores then cover different sets of checks. A run with `--no-cwv` leaves dozens of checks unmeasured that a browser run grades. The score is still correct for what it measured, and it is not comparable with a browser run. That is the reason for the run profile.
+**Trade-off.** Leaving unmeasured checks out keeps a score honest about what was seen, but two scores then cover different sets of checks. A run without `--cwv` leaves dozens of checks unmeasured that a browser run grades. The score is still correct for what it measured, and it is not comparable with a browser run. That is the reason for the run profile.
 
 **`SCORING_VERSION`** in `src/scoring.ts` covers the other way two scores can differ while the site stays the same: a change to the model. It names the scoring model and is bumped whenever weights or arithmetic change:
 
@@ -180,7 +180,7 @@ How `src/score-caps.ts` applies them:
 - **A single-page audit is capped by its own page.** A crawl is capped by its **start page only, and by indexability only.** A site-wide block, such as noindex shipped from staging or `Disallow: /`, always reaches the start page, while a page kept out of search on purpose (a login or thank-you page) is almost never the start page. Content is already scored on every page.
 - **`--staging`** (on `audit` and `analyze`) waives the indexability caps and keeps the content caps. The waived caps are reported as `waivedCaps`, a list of what to lift at launch, and a staging crawl also ignores robots.txt so that a `Disallow: /` staging site can be crawled at all.
 
-The JSON report records the cap next to the score. On a local three-page test site whose home page is noindex, `seomator audit <url> --crawl -m 3 --no-cwv --format json` printed:
+The JSON report records the cap next to the score. On a local three-page test site whose home page is noindex, `seomator audit <url> --crawl -m 3 --format json` printed:
 
 ```json
 "overallScore": 20,
@@ -247,7 +247,7 @@ Some choices about scope, most of them explained in comments in `src/crawler/cra
 - **Depth is the shortest path.** The queue is first in, first out, and a URL is queued at most once, so the depth recorded on first discovery is its shortest click distance from the start page.
 - **The crawler obeys robots.txt for its own user agent** (`SEOmatorBot` by default, `[crawler] user_agent`), while the `robots-disallowed` cap reads the Googlebot group. `[crawler] respect_robots = false` or `--staging` turns the crawler's check off.
 
-The browser render in a crawl measures Core Web Vitals and captures the rendered DOM for every page. It does not do the mobile render or the synthetic interaction; `--mobile` and `--simulate-interaction` apply to single-page audits.
+With `--cwv`, the browser render in a crawl measures Core Web Vitals and captures the rendered DOM for every page. It does not do the mobile render or the synthetic interaction; `--mobile` and `--simulate-interaction` apply to single-page audits.
 
 A category's score in a crawl is the weighted average over every rule result from every page, so a rule that fails on 3 of 50 pages pulls the category down in proportion instead of deciding it. A page that failed to load stays in the site graph, so sitemap checks can see it, and is skipped by the rules. A crawl that finds no page at all fails with `no-pages`.
 

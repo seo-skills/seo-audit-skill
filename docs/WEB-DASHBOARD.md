@@ -55,7 +55,7 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:7360/
 2. Type the URL. The form adds `https://` when you leave out the scheme.
 3. Pick the options. The form remembers them for the next audit.
    - **Core Web Vitals** opens the page in a real browser to measure speed. It is
-     off by default in this form, unlike `seomator audit`, and adds about a
+     off by default in this form, as it is in `seomator audit`, and adds about a
      minute.
    - **Crawl the whole site** audits linked pages as well. **Crawl settings**
      then sets "Pages to audit, at most" (2 to 100) and "Pages fetched at once"
@@ -70,7 +70,7 @@ To start an audit as the server comes up, give `serve` the URL. The banner then
 prints the address to follow the run at, `http://127.0.0.1:7360/run`:
 
 ```bash
-seomator serve --audit https://example.com --no-cwv
+seomator serve --audit https://example.com
 ```
 
 **Verification.** The audit page's subtitle lists the date, the number of
@@ -307,10 +307,10 @@ seomator serve [options]
 | `--audit <url>` | absolute http(s) URL | none | Start an audit as soon as the server listens. A URL without a scheme is an error that suggests the `https://` form. |
 | `--crawl` | | off | With `--audit`: crawl the site. |
 | `-m, --max-pages <n>` | integer, 1 to 1000 | `10` | With `--audit` and `--crawl`: most pages to audit. |
-| `--no-cwv` | | measured | With `--audit`: skip the browser render, so no Core Web Vitals. |
+| `--cwv` | | off | With `--audit`: render the page in a browser to measure Core Web Vitals. `--no-cwv` is still accepted. |
 | `-c, --categories <list>` | comma-separated category ids | every category | With `--audit`: categories to run. An unknown id is an error that lists the valid ids. |
-| `--mobile` | | off | With `--audit`: also render at a mobile viewport. Ignored with `--no-cwv`. |
-| `--simulate-interaction` | | off | With `--audit`: click and scroll so INP can be measured. Ignored with `--no-cwv`. |
+| `--mobile` | | off | With `--audit`: also render at a mobile viewport. Implies `--cwv`. |
+| `--simulate-interaction` | | off | With `--audit`: click and scroll so INP can be measured. Implies `--cwv`. |
 | `-h, --help` | | | Print help. |
 
 The `--audit` options are ignored without `--audit`. An audit started this way
@@ -479,9 +479,9 @@ other key is `400 invalid-option`. Nothing is clamped.
 | `maxPages` | integer | `10` | 1 to 1000. Used when `crawl` is true. |
 | `concurrency` | integer | `3` | 1 to 20. Used when `crawl` is true. |
 | `timeout` | integer, ms | `30000` | 1000 to 120000 |
-| `measureCwv` | boolean | `true` | |
-| `mobile` | boolean | `false` | Turned off unless `measureCwv` is true |
-| `simulateInteraction` | boolean | `false` | Turned off unless `measureCwv` is true |
+| `measureCwv` | boolean | `false` | |
+| `mobile` | boolean | `false` | Renders the page unless `measureCwv` is `false` |
+| `simulateInteraction` | boolean | `false` | Renders the page unless `measureCwv` is `false` |
 | `categories` | string array | every category | Unknown ids are dropped without an error. If none remain, every category runs. |
 | `save` | boolean | `true` | `false` keeps the result in memory only |
 

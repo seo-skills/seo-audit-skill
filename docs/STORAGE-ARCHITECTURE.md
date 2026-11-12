@@ -222,9 +222,9 @@ These parts of an `AuditResult` (`src/types.ts`) have no column:
 | `crawl` | boolean | The audit crawled the site (`--crawl`). | crawl mode | No |
 | `maxPages` | number | The page limit. For `audit`, the resolved `-m` value (10 by default), stored even for a single-page audit. For `analyze`, the number of stored pages. | page limit | No |
 | `concurrency` | number | Concurrent requests. | Not compared | |
-| `measureCwv` | boolean | The page was rendered in a browser and Core Web Vitals measured. `false` after `--no-cwv`. | Core Web Vitals | Yes |
-| `mobile` | boolean | A second render at a mobile viewport ran (`--mobile`). | mobile parity | Yes |
-| `simulateInteraction` | boolean | A synthetic interaction ran so INP could be measured (`--simulate-interaction`). | simulated interaction | Yes |
+| `measureCwv` | boolean | The page was rendered in a browser and Core Web Vitals measured. `true` after `--cwv`. | Core Web Vitals | Yes |
+| `mobile` | boolean | A second render at a mobile viewport ran (`--cwv --mobile`). | mobile parity | Yes |
+| `simulateInteraction` | boolean | A synthetic interaction ran so INP could be measured (`--cwv --simulate-interaction`). | simulated interaction | Yes |
 | `categories` | string[] | The `-c` category filter. `[]` means every category. | categories | Yes |
 | `scoringVersion` | number, optional | The scoring model that produced the score, `SCORING_VERSION` in `src/scoring.ts`. Currently `4`. | scoring model | Yes |
 | `enableRules` | string[], optional | `[rules] enable` patterns in force. The CLI default is `["*"]`. | enabled rules | Yes |
@@ -232,7 +232,7 @@ These parts of an `AuditResult` (`src/types.ts`) have no column:
 | `staging` | boolean, optional | The audit ran with `--staging`. Written only when true. | staging mode | Yes |
 | `timeout` | number | Request timeout in milliseconds. | Not compared | |
 
-Example, from `seomator audit https://example.com --no-cwv --staging`:
+Example, from `seomator audit https://example.com --staging`:
 
 ```json
 {"crawl":false,"maxPages":10,"concurrency":3,"measureCwv":false,"mobile":false,"simulateInteraction":false,"categories":[],"scoringVersion":4,"enableRules":["*"],"disableRules":[],"staging":true,"timeout":30000}
@@ -449,7 +449,7 @@ Keep a throwaway history while you experiment:
 
 ```bash
 export SEOMATOR_HOME=$(mktemp -d)
-seomator audit https://example.com --no-cwv
+seomator audit https://example.com
 ls "$SEOMATOR_HOME"
 # audits.db
 ```
@@ -467,14 +467,14 @@ $ sqlite3 -header -column "$SEOMATOR_HOME/audits.db" "SELECT audit_id, source, o
 Run an audit without storing it:
 
 ```bash
-seomator audit https://example.com --no-cwv --no-save
+seomator audit https://example.com --no-save
 ```
 
 ## Explanation: design notes
 
 ### Why stored runs carry a profile
 
-A score only means something next to another score produced the same way. The surfaces that write to `audits.db` do not share defaults: the CLI measures Core Web Vitals unless `--no-cwv`, while the run form shared by the dashboard and the desktop app starts with Core Web Vitals off. A run without a browser render leaves dozens of checks unmeasured, and the score moves for reasons that have nothing to do with the site. Rule filters, staging mode and scoring-model changes do the same. Before `run_json` was read, `compare --fail-on-regression` could fail a CI build whose only change was which surface produced the baseline. Storing the profile lets `compare` say why two scores differ, and refuse to call a measurement change a regression.
+A score only means something next to another score produced the same way. Every surface that writes to `audits.db` starts with Core Web Vitals off, and each can turn them on for a run: `--cwv` on the CLI, the Core Web Vitals option in the run form shared by the dashboard and the desktop app. A run without a browser render leaves dozens of checks unmeasured, and the score moves for reasons that have nothing to do with the site. Rule filters, staging mode and scoring-model changes do the same. Through 7.0.0 the CLI rendered by default while the run form did not, so before `run_json` was read, `compare --fail-on-regression` could fail a CI build whose only change was which surface produced the baseline. Storing the profile lets `compare` say why two scores differ, and refuse to call a measurement change a regression.
 
 ### Why unmeasured results are stored at score 50 with weight 0
 

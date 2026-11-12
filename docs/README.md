@@ -43,7 +43,7 @@ configuration reference with a short how-to section.
 npm install -g @seomator/seo-audit             # install the CLI (Node.js 20.3+)
 seomator self doctor                           # check the setup
 seomator audit https://example.com             # audit one page
-seomator audit https://example.com --format llm --no-cwv   # compact output for AI agents
+seomator audit https://example.com --format llm            # compact output for AI agents
 seomator audit https://example.com --crawl -m 20           # crawl up to 20 pages
 seomator compare example.com                   # diff the two latest stored audits
 seomator serve                                 # local dashboard on 127.0.0.1:7360

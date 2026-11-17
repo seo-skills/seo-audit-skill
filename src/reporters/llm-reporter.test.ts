@@ -228,3 +228,12 @@ describe('custom extractions in the LLM report', () => {
     expect(xml).not.toContain('v'.repeat(400));
   });
 });
+
+describe('custom extraction values in the LLM report', () => {
+  it('says when a page had more values than it lists', () => {
+    const pages = [{ url: 'https://example.com/a', values: ['v1', 'v2', 'v3', 'v4', 'v5', 'v6'] }];
+    const xml = renderLlmReport(buildResult({ extras: { custom: { searches: [], extractions: [{ name: 'sku', pages }] } } }));
+    expect(xml).toContain('(+1 more)');
+    expect(xml).toContain('--format json has every value');
+  });
+});

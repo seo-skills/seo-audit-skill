@@ -197,6 +197,22 @@ describe('time limit', () => {
   }, 15000);
 });
 
+describe('not fetched, when the crawl is cut short', () => {
+  it('counts no more pages than the page budget had left', async () => {
+    const base = await serve(async (req, res) => {
+      if (req.url === '/robots.txt') return void res.writeHead(404).end();
+      await new Promise((r) => setTimeout(r, 120));
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end(html(req.url === '/' ? links(200) : 'leaf'));
+    });
+    const crawler = new Crawler({ maxPages: 20, concurrency: 1, deadline: Date.now() + 400 });
+    const pages = await crawler.crawl(`${base}/`);
+    const report = crawler.getReport();
+    expect(report.stoppedByDeadline).toBe(true);
+    expect(report.notFetched.length).toBe(20 - pages.length);
+  }, 15000);
+});
+
 describe('page limit', () => {
   it('leaves nothing "not fetched" when the crawl stops at max pages', async () => {
     const base = await serve((req, res) => {

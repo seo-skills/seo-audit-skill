@@ -41,7 +41,7 @@ const HINTS: Partial<Record<AuditErrorCode, string>> = {
   'crawl-too-slow':
     "The site's Crawl-delay makes this crawl longer than allowed. Crawl fewer pages, raise the duration limit, or skip the Crawl-delay.",
   'private-address':
-    'The address is loopback, private or link-local, which this run may not reach. To audit a local or intranet site over MCP, register the server with `seomator mcp --allow-private`.',
+    'The address is loopback, private or link-local. Auditing a local or intranet site works, and so do redirects its start page makes; other private hosts its pages point to are refused. Over MCP, register the server with `seomator mcp --allow-private` or `--allow-host <host:port>`.',
   'playwright-missing': 'Run `npx playwright install chromium`, or audit without --cwv to skip the browser render.',
   'no-pages': 'The crawl found nothing to audit. Check robots.txt, the include/exclude patterns and that the start URL links to other pages.',
 };

@@ -19,7 +19,8 @@ import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
 import { isIP } from 'node:net';
 import { Agent, buildConnector } from 'undici';
 import { isBlockedAddress } from './address.js';
-import { currentNetPolicy, pinKey, type NetPolicy } from './policy.js';
+import { currentNetPolicy, pinKey, privateAddressesOf, runWithNetPolicy, type NetPolicy } from './policy.js';
+import { getUserAgent } from '../crawler/user-agent.js';
 
 /** A request refused because its destination resolves to a private address */
 export class PrivateAddressError extends Error {
@@ -92,13 +93,28 @@ function pinnedLookup(addresses: readonly string[]) {
   };
 }
 
+/**
+ * Agents kept for reuse, least recently used first. Each pinned local or
+ * intranet target has its own, so a long-lived dashboard or desktop process
+ * would otherwise keep one per target it ever audited.
+ */
 const agents = new Map<string, Agent>();
+const MAX_AGENTS = 8;
+
+/** How many agents are kept; for tests */
+export function cachedAgentCount(): number {
+  return agents.size;
+}
 
 /** One agent per distinct allow-list and pin set, reused across requests */
 function agentFor(policy: NetPolicy): Agent {
   const key = JSON.stringify([[...policy.allowHosts].sort(), [...(policy.pinnedHosts ?? [])].sort()]);
   const existing = agents.get(key);
-  if (existing) return existing;
+  if (existing) {
+    agents.delete(key);
+    agents.set(key, existing);
+    return existing;
+  }
 
   const pinnedAddresses = new Set([...(policy.pinnedHosts?.values() ?? [])].flat());
   const base = buildConnector({ lookup: guardedLookupFor(pinnedAddresses) as never });
@@ -119,7 +135,61 @@ function agentFor(policy: NetPolicy): Agent {
     },
   });
   agents.set(key, agent);
+  // close() lets requests already on the evicted agent finish; the next
+  // request of that run asks agentFor again and gets a fresh one
+  for (const [oldKey, oldAgent] of agents) {
+    if (agents.size <= MAX_AGENTS) break;
+    agents.delete(oldKey);
+    oldAgent.close().catch(() => {});
+  }
   return agent;
+}
+
+/** Most redirects followed from a private entry page when pinning its hops */
+const MAX_ENTRY_HOPS = 5;
+
+/**
+ * Pin the private hosts a private target's entry page redirects through.
+ *
+ * Auto mode pins a local or intranet target to the addresses it resolved to.
+ * Such a site often answers its start URL with a redirect to another private
+ * name: a short name to its full name, a service behind a proxy, a sign-in
+ * hop. Each hop that resolves only to private addresses is pinned the same
+ * way, so the audit reaches the page it was asked for. Only the entry chain
+ * is followed: a private address a page links to later is still refused.
+ */
+export async function pinEntryRedirects(targetUrl: string, policy: NetPolicy, timeoutMs = 5000): Promise<NetPolicy> {
+  if (!policy.blockPrivate || !policy.pinnedHosts || policy.pinnedHosts.size === 0) return policy;
+  const pins = new Map(policy.pinnedHosts);
+  let url = targetUrl;
+  for (let hop = 0; hop < MAX_ENTRY_HOPS; hop++) {
+    let location: string | null;
+    try {
+      const response = await runWithNetPolicy({ ...policy, pinnedHosts: pins }, () =>
+        netFetch(url, { redirect: 'manual', headers: { 'User-Agent': getUserAgent() }, signal: AbortSignal.timeout(timeoutMs) })
+      );
+      await response.body?.cancel().catch(() => {});
+      location = response.status >= 300 && response.status < 400 ? response.headers.get('location') : null;
+    } catch {
+      break; // the audit's own request reports what went wrong
+    }
+    if (!location) break;
+    let next: URL;
+    try {
+      next = new URL(location, url);
+    } catch {
+      break;
+    }
+    if (next.protocol !== 'http:' && next.protocol !== 'https:') break;
+    const key = pinKey(next.hostname);
+    if (!pins.has(key)) {
+      const addresses = await privateAddressesOf(next.hostname);
+      if (!addresses) break; // a public hop needs no pin
+      pins.set(key, addresses);
+    }
+    url = next.href;
+  }
+  return pins.size === policy.pinnedHosts.size ? policy : { ...policy, pinnedHosts: pins };
 }
 
 /**

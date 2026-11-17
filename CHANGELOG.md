@@ -335,11 +335,11 @@ what can break a script or CI job, why scores move, and what to change.
   when the connection opens, after DNS, so a hostname that changes its answer
   between check and connect cannot get through, and every spelling of those
   addresses (IPv4-mapped IPv6, decimal, NAT64) is covered. Auditing a site on
-  `localhost` or an intranet still works: that host is let through, held to
-  the addresses it resolved to when the run started, so a DNS answer that
-  changes mid-run cannot open the guard. Other private hosts it links to are
-  refused, and read "could not verify". A refused request reports error code
-  `private-address`.
+  `localhost` or an intranet still works: that host, and any private host its
+  start page redirects to, is let through, held to the addresses it resolved
+  to when the run started, so a DNS answer that changes mid-run cannot open
+  the guard. Other private hosts its pages link to are refused, and read
+  "could not verify". A refused request reports error code `private-address`.
 - Response bodies are read with a cap: 10 MB for a page or robots.txt, and
   50 MB for a sitemap, decompressed. A huge or endless response, or a small
   gzip that expands without limit, can no longer exhaust memory.

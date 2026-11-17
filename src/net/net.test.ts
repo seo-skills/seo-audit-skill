@@ -154,6 +154,16 @@ describe('netFetch under a blocking policy', () => {
     await expect(runWithNetPolicy(policy, () => netFetch(`http://localhost:${port}/ok`))).rejects.toSatisfy(isPrivateAddressError);
   });
 
+  it('keeps a bounded number of connection agents however many targets are pinned', async () => {
+    const { cachedAgentCount } = await import('./fetch.js');
+    for (let i = 0; i < 30; i++) {
+      const policy: NetPolicy = { blockPrivate: true, allowHosts: new Set(), pinnedHosts: new Map([[`target-${i}.test`, ['127.0.0.1']]]) };
+      const response = await runWithNetPolicy(policy, () => netFetch(`http://target-${i}.test:${port}/ok`));
+      await response.text();
+    }
+    expect(cachedAgentCount()).toBeLessThanOrEqual(8);
+  });
+
   it('classifies a refusal as private-address, not as an unreachable site', async () => {
     const error = await runWithNetPolicy(STRICT, () => netFetch(`http://127.0.0.1:${port}/ok`)).catch((e) => e);
     expect(classifyError(error).code).toBe('private-address');

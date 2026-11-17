@@ -65,7 +65,7 @@ export function pinKey(hostname: string): string {
  * answer (one public address, one private) or a failed lookup is not a
  * private target, and returns null.
  */
-async function privateAddressesOf(hostname: string): Promise<string[] | null> {
+export async function privateAddressesOf(hostname: string): Promise<string[] | null> {
   const bare = pinKey(hostname);
   if (isIP(bare)) return isBlockedAddress(bare) ? [bare] : null;
   try {

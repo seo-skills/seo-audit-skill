@@ -344,13 +344,23 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false, maxIss
       // window, and a multi-value extraction over a large crawl has no limit
       const shown = extraction.pages.slice(0, MAX_EXTRACTION_PAGES);
       const omitted = extraction.pages.length - shown.length;
+      const clipped = shown.some(
+        (p) => p.values.length > MAX_EXTRACTION_VALUES || p.values.some((v) => v.length > MAX_EXTRACTION_VALUE_CHARS)
+      );
       const values = shown
-        .map((p) => `${p.url}: ${p.values.slice(0, MAX_EXTRACTION_VALUES).map(clipValue).join(' | ')}`)
+        .map((p) => {
+          const more = p.values.length - MAX_EXTRACTION_VALUES;
+          return `${p.url}: ${p.values.slice(0, MAX_EXTRACTION_VALUES).map(clipValue).join(' | ')}${more > 0 ? ` (+${more} more)` : ''}`;
+        })
         .join('\n');
+      const note =
+        omitted > 0 || clipped
+          ? ` note="first ${MAX_EXTRACTION_PAGES} pages, ${MAX_EXTRACTION_VALUES} values each; --format json has every value"`
+          : '';
       lines.push(
         `${t2}<extraction name="${escapeXml(extraction.name)}" pages="${extraction.pages.length}"` +
-          (omitted > 0 ? ` omitted="${omitted}" note="first ${MAX_EXTRACTION_PAGES} pages; --format json has every value"` : '') +
-          `>${wrapUntrusted(values, nonce)}</extraction>${nl}`
+          (omitted > 0 ? ` omitted="${omitted}"` : '') +
+          `${note}>${wrapUntrusted(values, nonce)}</extraction>${nl}`
       );
     }
     lines.push(`${t1}</custom-checks>${nl}`);

@@ -486,6 +486,10 @@ export class Crawler {
       if (this.report.stoppedByDeadline || this.hosts.get(this.hostOf(url))?.abandoned) this.report.notFetched.push(url);
     }
     this.queue = [];
+    // Coverage is measured against what the crawl would have fetched: no more
+    // than the pages its budget had left, however many links were queued
+    const budget = Math.max(0, this.options.maxPages - this.results.length);
+    if (this.report.notFetched.length > budget) this.report.notFetched.length = budget;
     for (const [host, state] of this.hosts) {
       if (state.rateLimitedPages > 0) {
         this.report.rateLimitedHosts.push({ host, pages: state.rateLimitedPages, lastRetryAfterS: state.lastRetryAfterS });

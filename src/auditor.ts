@@ -35,7 +35,7 @@ import {
   buildCategoryResult,
   buildAuditResult,
 } from './scoring.js';
-import { netFetch, readTextCapped, MAX_PAGE_BYTES } from './net/fetch.js';
+import { netFetch, pinEntryRedirects, readTextCapped, MAX_PAGE_BYTES } from './net/fetch.js';
 import { policyForTarget, runWithNetPolicy, type NetMode } from './net/policy.js';
 import { UrlService, type StatusCache } from './net/url-service.js';
 import { computeLinkScores, linkScoreSummary } from './site/link-score.js';
@@ -516,7 +516,8 @@ export class Auditor {
    */
   private async underNetPolicy<T>(url: string, fn: () => Promise<T>): Promise<T> {
     const { mode, allowHosts } = this.options.network;
-    const policy = await policyForTarget(url, mode ?? 'auto', allowHosts ?? []);
+    const base = await policyForTarget(url, mode ?? 'auto', allowHosts ?? []);
+    const policy = (mode ?? 'auto') === 'auto' ? await pinEntryRedirects(url, base) : base;
     return runWithNetPolicy(policy, fn);
   }
 

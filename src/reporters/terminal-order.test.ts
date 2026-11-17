@@ -123,3 +123,12 @@ describe('site text in the terminal', () => {
     expect(out).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/);
   });
 });
+
+describe('a deeply nested result', () => {
+  it('renders: a page cannot crash the console report with nesting', () => {
+    let deep: Record<string, unknown> = { value: 'bottom' };
+    for (let i = 0; i < 5000; i++) deep = { next: deep };
+    const finding: RuleResult = { ...rule('schema-type', 'warn'), details: { pageUrl: 'https://example.com/', types: deep } };
+    expect(() => capture(report('schema', [finding]))).not.toThrow();
+  });
+});

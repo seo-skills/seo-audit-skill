@@ -41,8 +41,9 @@ fail on that pair. Expect movement from:
 - **Private addresses are refused.** A link, image, redirect or sitemap entry
   on a public site that points at a loopback, private or link-local address
   is no longer requested. Auditing `localhost` or an intranet host still
-  works: that host is held to the addresses it resolved to when the run
-  started. Links from it to *other* private hosts read "could not verify".
+  works, including redirects its start page makes to another private host:
+  each is held to the addresses it resolved to when the run started. Links
+  from its pages to *other* private hosts read "could not verify".
 - **Crawls are polite.** A 429 or 503 is retried with backoff, `Crawl-delay`
   is honoured (capped at 10 s), `crawler.per_host_concurrency` (default 2)
   now applies, and a host that keeps failing is given up on. A default crawl

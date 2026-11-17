@@ -103,7 +103,10 @@ const EXPECTED_CATEGORIES: Record<string, [number, number, number, number, numbe
   schema: [92, 13, 2, 0, 4],
   a11y: [98, 34, 1, 0, 1],
   content: [96, 20, 0, 1, 6],
-  social: [61, 4, 3, 2, 0],
+  // 61 -> 63: social-og-image-size now compares declared with real dimensions,
+  // and the fixture declares none, so its "missing dimensions" warning became
+  // not measured. social-duplicate-og (advisory) is not measured on one page.
+  social: [63, 4, 2, 2, 2],
   eeat: [90, 12, 2, 0, 2],
   url: [100, 14, 0, 0, 0],
   mobile: [90, 6, 1, 0, 5],

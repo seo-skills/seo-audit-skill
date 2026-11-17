@@ -7,7 +7,8 @@
 // major unfurlers read them. Six social rules failed with "No <meta
 // property="og:title"> tag found in the document", which was false, and the
 // report's social card came out empty.
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { png } from './image-fixtures.js';
 import { createTestContext } from '../test-context.js';
 import { ogTitleRule } from './og-title.js';
 import { ogDescriptionRule } from './og-description.js';
@@ -48,7 +49,9 @@ describe('Open Graph tags declared with name= (ISSUE-001)', () => {
   });
 
   it('social-og-image-size reads the dimensions whichever attribute declares them', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(png(1200, 630), { headers: { 'content-type': 'image/png' } })));
     const result = await ogImageSizeRule.run(context());
+    vi.unstubAllGlobals();
     expect(result.status).toBe('pass');
   });
 

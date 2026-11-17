@@ -5,7 +5,7 @@
 [![node](https://img.shields.io/node/v/@seomator/seo-audit.svg)](https://www.npmjs.com/package/@seomator/seo-audit)
 [![license: MIT](https://img.shields.io/npm/l/@seomator/seo-audit.svg)](./LICENSE)
 
-**SEOmator is a comprehensive SEO audit tool that scans any website against 376 rules across 20 categories** — technical SEO, Core Web Vitals, structured data, accessibility, security headers, and AI/GEO search readiness — and returns a prioritized, actionable report. It ships as a **command-line tool**, an **Electron desktop app**, and a **Claude Code skill**, so you can run an SEO audit from a terminal, a visual dashboard, or directly inside an AI coding agent.
+**SEOmator is a comprehensive SEO audit tool that scans any website against 380 rules across 20 categories** — technical SEO, Core Web Vitals, structured data, accessibility, security headers, and AI/GEO search readiness — and returns a prioritized, actionable report. It ships as a **command-line tool**, an **Electron desktop app**, and a **Claude Code skill**, so you can run an SEO audit from a terminal, a visual dashboard, or directly inside an AI coding agent.
 
 > **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
 
@@ -27,7 +27,7 @@
 
 ## Features
 
-- **376 SEO Audit Rules** across 20 categories
+- **380 SEO Audit Rules** across 20 categories
 - **Desktop App** - Visual audit dashboard with real-time progress, interactive results, score history, and light/dark theme
 - **CLI Tool** - Single page & crawl mode with 5 output formats
 - **Core Web Vitals** - LCP, CLS, FCP, TTFB, INP measurement via Playwright
@@ -341,7 +341,7 @@ A staging site is blocked on purpose: audit it with `--staging`. That waives the
 noindex and robots.txt caps, crawls past robots.txt, and lists what it waived as
 the launch checklist.
 
-## Categories & Rules (376 total)
+## Categories & Rules (380 total)
 
 ### Core (27 rules) - 11% weight
 
@@ -674,14 +674,18 @@ the launch checklist.
 | `content-thin-vs-site` | A page is not far shorter than the median page of the same kind (requires `--crawl`) |
 | `content-title-pattern` | The title keeps the suffix most of the site uses (requires `--crawl`) |
 
-### Social (9 rules) - 3% weight
+### Social (13 rules) - 3% weight
 
 | Rule | Description |
 |------|-------------|
 | `social-og-title` | og:title meta tag |
 | `social-og-description` | og:description meta tag |
 | `social-og-image` | og:image with valid URL |
-| `social-og-image-size` | og:image dimensions (1200x630) |
+| `social-og-image-size` | Declared og:image dimensions match the real image |
+| `social-og-image-reachable` | og:image loads, is an image, under 5 MB, at least 1200x630 (advisory) |
+| `social-meta-multiple` | Each og:*/twitter:* property declared once (advisory) |
+| `social-twitter-attribute` | twitter:* uses name=, not property= (advisory) |
+| `social-duplicate-og` | og:title and og:description unique across the crawl (advisory) |
 | `social-twitter-card` | twitter:card meta tag |
 | `social-og-url` | og:url meta tag |
 | `social-og-url-canonical` | og:url matches canonical |
@@ -997,7 +1001,7 @@ npx skills add seo-skills/seo-audit-skill
 
 ### What is SEOmator?
 
-SEOmator is an SEO audit tool that checks a website against 376 rules across 20 categories — covering technical SEO, Core Web Vitals, structured data, accessibility, security headers, content quality, and AI/GEO search readiness — and returns a scored, prioritized report of what to fix first. It's available as an open-source CLI, an Electron desktop app, and a Claude Code skill.
+SEOmator is an SEO audit tool that checks a website against 380 rules across 20 categories — covering technical SEO, Core Web Vitals, structured data, accessibility, security headers, content quality, and AI/GEO search readiness — and returns a scored, prioritized report of what to fix first. It's available as an open-source CLI, an Electron desktop app, and a Claude Code skill.
 
 ### How is SEOmator different from Lighthouse or PageSpeed Insights?
 

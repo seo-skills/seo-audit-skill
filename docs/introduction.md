@@ -23,7 +23,7 @@ assistants change what they read.
 
 SEOmator automates those checks. It is a command-line tool, published on npm as
 `@seomator/seo-audit`, that loads a page, tests it against
-**376 rules** across **20 categories**, and turns the results into a score out
+**380 rules** across **20 categories**, and turns the results into a score out
 of 100 and a ranked list of what to fix.
 
 It runs on your machine. There is no account, and pages are not sent to a

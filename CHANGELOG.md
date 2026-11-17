@@ -97,6 +97,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     more.
   - `core-canonical-fragment`: a canonical with `#`, a hash-bang included,
     points at the bare URL.
+  - `social-og-image-reachable`: fetches the share image (64 KB, once per run
+    however many pages use it) and fails one that does not load, is not an
+    image, is over 5 MB or is under 600x315; warns under 1200x630 or off
+    1.91:1. A `summary` Twitter card is judged as a square. Sizes are read
+    from PNG, JPEG, GIF and WebP headers.
+  - `social-meta-multiple`: an `og:*` or `twitter:*` property declared twice
+    with different values.
+  - `social-twitter-attribute`: `twitter:*` written with `property=`.
+  - `social-duplicate-og`: in a crawl, `og:title` or `og:description` shared
+    with other indexable pages.
 - The MCP `audit_url` tool takes `respectCrawlDelay` and `maxDurationS`, and
   refuses up front with `crawl-too-slow` when the site's `Crawl-delay` means
   the crawl cannot finish in time. Its summary carries `coverage` and
@@ -163,6 +173,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   410, another 5xx, or a domain that does not resolve. A 401, 403, 429, 999 or
   a timeout used to warn; now it is listed as "could not verify" and never
   changes the status. This is part of scoring model 5.
+- **`social-og-image-size` checks the declared size against the real one.** It
+  used to grade the declared `og:image:width` and `og:image:height` alone,
+  warning when they were missing. It now fetches the image and warns only when
+  the declaration is wrong; whether the image is big enough is
+  `social-og-image-reachable`'s check. Pages without declared dimensions are
+  not measured. Part of scoring model 5.
 - **Breaking: a page that answers 503 is retried before the run gives up.** A
   single-page `audit` of a start page that stays 503 now fails with error code
   `rate-limited` (still exit 2) instead of `http-error`, and the message says

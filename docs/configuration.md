@@ -858,7 +858,7 @@ $ jq '{url, overallScore}' reports/audit.json
 
 - [Quickstart](./quickstart.md): run a first audit
 - [Introduction](./introduction.md): what SEOmator checks
-- [SEO Audit Rules](./SEO-AUDIT-RULES.md): all 376 rules and their IDs
+- [SEO Audit Rules](./SEO-AUDIT-RULES.md): all 380 rules and their IDs
 - [AI Agent Integration](./ai-agent-integration.md): drive SEOmator from an agent
 - [Storage Architecture](./STORAGE-ARCHITECTURE.md): the databases under `$SEOMATOR_HOME`
 - [The local dashboard](./WEB-DASHBOARD.md): `seomator serve`

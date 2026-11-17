@@ -15,6 +15,10 @@ import { ogUrlRule } from './og-url.js';
 import { ogUrlCanonicalRule } from './og-url-canonical.js';
 import { shareButtonsRule } from './share-buttons.js';
 import { socialProfilesRule } from './social-profiles.js';
+import { ogImageReachableRule } from './og-image-reachable.js';
+import { socialMetaMultipleRule } from './meta-multiple.js';
+import { twitterAttributeRule } from './twitter-attribute.js';
+import { duplicateOgRule } from './duplicate-og.js';
 
 // Export all rules
 export {
@@ -39,3 +43,7 @@ registerRule(ogUrlRule);
 registerRule(ogUrlCanonicalRule);
 registerRule(shareButtonsRule);
 registerRule(socialProfilesRule);
+registerRule(ogImageReachableRule);
+registerRule(socialMetaMultipleRule);
+registerRule(twitterAttributeRule);
+registerRule(duplicateOgRule);

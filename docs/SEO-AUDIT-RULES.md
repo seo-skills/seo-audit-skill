@@ -2,7 +2,7 @@
 
 > **Type:** Reference
 
-This is the catalog of every check SEOmator runs: **376 rules** across **20 categories**. For each rule it lists the ID, the name reports print, the rule's weight, the result it gives when it finds a problem, and what it checks. Rules that need more than one line also have a details entry below their category table. The rule IDs are the values that `[rules] enable` and `[rules] disable` in `seomator.toml` match.
+This is the catalog of every check SEOmator runs: **380 rules** across **20 categories**. For each rule it lists the ID, the name reports print, the rule's weight, the result it gives when it finds a problem, and what it checks. Rules that need more than one line also have a details entry below their category table. The rule IDs are the values that `[rules] enable` and `[rules] disable` in `seomator.toml` match.
 
 ## How to read this reference
 
@@ -1204,7 +1204,7 @@ Checks for WCAG compliance, screen reader support, and keyboard navigation.
 
 <a id="social"></a>
 
-### Social (9 rules)
+### Social (13 rules)
 
 Validates Open Graph, Twitter Cards, and social sharing metadata.
 
@@ -1213,7 +1213,11 @@ Validates Open Graph, Twitter Cards, and social sharing metadata.
 | `social-og-title` | Open Graph Title | 1 | warn/fail | `og:title` tag with content. Missing or empty fails; declared with `name=` instead of `property=` warns |
 | `social-og-description` | Open Graph Description | 1 | warn/fail | `og:description` tag with content. Missing or empty fails; declared with `name=` instead of `property=` warns |
 | `social-og-image` | Open Graph Image | 1 | warn/fail | `og:image` tag with an absolute http(s) URL. Missing or empty fails; any other URL, or a `name=` declaration, warns |
-| `social-og-image-size` | Open Graph Image Size | 1 | warn/fail | Declared `og:image:width` and `og:image:height`: missing tags or under 1200x630 warn; under 200x200, or no `og:image`, fails |
+| `social-og-image-size` | Open Graph Image Size | 1 | warn | Declared `og:image:width` and `og:image:height` match the real size of the fetched image; a mismatch warns |
+| `social-og-image-reachable` | Share Image Loads | 5 (advisory) | warn/fail | Fetches `og:image` and `twitter:image`: unreachable, not an image, over 5 MB or under 600x315 fails; under 1200x630 or off 1.91:1 warns |
+| `social-meta-multiple` | Social Meta Declared Once | 2 (advisory) | warn | The same `og:*` or `twitter:*` property declared twice with different values (arrays such as `og:image` excepted) |
+| `social-twitter-attribute` | Twitter Card Attribute | 1 (advisory) | warn | `twitter:*` declared with `property=` instead of `name=` |
+| `social-duplicate-og` | Unique Share Title and Description | 3 (advisory) | warn | Crawl: `og:title` or `og:description` shared with other indexable pages |
 | `social-og-url` | Open Graph URL | 1 | warn/fail | `og:url` tag with an absolute http(s) URL. Missing or empty fails; any other URL, or a `name=` declaration, warns |
 | `social-og-url-canonical` | Open Graph URL Matches Canonical | 1 | warn/fail | `og:url` matches the canonical URL. A mismatch, or a canonical with no `og:url`, fails; `og:url` alone, or neither, warns |
 | `social-twitter-card` | Twitter Card | 1 | warn/fail | `twitter:card` tag with a known type (summary, summary_large_image, app, player). Missing or empty fails; an unknown type warns |
@@ -1225,7 +1229,16 @@ Validates Open Graph, Twitter Cards, and social sharing metadata.
 - **Fix:** Add `<meta property="og:title">`, `og:description`, and `og:image` (1200x630px) for social sharing.
 
 #### social-og-image-size
-- **Fix:** Add `og:image:width` (1200) and `og:image:height` (630) meta tags.
+- **What it checks:** When the page declares `og:image:width` or `og:image:height`, the declared size against the real pixel size read from the image. A mismatch warns; values that are not whole pixel counts warn. Not measured when nothing is declared or the image cannot be read; whether the image is large enough is `social-og-image-reachable`'s check
+- **Fix:** Set the declared size to the image's real size.
+
+#### social-og-image-reachable
+- **What it checks:** Fetches the first 64 KB of `og:image`, and of `twitter:image` when it names a different image, once per run however many pages share it. Fails when the image does not load (same host: not 200 or 206; another host: gone), is not an image, or is over 5 MB (size from `Content-Length`, or the `Content-Range` total of a 206). Reads the pixel size of PNG, JPEG, GIF and WebP: under 600x315 fails, under 1200x630 or more than 5% off 1.91:1 warns. A `summary` Twitter card is judged as a square, 144x144 at least. AVIF and SVG sizes are not read; their other checks still apply. A server that refuses the request, or no answer, is not measured. Advisory
+- **Fix:** Serve a JPEG or PNG of at least 1200x630 and under 5 MB.
+
+#### social-meta-multiple / social-twitter-attribute / social-duplicate-og
+- **What they check:** A property declared more than once with different values (platforms pick differently; `og:image` and its structured properties, `og:video*`, `og:audio*`, `og:locale:alternate`, `article:tag` and `article:author` are arrays and allowed). `twitter:*` written with `property=`, which X reads but the card markup does not specify. In a crawl, `og:title` or `og:description` shared with other pages a search engine would index. All advisory
+- **Fix:** One tag per property, `name=` for Twitter tags, and share text written for each page.
 
 #### social-og-url / social-og-url-canonical
 - **What it checks:** `social-og-url` applies the same presence, `name=` and absolute-URL checks as `og:image`. `social-og-url-canonical` compares `og:url` with the canonical after lowercasing the host and dropping a trailing slash: a mismatch, or a canonical with no `og:url`, fails; `og:url` with no canonical, or neither tag, warns.

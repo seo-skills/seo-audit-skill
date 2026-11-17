@@ -55,16 +55,30 @@ export function findPrivateAddressError(error: unknown): PrivateAddressError | u
 
 type LookupCallback = (err: NodeJS.ErrnoException | null, address: string | LookupAddress[], family?: number) => void;
 
-function guardedLookup(hostname: string, options: object, callback: LookupCallback): void {
-  dnsLookup(hostname, { ...options, all: true, verbatim: true }, (err, addresses) => {
-    if (err) return callback(err, []);
-    const list = addresses as LookupAddress[];
-    const refused = list.find((a) => isBlockedAddress(a.address));
-    if (refused) return callback(new PrivateAddressError(hostname, refused.address) as unknown as NodeJS.ErrnoException, []);
-    const wantsAll = (options as { all?: boolean }).all === true;
-    if (wantsAll) return callback(null, list);
-    callback(null, list[0].address, list[0].family);
-  });
+/**
+ * A resolver that refuses private addresses, except the ones a pinned host
+ * resolved to. Another name for a pinned machine (the audited host redirecting
+ * to its www or full name) connects to the pinned addresses only, so it reaches
+ * nothing an IP literal of the target could not.
+ */
+function guardedLookupFor(pinnedAddresses: ReadonlySet<string>) {
+  return (hostname: string, options: object, callback: LookupCallback): void => {
+    dnsLookup(hostname, { ...options, all: true, verbatim: true }, (err, addresses) => {
+      if (err) return callback(err, []);
+      let list = addresses as LookupAddress[];
+      const refused = list.find((a) => isBlockedAddress(a.address) && !pinnedAddresses.has(a.address));
+      if (refused) {
+        const pinned = list.filter((a) => pinnedAddresses.has(a.address));
+        if (pinned.length === 0) {
+          return callback(new PrivateAddressError(hostname, refused.address) as unknown as NodeJS.ErrnoException, []);
+        }
+        list = pinned;
+      }
+      const wantsAll = (options as { all?: boolean }).all === true;
+      if (wantsAll) return callback(null, list);
+      callback(null, list[0].address, list[0].family);
+    });
+  };
 }
 
 /** A resolver that answers with the addresses a host was pinned to, never DNS */
@@ -78,12 +92,6 @@ function pinnedLookup(addresses: readonly string[]) {
   };
 }
 
-/** True when `address` is one a pinned host resolved to */
-function isPinnedAddress(policy: NetPolicy, address: string): boolean {
-  for (const addresses of policy.pinnedHosts?.values() ?? []) if (addresses.includes(address)) return true;
-  return false;
-}
-
 const agents = new Map<string, Agent>();
 
 /** One agent per distinct allow-list and pin set, reused across requests */
@@ -92,7 +100,8 @@ function agentFor(policy: NetPolicy): Agent {
   const existing = agents.get(key);
   if (existing) return existing;
 
-  const base = buildConnector({ lookup: guardedLookup as never });
+  const pinnedAddresses = new Set([...(policy.pinnedHosts?.values() ?? [])].flat());
+  const base = buildConnector({ lookup: guardedLookupFor(pinnedAddresses) as never });
   const agent = new Agent({
     connect: (options, callback) => {
       const port = options.port || (options.protocol === 'https:' ? '443' : '80');
@@ -102,7 +111,7 @@ function agentFor(policy: NetPolicy): Agent {
       const bare = pinKey(options.hostname);
       const pinned = policy.pinnedHosts?.get(bare);
       if (pinned) return buildConnector({ lookup: pinnedLookup(pinned) as never })(options, callback);
-      if (isIP(bare) && isBlockedAddress(bare) && !isPinnedAddress(policy, bare)) {
+      if (isIP(bare) && isBlockedAddress(bare) && !pinnedAddresses.has(bare)) {
         callback(new PrivateAddressError(options.hostname, bare), null);
         return;
       }

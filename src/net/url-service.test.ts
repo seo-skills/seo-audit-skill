@@ -242,3 +242,30 @@ describe('a host that asks for a long pause', () => {
     expect(outcome).toBe('AuditAbortedError');
   }, 10000);
 });
+
+describe('a pause set while a request waits for a shared slot', () => {
+  it('is honoured: the waiting request does not reach the host inside the pause', async () => {
+    const sent: Array<{ url: string; at: number }> = [];
+    let answered429At = 0;
+    let first = true;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+        const url = typeof input === 'string' ? input : input.toString();
+        sent.push({ url, at: Date.now() });
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        if (url.endsWith('/a') && first) {
+          first = false;
+          answered429At = Date.now();
+          return new Response(null, { status: 429, headers: { 'retry-after': '2' } });
+        }
+        return new Response('ok', { status: 200 });
+      })
+    );
+    const service = new UrlService({ siteUrl: SITE, concurrency: 1, perHostConcurrency: 2 });
+    await Promise.all([service.get('https://slow.test/a', { method: 'GET' }), service.get('https://slow.test/b', { method: 'GET' })]);
+    const b = sent.find((call) => call.url.endsWith('/b'))!;
+    // gstack-timing-ok: the bound is the host's own Retry-After of 2 s, minus slack
+    expect(b.at - answered429At).toBeGreaterThan(1500);
+  }, 15000);
+});

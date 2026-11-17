@@ -269,27 +269,48 @@ function renderDetailsList(details: Array<{ key: string; value: string }>, maxIt
   }
 }
 
-/**
- * Render the terminal report for an audit result
- * @param result - The audit result to render
- */
 /** C0 and C1 control characters other than tab and line feed */
-const CONTROL_CHARACTERS = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g;
+const CONTROL_CHARACTER = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/;
+const CONTROL_CHARACTERS = new RegExp(CONTROL_CHARACTER.source, 'g');
 
 /**
- * The result with control characters removed from every string.
+ * `value` with control characters removed from every string in it.
  *
  * Messages, titles, URLs and values come from the audited site, and a page
  * can write ESC or BEL as a character reference. Printed raw, that is an
  * escape sequence the site sends to whoever reads this report: it can hide
  * lines, retitle the window or, on some terminals, write the clipboard.
+ *
+ * Copies only what changes, and walks the result rather than serialising it:
+ * a large crawl's result is past the longest string JSON.stringify can build.
  */
-function withoutControlCharacters(result: AuditResult): AuditResult {
-  return JSON.parse(JSON.stringify(result), (_key, value: unknown) =>
-    typeof value === 'string' ? value.replace(CONTROL_CHARACTERS, '') : value
-  ) as AuditResult;
+function withoutControlCharacters<T>(value: T): T {
+  if (typeof value === 'string') {
+    return (CONTROL_CHARACTER.test(value) ? value.replace(CONTROL_CHARACTERS, '') : value) as T;
+  }
+  if (Array.isArray(value)) {
+    let copy: unknown[] | null = null;
+    value.forEach((item, index) => {
+      const clean = withoutControlCharacters(item);
+      if (clean !== item) (copy ??= [...value])[index] = clean;
+    });
+    return (copy ?? value) as T;
+  }
+  if (value !== null && typeof value === 'object') {
+    let copy: Record<string, unknown> | null = null;
+    for (const [key, item] of Object.entries(value)) {
+      const clean = withoutControlCharacters(item);
+      if (clean !== item) (copy ??= { ...(value as Record<string, unknown>) })[key] = clean;
+    }
+    return (copy ?? value) as T;
+  }
+  return value;
 }
 
+/**
+ * Render the terminal report for an audit result
+ * @param unsafeResult - The audit result to render; site text in it is cleaned first
+ */
 export function renderTerminalReport(unsafeResult: AuditResult): void {
   const result = withoutControlCharacters(unsafeResult);
   console.log();

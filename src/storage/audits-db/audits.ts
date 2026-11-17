@@ -38,6 +38,11 @@ function hydrateAudit(row: DbAudit): HydratedAudit {
   };
 }
 
+/** A section saved as `{ truncated, bytes }` because it was too large to store */
+function isTruncationMarker(section: unknown): boolean {
+  return typeof section === 'object' && section !== null && (section as { truncated?: unknown }).truncated === true;
+}
+
 /**
  * Read an audit's stored extras without letting a bad value break the audit.
  *
@@ -45,10 +50,6 @@ function hydrateAudit(row: DbAudit): HydratedAudit {
  * no extras, and says so on stderr with the audit id and where parsing
  * stopped. The rest of the audit is intact.
  */
-function isTruncationMarker(section: unknown): boolean {
-  return typeof section === 'object' && section !== null && (section as { truncated?: unknown }).truncated === true;
-}
-
 function parseExtras(row: DbAudit): Record<string, unknown> | null {
   if (!row.extras_json) return null;
   try {

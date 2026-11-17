@@ -64,6 +64,12 @@ describe('netFetch under a blocking policy', () => {
 
   beforeAll(async () => {
     server = http.createServer((req, res) => {
+      if (req.url === '/to-localhost') {
+        // A private target redirecting to another name for the same machine
+        res.writeHead(301, { location: `http://localhost:${port}/ok` });
+        res.end();
+        return;
+      }
       if (req.url === '/hop') {
         // Redirect to the same server through a different, private-only name
         res.writeHead(302, { location: `http://127.0.0.1:${port}/ok` });
@@ -134,6 +140,18 @@ describe('netFetch under a blocking policy', () => {
     await expect(runWithNetPolicy(policy, () => netFetch('http://169.254.169.254/latest/meta-data/'))).rejects.toSatisfy(
       isPrivateAddressError
     );
+  });
+
+  it('follows a pinned target redirecting to another name for a pinned address', async () => {
+    // localhost resolves to ::1 and 127.0.0.1; only the pinned 127.0.0.1 is used
+    const policy: NetPolicy = { blockPrivate: true, allowHosts: new Set(), pinnedHosts: new Map([['127.0.0.1', ['127.0.0.1']]]) };
+    const response = await runWithNetPolicy(policy, () => netFetch(`http://127.0.0.1:${port}/to-localhost`));
+    expect(response.status).toBe(200);
+  });
+
+  it('still refuses a hostname whose private addresses are not pinned', async () => {
+    const policy: NetPolicy = { blockPrivate: true, allowHosts: new Set(), pinnedHosts: new Map([['intranet.test', ['10.255.255.1']]]) };
+    await expect(runWithNetPolicy(policy, () => netFetch(`http://localhost:${port}/ok`))).rejects.toSatisfy(isPrivateAddressError);
   });
 
   it('classifies a refusal as private-address, not as an unreachable site', async () => {

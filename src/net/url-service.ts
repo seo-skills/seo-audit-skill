@@ -292,13 +292,18 @@ export class UrlService {
     }
     await slots.take();
     try {
-      // The host's pause is waited out before a shared slot is taken: a host
-      // that asked for minutes must not hold up requests to every other one
-      const paused = (this.pausedUntil.get(host) ?? 0) - Date.now();
-      if (paused > 0) await waitUnlessAborted(paused, this.options.signal, signal);
-      throwIfAborted(this.options.signal);
-      throwIfAbandoned(signal);
-      await this.global.take();
+      // The host's pause is waited out without a shared slot, so a host that
+      // asked for minutes does not hold up every other one. It is read again
+      // once the slot is taken: a sibling's 429 may have set it meanwhile.
+      for (;;) {
+        const paused = (this.pausedUntil.get(host) ?? 0) - Date.now();
+        if (paused > 0) await waitUnlessAborted(paused, this.options.signal, signal);
+        throwIfAborted(this.options.signal);
+        throwIfAbandoned(signal);
+        await this.global.take();
+        if ((this.pausedUntil.get(host) ?? 0) <= Date.now()) break;
+        this.global.give();
+      }
       try {
         return await run();
       } finally {

@@ -19,7 +19,6 @@ import { ProgressReporter, renderTerminalReport, outputJsonReport } from '../rep
 import { buildAuditResult } from '../scoring.js';
 import { loadAllRules } from '../rules/loader.js';
 import { createAuditContext } from '../crawler/index.js';
-import { resetCrossPageState } from '../rules/registry.js';
 import type { AuditContext } from '../types.js';
 import { emitCommandError } from './machine-error.js';
 import { SCORING_VERSION } from '../scoring.js';
@@ -233,9 +232,6 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
     // analyze runs in crawl mode, so per-category lines are suppressed. Without
     // this the command sat silent through a multi-page analysis.
     progress.startCrawlProgress(crawl.pages.length);
-
-    // Rules that compare pages against each other hold state across the run
-    resetCrossPageState();
 
     const pages = crawl.pages.map((page) => {
       try {

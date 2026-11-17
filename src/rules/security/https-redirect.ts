@@ -1,39 +1,17 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
-import { getUserAgent } from '../../crawler/user-agent.js';
-import { requestSignal } from '../../crawler/fetcher.js';
-import { rethrowIfAborted, throwIfAborted } from '../../errors.js';
-import { netFetch } from '../../net/fetch.js';
+import { rethrowIfAborted } from '../../errors.js';
+import { urlServiceFor } from '../../net/url-service.js';
 
 /**
- * Makes a fetch request without following redirects to check redirect behavior
+ * Ask for `url` without following redirects: the status and the raw Location
  */
 async function checkRedirect(
-  url: string,
-  timeout = 10000,
-  signal?: AbortSignal
+  context: AuditContext,
+  url: string
 ): Promise<{ statusCode: number; location: string | null }> {
-  throwIfAborted(signal);
-  const request = requestSignal(timeout, signal);
-
-  try {
-    const response = await netFetch(url, {
-      method: 'HEAD',
-      signal: request.signal,
-      headers: {
-        'User-Agent': getUserAgent(),
-      },
-      redirect: 'manual', // Don't follow redirects
-    });
-
-    const location = response.headers.get('location');
-    return { statusCode: response.status, location };
-  } catch (error) {
-    rethrowIfAborted(error, signal);
-    return { statusCode: 0, location: null }; // Timeout or network error
-  } finally {
-    request.dispose();
-  }
+  const info = await urlServiceFor(context).get(url, { method: 'HEAD', followRedirects: false });
+  return { statusCode: info.status, location: info.headers['location'] ?? null };
 }
 
 /**
@@ -56,7 +34,7 @@ export const httpsRedirectRule = defineRule({
       const httpUrl = `http://${urlObj.host}${urlObj.pathname}${urlObj.search}`;
       const expectedHttpsUrl = `https://${urlObj.host}${urlObj.pathname}${urlObj.search}`;
 
-      const { statusCode, location } = await checkRedirect(httpUrl, 10000, context.signal);
+      const { statusCode, location } = await checkRedirect(context, httpUrl);
 
       const details = {
         httpUrl,

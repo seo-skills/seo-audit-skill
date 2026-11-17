@@ -302,7 +302,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
     console.error(chalk.yellow(`Config warning: ${warning}`));
   }
 
-  warnUnimplementedFlags(options as unknown as Record<string, unknown>, ['refresh']);
+  warnUnimplementedFlags(options as unknown as Record<string, unknown>, 'audit');
 
   // A filtered run scores differently from a full one. Say so on the run it
   // affects, on stderr so a redirected document is still only the document.

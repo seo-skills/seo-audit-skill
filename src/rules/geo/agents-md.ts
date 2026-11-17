@@ -32,7 +32,7 @@ export const agentsMdRule = defineRule({
 
     const checks = await Promise.all(
       PATHS.map(async (path) => {
-        const result = await probeOnce(`${origin}${path}`, {}, context.signal);
+        const result = await probeOnce(context, `${origin}${path}`, {});
         return { path, result };
       })
     );

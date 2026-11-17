@@ -74,6 +74,19 @@ export async function createTestSite(pages: TestPage[]): Promise<{ site: SiteCon
     pages: records,
     normalize,
   } as unknown as SiteContext;
+  // The link graph, as the crawler records it: internal, no self-links
+  for (const context of contexts.values()) {
+    const from = normalize(context.url);
+    for (const link of context.links) {
+      if (!link.isInternal) continue;
+      const to = normalize(new URL(link.href, context.url).href);
+      if (to === from) continue;
+      if (!site.inboundLinksByUrl.has(to)) site.inboundLinksByUrl.set(to, new Set());
+      site.inboundLinksByUrl.get(to)!.add(from);
+      if (!site.outboundLinksByUrl.has(from)) site.outboundLinksByUrl.set(from, new Set());
+      site.outboundLinksByUrl.get(from)!.add(to);
+    }
+  }
   for (const context of contexts.values()) context.site = site;
   return { site, contexts };
 }

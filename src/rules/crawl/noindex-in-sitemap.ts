@@ -1,6 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
-import { fetchPage } from '../../crawler/fetcher.js';
+import { getText } from '../../net/url-service.js';
 
 /**
  * Extracts the base URL (origin) from a full URL
@@ -140,7 +140,7 @@ export const noindexInSitemapRule = defineRule({
     let fetchedSitemapUrl = sitemapUrl;
 
     try {
-      const result = await fetchPage(sitemapUrl);
+      const result = await getText(context, sitemapUrl);
       if (result.statusCode === 200) {
         sitemapContent = result.html;
       }
@@ -151,12 +151,12 @@ export const noindexInSitemapRule = defineRule({
     // If not found, try from robots.txt
     if (!sitemapContent) {
       try {
-        const robotsResult = await fetchPage(robotsTxtUrl);
+        const robotsResult = await getText(context, robotsTxtUrl);
         if (robotsResult.statusCode === 200) {
           const sitemapsInRobots = extractSitemapUrlsFromRobotsTxt(robotsResult.html);
           if (sitemapsInRobots.length > 0) {
             fetchedSitemapUrl = sitemapsInRobots[0];
-            const result = await fetchPage(fetchedSitemapUrl);
+            const result = await getText(context, fetchedSitemapUrl);
             if (result.statusCode === 200) {
               sitemapContent = result.html;
             }
@@ -190,7 +190,7 @@ export const noindexInSitemapRule = defineRule({
       // Fetch first child sitemap to check (limit HTTP requests)
       for (const childUrl of childSitemapUrls.slice(0, 3)) {
         try {
-          const childResult = await fetchPage(childUrl);
+          const childResult = await getText(context, childUrl);
           if (childResult.statusCode === 200 && !isSitemapIndex(childResult.html)) {
             const urls = extractUrlsFromSitemap(childResult.html);
             allSitemapUrls.push(...urls);

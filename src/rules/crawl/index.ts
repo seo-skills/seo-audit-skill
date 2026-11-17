@@ -21,7 +21,7 @@ import { canonicalRedirectRule } from './canonical-redirect.js';
 import { sitemapUrlLimitRule } from './sitemap-url-limit.js';
 import { sitemapSizeLimitRule } from './sitemap-size-limit.js';
 import { sitemapDuplicateUrlsRule } from './sitemap-duplicate-urls.js';
-import { sitemapOrphanUrlsRule, resetOrphanRegistry, getOrphanStats } from './sitemap-orphan-urls.js';
+import { sitemapOrphanUrlsRule } from './sitemap-orphan-urls.js';
 import { sitemapLastmodRule } from './sitemap-lastmod.js';
 
 // Robots.txt rules
@@ -109,7 +109,6 @@ export {
 
 // Export orphan registry utilities for testing and cross-page analysis
 export { sitemapLastmodRule };
-export { resetOrphanRegistry, getOrphanStats };
 
 // Register all rules
 

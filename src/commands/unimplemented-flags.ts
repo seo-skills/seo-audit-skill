@@ -15,9 +15,9 @@ import chalk from 'chalk';
  * because advertising a flag for a feature that does not exist is the defect.
  * Anyone who passes one is told. Both features are scoped in TODOS.md.
  */
-export const UNIMPLEMENTED_FLAGS: Array<{ key: string; flags: string }> = [
-  { key: 'refresh', flags: '-r, --refresh' },
-  { key: 'resume', flags: '--resume' },
+export const UNIMPLEMENTED_FLAGS: Array<{ key: string; flags: string; on: Array<'audit' | 'crawl'> }> = [
+  { key: 'refresh', flags: '-r, --refresh', on: ['crawl'] },
+  { key: 'resume', flags: '--resume', on: ['audit', 'crawl'] },
 ];
 
 /**
@@ -25,9 +25,9 @@ export const UNIMPLEMENTED_FLAGS: Array<{ key: string; flags: string }> = [
  *
  * stderr, not stdout, so a redirected report still contains only the report.
  */
-export function warnUnimplementedFlags(options: Record<string, unknown>, implemented: string[] = []): void {
-  for (const { key, flags } of UNIMPLEMENTED_FLAGS) {
-    if (options[key] === true && !implemented.includes(key)) {
+export function warnUnimplementedFlags(options: Record<string, unknown>, command: 'audit' | 'crawl'): void {
+  for (const { key, flags, on } of UNIMPLEMENTED_FLAGS) {
+    if (options[key] === true && on.includes(command)) {
       console.error(
         chalk.yellow(
           `Warning: ${flags} is not implemented and has no effect. ` +

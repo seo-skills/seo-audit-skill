@@ -4,16 +4,13 @@ import { createTestContext } from './test-context.js';
 import { ariaRequiredRule } from './a11y/aria-required.js';
 import { thinVsSiteRule } from './content/thin-vs-site.js';
 import { titlePatternRule } from './content/title-pattern.js';
-import { pdfSizeRule, resetPdfSizes } from './crawl/pdf-size.js';
+import { pdfSizeRule } from './crawl/pdf-size.js';
 import { napConsistencyRule } from './eeat/nap-consistency.js';
 import { markdownPageRule } from './geo/markdown-page.js';
 import { payPerCrawlRule } from './geo/pay-per-crawl.js';
-import { resetGeoProbes } from './geo/probe.js';
 import { entitySplitRule } from './schema/entity-split.js';
 
 afterEach(() => {
-  resetPdfSizes();
-  resetGeoProbes();
   vi.unstubAllGlobals();
 });
 

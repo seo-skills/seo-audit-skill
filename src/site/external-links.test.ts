@@ -220,3 +220,23 @@ describe('--refresh', () => {
     cache.close();
   });
 });
+
+describe('a stored crawl replayed by analyze', () => {
+  it('runs its link checks under the network policy an audit would have', async () => {
+    const { external } = serve({ pages: 1, external: ['http://169.254.169.254/latest/meta-data/'] });
+    // The stub never reaches the network, so the guard is observed through
+    // the policy the checks ran under: a public target means strict
+    const { currentNetPolicy } = await import('../net/policy.js');
+    const seen: boolean[] = [];
+    const fetchStub = globalThis.fetch;
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      seen.push(currentNetPolicy().blockPrivate);
+      return fetchStub(input, init);
+    });
+    const page = { url: 'https://example.com/', links: [{ href: 'http://169.254.169.254/latest/meta-data/', text: 'x', isInternal: false, isNoFollow: false }] };
+    const context = { url: page.url, links: page.links, $: (await import('cheerio')).load('<html></html>'), html: '', headers: {}, statusCode: 200 } as never;
+    await auditor().auditPages([{ url: page.url, context }]);
+    expect(external.length).toBeGreaterThan(0);
+    expect(seen.every(Boolean)).toBe(true);
+  });
+});

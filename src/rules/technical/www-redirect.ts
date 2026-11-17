@@ -1,6 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
-import { fetchUrl } from '../../crawler/fetcher.js';
+import { urlServiceFor } from '../../net/url-service.js';
 import { rethrowIfAborted } from '../../errors.js';
 
 /**
@@ -93,14 +93,14 @@ export const wwwRedirectRule = defineRule({
     };
 
     try {
-      results.wwwStatus = await fetchUrl(wwwUrl, 10000, context.signal);
+      results.wwwStatus = (await urlServiceFor(context).status(wwwUrl)).status;
     } catch (error) {
       rethrowIfAborted(error, context.signal);
       results.wwwStatus = 0;
     }
 
     try {
-      results.nonWwwStatus = await fetchUrl(nonWwwUrl, 10000, context.signal);
+      results.nonWwwStatus = (await urlServiceFor(context).status(nonWwwUrl)).status;
     } catch (error) {
       rethrowIfAborted(error, context.signal);
       results.nonWwwStatus = 0;
@@ -117,7 +117,7 @@ export const wwwRedirectRule = defineRule({
     };
 
     // A status of 0 is no answer at all (no DNS, refused, timed out). It is
-    // not a redirect: fetchUrl follows redirects, so a redirecting host
+    // not a redirect: a status check follows redirects, so a redirecting host
     // answers with its target's status. A host that does not respond cannot
     // serve a duplicate, so this passes, for that reason.
     if (results.wwwStatus === 0 || results.nonWwwStatus === 0) {

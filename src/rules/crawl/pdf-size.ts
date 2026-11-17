@@ -1,20 +1,10 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn } from '../define-rule.js';
-import { registerResettable } from '../registry.js';
-import { getUserAgent } from '../../crawler/user-agent.js';
-import { netFetch } from '../../net/fetch.js';
+import { urlServiceFor } from '../../net/url-service.js';
 
 /** A linked PDF above this size is expensive to crawl and to download. */
 const WARN_BYTES = 10 * 1024 * 1024;
 const SAMPLE_LIMIT = 8;
-
-const lengths = new Map<string, Promise<number | null>>();
-
-export function resetPdfSizes(): void {
-  lengths.clear();
-}
-
-registerResettable(resetPdfSizes);
 
 function pdfUrl(href: string, pageUrl: string): string | null {
   try {
@@ -27,32 +17,14 @@ function pdfUrl(href: string, pageUrl: string): string | null {
   }
 }
 
-function contentLength(url: string, signal?: AbortSignal): Promise<number | null> {
-  const cached = lengths.get(url);
-  if (cached) return cached;
-  const pending = (async () => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    const requestSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
-    try {
-      const response = await netFetch(url, {
-        method: 'HEAD',
-        redirect: 'follow',
-        signal: requestSignal,
-        headers: { 'User-Agent': getUserAgent() },
-      });
-      const raw = response.headers.get('content-length');
-      if (!raw) return null;
-      const size = Number(raw);
-      return Number.isFinite(size) ? size : null;
-    } catch {
-      return null;
-    } finally {
-      clearTimeout(timer);
-    }
-  })();
-  lengths.set(url, pending);
-  return pending;
+/**
+ * A PDF's advertised size; null when not advertised. Read from the run's
+ * status check of the URL, which links-broken-internal asks too, so the PDF
+ * is asked about once.
+ */
+async function contentLength(context: AuditContext, url: string): Promise<number | null> {
+  const info = await urlServiceFor(context).status(url);
+  return info.status === 0 ? null : info.contentLength;
 }
 
 function formatMb(bytes: number): string {
@@ -83,11 +55,12 @@ export const pdfSizeRule = defineRule({
       return pass('crawl-pdf-size', 'No PDF links on the page', { pdfs: [] });
     }
 
+    const sizes = await Promise.all(urls.map((url) => contentLength(context, url)));
     const oversized: Array<{ url: string; bytes: number }> = [];
-    for (const url of urls) {
-      const bytes = await contentLength(url, context.signal);
+    urls.forEach((url, i) => {
+      const bytes = sizes[i];
       if (bytes !== null && bytes > WARN_BYTES) oversized.push({ url, bytes });
-    }
+    });
 
     if (oversized.length === 0) {
       return pass('crawl-pdf-size', 'Linked PDFs are within 10 MB, or their size was not advertised', {

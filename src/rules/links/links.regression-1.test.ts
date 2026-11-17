@@ -78,6 +78,18 @@ describe('links-broken-internal (ISSUE-005)', () => {
     expect((await brokenInternalRule.run(context)).status).toBe('fail');
   });
 
+  it('does not call a link broken because its host kept rate-limiting the check', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(null, { status: 503, headers: { 'retry-after': '0' } }))
+    );
+    const context = createTestContext('<html></html>', { url: PAGE, links: [link(`${PAGE}/busy`)] });
+    const result = await brokenInternalRule.run(context);
+    expect(result.status).toBe('warn');
+    expect(result.details).toMatchObject({ uncheckedCount: 1 });
+    expect(result.details?.brokenLinks).toBeUndefined();
+  });
+
   it('checks each distinct URL once and skips links to the page itself', async () => {
     const calls = stubServer({});
     const links = [

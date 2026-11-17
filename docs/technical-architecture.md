@@ -118,12 +118,11 @@ A rule is a plain object with a `run(context)` function. The context always carr
 
 **Trade-off: registration by import.** Adding a rule takes a file and one `registerRule()` call, and the registry becomes the single source of the rule count: the CLI's help text, the package's `getRuleCount()` and `npm run check:docs` all read it. The cost is that the coupling is invisible. A rule file that is never imported never runs, and no type error says so. All rules load at start-up through static imports, even for a `-c core` run; `loadAllRules()` is kept for API compatibility and does nothing. In exchange there is no module lookup at run time that could fail.
 
-**Cross-page questions** are answered two ways, and the difference matters.
-
-- **The site graph** (`SiteContext`, built by the crawler after the crawl) is complete and shared by reference with every page: inbound and outbound links, click depth, how each URL was discovered. Every page sees the whole site.
-- **Accumulators** are module-level stores that fill up as pages are audited, such as the title registry behind `core-title-unique`. Each registers a reset callback with `registerResettable()`, and every audit starts by calling `resetCrossPageState()`. They need no second pass, but they are order-dependent: the first page with a given title passes, and only the later ones warn. Reset callbacks survive `clearRegistry()` on purpose, because ESM caches a module after its first import, so a cleared set would never fill up again.
+**Cross-page questions** are answered from **the site graph** (`SiteContext`, built by the crawler after the crawl). It is complete and shared by reference with every page: inbound and outbound links, click depth, how each URL was discovered, and a per-page record of status, canonical, indexability and content fingerprints. Every page sees the whole site, so a verdict never depends on the order pages were audited in. Groups such as "pages with this title" and the near-duplicate analysis are computed once per site from it and memoised on the `SiteContext` (`src/site/groups.ts`). Rules hold no state of their own between pages; there is no registry to reset between audits.
 
 A single-page audit has no site graph, so `core-title-unique` and the other cross-page rules report not measured and point to `--crawl`.
+
+**Requests other than pages** go through one `UrlService` per run (`src/net/url-service.ts`, on `context.urls`). Each distinct request (URL, method, redirect mode, headers, byte range) is made once, whichever page or rule asks: robots.txt, the 404 probe, GEO well-known files and a link every page carries are one request per run, not one per page. The service limits requests globally (`[external_links] concurrency`) and per host (`crawler.per_host_concurrency`), backs off on 429 and 503 as a crawl does, and keeps settled external link statuses in the link cache. Before rules run, the auditor checks every unique external link of the run once (`src/site/external-links.ts`); `links-external-valid` only reads the answers. A rule called on its own, as in tests, gets a fresh service through `urlServiceFor()`.
 
 ## Scoring
 

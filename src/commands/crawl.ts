@@ -15,7 +15,7 @@ export interface CrawlOptions {
 }
 
 export async function runCrawl(url: string, options: CrawlOptions): Promise<void> {
-  warnUnimplementedFlags(options as unknown as Record<string, unknown>);
+  warnUnimplementedFlags(options as unknown as Record<string, unknown>, 'crawl');
 
   // Load config
   const { config } = loadConfig(process.cwd());

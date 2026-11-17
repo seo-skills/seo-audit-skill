@@ -136,6 +136,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   starts a product token (`SEOmator` still matches), the longest match wins,
   and `*` is the fallback. A crawl can reach pages a broad group blocked
   before.
+- **Site-wide questions are asked once per run.** robots.txt, the sitemap,
+  the made-up URL that tests the 404 page, the GEO well-known files, PDF sizes,
+  redirect hops and internal link statuses were requested by every page's
+  rules: a 20-page crawl tested the 404 page 20 times. Every request that is
+  not a page now goes through one service per run, which asks each distinct
+  question once and limits requests per host.
 - **An external link counts as broken only when its target is gone**: 404,
   410, another 5xx, or a domain that does not resolve. A 401, 403, 429, 999 or
   a timeout used to warn; now it is listed as "could not verify" and never
@@ -184,6 +190,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **`seomator analyze` checks links under the same network policy as
+  `audit`.** Replaying a stored crawl ran its link checks with no policy, so a
+  stored page of a public site linking to a private or cloud-metadata address
+  made this machine request it.
+
 - **A public site can no longer point an audit at your network.** Every
   request the engine makes now goes through one network module. When the site
   you audit is public, a link, image, redirect or sitemap entry on it that
@@ -200,6 +211,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gzip that expands without limit, can no longer exhaust memory.
 
 ### Fixed
+
+- **Sitemap orphans no longer depend on the order pages were audited.**
+  `crawl-sitemap-orphan-urls` grew its list of linked URLs page by page, so
+  the first page of a crawl compared the sitemap against its own links only
+  and reported almost every sitemap URL as an orphan. It now compares against
+  every URL the whole crawl reached, and every page reports the same answer.
+- `links-broken-internal` no longer calls a link broken because its host kept
+  answering 429 or 503 after the retries; it is counted as not checked.
 
 - **A stored audit keeps its score cap.** The `audits` table kept the run
   options but not the cap, so history, `seomator report` and the dashboard

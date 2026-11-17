@@ -12,7 +12,7 @@ import type {
   AuditRunOptions,
 } from './types.js';
 import { categories, getCategoryById } from './categories/index.js';
-import { getRuleById, getRulesByCategory, resetCrossPageState } from './rules/registry.js';
+import { getRuleById, getRulesByCategory } from './rules/registry.js';
 import { isRuleEnabled } from './rules/pattern-matcher.js';
 import { loadAllRules } from './rules/loader.js';
 import {
@@ -507,7 +507,6 @@ export class Auditor {
   private async auditSinglePage(url: string): Promise<AuditResult> {
     throwIfAborted(this.options.signal);
     await this.ensureRulesLoaded();
-    resetCrossPageState();
 
     // Fetch the page, recording the redirect hops so redirect-loop and
     // redirect-broken have a chain to read. A rate limit is retried the way a
@@ -681,7 +680,6 @@ export class Auditor {
   private async auditCrawl(url: string, maxPages: number, concurrency: number): Promise<AuditResult> {
     throwIfAborted(this.options.signal);
     await this.ensureRulesLoaded();
-    resetCrossPageState();
 
     // Pre-fetch robots.txt and sitemap once for the entire crawl
     const robotsTxtContent = await this.fetchRobotsTxt(url);
@@ -829,9 +827,12 @@ export class Auditor {
    */
   async auditPages(pages: CrawledPage[]): Promise<CategoryResult[]> {
     const audited = pages.filter((page) => !page.error && page.context).map((page) => page.context);
-    // `seomator analyze` calls this outside a run: it gets a service of its own
+    // `seomator analyze` calls this outside a run: it gets a service of its
+    // own, and the same network policy an audit of that site would have, so a
+    // stored page linking to a private address cannot make this machine ask it
     if (!this.urls && audited.length > 0) {
-      return this.withUrlService(audited[0].url, () => this.auditPages(pages));
+      const siteUrl = audited[0].url;
+      return this.underNetPolicy(siteUrl, () => this.withUrlService(siteUrl, () => this.auditPages(pages)));
     }
     for (const context of audited) context.urls ??= this.urls;
     if (audited.some((context) => !context.externalLinks)) {

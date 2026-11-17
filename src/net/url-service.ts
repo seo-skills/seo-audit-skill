@@ -35,6 +35,8 @@ export interface UrlRequest {
   headers?: Record<string, string>;
   /** Read the first n bytes of the body (a ranged GET), or `'all'` of it */
   needBytes?: number | 'all';
+  /** This request's timeout in ms, instead of the service's; not part of the memo key */
+  timeoutMs?: number;
 }
 
 export interface UrlInfo {
@@ -164,6 +166,8 @@ export class UrlService {
   private readonly backoffBaseMs: number;
   /** Network requests sent, HEAD and GET counted separately */
   requestCount = 0;
+  /** Random per run: lets a probe for a page that cannot exist be asked once per run */
+  readonly runToken = Math.random().toString(36).slice(2, 12);
   private closed = false;
 
   constructor(private readonly options: UrlServiceOptions = {}) {
@@ -295,7 +299,7 @@ export class UrlService {
 
   private async send(url: string, request: UrlRequest, signal?: AbortSignal): Promise<UrlInfo> {
     const signals = [this.options.signal, signal].filter((s): s is AbortSignal => !!s);
-    const timer = requestSignal(this.timeoutMs, signals.length ? AbortSignal.any(signals) : undefined);
+    const timer = requestSignal(request.timeoutMs ?? this.timeoutMs, signals.length ? AbortSignal.any(signals) : undefined);
     const method = request.needBytes !== undefined ? 'GET' : (request.method ?? 'GET');
     const headers: Record<string, string> = { 'User-Agent': getUserAgent(), ...request.headers };
     if (typeof request.needBytes === 'number') headers['Range'] = `bytes=0-${request.needBytes - 1}`;
@@ -353,6 +357,49 @@ function memoKey(url: string, request: UrlRequest): string {
         .sort(([a], [b]) => a.localeCompare(b))
     : [];
   return JSON.stringify([url, request.method ?? 'STATUS', request.followRedirects !== false, headers, request.needBytes ?? null]);
+}
+
+/**
+ * A whole body as text, shaped like `fetchPage`'s result, asked once per run.
+ *
+ * Throws when nothing answered, as `fetchPage` does, so a rule moved onto the
+ * service keeps its error handling. 30 s, `fetchPage`'s default: robots.txt
+ * and sitemaps can be slow.
+ */
+export async function getText(
+  context: { url: string; urls?: UrlService; signal?: AbortSignal },
+  url: string
+): Promise<{ statusCode: number; html: string; headers: Record<string, string> }> {
+  const info = await urlServiceFor(context).get(url, { method: 'GET', needBytes: 'all', timeoutMs: 30_000 });
+  if (info.status === 0) throw new Error(`${url} did not answer (${info.failure ?? 'network'})`);
+  return { statusCode: info.status, html: new TextDecoder('utf-8').decode(info.bytes ?? new Uint8Array(0)), headers: info.headers };
+}
+
+/**
+ * Follow a URL's redirects one hop at a time, each hop a HEAD asked once per
+ * run, so a hop many links share (`/old` to `/new`) is one request.
+ *
+ * Same result as `fetchUrlWithRedirects`: status 0 for no answer, and for a
+ * chain longer than `maxRedirects`.
+ */
+export async function redirectChain(
+  context: { url: string; urls?: UrlService; signal?: AbortSignal },
+  url: string,
+  maxRedirects = 5
+): Promise<{ finalUrl: string; statusCode: number; redirectCount: number; chain: string[] }> {
+  const urls = urlServiceFor(context);
+  const chain = [url];
+  let current = url;
+  for (let hops = 0; hops < maxRedirects; hops++) {
+    const info = await urls.get(current, { method: 'HEAD', followRedirects: false });
+    if (info.status >= 300 && info.status < 400 && info.location) {
+      chain.push(info.location);
+      current = info.location;
+      continue;
+    }
+    return { finalUrl: current, statusCode: info.status, redirectCount: hops, chain };
+  }
+  return { finalUrl: current, statusCode: 0, redirectCount: maxRedirects, chain };
 }
 
 /**

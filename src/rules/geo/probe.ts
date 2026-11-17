@@ -1,6 +1,5 @@
-import { registerResettable } from '../registry.js';
-import { getUserAgent } from '../../crawler/user-agent.js';
-import { netFetch, readTextPrefix } from '../../net/fetch.js';
+import type { AuditContext } from '../../types.js';
+import { urlServiceFor } from '../../net/url-service.js';
 
 export interface ProbeResult {
   status: number;
@@ -8,59 +7,37 @@ export interface ProbeResult {
   body: string;
 }
 
-const cache = new Map<string, Promise<ProbeResult | null>>();
-
-/** Drop cached probes so the next audit does not reuse the previous origin. */
-export function resetGeoProbes(): void {
-  cache.clear();
-}
-
-registerResettable(resetGeoProbes);
+/** How much of a probed file the GEO rules read */
+const PROBE_BYTES = 16 * 1024;
 
 /**
- * Fetch a URL once per audit. Later pages of the same crawl reuse the body.
+ * Fetch a URL once per audit. Later pages of the same crawl reuse the answer,
+ * through the run's URL service.
  *
+ * @param context - The page being audited; its run owns the request
  * @param url - Absolute URL
- * @param headers - Extra request headers; they are part of the cache key
- * @param signal - Cancellation signal for the audit run
+ * @param headers - Extra request headers; they are part of the memo key
  * @returns The status, content type, and the first 4KB, or null on failure
  */
-export function probeOnce(
+export async function probeOnce(
+  context: Pick<AuditContext, 'url' | 'urls' | 'signal'>,
   url: string,
-  headers: Record<string, string> = {},
-  signal?: AbortSignal
+  headers: Record<string, string> = {}
 ): Promise<ProbeResult | null> {
-  const key = `${url}\n${JSON.stringify(headers)}`;
-  const cached = cache.get(key);
-  if (cached) return cached;
-
-  const pending = (async () => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    const requestSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
-    try {
-      const response = await netFetch(url, {
-        headers: { 'User-Agent': getUserAgent(), ...headers },
-        redirect: 'follow',
-        signal: requestSignal,
-      });
-      const body = (await readTextPrefix(response, 16 * 1024)).slice(0, 4000);
-      return {
-        status: response.status,
-        contentType: response.headers.get('content-type') || '',
-        body,
-      };
-    } catch {
-      return null;
-    } finally {
-      clearTimeout(timer);
-    }
-  })();
-
-  cache.set(key, pending);
-  return pending;
+  const info = await urlServiceFor(context).get(url, {
+    method: 'GET',
+    ...(Object.keys(headers).length > 0 && { headers }),
+    needBytes: PROBE_BYTES,
+  });
+  if (info.status === 0) return null;
+  return {
+    // A server that honours the range answers 206 for a file that exists:
+    // the same answer as a 200 to the question these rules ask
+    status: info.status === 206 ? 200 : info.status,
+    contentType: info.contentType ?? '',
+    body: new TextDecoder('utf-8').decode(info.bytes ?? new Uint8Array(0)).slice(0, 4000),
+  };
 }
-
 /** True when a 200 body is an HTML document rather than the file we asked for. */
 export function looksLikeHtml(result: ProbeResult): boolean {
   return /text\/html/i.test(result.contentType) || /^\s*<!doctype html/i.test(result.body) || /^\s*<html[\s>]/i.test(result.body);

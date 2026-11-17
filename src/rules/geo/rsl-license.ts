@@ -48,7 +48,7 @@ export const rslLicenseRule = defineRule({
 
     const broken: string[] = [];
     for (const url of urls) {
-      const result = await probeOnce(url, {}, context.signal);
+      const result = await probeOnce(context, url, {});
       if (!result || result.status !== 200 || looksLikeHtml(result) || !looksLikeLicense(result.body)) {
         broken.push(url);
       }

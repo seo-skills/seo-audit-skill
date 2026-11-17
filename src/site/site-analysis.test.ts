@@ -7,6 +7,7 @@ import { duplicateDescriptionRule } from '../rules/content/duplicate-description
 import { duplicateExactRule } from '../rules/content/duplicate-exact.js';
 import { duplicateNearRule } from '../rules/content/duplicate-near.js';
 import { duplicateH1Rule } from '../rules/content/duplicate-h1.js';
+import { sitemapOrphanUrlsRule } from '../rules/crawl/sitemap-orphan-urls.js';
 import { findNearDuplicates, jaccardSorted, shingleText } from './near-duplicates.js';
 import { canonicalFromLinkHeader, isNoindex, isPaginatedPage, readCanonical } from '../indexability.js';
 
@@ -57,6 +58,29 @@ describe('cross-page verdicts do not depend on page order', () => {
     expect(reversed).toEqual(forward);
     expect(shuffled).toEqual(forward);
     expect(Object.values(forward).some((v) => v.startsWith('warn') || v.startsWith('fail'))).toBe(true);
+  });
+});
+
+describe('sitemap orphans are judged over the whole crawl', () => {
+  it('gives every page the same orphans, the first page included', async () => {
+    const page = (links: string[]) =>
+      `<html><head><title>t</title></head><body>${links.map((l) => `<a href="${l}">x</a>`).join('')}</body></html>`;
+    const pages: TestPage[] = [
+      { url: 'https://example.com/a', html: page(['/b']) },
+      { url: 'https://example.com/b', html: page(['/a']) },
+      { url: 'https://example.com/d', html: page([]) },
+    ];
+    const sitemapUrls = ['https://example.com/a', 'https://example.com/b', 'https://example.com/c'];
+
+    for (const order of [pages, [...pages].reverse()]) {
+      const { contexts } = await createTestSite(order);
+      for (const context of contexts.values()) {
+        context.sitemapUrls = sitemapUrls;
+        const result = await sitemapOrphanUrlsRule.run(context);
+        expect(result.status).toBe('warn');
+        expect(result.details?.orphanUrls).toEqual(['https://example.com/c']);
+      }
+    }
   });
 });
 

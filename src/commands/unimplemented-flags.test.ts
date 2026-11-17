@@ -22,40 +22,40 @@ afterEach(() => vi.restoreAllMocks());
 describe('a caller who passes one is told it does nothing', () => {
   it('warns for --refresh', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
-    warnUnimplementedFlags({ refresh: true });
+    warnUnimplementedFlags({ refresh: true }, 'crawl');
     expect(err).toHaveBeenCalledWith(expect.stringContaining('--refresh'));
     expect(err).toHaveBeenCalledWith(expect.stringContaining('no effect'));
   });
 
   it('warns for --resume', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
-    warnUnimplementedFlags({ resume: true });
+    warnUnimplementedFlags({ resume: true }, 'crawl');
     expect(err).toHaveBeenCalledWith(expect.stringContaining('--resume'));
   });
 
   it('warns once per flag when both are passed', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
-    warnUnimplementedFlags({ refresh: true, resume: true });
+    warnUnimplementedFlags({ refresh: true, resume: true }, 'crawl');
     expect(err).toHaveBeenCalledTimes(2);
   });
 
   it('says nothing when neither is passed', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
-    warnUnimplementedFlags({ verbose: true, crawl: false });
+    warnUnimplementedFlags({ verbose: true, crawl: false }, 'crawl');
     expect(err).not.toHaveBeenCalled();
   });
 
   it('does not fire on a falsy value, which is the default', () => {
     // Commander defaults both to false, so every run carries the key.
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
-    warnUnimplementedFlags({ refresh: false, resume: false });
+    warnUnimplementedFlags({ refresh: false, resume: false }, 'crawl');
     expect(err).not.toHaveBeenCalled();
   });
 
   it('warns on stderr, so a redirected report is still only the report', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
-    warnUnimplementedFlags({ refresh: true });
+    warnUnimplementedFlags({ refresh: true }, 'crawl');
     expect(err).toHaveBeenCalled();
     expect(log).not.toHaveBeenCalled();
   });
@@ -83,7 +83,7 @@ describe('the flags are not advertised', () => {
 
   it('does not call --refresh a no-op where it is implemented', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
-    warnUnimplementedFlags({ refresh: true, resume: true }, ['refresh']);
+    warnUnimplementedFlags({ refresh: true, resume: true }, 'audit');
     expect(err).toHaveBeenCalledTimes(1);
     expect(err).toHaveBeenCalledWith(expect.stringContaining('--resume'));
   });
@@ -118,7 +118,8 @@ describe('the docs do not teach them either', () => {
     if (!existsSync(path)) return;
     const text = readFileSync(path, 'utf8');
 
-    for (const { flags } of UNIMPLEMENTED_FLAGS) {
+    // The docs describe `audit`; `--refresh` is real there and may be taught
+    for (const { flags } of UNIMPLEMENTED_FLAGS.filter((f) => f.on.includes('audit'))) {
       const flag = flags.split(', ').pop()!;
       const lines = text
         .split('\n')

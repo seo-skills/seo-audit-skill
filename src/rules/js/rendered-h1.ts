@@ -14,6 +14,7 @@ export const renderedH1Rule = defineRule({
   description: 'Checks that an H1 heading exists in the rendered DOM after JavaScript execution',
   category: 'js',
   weight: 8,
+  requiresRender: true,
   run: async (context: AuditContext) => {
     const rendered$ = (context as any).rendered$;
 

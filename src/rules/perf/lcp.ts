@@ -22,6 +22,7 @@ export const lcpRule = defineRule({
     'Measures loading performance by checking when the largest content element becomes visible',
   category: 'perf',
   weight: 25,
+  requiresRender: true,
   run: async (context: AuditContext) => {
     const { cwv } = context;
     const lcp = cwv.lcp;

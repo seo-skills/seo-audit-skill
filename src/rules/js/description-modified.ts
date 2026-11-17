@@ -15,6 +15,7 @@ export const descriptionModifiedRule = defineRule({
   description: 'Checks if the meta description is modified by JavaScript execution',
   category: 'js',
   weight: 7,
+  requiresRender: true,
   run: async (context: AuditContext) => {
     const rendered$ = (context as any).rendered$;
 

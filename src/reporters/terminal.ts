@@ -442,6 +442,15 @@ export function renderTerminalReport(result: AuditResult): void {
     console.log();
   }
 
+  // Checks that only a browser render can answer, counted once per rule
+  const needsRender = new Set(
+    result.categoryResults.flatMap((c) => c.results).filter((r) => r.reason === 'needs-render').map((r) => r.ruleId)
+  ).size;
+  if (needsRender > 0) {
+    console.log(chalk.gray(`${needsRender} check${needsRender === 1 ? '' : 's'} need a browser render: rerun with --cwv`));
+    console.log();
+  }
+
   // Summary footer. Carries the not-measured count too: without it the closing
   // line read "217 passed • 34 warnings • 24 failed" for a 332-rule audit, and
   // the 57 checks that never ran simply vanished from the last thing the user

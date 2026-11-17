@@ -5,6 +5,7 @@ import { chromium, type Browser, type Page, type Request, type Response } from '
 import type { AssetInfo, CoreWebVitals, FailedRequestInfo, RenderDiagnostics } from '../types.js';
 import { getUserAgent, MOBILE_USER_AGENT } from './user-agent.js';
 import { rethrowIfAborted, throwIfAborted } from '../errors.js';
+import { runProbes, type RenderProbe } from '../render/probes.js';
 
 /**
  * Shape of a `web-vitals` report, narrowed to the fields we read.
@@ -129,6 +130,8 @@ export interface PlaywrightFetchResult {
    * means "not captured", which rules report as unmeasured.
    */
   assets?: AssetInfo[];
+  /** Render probe results by id; see `render/probes.ts` */
+  probes?: Record<string, unknown>;
 }
 
 /**
@@ -349,6 +352,8 @@ export interface RenderOptions {
   simulateInteraction?: boolean;
   /** Cancels the render: the page is closed and the call rejects */
   signal?: AbortSignal;
+  /** Probes to run after the metrics are read; default every registered probe */
+  probes?: RenderProbe[];
 }
 
 /**
@@ -547,6 +552,9 @@ export async function fetchPageWithPlaywright(
       cwv.inpSynthetic = true;
     }
 
+    // Probes run last, so their work cannot show up in the metrics
+    const probes = await runProbes((script) => page.evaluate(script), options.probes);
+
     return {
       html,
       statusCode: response?.status() ?? 0,
@@ -554,6 +562,7 @@ export async function fetchPageWithPlaywright(
       cwv,
       diagnostics,
       assets,
+      probes,
     };
   } catch (error) {
     rethrowIfAborted(error, options.signal);

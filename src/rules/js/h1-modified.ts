@@ -16,6 +16,7 @@ export const h1ModifiedRule = defineRule({
   description: 'Checks if the H1 heading is modified by JavaScript execution',
   category: 'js',
   weight: 7,
+  requiresRender: true,
   run: async (context: AuditContext) => {
     const rendered$ = (context as any).rendered$;
 

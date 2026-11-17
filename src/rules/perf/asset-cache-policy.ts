@@ -54,6 +54,7 @@ export const assetCachePolicyRule = defineRule({
     'Checks that static assets (CSS, JS, images, fonts) carry a cache-control max-age of at least 1 hour',
   category: 'perf',
   weight: 6,
+  requiresRender: true,
   run: (context: AuditContext) => {
     const { assets } = context;
 

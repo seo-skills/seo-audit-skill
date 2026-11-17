@@ -14,6 +14,7 @@ export const renderedCanonicalRule = defineRule({
   description: 'Checks that a canonical link tag exists in the rendered DOM after JavaScript execution',
   category: 'js',
   weight: 8,
+  requiresRender: true,
   run: async (context: AuditContext) => {
     const rendered$ = (context as any).rendered$;
 

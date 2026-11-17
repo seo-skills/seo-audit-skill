@@ -22,6 +22,7 @@ export const fcpRule = defineRule({
     'Measures perceived load speed by checking when the first content is rendered',
   category: 'perf',
   weight: 15,
+  requiresRender: true,
   run: async (context: AuditContext) => {
     const { cwv } = context;
     const fcp = cwv.fcp;

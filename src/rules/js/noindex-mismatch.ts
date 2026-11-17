@@ -27,6 +27,7 @@ export const noindexMismatchRule = defineRule({
   description: 'Checks if the noindex or nofollow directives change between raw HTML and rendered DOM',
   category: 'js',
   weight: 10,
+  requiresRender: true,
   run: async (context: AuditContext) => {
     const rendered$ = (context as any).rendered$;
 

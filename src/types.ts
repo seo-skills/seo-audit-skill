@@ -647,6 +647,12 @@ export interface AuditContext {
   externalLinks?: ExternalLinkCheck;
 
   /**
+   * Results of the render probes, by probe id (see `render/probes.ts`).
+   * Absent without a render; a probe that failed is absent from the record.
+   */
+  probes?: Record<string, unknown>;
+
+  /**
    * The run's clock, in ms since the epoch: when the audit or crawl started.
    * Every date comparison reads it, so a stored crawl replays against the
    * time it was taken. Absent when a rule is called on its own.
@@ -743,6 +749,12 @@ export interface AuditRule {
    * verdicts have been checked on real sites.
    */
   advisory?: boolean;
+  /**
+   * Needs a browser render (`--cwv`). Without one the auditor reports the
+   * rule not measured, reason `needs-render`, without running it, and the
+   * console says how many checks a render would add.
+   */
+  requiresRender?: boolean;
   /**
    * Function that executes the rule and returns a result. The Auditor
    * always passes `options`: the rule's declared options, defaults merged

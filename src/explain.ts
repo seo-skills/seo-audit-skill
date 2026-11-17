@@ -25,6 +25,8 @@ export interface RuleExplanation {
   fix: string;
   /** Shown in reports but not counted in the score yet */
   advisory: boolean;
+  /** Measured only with a browser render (`--cwv`) */
+  requiresRender: boolean;
   /** The options the rule reads from `rule_options` */
   options: Array<{ key: string; type: string; default: unknown; min?: number; max?: number; description: string }>;
   /** Paste-ready `[rules.override]` lines for this rule */
@@ -59,6 +61,7 @@ export function explainRule(ruleId: string): RuleExplanation | UnknownRule {
     description: rule.description,
     fix: getFixSuggestion(rule.id),
     advisory: rule.advisory === true,
+    requiresRender: rule.requiresRender === true,
     options: Object.entries(rule.options ?? {}).map(([key, spec]) => ({
       key,
       type: spec.type,
@@ -90,6 +93,7 @@ export function formatExplanation(explanation: RuleExplanation): string {
     explanation.advisory
       ? `Weight: ${explanation.weight} within the category once promoted. Advisory: reported, not counted in the score yet`
       : `Weight: ${explanation.weight} within the category`,
+    ...(explanation.requiresRender ? ['Needs a browser render: run with --cwv, or it is reported as not measured'] : []),
     '',
     explanation.description,
     '',

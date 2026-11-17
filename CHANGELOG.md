@@ -167,6 +167,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   starts a product token (`SEOmator` still matches), the longest match wins,
   and `*` is the fallback. A crawl can reach pages a broad group blocked
   before.
+- **Checks that need a browser render say so the same way.** Without `--cwv`,
+  the 29 render-only checks (rendered-DOM, Core Web Vitals, asset and mobile
+  parity checks) are reported not measured with reason `needs-render`, and
+  the console report adds one line: "29 checks need a browser render: rerun
+  with --cwv". A render that ran and failed reports them as could not
+  verify. `seomator explain` says when a rule needs a render.
 - **Dates are judged against the run's clock.** Every page of a run shares
   one start time, and `seomator analyze` judges a stored crawl's dates
   (sitemap `lastmod`, `unavailable_after`) against the time it was crawled,

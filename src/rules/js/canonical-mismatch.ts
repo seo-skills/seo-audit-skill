@@ -16,6 +16,7 @@ export const canonicalMismatchRule = defineRule({
   description: 'Checks if the canonical URL differs between raw HTML and rendered DOM',
   category: 'js',
   weight: 10,
+  requiresRender: true,
   run: async (context: AuditContext) => {
     const rendered$ = (context as any).rendered$;
 

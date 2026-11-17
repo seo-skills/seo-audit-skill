@@ -59,6 +59,23 @@ export interface PageRenderResult {
   diagnostics?: RenderDiagnostics;
   /** Per-subresource response data observed during the render */
   assets?: AssetInfo[];
+  /** Render probe results by id */
+  probes?: Record<string, unknown>;
+}
+
+/**
+ * Put a render's results on a page's context: the rendered DOM, diagnostics,
+ * assets and probes. The one place both the single-page and crawl paths do
+ * it, so a field the renderer returns cannot be dropped by one of them.
+ */
+export function applyRender(context: AuditContext, render: PageRenderResult): void {
+  if (render.html) {
+    context.renderedHtml = render.html;
+    context.rendered$ = cheerio.load(render.html);
+  }
+  if (render.diagnostics) context.renderDiagnostics = render.diagnostics;
+  if (render.assets) context.assets = render.assets;
+  if (render.probes) context.probes = render.probes;
 }
 
 /**
@@ -668,17 +685,10 @@ export class Crawler {
       else this.noteSuccess(host);
 
       // Render in a browser if a renderer was provided
-      let cwv: CoreWebVitals = {};
-      let renderedHtml: string | undefined;
-      let diagnostics: RenderDiagnostics | undefined;
-      let assets: AssetInfo[] | undefined;
+      let render: PageRenderResult | undefined;
       if (this.options.renderPage) {
         try {
-          const rendered = await this.options.renderPage(url);
-          cwv = rendered.cwv;
-          renderedHtml = rendered.html;
-          diagnostics = rendered.diagnostics;
-          assets = rendered.assets;
+          render = await this.options.renderPage(url);
         } catch (error) {
           rethrowIfAborted(error, this.options.signal);
           // Rendering failed, continue with the HTTP response alone
@@ -686,20 +696,11 @@ export class Crawler {
       }
 
       // Create audit context
-      const context = createAuditContext(url, fetchResult, cwv);
+      const context = createAuditContext(url, fetchResult, render?.cwv ?? {});
       if (this.options.signal) {
         context.signal = this.options.signal;
       }
-      if (renderedHtml) {
-        context.renderedHtml = renderedHtml;
-        context.rendered$ = cheerio.load(renderedHtml);
-      }
-      if (diagnostics) {
-        context.renderDiagnostics = diagnostics;
-      }
-      if (assets) {
-        context.assets = assets;
-      }
+      if (render) applyRender(context, render);
 
       // Add to results
       this.results.push({ url, context });

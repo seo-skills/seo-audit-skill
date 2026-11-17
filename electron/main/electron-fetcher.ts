@@ -8,6 +8,7 @@
 
 import { BrowserWindow, session } from 'electron';
 import type { PlaywrightFetchResult } from '@core/crawler/index.js';
+import { runProbes } from '@core/render/probes.js';
 import type { CoreWebVitals } from '@core/types.js';
 
 /**
@@ -65,11 +66,15 @@ export async function fetchPageWithBrowserWindow(
     // Measure Core Web Vitals
     const cwv = await measureCwvInWindow(win);
 
+    // The same probe scripts the CLI runs through Playwright
+    const probes = await runProbes((script) => win.webContents.executeJavaScript(script));
+
     return {
       html,
       statusCode,
       responseTime: Math.round(loadTime),
       cwv,
+      probes,
     };
   } finally {
     win.destroy();

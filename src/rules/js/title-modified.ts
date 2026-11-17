@@ -17,6 +17,7 @@ export const titleModifiedRule = defineRule({
   description: 'Checks if the page title is modified by JavaScript execution',
   category: 'js',
   weight: 8,
+  requiresRender: true,
   run: async (context: AuditContext) => {
     const rendered$ = (context as any).rendered$;
 

@@ -48,6 +48,7 @@ export const imageEncodingRule = defineRule({
     'Checks rendered images for oversized transfers (>100KB) and legacy formats (BMP/TIFF)',
   category: 'perf',
   weight: 6,
+  requiresRender: true,
   run: (context: AuditContext) => {
     const { assets } = context;
 

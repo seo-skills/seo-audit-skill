@@ -4,9 +4,6 @@ import type {
   CategoryResult,
   RuleResult,
   CategoryDefinition,
-  CoreWebVitals,
-  RenderDiagnostics,
-  AssetInfo,
   SiteContext,
   SitemapFetchResult,
   AuditRunOptions,
@@ -49,7 +46,7 @@ import {
   externalLinksExtras,
   type ExternalLinksExtras,
 } from './site/external-links.js';
-import { MAX_RATE_LIMIT_RETRIES, parseRetryAfter, rateLimitedMessage, type CrawlDelayNotice, type CrawlWaiting } from './crawler/crawler.js';
+import { MAX_RATE_LIMIT_RETRIES, applyRender, parseRetryAfter, rateLimitedMessage, type CrawlDelayNotice, type CrawlWaiting } from './crawler/crawler.js';
 import { notMeasured, resolveRuleOptions, defaultRuleOptions } from './rules/define-rule.js';
 import type { AuditRule, RuleOptionValues } from './types.js';
 
@@ -571,29 +568,16 @@ export class Auditor {
     }
 
     // Get Core Web Vitals and rendered DOM if enabled
-    let cwv: CoreWebVitals = {};
-    let renderedHtml: string | undefined;
-    let rendered$: import('cheerio').CheerioAPI | undefined;
-    let renderDiagnostics: RenderDiagnostics | undefined;
-    let assets: AssetInfo[] | undefined;
+    let render: PlaywrightFetchResult | undefined;
     let mobileHtml: string | undefined;
     let mobile$: import('cheerio').CheerioAPI | undefined;
     if (this.options.measureCwv) {
       const fetcher = this.options.browserFetcher ?? fetchPageWithPlaywright;
       try {
-        const pwResult = await fetcher(url, this.options.timeout, {
+        render = await fetcher(url, this.options.timeout, {
           simulateInteraction: this.options.simulateInteraction,
           ...(this.options.signal && { signal: this.options.signal }),
         });
-        cwv = pwResult.cwv;
-        renderDiagnostics = pwResult.diagnostics;
-        assets = pwResult.assets;
-        // Capture rendered HTML for JS rendering rules
-        if (pwResult.html) {
-          renderedHtml = pwResult.html;
-          const cheerio = await import('cheerio');
-          rendered$ = cheerio.load(renderedHtml);
-        }
 
         // Mobile-first parity: a second render at a mobile viewport, while the
         // shared browser is still open. Uses the real Playwright renderer
@@ -626,7 +610,7 @@ export class Auditor {
     }
 
     // Create audit context
-    const context = createAuditContext(url, fetchResult, cwv);
+    const context = createAuditContext(url, fetchResult, render?.cwv ?? {});
     if (this.options.signal) {
       context.signal = this.options.signal;
     }
@@ -635,16 +619,7 @@ export class Auditor {
 
     // Enrich with robots.txt, sitemap, and rendered DOM
     await this.enrichContext(context, url);
-    if (renderedHtml) {
-      context.renderedHtml = renderedHtml;
-      context.rendered$ = rendered$;
-    }
-    if (renderDiagnostics) {
-      context.renderDiagnostics = renderDiagnostics;
-    }
-    if (assets) {
-      context.assets = assets;
-    }
+    if (render) applyRender(context, render);
     if (mobileHtml) {
       context.mobileHtml = mobileHtml;
       context.mobile$ = mobile$;
@@ -717,18 +692,12 @@ export class Auditor {
       renderPage: this.options.measureCwv
         ? async (pageUrl: string) => {
             try {
-              const result = await fetcher(pageUrl, this.options.timeout, {
+              // Passed through whole: picking fields here is how `html` was once
+              // dropped, and every JS-rendering rule reported "rendered DOM not
+              // available" on every page of every crawl
+              return await fetcher(pageUrl, this.options.timeout, {
                 ...(this.options.signal && { signal: this.options.signal }),
               });
-              // `html` is what the JS-rendering rules read. Leaving it out here
-              // is what made all eleven of them report "rendered DOM not
-              // available" on every page of every crawl.
-              return {
-                cwv: result.cwv,
-                html: result.html,
-                diagnostics: result.diagnostics,
-                assets: result.assets,
-              };
             } catch (error) {
               rethrowIfAborted(error, this.options.signal);
               return { cwv: {} };
@@ -953,6 +922,23 @@ export class Auditor {
 
   /** Run one rule on one page; a crash is a not-measured result, a cancel is thrown */
   private async runRule(rule: AuditRule, context: AuditContext): Promise<RuleResult> {
+    // A render-only rule on a page with no render: not measured, without
+    // running it, and the same answer from every such rule
+    if (rule.requiresRender && context.renderedHtml === undefined) {
+      const result: RuleResult = {
+        ...notMeasured(
+          rule.id,
+          this.options.measureCwv
+            ? 'The browser render failed for this page'
+            : 'Needs a browser render: rerun with --cwv',
+          { pageUrl: context.url },
+          this.options.measureCwv ? 'could-not-verify' : 'needs-render'
+        ),
+        ...(rule.advisory && { advisory: true }),
+      };
+      this.options.onRuleComplete(rule.id, rule.name, result);
+      return result;
+    }
     try {
       const result = await rule.run(context, this.optionsFor(rule));
       // Inject ruleId, weight and page URL for consistent tracking.

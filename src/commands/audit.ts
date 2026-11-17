@@ -19,6 +19,7 @@ import { toUrlFilterOptions } from '../config/url-filter-options.js';
 import { selectsRuleSubset, RULE_FILTER_NOTICE } from '../config/validator.js';
 import { warnUnimplementedFlags } from './unimplemented-flags.js';
 import type { OutputConfig } from '../config/schema.js';
+import type { AuditResult } from '../types.js';
 import { AuditAbortedError, classifyError } from '../errors.js';
 import { setUserAgent } from '../crawler/user-agent.js';
 import { saveReport, createReport, saveAuditToDatabase, getAuditsDbPath } from '../storage/index.js';
@@ -70,6 +71,12 @@ export interface AuditOptions {
    * means all three are explicit, as they always were.
    */
   explicitFlags?: { maxPages?: boolean; concurrency?: boolean; timeout?: boolean };
+  /** Exit 1 when a crawl measured less than this percent; overrides `[ci] min_coverage` */
+  minCoverage?: number;
+  /** Stop a crawl after this many seconds; overrides `crawler.max_duration_s` */
+  maxDuration?: number;
+  /** Do not honour robots.txt Crawl-delay */
+  ignoreCrawlDelay?: boolean;
 }
 
 /**
@@ -181,6 +188,52 @@ export function writeReport(outputPath: string, contents: string, label: string)
   console.error(chalk.green(`${label} saved to: ${outputPath}`));
 }
 
+/** "17 min", "45 s", "2 h 5 min" */
+export function formatDuration(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) return `${seconds} s`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
+/**
+ * What a crawl could not measure, said once after the run, on stderr.
+ *
+ * Each host that rate-limited the crawl is named with a setting that would
+ * have spaced the requests out; a crawl that measured under 90% of its pages
+ * says so even when no coverage gate is set.
+ */
+export function crawlWarnings(result: AuditResult, minCoverage: number): string[] {
+  const warnings: string[] = [];
+  const crawl = result.extras?.['crawl'] as
+    | { rateLimitedHosts?: Array<{ host: string; pages: number; lastRetryAfterS: number | null }>; abandonedHosts?: string[]; stoppedByDeadline?: boolean }
+    | undefined;
+  for (const host of crawl?.rateLimitedHosts ?? []) {
+    const suggested = Math.max(1000, (host.lastRetryAfterS ?? 2) * 1000);
+    warnings.push(
+      `${host.host} rate-limited ${host.pages} ${host.pages === 1 ? 'page' : 'pages'}. ` +
+        `Space requests out with crawler.per_host_delay_ms = ${suggested}, or lower --concurrency.`
+    );
+  }
+  for (const host of crawl?.abandonedHosts ?? []) {
+    warnings.push(`${host} kept failing, so the crawl stopped requesting it; its remaining pages were not fetched.`);
+  }
+  if (crawl?.stoppedByDeadline) {
+    warnings.push('The crawl reached its time limit; pages still queued were not fetched.');
+  }
+  const coverage = result.coverage;
+  if (!minCoverage && coverage?.attempted && coverage.measured !== undefined) {
+    const percent = Math.floor((coverage.measured / coverage.attempted) * 100);
+    if (percent < 90) {
+      warnings.push(
+        `Measured ${coverage.measured} of ${coverage.attempted} pages (${percent}%). Set --min-coverage to make CI fail on this.`
+      );
+    }
+  }
+  return warnings;
+}
+
 export function isDocumentFormat(outputFormat: string): boolean {
   return (
     outputFormat === 'json' ||
@@ -243,6 +296,8 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   }
   const { config, configPath } = loaded;
   const failUnder = options.failUnder ?? config.ci.fail_under;
+  const minCoverage = options.minCoverage ?? config.ci.min_coverage;
+  const maxDurationS = options.maxDuration ?? config.crawler.max_duration_s;
   for (const warning of configWarnings) {
     console.error(chalk.yellow(`Config warning: ${warning}`));
   }
@@ -335,6 +390,27 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       ruleOptions: config.rule_options,
       delayMs: config.crawler.delay_ms,
       perHostDelayMs: config.crawler.per_host_delay_ms,
+      perHostConcurrency: config.crawler.per_host_concurrency,
+      respectCrawlDelay: !options.ignoreCrawlDelay && config.crawler.respect_crawl_delay,
+      maxRetryAfterMs: config.crawler.max_retry_after_ms,
+      ...(maxDurationS > 0 && { maxDurationMs: maxDurationS * 1000 }),
+      // Said before the first page, on stderr, and the run carries on: a
+      // projection is information, not a question an unattended run can answer.
+      onCrawlDelay: (notice) => {
+        const capped = notice.capped ? ` (capped from ${Math.round(notice.requestedMs / 1000)} s)` : '';
+        console.error(
+          chalk.yellow(
+            `${notice.host} asks for ${notice.delayMs / 1000} s between requests${capped}. ` +
+              `This crawl may take up to ${formatDuration(notice.projectedMs)}. Pass --ignore-crawl-delay to skip the delay.`
+          )
+        );
+      },
+      onWaiting: (waiting) => {
+        // A sub-second pause is not worth a line; a long one should not look like a hang
+        if ((outputFormat === 'console' || isVerbose) && waiting.waitMs >= 1000) {
+          console.error(chalk.dim(`  waiting on ${waiting.host} (rate limited, ${Math.ceil(waiting.waitMs / 1000)} s)`));
+        }
+      },
       onCategoryStart: (categoryId, categoryName) => {
         progress.onCategoryStart(categoryId, categoryName);
       },
@@ -368,8 +444,10 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
     // Overrides re-rank findings and mark gated rules; they never touch the
     // score. The gate is decided here so every format carries it.
     applyRuleOverrides(result, config.rules.override);
-    result.gate = evaluateGate(result, { failUnder, overrides: config.rules.override });
-    if (configWarnings.length > 0) result.warnings = [...(result.warnings ?? []), ...configWarnings];
+    result.gate = evaluateGate(result, { failUnder, overrides: config.rules.override, minCoverage });
+    const runWarnings = [...configWarnings, ...crawlWarnings(result, minCoverage)];
+    for (const warning of runWarnings.slice(configWarnings.length)) console.error(chalk.yellow(warning));
+    if (runWarnings.length > 0) result.warnings = [...(result.warnings ?? []), ...runWarnings];
 
     // Calculate elapsed time
     const elapsedMs = Date.now() - startTime;

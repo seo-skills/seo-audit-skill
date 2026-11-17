@@ -25,6 +25,12 @@ export interface CrawlerConfig {
   follow_redirects: boolean;
   user_agent: string;
   max_prefix_budget: number;
+  /** Honour robots.txt Crawl-delay, capped at 10 s */
+  respect_crawl_delay: boolean;
+  /** Longest Retry-After a rate-limited host is waited for, in milliseconds */
+  max_retry_after_ms: number;
+  /** Stop a crawl after this many seconds and score what was fetched; 0 means no limit */
+  max_duration_s: number;
 }
 
 import type { OverridePriority } from '../types.js';
@@ -65,6 +71,11 @@ export interface RulesConfig {
 export interface CiConfig {
   /** Exit 1 when the overall score is below this. `--fail-under` wins. */
   fail_under: number;
+  /**
+   * Exit 1 when a crawl measured less than this percent of the pages it
+   * attempted. 0 (the default) turns the gate off. `--min-coverage` wins.
+   */
+  min_coverage: number;
 }
 
 /**

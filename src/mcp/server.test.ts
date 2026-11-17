@@ -151,6 +151,32 @@ describe('seomator-audit MCP server', () => {
     slowRelease?.();
   }, 30000);
 
+  it("refuses a crawl the site's Crawl-delay could not finish in time, before requesting a page", async () => {
+    const pageRequests: string[] = [];
+    const delayed = http.createServer((req, res) => {
+      if (req.url === '/robots.txt') {
+        res.writeHead(200, { 'content-type': 'text/plain' });
+        return void res.end('User-agent: *\nCrawl-delay: 10\n');
+      }
+      pageRequests.push(req.url ?? '');
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end(PAGE);
+    });
+    await new Promise<void>((resolve) => delayed.listen(0, '127.0.0.1', resolve));
+    const delayedHost = `127.0.0.1:${(delayed.address() as AddressInfo).port}`;
+    try {
+      const client = await connect({ allowHosts: [delayedHost] });
+      const args = { url: `http://${delayedHost}/`, crawl: true, maxPages: 100, maxDurationS: 60 };
+      const { isError, json } = await call(client, 'audit_url', args);
+      expect(isError).toBe(true);
+      expect(json).toMatchObject({ code: 'crawl-too-slow', projectedS: 990 });
+      expect(String(json!['hint'])).toContain('respectCrawlDelay');
+      expect(pageRequests).toEqual([]);
+    } finally {
+      delayed.close();
+    }
+  });
+
   it('says run-not-found for an id it does not know', async () => {
     const client = await connect();
     const { isError, json } = await call(client, 'audit_status', { runId: 'nope' });

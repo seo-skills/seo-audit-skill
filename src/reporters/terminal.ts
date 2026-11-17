@@ -11,6 +11,7 @@ import {
 import { isNotMeasured } from '../rules/define-rule.js';
 import { rulePriority } from '../rules/priority.js';
 import { collectIgnoredFindings, isIgnoredByConfig } from '../rules/overrides.js';
+import { coverageLine } from './coverage-line.js';
 import type { OverridePriority } from '../types.js';
 import { normalizeMessage } from './findings.js';
 import { getRuleById } from '../rules/registry.js';
@@ -296,6 +297,9 @@ export function renderTerminalReport(result: AuditResult): void {
       console.log(chalk.gray(`  • ${cap.reason}`));
     }
   }
+  // A crawl that could not measure every page says so under the score.
+  const coverage = coverageLine(result);
+  if (coverage) console.log(chalk.yellow(`  ${coverage}`));
   // A staging audit scores as if live; what it waived is the launch list.
   if (result.waivedCaps) {
     console.log(chalk.gray('  Waived for staging, would cap the score in production:'));

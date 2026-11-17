@@ -76,6 +76,9 @@ const VALIDATION_RULES = {
   'external_links.timeout_ms': { min: 1000, max: 60000 },
   'external_links.concurrency': { min: 1, max: 20 },
   'ci.fail_under': { min: 0, max: 100 },
+  'ci.min_coverage': { min: 0, max: 100 },
+  'crawler.max_retry_after_ms': { min: 0, max: 600000 },
+  'crawler.max_duration_s': { min: 0, max: 86400 },
 } as const;
 
 /**
@@ -299,6 +302,7 @@ export function validateConfig(
     'crawler.respect_robots',
     'crawler.breadth_first',
     'crawler.follow_redirects',
+    'crawler.respect_crawl_delay',
     'external_links.enabled',
   ];
 
@@ -542,7 +546,6 @@ function validateRuleOptions(
  * and left listed here, or added to the schema and never listed.
  */
 const UNHONOURED_KEYS: Array<{ path: string; effect: string }> = [
-  { path: 'crawler.per_host_concurrency', effect: 'concurrency is global, not per host' },
   { path: 'crawler.breadth_first', effect: 'the queue is always breadth-first' },
   { path: 'crawler.follow_redirects', effect: 'redirects are always followed, up to the hop limit' },
   { path: 'crawler.max_prefix_budget', effect: 'no prefix budget is applied' },

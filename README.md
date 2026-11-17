@@ -153,6 +153,9 @@ Run SEO audit on a URL.
 | `--mobile` | - | Second render at a mobile viewport + mobile-first parity checks (single-page). Implies `--cwv` | false |
 | `--simulate-interaction` | - | Scroll and click the page so INP can be measured (reported as synthetic, unscored). Implies `--cwv` | false |
 | `--staging` | - | Audit a staging site: waive the noindex and robots.txt caps, and crawl past robots.txt | false |
+| `--min-coverage <pct>` | - | With `--crawl`: exit 1 when fewer than pct% of the attempted pages were measured | 0 |
+| `--max-duration <s>` | - | With `--crawl`: stop requesting pages after s seconds and score what was fetched | no limit |
+| `--ignore-crawl-delay` | - | With `--crawl`: do not honour the site's robots.txt `Crawl-delay` | false |
 | `--verbose` | `-v` | Show progress | false |
 | `--config <path>` | - | Config file path | - |
 | `--no-save` | - | Do not store this audit in your history | - |
@@ -307,8 +310,8 @@ seomator self doctor -v          # Verbose diagnostics
 | Code | Meaning |
 |------|---------|
 | 0 | Audit passed: the score reached `--fail-under` (default 70) and no `fail_ci` rule failed |
-| 1 | A gate failed: the score is below `--fail-under`, a `fail_ci` rule failed, or a `fail_ci` rule could not be measured. The last line on stderr says which |
-| 2 | The command could not do its job: bad flag, invalid config, unreachable URL |
+| 1 | A gate failed: the score is below `--fail-under`, a `fail_ci` rule failed, a `fail_ci` rule could not be measured, or a crawl measured less than `--min-coverage`. The last line on stderr says which |
+| 2 | The command could not do its job: bad flag, invalid config, unreachable URL, a start page that stays rate-limited |
 
 Gate a build on the rules that matter to you, whatever the score:
 

@@ -27,7 +27,7 @@ import { randomUUID } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { AuditSession, RUN_LIMITS, type RunOutcome, type RunState } from '../dashboard/audit-session.js';
+import { AuditSession, RUN_LIMITS, SESSION_MAX_DURATION_MS, type RunOutcome, type RunState } from '../dashboard/audit-session.js';
 import { loadAllRules } from '../rules/loader.js';
 import { getCategoryIds } from '../categories/index.js';
 import { loadConfig } from '../config/index.js';
@@ -38,7 +38,8 @@ import { collectFindings } from '../reporters/findings.js';
 import { renderLlmReport } from '../reporters/llm-reporter.js';
 import { getAuditsDatabase, getGlobalDir } from '../storage/index.js';
 import { compareStored, getAuditDetail, listAudits } from '../dashboard/queries.js';
-import { resolvesPublic } from '../net/policy.js';
+import { policyForTarget, resolvesPublic, runWithNetPolicy } from '../net/policy.js';
+import { projectCrawlDelay } from '../crawler/crawler.js';
 import { isBlockedAddress } from '../net/address.js';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
@@ -142,6 +143,16 @@ function summarize(outcome: RunOutcome) {
     score: result.overallScore,
     scoringVersion: SCORING_VERSION,
     pages: result.crawledPages,
+    ...(result.completionState && { completionState: result.completionState }),
+    ...(result.coverage?.attempted && {
+      coverage: {
+        measured: result.coverage.measured,
+        attempted: result.coverage.attempted,
+        rateLimited: result.coverage.rateLimited ?? 0,
+        failed: result.coverage.failed ?? 0,
+        notFetched: result.coverage.notFetched ?? 0,
+      },
+    }),
     ...(result.scoreCap && { scoreCap: result.scoreCap }),
     topFindings: findings.slice(0, 10).map((f) => ({
       ruleId: f.ruleId,
@@ -219,10 +230,21 @@ export function createMcpServer(options: McpServerOptions): McpServer {
         maxPages: z.number().int().optional().describe(`Pages to crawl, 1 to ${RUN_LIMITS.maxPages.max} (default ${RUN_LIMITS.maxPages.fallback})`),
         render: z.boolean().optional().describe('Render in a browser for Core Web Vitals and rendered-page checks (slower)'),
         categories: z.array(z.string()).optional().describe('Only these category ids'),
+        respectCrawlDelay: z
+          .boolean()
+          .optional()
+          .describe("Honour the site's robots.txt Crawl-delay (default true, capped at 10 s per request)"),
+        maxDurationS: z
+          .number()
+          .int()
+          .min(1)
+          .max(86400)
+          .optional()
+          .describe('Stop the crawl after this many seconds and score what was fetched (default 3600)'),
         waitS: z.number().min(0).max(25).optional().describe('Seconds to wait for the result before returning (max 25)'),
       },
     },
-    async ({ url, crawl, maxPages, render, categories, waitS }) =>
+    async ({ url, crawl, maxPages, render, categories, respectCrawlDelay, maxDurationS, waitS }) =>
       guarded(async () => {
         const busy = activeRunId();
         if (busy) {
@@ -277,6 +299,26 @@ export function createMcpServer(options: McpServerOptions): McpServer {
           if (refused) return failure(refused);
         }
 
+        // A Crawl-delay that cannot fit the time budget is refused up front,
+        // with both ways out, rather than started and cut off.
+        const durationS = maxDurationS ?? SESSION_MAX_DURATION_MS / 1000;
+        const honourDelay = (respectCrawlDelay ?? true) && loaded.config.crawler.respect_crawl_delay;
+        if (crawl && honourDelay) {
+          const pages = Math.min(maxPages ?? RUN_LIMITS.maxPages.fallback, RUN_LIMITS.maxPages.max);
+          const policy = await policyForTarget(parsed.href, options.allowPrivate ? 'open' : 'strict', options.allowHosts);
+          const notice = await runWithNetPolicy(policy, () =>
+            projectCrawlDelay(parsed.href, pages, loaded.config.crawler.per_host_delay_ms)
+          );
+          if (notice && notice.projectedMs > durationS * 1000) {
+            return failure({
+              code: 'crawl-too-slow',
+              message: `${notice.host} asks for ${notice.delayMs / 1000} s between requests, so ${pages} pages may take up to ${Math.ceil(notice.projectedMs / 60000)} min, past the ${Math.ceil(durationS / 60)} min limit.`,
+              hint: 'Crawl fewer pages (maxPages), raise maxDurationS, or pass respectCrawlDelay: false.',
+              projectedS: Math.ceil(notice.projectedMs / 1000),
+            });
+          }
+        }
+
         const session = makeSession({
           source: 'mcp',
           auditorOptions: {
@@ -284,6 +326,10 @@ export function createMcpServer(options: McpServerOptions): McpServer {
             enableRules: loaded.config.rules.enable,
             disableRules: loaded.config.rules.disable,
             ruleOptions: loaded.config.rule_options,
+            perHostConcurrency: loaded.config.crawler.per_host_concurrency,
+            respectCrawlDelay: honourDelay,
+            maxRetryAfterMs: loaded.config.crawler.max_retry_after_ms,
+            maxDurationMs: durationS * 1000,
             respectRobots: loaded.config.crawler.respect_robots,
           },
         });

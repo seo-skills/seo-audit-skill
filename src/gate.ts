@@ -25,6 +25,16 @@ export interface GateOptions {
   /** Exit 1 below this score */
   failUnder: number;
   overrides?: Record<string, RuleOverride>;
+  /** Exit 1 when a crawl measured less than this percent of what it attempted; 0 is off */
+  minCoverage?: number;
+}
+
+/** Measured and attempted pages, when the run was a crawl that recorded them */
+export function coverageOf(result: AuditResult): { measured: number; attempted: number; percent: number } | null {
+  const attempted = result.coverage?.attempted;
+  const measured = result.coverage?.measured;
+  if (!attempted || measured === undefined) return null;
+  return { measured, attempted, percent: Math.floor((measured / attempted) * 100) };
 }
 
 /** Rule ids whose `fail_ci` is on */
@@ -87,10 +97,24 @@ export function evaluateGate(result: AuditResult, options: GateOptions): AuditGa
     }
   }
 
-  const scoreFailed = score < failUnder;
-  const exitCode: 0 | 1 = scoreFailed || failedCiRules.length > 0 || unevaluated.length > 0 ? 1 : 0;
+  let coverageGate: AuditGate['coverage'];
+  const coverage = coverageOf(result);
+  if (options.minCoverage && options.minCoverage > 0 && coverage) {
+    coverageGate = { minCoverage: options.minCoverage, ...coverage, passed: coverage.percent >= options.minCoverage };
+  }
 
-  const gate: AuditGate = { failUnder, score, failedCiRules, unevaluated, exitCode };
+  const scoreFailed = score < failUnder;
+  const exitCode: 0 | 1 =
+    scoreFailed || failedCiRules.length > 0 || unevaluated.length > 0 || coverageGate?.passed === false ? 1 : 0;
+
+  const gate: AuditGate = {
+    failUnder,
+    score,
+    failedCiRules,
+    unevaluated,
+    ...(coverageGate && { coverage: coverageGate }),
+    exitCode,
+  };
   if (exitCode === 1) gate.reason = describeGateFailure(gate);
   return gate;
 }
@@ -109,6 +133,11 @@ export function describeGateFailure(gate: Omit<AuditGate, 'reason'>): string {
   }
   for (const { ruleId, reason } of gate.unevaluated) {
     parts.push(`fail_ci rule ${ruleId} was not measured (${reason}); fix what stopped it or drop fail_ci`);
+  }
+  if (gate.coverage && !gate.coverage.passed) {
+    parts.push(
+      `measured ${gate.coverage.measured} of ${gate.coverage.attempted} pages; min-coverage ${gate.coverage.minCoverage}`
+    );
   }
   parts.push(
     gate.score < gate.failUnder

@@ -429,8 +429,8 @@ rather call tools than parse CLI output.
 
 | Tool | Does |
 |---|---|
-| `audit_url {url, crawl?, maxPages?, render?, categories?, waitS?}` | Starts a run and returns `runId`. One run at a time. |
-| `audit_status {runId}` | `state` (`running`, `completed`, `failed`, `cancelled`), progress, and the summary once finished. |
+| `audit_url {url, crawl?, maxPages?, render?, categories?, waitS?, respectCrawlDelay?, maxDurationS?}` | Starts a run and returns `runId`. One run at a time. A crawl honours the site's `Crawl-delay` unless `respectCrawlDelay` is `false`, and stops requesting pages after `maxDurationS` (default 3600), scoring what it fetched. |
+| `audit_status {runId}` | `state` (`running`, `completed`, `failed`, `cancelled`), progress, and the summary once finished. A crawl's summary has `coverage` (measured, attempted, rate-limited, failed, not fetched) and `completionState`; `completed-with-gaps` means some pages were not measured. |
 | `cancel_run {runId}` | Cancels a run. Deletes nothing. |
 | `list_audits {domain?, limit?}` | Stored audits, newest first. |
 | `get_audit {id}` | A stored audit as the LLM report. |
@@ -453,6 +453,8 @@ Every failure is `isError: true` with JSON `{ code, message, hint }`:
 | `private-address` | The target or a redirect resolves to a loopback, private or link-local address. A person must re-register the server with `--allow-private` (or `--allow-host`). The message names the address. |
 | `render-unavailable` | Browser renders need `--allow-private` for now. Audit without `render`. |
 | `busy` | A run is in progress; its `runId` is in the error. Poll it or `cancel_run` it. |
+| `rate-limited` | The start page kept answering 429 or 503 after 3 retries. Wait, then run again; the message names the host and its last `Retry-After`. |
+| `crawl-too-slow` | The site's `Crawl-delay` means `maxPages` pages cannot finish within `maxDurationS`. Lower `maxPages`, raise `maxDurationS`, or pass `respectCrawlDelay: false`. `projectedS` says how long it would take. |
 | `run-not-found` | The server restarted or the id is wrong. Call `list_audits` with the domain and match `startedAt` before starting a new run. |
 | `config` | `seomator.toml` has an error; the message names it. The config is read again at the start of every run. |
 | `unknown` | An unexpected failure. The hint carries a correlation id; the stack is in `$SEOMATOR_HOME/mcp.log`. |

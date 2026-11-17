@@ -34,6 +34,9 @@ export const MAX_RECENT_RULES = 50;
  */
 export const RUN_RETENTION_MS = 15 * 60 * 1000;
 
+/** How long a session run (dashboard, desktop, MCP) may crawl by default */
+export const SESSION_MAX_DURATION_MS = 60 * 60 * 1000;
+
 /** Bounds on what a client may ask for */
 export const RUN_LIMITS = {
   maxPages: { min: 1, max: 1000, fallback: 10 },
@@ -166,7 +169,16 @@ export interface AuditSessionOptions {
   /** Extra engine options, e.g. Electron's own browser fetcher */
   auditorOptions?: Pick<
     AuditorOptions,
-    'browserFetcher' | 'respectRobots' | 'network' | 'enableRules' | 'disableRules' | 'ruleOptions'
+    | 'browserFetcher'
+    | 'respectRobots'
+    | 'network'
+    | 'enableRules'
+    | 'disableRules'
+    | 'ruleOptions'
+    | 'perHostConcurrency'
+    | 'respectCrawlDelay'
+    | 'maxRetryAfterMs'
+    | 'maxDurationMs'
   >;
   /** Injectable for tests */
   createAuditor?: (options: AuditorOptions) => Auditor;
@@ -474,6 +486,10 @@ export class AuditSession {
     const save = this.options.saveAudit ?? saveAuditToDatabase;
 
     const auditor = makeAuditor({
+      // A session run is unattended once started: without a limit, a site
+      // with a 10 s Crawl-delay or a host that rate-limits every page holds
+      // the run slot for hours. An hour, unless the caller says otherwise.
+      maxDurationMs: SESSION_MAX_DURATION_MS,
       ...this.options.auditorOptions,
       categories: args.categories,
       timeout: args.timeout,

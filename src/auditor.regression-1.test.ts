@@ -33,13 +33,13 @@ const FIXTURE_HTML = `<!doctype html>
  * status code. A 404 that returns a real HTML error page is the case that
  * scored 87: the body is perfectly auditable, and that is the problem.
  */
-function makeFetchStub(status: number) {
+function makeFetchStub(status: number, extraHeaders: Record<string, string> = {}) {
   return vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
     const url = typeof input === 'string' ? input : input.toString();
     if (url === PAGE_URL) {
       return new Response(FIXTURE_HTML, {
         status,
-        headers: { 'content-type': 'text/html; charset=utf-8' },
+        headers: { 'content-type': 'text/html; charset=utf-8', ...extraHeaders },
       });
     }
     return new Response('', { status: 404 });
@@ -51,12 +51,30 @@ describe('audit() refuses to score an HTTP error page', () => {
     vi.unstubAllGlobals();
   });
 
-  it.each([400, 404, 410, 500, 503])('throws http-error on %i', async (status) => {
+  // 429 and 503 are retried first (see polite.test.ts); one that never clears
+  // fails the run as rate-limited below, still without a score.
+  it.each([400, 404, 410, 500])('throws http-error on %i', async (status) => {
     vi.stubGlobal('fetch', makeFetchStub(status));
     const auditor = createAuditor({ categories: ['core'], measureCwv: false });
 
     await expect(auditor.audit(PAGE_URL)).rejects.toBeInstanceOf(AuditError);
     await expect(auditor.audit(PAGE_URL)).rejects.toMatchObject({ code: 'http-error' });
+  });
+
+  it.each([429, 503])('retries %i, then refuses as rate-limited instead of scoring it', async (status) => {
+    const stub = makeFetchStub(status, { 'retry-after': '0' });
+    vi.stubGlobal('fetch', stub);
+    const auditor = createAuditor({ categories: ['core'], measureCwv: false });
+
+    await expect(auditor.audit(PAGE_URL)).rejects.toMatchObject({ code: 'rate-limited' });
+    expect(stub.mock.calls.filter(([input]) => String(input) === PAGE_URL)).toHaveLength(4);
+  });
+
+  it('words a 503 that never clears as the site being unavailable', async () => {
+    vi.stubGlobal('fetch', makeFetchStub(503, { 'retry-after': '0' }));
+    const auditor = createAuditor({ categories: ['core'], measureCwv: false });
+
+    await expect(auditor.audit(PAGE_URL)).rejects.toThrow(/503 Service Unavailable to all 4 requests/);
   });
 
   it('names the status in the message, so the reason is not guesswork', async () => {

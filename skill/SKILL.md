@@ -201,8 +201,8 @@ An agent must be able to tell "the audit failed" from "the site scored badly".
 | Code | Meaning |
 |------|---------|
 | `0` | Success |
-| `1` | The run worked, and a gate failed: `audit`/`analyze` scored under `--fail-under` (default 70), a `[rules.override]` rule with `fail_ci = true` failed or could not be measured, or `compare --fail-on-regression` found a regression. The last stderr line starts with `Exit 1:` and says which; JSON carries it in `gate` |
-| `2` | The command failed: bad flag, invalid config (including an unknown rule id in `[rules.override]`), unreachable URL, HTTP error, missing crawl, bad `--config` path |
+| `1` | The run worked, and a gate failed: `audit`/`analyze` scored under `--fail-under` (default 70), a `[rules.override]` rule with `fail_ci = true` failed or could not be measured, a crawl measured less than `--min-coverage`, or `compare --fail-on-regression` found a regression. The last stderr line starts with `Exit 1:` and says which; JSON carries it in `gate` |
+| `2` | The command failed: bad flag, invalid config (including an unknown rule id in `[rules.override]`), unreachable URL, HTTP error, a start page that stays rate-limited, missing crawl, bad `--config` path |
 | `130` | Cancelled with Ctrl-C |
 
 **A non-zero exit is not automatically a failure.** `1` means the tool worked
@@ -242,6 +242,9 @@ route), `tls` (certificate rejected), `timeout`, `http-error`, `non-html`,
 | `--config <path>` | | Config file path | |
 | `--no-save` | | Do not store this audit in ~/.seomator | |
 | `--staging` | | Audit a staging site: waive the noindex and robots.txt caps and crawl past robots.txt; the waived caps are listed | false |
+| `--min-coverage <pct>` | | With `--crawl`: exit 1 when fewer than pct% of the attempted pages were measured | 0 |
+| `--max-duration <s>` | | With `--crawl`: stop requesting pages after s seconds and score what was fetched | no limit |
+| `--ignore-crawl-delay` | | With `--crawl`: do not honour the site's robots.txt `Crawl-delay` | false |
 
 Audits are stored by default, so `compare` and `report` always have history.
 

@@ -27,6 +27,9 @@ export function getDefaultConfig(): SeomatorConfig {
       follow_redirects: true,
       user_agent: '',
       max_prefix_budget: 0.25,
+      respect_crawl_delay: true,
+      max_retry_after_ms: 120000,
+      max_duration_s: 0,
     },
     rules: {
       enable: ['*'],
@@ -46,6 +49,7 @@ export function getDefaultConfig(): SeomatorConfig {
     },
     ci: {
       fail_under: 70,
+      min_coverage: 0,
     },
     rule_options: {},
   };

@@ -1,6 +1,7 @@
 import type { AuditResult, RuleResult } from '../types.js';
 import { collectFindings, type Finding } from './findings.js';
 import { collectIgnoredFindings } from '../rules/overrides.js';
+import { coverageLine } from './coverage-line.js';
 import { scoreToVerdict } from '../verdict.js';
 import { getCategoryById } from '../categories/index.js';
 
@@ -137,6 +138,12 @@ export function renderMarkdownReport(result: AuditResult): string {
     lines.push(anyNotMeasured ? `${row} ${categoryResult.notMeasuredCount ?? 0} |` : row);
   }
   lines.push('');
+
+  const coverage = coverageLine(result);
+  if (coverage) {
+    lines.push(`> ${coverage}`);
+    lines.push('');
+  }
 
   // One entry per problem, ranked. A crawl produces one rule result per rule
   // per page, so listing them raw repeated the same finding once per page.

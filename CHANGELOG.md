@@ -59,6 +59,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fix what it finds, and the `[rules.override]` lines to re-rank it or gate CI
   on it. `--list [category]` prints every rule id, `--json` is for scripts. An
   unknown id exits 2 and names the closest ids.
+- **Crawls back off when a site asks them to.** A 429 or 503 is retried up to
+  3 times, waiting for the `Retry-After` (cut to `crawler.max_retry_after_ms`,
+  default 120 s) or 5 s doubling when there is none, and a host that keeps
+  asking gets a longer delay for the rest of the run. A page that never clears
+  is reported as rate-limited: it is not scored, and no rule calls it broken.
+  After 10 pages in a row fail on one host, the crawl stops asking it and
+  lists the rest as not fetched. A start page that stays rate-limited stops
+  the run with error code `rate-limited`.
+- **Crawls honour robots.txt `Crawl-delay`**, capped at 10 s, and print how
+  long the crawl may take before it starts. `--ignore-crawl-delay` or
+  `crawler.respect_crawl_delay = false` turns it off.
+- **`--max-duration <s>`** (`crawler.max_duration_s`) stops a crawl requesting
+  pages after that many seconds and scores what it fetched.
+- **Coverage in every report, and a gate on it.** Console, markdown and LLM
+  reports say how many pages were measured, for example `Measured 3 of 4
+  pages · 1 rate-limited`. JSON carries the counts in `coverage` and sets
+  `completionState` to `completed-with-gaps` when pages were skipped.
+  `--min-coverage <pct>` or `[ci] min_coverage` exits 1 below the threshold.
+- The MCP `audit_url` tool takes `respectCrawlDelay` and `maxDurationS`, and
+  refuses up front with `crawl-too-slow` when the site's `Crawl-delay` means
+  the crawl cannot finish in time. Its summary carries `coverage` and
+  `completionState`.
 
 - The dashboard's empty history (desktop app and `seomator serve`) shows an
   illustration in the house image style: the SEOmator agent scanning a site,
@@ -94,6 +116,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rule id that does not exist. It now writes `core-description-length`.
 - **`crawler.max_pages` defaults to 10** (was 100), the same as `-m`, so a crawl
   with no config covers the same pages whichever way it is started.
+- **`crawler.per_host_concurrency` works** (default 2). A crawl stays on one
+  host, so it now loads at most 2 pages at once by default, whatever
+  `concurrency` says. Raise both to crawl faster.
+- **robots.txt groups match the crawler's product token.** A group applied when
+  its `User-agent` appeared anywhere in the header, so `User-agent: bot`
+  governed `SEOmatorBot/3.0 (+https://...)`. It now applies only when it
+  starts a product token (`SEOmator` still matches), the longest match wins,
+  and `*` is the fallback. A crawl can reach pages a broad group blocked
+  before.
+- **Breaking: a page that answers 503 is retried before the run gives up.** A
+  single-page `audit` of a start page that stays 503 now fails with error code
+  `rate-limited` (still exit 2) instead of `http-error`, and the message says
+  the site may be down.
+- Web, desktop and MCP runs stop requesting pages after one hour and score
+  what they fetched. The CLI has no limit unless you set one.
 - Requires Node.js 20.18.1 or later (was 20.3.0). The HTML parser already
   needed it; `package.json` now says so.
 - **The new SEOmator brand, from seomator.com.** The logo is the orange emblem

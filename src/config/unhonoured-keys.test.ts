@@ -50,10 +50,10 @@ describe('changing an inert key says so', () => {
     expect(unhonoured(config)).toContain('crawler.follow_redirects');
   });
 
-  it('warns when per_host_concurrency is changed', () => {
+  it('no longer calls per_host_concurrency inert: the crawler honours it now', () => {
     const config = getDefaultConfig();
     config.crawler.per_host_concurrency = 4;
-    expect(unhonoured(config)).toContain('crawler.per_host_concurrency');
+    expect(unhonoured(config)).not.toContain('crawler.per_host_concurrency');
   });
 
   it('warns for the external-link settings, which have no checker behind them', () => {

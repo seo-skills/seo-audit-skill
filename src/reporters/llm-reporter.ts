@@ -20,6 +20,7 @@ import { scoreToVerdict } from '../verdict.js';
 import { isNotMeasured } from '../rules/define-rule.js';
 import { collectFindings } from './findings.js';
 import { collectIgnoredFindings } from '../rules/overrides.js';
+import { coverageLine } from './coverage-line.js';
 import { AUDIT_SCHEMA_VERSION } from '../types.js';
 import type { AuditResult } from '../types.js';
 import { getFixSuggestion } from './fix-suggestions.js';
@@ -303,6 +304,9 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
   // reading this must be able to tell "we checked and it is fine" from "we
   // could not check". `<summary notMeasured>` already carried the count; this
   // carries which ones.
+  // A crawl that could not measure every page: the score covers the rest
+  const coverage = coverageLine(result);
+  if (coverage) lines.push(`${t1}<coverage>${escapeXml(coverage)}</coverage>${nl}`);
   // Hidden by `[rules.override]`. Named so an agent never mistakes a finding
   // the team chose to hide for one the audit did not raise.
   const ignored = collectIgnoredFindings(result);

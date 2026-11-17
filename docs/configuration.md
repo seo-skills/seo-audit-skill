@@ -92,20 +92,47 @@ Except for `user_agent`, these keys apply to crawls only: `seomator crawl` and
 | `delay_ms` | integer | `100` | 0 to 60000 | Minimum gap in milliseconds between the starts of any two page requests. |
 | `per_host_delay_ms` | integer | `200` | 0 to 60000 | Minimum gap in milliseconds between the starts of two page requests to one host. A crawl stays on one host, so the larger of the two delays sets the pace: 200 ms by default. |
 | `respect_robots` | boolean | `true` | `true`, `false` | When `true`, a crawl does not follow URLs that robots.txt disallows for the configured user agent. The start URL is always fetched. `audit --staging` crawls past robots.txt whatever this says. The robots.txt score cap does not depend on this key: the cap always reads Googlebot's rules. |
-| `user_agent` | string | `""` | Any string | `User-Agent` header on every request: pages, browser renders, robots.txt, sitemaps and the requests some rules make. It also picks the robots.txt group a crawl obeys. Empty means `SEOmatorBot/3.0 (+https://github.com/seo-skills/seo-audit-skill)`. The `--mobile` render always sends a fixed Android Chrome user agent. |
+| `user_agent` | string | `""` | Any string | `User-Agent` header on every request: pages, browser renders, robots.txt, sitemaps and the requests some rules make. It also picks the robots.txt group a crawl obeys: a group applies when its `User-agent` line is the start of a product token in the header (`SEOmator` matches `SEOmatorBot/3.0`; `bot` does not), the longest match wins, and `*` applies when none does. Empty means `SEOmatorBot/3.0 (+https://github.com/seo-skills/seo-audit-skill)`. The `--mobile` render always sends a fixed Android Chrome user agent. |
 | `include` | list of strings | `[]` | Strings | Path patterns a crawl may follow. Empty means every path. See [URL patterns](#url-patterns). |
 | `exclude` | list of strings | `[]` | Strings | Path patterns a crawl never follows. |
 | `drop_query_prefixes` | list of strings | `["utm_", "gclid", "fbclid", "mc_", "_ga"]` | Strings | Query parameters whose names start with one of these are removed from each URL a crawl queues. Ignored while `allow_query_params` is not empty. See [Query parameters](#query-parameters). |
 | `allow_query_params` | list of strings | `[]` | Strings | When not empty, a crawl keeps only these query parameters and removes all others. |
-| `per_host_concurrency` | integer | `2` | 1 to 5 | Not implemented. Concurrency is global. |
+| `per_host_concurrency` | integer | `2` | 1 to 5 | Most page requests in flight to one host at the same time. A crawl stays on one host, so the smaller of this and `concurrency` is how many pages load at once: 2 by default. |
+| `respect_crawl_delay` | boolean | `true` | `true`, `false` | When `true`, a crawl waits at least the `Crawl-delay` of the matching robots.txt group between requests to its host, capped at 10 s. `audit` prints how long the crawl may take before it starts. `--ignore-crawl-delay` turns it off for one run, and `--staging` always ignores it. |
+| `max_retry_after_ms` | integer | `120000` | 0 to 600000 | Longest a crawl waits on one `Retry-After` from a 429 or 503 before it asks again. A longer `Retry-After` is cut to this. |
+| `max_duration_s` | integer | `0` | 0 to 86400 | Stop requesting pages after this many seconds and score the pages fetched so far. The rest are reported as not fetched. `0` means no limit. A typed `--max-duration` overrides it. |
 | `breadth_first` | boolean | `true` | `true`, `false` | Not implemented. The queue is always breadth-first. |
 | `follow_redirects` | boolean | `true` | `true`, `false` | Not implemented. Redirects are always followed. |
 | `max_prefix_budget` | number | `0.25` | 0 to 1 | Not implemented. No prefix budget is applied. |
 
-The four "Not implemented" keys are parsed and validated, and no code reads
+The three "Not implemented" keys are parsed and validated, and no code reads
 them. Their defaults describe what the crawler does anyway. `config validate`
 warns about each one you change, with a message that begins
 `<key> is not implemented and has no effect`.
+
+#### Rate limits, Crawl-delay and coverage
+
+A crawl slows down when a site asks it to, and reports what it could not
+fetch instead of scoring it.
+
+- **429 and 503.** The page is asked for again, up to 3 more times. Each wait
+  is the response's `Retry-After` (seconds or an HTTP date, cut to
+  `max_retry_after_ms`), or 5 s doubling with jitter when there is none. While
+  a host is backing off, no other request goes to it, and every second backoff
+  in a row doubles that host's delay for the rest of the run, up to 60 s.
+- **A page that never clears** is recorded as rate-limited. It is not scored
+  and no rule reports it as broken or missing; it counts against coverage
+  instead. If it is the start page, the run stops with error code
+  `rate-limited` and exit 2. A single-page `audit` retries the same way.
+- **A host that keeps failing.** After 10 pages in a row end rate-limited or
+  5xx, the crawl stops asking that host. Its queued pages are reported as not
+  fetched.
+- **Crawl-delay** sets a minimum gap between requests to the host, the larger
+  of it and `per_host_delay_ms`. See `respect_crawl_delay` above.
+- **Coverage.** Every report shows how many of the attempted pages were
+  measured, for example `Measured 3 of 4 pages · 1 rate-limited`. A run that
+  skipped pages ends `completed-with-gaps` in JSON (`completionState`). To fail
+  CI on it, set `[ci] min_coverage` or pass `--min-coverage`.
 
 ### [rules]
 
@@ -170,6 +197,7 @@ Read by `audit` and `analyze`.
 | Key | Type | Default | Valid values | Effect |
 |---|---|---|---|---|
 | `fail_under` | number | `70` | `0` to `100` | Exit 1 when the overall score is below this. `--fail-under` wins over it. `0` never fails on score. |
+| `min_coverage` | number | `0` | `0` to `100` | With `audit --crawl`: exit 1 when fewer than this percentage of the attempted pages were measured. Pages that were rate-limited, failed or not fetched count against it. `--min-coverage` wins over it. `0` never fails on coverage. |
 
 ### [output]
 
@@ -536,9 +564,13 @@ Local settings:
 
 | Flag | Command | Key | Notes |
 |---|---|---|---|
-| `-m, --max-pages <n>` | `audit` | `crawler.max_pages` | Always applied. Default 10, range 1 to 1000. |
-| `--concurrency <n>` | `audit` | `crawler.concurrency` | Always applied. Default 3, range 1 to 20. |
-| `--timeout <ms>` | `audit` | `crawler.timeout_ms` | Always applied. Default 30000, range 1000 to 120000. |
+| `-m, --max-pages <n>` | `audit` | `crawler.max_pages` | Applied only when typed. Range 1 to 1000. |
+| `--concurrency <n>` | `audit` | `crawler.concurrency` | Applied only when typed. Range 1 to 20. |
+| `--timeout <ms>` | `audit` | `crawler.timeout_ms` | Applied only when typed. Range 1000 to 120000. |
+| `--fail-under <n>` | `audit`, `analyze` | `ci.fail_under` | Range 0 to 100. |
+| `--min-coverage <pct>` | `audit` | `ci.min_coverage` | Range 0 to 100. Crawls only. |
+| `--max-duration <s>` | `audit` | `crawler.max_duration_s` | Range 1 to 86400. Crawls only. |
+| `--ignore-crawl-delay` | `audit` | `crawler.respect_crawl_delay` | Sets it to `false` for this run. |
 | `-f, --format <type>` | `audit` | `output.format` | `console`, `json`, `html`, `markdown` or `llm`. Also cancels `output.path`. |
 | `-j, --json` | `audit` | `output.format` | Deprecated form of `--format json`. Also cancels `output.path`. |
 | `-o, --output <path>` | `audit` | `output.path` | |

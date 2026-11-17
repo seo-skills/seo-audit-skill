@@ -40,6 +40,7 @@ import {
 } from './scoring.js';
 import { netFetch, readTextCapped, MAX_PAGE_BYTES } from './net/fetch.js';
 import { policyForTarget, runWithNetPolicy, type NetMode } from './net/policy.js';
+import { MAX_RATE_LIMIT_RETRIES, parseRetryAfter, rateLimitedMessage, type CrawlDelayNotice, type CrawlWaiting } from './crawler/crawler.js';
 import { notMeasured, resolveRuleOptions, defaultRuleOptions } from './rules/define-rule.js';
 import type { AuditRule, RuleOptionValues } from './types.js';
 
@@ -200,14 +201,36 @@ export interface AuditorOptions {
    * ignored here.
    */
   ruleOptions?: Record<string, Record<string, unknown>>;
+  /** Most requests in flight to one host at once (`crawler.per_host_concurrency`) */
+  perHostConcurrency?: number;
+  /** Honour robots.txt Crawl-delay, capped at 10 s. Default true. */
+  respectCrawlDelay?: boolean;
+  /** Longest Retry-After honoured, in ms (`crawler.max_retry_after_ms`) */
+  maxRetryAfterMs?: number;
+  /**
+   * Stop a crawl's requests after this long and score what was fetched; the
+   * run ends "completed with gaps" (`crawler.max_duration_s`).
+   */
+  maxDurationMs?: number;
+  /** Told once, before the first page, when the site's Crawl-delay applies */
+  onCrawlDelay?: (notice: CrawlDelayNotice) => void;
+  /** Told when the crawl waits on a rate-limited host */
+  onWaiting?: (waiting: CrawlWaiting) => void;
 }
 
 /**
  * Resolved options with defaults applied.
  * browserFetcher stays optional because it has no default.
  */
-type ResolvedAuditorOptions = Required<Omit<AuditorOptions, 'browserFetcher' | 'signal'>> &
-  Pick<AuditorOptions, 'browserFetcher' | 'signal'>;
+type OptionalAuditorKeys =
+  | 'browserFetcher'
+  | 'signal'
+  | 'perHostConcurrency'
+  | 'maxDurationMs'
+  | 'onCrawlDelay'
+  | 'onWaiting';
+type ResolvedAuditorOptions = Required<Omit<AuditorOptions, OptionalAuditorKeys>> &
+  Pick<AuditorOptions, OptionalAuditorKeys>;
 
 /**
  * Main Auditor class for running SEO audits
@@ -246,6 +269,12 @@ export class Auditor {
       onPageStart: options.onPageStart ?? (() => {}),
       network: { mode: options.network?.mode ?? 'auto', allowHosts: options.network?.allowHosts ?? [] },
       ruleOptions: options.ruleOptions ?? {},
+      perHostConcurrency: options.perHostConcurrency,
+      respectCrawlDelay: options.respectCrawlDelay ?? true,
+      maxRetryAfterMs: options.maxRetryAfterMs ?? 120_000,
+      maxDurationMs: options.maxDurationMs,
+      onCrawlDelay: options.onCrawlDelay,
+      onWaiting: options.onWaiting,
     };
 
     // Determine which categories to audit
@@ -374,11 +403,28 @@ export class Auditor {
     resetCrossPageState();
 
     // Fetch the page, recording the redirect hops so redirect-loop and
-    // redirect-broken have a chain to read.
-    const fetchResult = await fetchPage(url, this.options.timeout, {
+    // redirect-broken have a chain to read. A rate limit is retried the way a
+    // crawl retries it: it says nothing about the page.
+    let fetchResult = await fetchPage(url, this.options.timeout, {
       trackRedirects: true,
       ...(this.options.signal && { signal: this.options.signal }),
     });
+    for (let attempt = 1; fetchResult.statusCode === 429 || fetchResult.statusCode === 503; attempt++) {
+      const requested = parseRetryAfter(fetchResult.headers['retry-after']);
+      if (attempt > MAX_RATE_LIMIT_RETRIES) {
+        throw new AuditError(
+          'rate-limited',
+          rateLimitedMessage(new URL(url).host, fetchResult.statusCode, requested !== null ? Math.round(requested / 1000) : null)
+        );
+      }
+      const waitMs = Math.min(requested ?? 5000 * 2 ** (attempt - 1), this.options.maxRetryAfterMs);
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      throwIfAborted(this.options.signal);
+      fetchResult = await fetchPage(url, this.options.timeout, {
+        trackRedirects: true,
+        ...(this.options.signal && { signal: this.options.signal }),
+      });
+    }
 
     // Refuse to score something that is not an auditable page. Most rules pass
     // when the thing they check is absent, so an empty body used to score
@@ -541,6 +587,13 @@ export class Auditor {
       urlFilter: this.options.urlFilter,
       delayMs: this.options.delayMs,
       perHostDelayMs: this.options.perHostDelayMs,
+      ...(this.options.perHostConcurrency !== undefined && { perHostConcurrency: this.options.perHostConcurrency }),
+      // A staging crawl ignores robots.txt, its Crawl-delay included.
+      respectCrawlDelay: this.options.respectCrawlDelay && !this.options.staging,
+      maxRetryAfterMs: this.options.maxRetryAfterMs,
+      ...(this.options.maxDurationMs !== undefined && { deadline: Date.now() + this.options.maxDurationMs }),
+      ...(this.options.onCrawlDelay && { onCrawlDelay: this.options.onCrawlDelay }),
+      ...(this.options.onWaiting && { onWaiting: this.options.onWaiting }),
       ...(this.options.signal && { signal: this.options.signal }),
       onProgress: (progress) => this.options.onCrawlProgress(progress),
       onPageStart: (pageUrl) => this.options.onPageStart(pageUrl),
@@ -606,7 +659,18 @@ export class Auditor {
     // start page. A site-wide block always reaches it; averaged with the
     // pages behind it, it moved the score by a point (see score-caps.ts).
     const timestamp = new Date().toISOString();
-    const result = buildAuditResult(
+    const report = crawler.getReport();
+    const failed = crawledPages.filter((page) => page.error && !page.rateLimited).length;
+    const coverage = {
+      pages: crawledPages.map((p) => p.url),
+      detail: 'per-page' as const,
+      attempted: crawledPages.length + report.notFetched.length,
+      measured: crawledPages.filter((page) => !page.error).length,
+      rateLimited: report.rateLimitedPages.length,
+      failed,
+      notFetched: report.notFetched.length,
+    };
+    const built = buildAuditResult(
       url,
       allCategoryResults,
       this.categoriesToAudit,
@@ -614,12 +678,26 @@ export class Auditor {
       crawledPages.length,
       undefined,
       this.runOptions(true, maxPages, concurrency),
-      { pages: crawledPages.map((p) => p.url), detail: 'per-page' }
+      coverage
     );
+    const gaps = coverage.rateLimited + coverage.failed + coverage.notFetched > 0 || report.stoppedByDeadline;
+    built.completionState = gaps ? 'completed-with-gaps' : 'completed';
+    built.extras = {
+      ...built.extras,
+      crawl: {
+        rateLimitedPages: coverage.rateLimited,
+        rateLimitedHosts: report.rateLimitedHosts,
+        notFetched: coverage.notFetched,
+        abandonedHosts: report.abandonedHosts,
+        stoppedByDeadline: report.stoppedByDeadline,
+        crawlDelayApplied: report.crawlDelay,
+      },
+    };
+
     const start = crawledPages.find((page) => page.url === site.entryUrl && !page.error);
-    if (!start) return result;
+    if (!start) return built;
     return applyScoreCaps(
-      result,
+      built,
       siteCaps(readPageFacts(start.context), start.url, { staging: this.options.staging })
     );
   }

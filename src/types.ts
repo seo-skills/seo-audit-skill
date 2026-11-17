@@ -480,6 +480,12 @@ export interface SitePageInfo {
   shingles?: Uint32Array;
   /** A later page of a series: `rel="prev"`, `/page/N`, `?page=N` and similar */
   isPaginated?: boolean;
+  /**
+   * The site was still rate-limiting this page after its retries. Its
+   * `statusCode` is the last one seen (429 or 503); cross-page checks read
+   * it as unknown, never as broken or missing.
+   */
+  rateLimited?: boolean;
 }
 
 /**
@@ -664,6 +670,8 @@ export interface AuditGate {
   failedCiRules: Array<{ ruleId: string; pages: string[] }>;
   /** `fail_ci` rules that never produced a reading, so their gate could not pass */
   unevaluated: Array<{ ruleId: string; reason: string }>;
+  /** The coverage gate, when one is set: percent of attempted pages measured */
+  coverage?: { minCoverage: number; measured: number; attempted: number; percent: number; passed: boolean };
   exitCode: 0 | 1;
   /** One line explaining a non-zero exit; absent when the run passes */
   reason?: string;
@@ -888,7 +896,25 @@ export interface AuditCoverage {
    * `aggregated` when it holds one result per rule with page counts.
    */
   detail: 'per-page' | 'aggregated';
+  /**
+   * What a crawl could not measure. Set on crawls only; absent fields are 0.
+   * `measured` of `attempted` is the "measured 4 of 5 pages" line.
+   */
+  attempted?: number;
+  measured?: number;
+  /** Pages the site was still rate-limiting after their retries */
+  rateLimited?: number;
+  /** Pages that could not be fetched for another reason */
+  failed?: number;
+  /** Queued pages never requested: a host was given up, or the time limit hit */
+  notFetched?: number;
 }
+
+/**
+ * How a run ended. `completed-with-gaps` means it finished, but some pages
+ * were rate-limited, failed or never fetched; the score covers the rest.
+ */
+export type CompletionState = 'completed' | 'completed-with-gaps';
 
 /**
  * A page-level condition that holds the overall score at or below a ceiling,
@@ -961,6 +987,8 @@ export interface AuditResult {
    * and a stored audit predating this field has none.
    */
   page?: PageSnapshot;
+  /** How the run ended; see {@link CompletionState} */
+  completionState?: CompletionState;
   /**
    * The CI verdict for this run: the score threshold, every `fail_ci` rule
    * that failed or could not be evaluated, and the exit code. Set by the

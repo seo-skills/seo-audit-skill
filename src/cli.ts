@@ -161,6 +161,9 @@ program
   .option('--save', 'Deprecated: also write the legacy JSON report (use --json-report)')
   .option('--json-report', 'Also write the legacy JSON report to .seomator/reports/', false)
   .option('--fail-under <n>', 'Exit 1 when the score is below n (default 70, or [ci] fail_under)', (v) => parseIntValue(v, 'fail-under', 0, 100))
+  .option('--min-coverage <pct>', 'With --crawl: exit 1 when fewer than pct% of the attempted pages were measured', (v) => parseIntValue(v, 'min-coverage', 0, 100))
+  .option('--max-duration <s>', 'With --crawl: stop requesting pages after s seconds and score what was fetched', (v) => parseIntValue(v, 'max-duration', 1, 86400))
+  .option('--ignore-crawl-delay', "With --crawl: do not honour the site's robots.txt Crawl-delay", false)
   .action((url: string, options: AuditOptions, command: Command) =>
     runAudit(url, {
       ...options,

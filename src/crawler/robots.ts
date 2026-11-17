@@ -21,6 +21,8 @@ interface RobotsGroup {
   /** Lower-cased user-agent tokens this group applies to */
   agents: string[];
   rules: RobotsRule[];
+  /** `Crawl-delay` in seconds, when the group declares one */
+  crawlDelay?: number;
 }
 
 /**
@@ -77,6 +79,14 @@ export function parseRobotsTxt(content: string): RobotsGroup[] {
       continue;
     }
 
+    if (field === 'crawl-delay') {
+      if (!current) continue;
+      acceptingAgents = false;
+      const seconds = Number(value);
+      if (Number.isFinite(seconds) && seconds >= 0) current.crawlDelay = seconds;
+      continue;
+    }
+
     if (field !== 'allow' && field !== 'disallow') continue;
     if (!current) continue;
 
@@ -103,23 +113,42 @@ export function parseRobotsTxt(content: string): RobotsGroup[] {
  */
 export class RobotsMatcher {
   private readonly rules: RobotsRule[];
+  /** The governing group's `Crawl-delay`, in seconds, when it declares one */
+  readonly crawlDelaySeconds: number | undefined;
 
   /**
    * @param content - The robots.txt body, or empty when the site has none
    * @param userAgent - The crawler's user-agent string
    */
   constructor(content: string, userAgent: string) {
-    this.rules = RobotsMatcher.selectGroup(parseRobotsTxt(content), userAgent);
+    const group = RobotsMatcher.selectGroup(parseRobotsTxt(content), userAgent);
+    this.rules = group?.rules ?? [];
+    this.crawlDelaySeconds = group?.crawlDelay;
+  }
+
+  /**
+   * The product tokens a user-agent string carries, lower-cased.
+   *
+   * "SEOmatorBot/3.0 (+https://...)" carries "seomatorbot"; a browser-style
+   * string carries one token per `name/version` pair. A string with no
+   * version, such as "Googlebot", is its own token.
+   */
+  static productTokens(userAgent: string): string[] {
+    const tokens = [...userAgent.matchAll(/([A-Za-z][A-Za-z0-9_-]*)\//g)].map((m) => m[1].toLowerCase());
+    return tokens.length > 0 ? tokens : [userAgent.trim().toLowerCase()];
   }
 
   /**
    * Pick the group that governs this crawler.
    *
-   * A group naming the agent wins over the `*` group, and among named groups
-   * the longest token wins, so "seomator-bot" beats a bare "seomator".
+   * A group applies when its user-agent line is the start of one of the
+   * crawler's product tokens, case-insensitively: "SEOmator" and
+   * "seomatorbot" govern SEOmatorBot, but "bot" does not, which a substring
+   * match of the whole user-agent string let through. A named group wins over
+   * `*`, and among named groups the longest wins.
    */
-  private static selectGroup(groups: RobotsGroup[], userAgent: string): RobotsRule[] {
-    const ua = userAgent.toLowerCase();
+  private static selectGroup(groups: RobotsGroup[], userAgent: string): RobotsGroup | null {
+    const tokens = RobotsMatcher.productTokens(userAgent);
 
     let best: RobotsGroup | null = null;
     let bestLength = -1;
@@ -133,14 +162,14 @@ export class RobotsMatcher {
           }
           continue;
         }
-        if (ua.includes(agent) && agent.length > bestLength) {
+        if (tokens.some((token) => token.startsWith(agent)) && agent.length > bestLength) {
           best = group;
           bestLength = agent.length;
         }
       }
     }
 
-    return best?.rules ?? [];
+    return best;
   }
 
   /**

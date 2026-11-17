@@ -21,6 +21,10 @@ export type AuditErrorCode =
   | 'no-pages'
   | 'config'
   | 'private-address'
+  | 'rate-limited'
+  | 'crawl-too-slow'
+  | 'busy'
+  | 'run-not-found'
   | 'aborted'
   | 'unknown';
 
@@ -32,6 +36,10 @@ const HINTS: Partial<Record<AuditErrorCode, string>> = {
   'non-html': 'Point the audit at an HTML page rather than a file, API or feed.',
   'http-error': 'Make sure the URL is publicly reachable and returns 200.',
   config: 'Check the --config path, or drop the flag to search for seomator.toml.',
+  'rate-limited':
+    'Try again later, lower --concurrency to 1, or set crawler.per_host_delay_ms (for example 2000) to space requests out.',
+  'crawl-too-slow':
+    "The site's Crawl-delay makes this crawl longer than allowed. Crawl fewer pages, raise the duration limit, or skip the Crawl-delay.",
   'private-address':
     'The address is loopback, private or link-local, which this run may not reach. To audit a local or intranet site over MCP, register the server with `seomator mcp --allow-private`.',
   'playwright-missing': 'Run `npx playwright install chromium`, or audit without --cwv to skip the browser render.',

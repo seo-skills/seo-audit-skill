@@ -47,17 +47,30 @@ const BODY_PHRASES = [
 const MAX_WORDS_WITH_TITLE_SIGNAL = 500;
 const MAX_WORDS_WITH_BODY_SIGNAL = 100;
 
+/** Characters trimmed from the end of a segment */
+const TRAILING = new Set([' ', '.', '!', '?', '\u2026', ':', ';', ',']);
+
+/** Longest text normalised: a heading or a thin page's text is far shorter */
+const MAX_NORMALIZED_CHARS = 10_000;
+
 /**
  * Lower-case, straighten curly apostrophes and trim trailing punctuation,
- * so "Oops! That page can’t be found." compares equal to the phrase.
+ * so "Oops! That page can\u2019t be found." compares equal to the phrase.
+ *
+ * Trimmed with a loop, not an end-anchored regex: a pattern like `[.!?]+$`
+ * backtracks quadratically over a long run of punctuation that is not at
+ * the end, and page text is whatever the audited site serves.
  */
 function normalize(text: string): string {
-  return text
+  const collapsed = text
+    .slice(0, MAX_NORMALIZED_CHARS)
     .toLowerCase()
-    .replace(/[‘’ʼ]/g, "'")
+    .replace(/[\u2018\u2019\u02bc]/g, "'")
     .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/[\s.!?…:;,]+$/u, '');
+    .trim();
+  let end = collapsed.length;
+  while (end > 0 && TRAILING.has(collapsed[end - 1])) end--;
+  return collapsed.slice(0, end);
 }
 
 /**
@@ -70,6 +83,7 @@ function normalize(text: string): string {
  */
 export function titleSegments(text: string): string[] {
   return text
+    .slice(0, MAX_NORMALIZED_CHARS)
     .split(/\s*[|·–—]\s*|\s+-\s+|:\s+/u)
     .map(normalize)
     .filter((segment) => segment.length > 0);

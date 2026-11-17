@@ -74,3 +74,13 @@ describe('technical-soft-404', () => {
     expect(await status(page('Page not found', 10), 500)).toBe('pass');
   });
 });
+
+describe('soft-404 on hostile input', () => {
+  it('normalises a long run of punctuation in linear time', () => {
+    const hostile = '!'.repeat(200_000) + 'x';
+    const started = performance.now();
+    errorShapedHeading(hostile);
+    errorShapedBody(hostile);
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+});

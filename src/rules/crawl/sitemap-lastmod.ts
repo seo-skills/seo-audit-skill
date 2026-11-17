@@ -108,7 +108,7 @@ export const sitemapLastmodRule = defineRule({
 
     let analysis = analyses.get(entries);
     if (!analysis) {
-      analysis = analyse(entries, Date.now());
+      analysis = analyse(entries, context.now ?? Date.now());
       analyses.set(entries, analysis);
     }
 

@@ -235,7 +235,11 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
 
     const pages = crawl.pages.map((page) => {
       try {
-        return { url: page.url, context: createContextFromStoredPage(page) };
+        // Dates are judged against the time of the crawl, not of the replay
+        const context = createContextFromStoredPage(page);
+        const crawledAt = Date.parse(crawl.timestamp);
+        if (Number.isFinite(crawledAt)) context.now = crawledAt;
+        return { url: page.url, context };
       } catch (error) {
         return {
           url: page.url,

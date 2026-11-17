@@ -46,6 +46,9 @@ import { canonicalAttributesRule } from './canonical-attributes.js';
 import { canonicalMultipleRule } from './canonical-multiple.js';
 import { canonicalExternalRule } from './canonical-external.js';
 import { robotsDirectiveMismatchRule } from './robots-directive-mismatch.js';
+import { unavailableAfterRule } from './unavailable-after.js';
+import { obsoleteRobotsDirectivesRule } from './obsolete-robots-directives.js';
+import { canonicalFragmentRule } from './canonical-fragment.js';
 
 // Export all rules
 export {
@@ -106,3 +109,6 @@ registerRule(canonicalAttributesRule);
 registerRule(canonicalMultipleRule);
 registerRule(canonicalExternalRule);
 registerRule(robotsDirectiveMismatchRule);
+registerRule(unavailableAfterRule);
+registerRule(obsoleteRobotsDirectivesRule);
+registerRule(canonicalFragmentRule);

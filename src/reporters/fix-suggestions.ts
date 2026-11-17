@@ -31,6 +31,9 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'core-canonical-multiple': 'Keep a single <link rel="canonical"> element pointing at the correct URL',
   'core-canonical-outside-head': 'Move the <link rel="canonical"> element into the <head>; canonicals outside <head> are ignored',
   'core-robots-directive-mismatch': 'Align robots directives between meta tags and X-Robots-Tag header; declare noindex/nofollow in one place only',
+  'core-unavailable-after': 'Remove the unavailable_after directive, or move its date, if the page should stay in search results',
+  'core-obsolete-robots-directives': 'Remove noodp and noydir from the robots directives; no search engine reads them',
+  'core-canonical-fragment': 'Point the canonical at a URL without #; give each piece of content its own path',
 
   // ============ Performance (26 rules) ============
   'cwv-lcp': 'Optimize LCP: preload hero images, use CDN, reduce server response time',

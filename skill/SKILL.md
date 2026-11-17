@@ -1,6 +1,6 @@
 ---
 name: seo-audit
-description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 373 rules and 20 categories, and can diff two audits to show what a deploy changed. Use when analyzing websites, debugging SEO issues, checking site health, or comparing a site before and after a change.
+description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 376 rules and 20 categories, and can diff two audits to show what a deploy changed. Use when analyzing websites, debugging SEO issues, checking site health, or comparing a site before and after a change.
 license: MIT
 compatibility: Requires Node.js 20.18.1+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
 metadata:
@@ -13,7 +13,7 @@ allowed-tools: Bash(seomator:*)
 
 Audit websites for SEO, technical, content, performance, security, JavaScript rendering, and AI readiness using the SEOmator CLI.
 
-SEOmator provides comprehensive website auditing by analyzing website structure and content against **373 rules** across **20 categories**.
+SEOmator provides comprehensive website auditing by analyzing website structure and content against **376 rules** across **20 categories**.
 
 It provides a list of issues with severity levels, affected URLs, and actionable fix suggestions.
 
@@ -25,9 +25,9 @@ It provides a list of issues with severity levels, affected URLs, and actionable
 
 ## What This Skill Does
 
-This skill enables AI agents to audit websites for **373 rules** in **20 categories**, including:
+This skill enables AI agents to audit websites for **376 rules** in **20 categories**, including:
 
-- **Core SEO** (24 rules): Canonical URLs, indexing directives, title uniqueness, canonical conflicts/loops
+- **Core SEO** (27 rules): Canonical URLs, indexing directives, title uniqueness, canonical conflicts/loops
 - **Performance** (28 rules): LCP, CLS, FCP, TTFB, INP, compression, caching, minification, HTTP/2
 - **Links** (27 rules): Broken links, redirect chains, anchor text, localhost/fragment links, plus click depth and inbound internal links from the site graph (`--crawl`)
 - **Images** (14 rules): Alt text, dimensions, lazy loading, modern formats, alt length, background images
@@ -527,7 +527,7 @@ seomator audit https://example.com
 3. **Enrich**: Fetches robots.txt and sitemap once per audit
 4. **Render** (if CWV enabled): Captures rendered DOM via Playwright, plus console errors and failed resource requests
 5. **Crawl** (if enabled): Discovers and fetches linked pages
-6. **Analyze**: Runs 373 audit rules against each page
+6. **Analyze**: Runs 376 audit rules against each page
 7. **Score**: Calculates category and overall weighted scores
 8. **Report**: Generates output in requested format
 
@@ -562,6 +562,6 @@ untrusted delimiters would dilute the signal.
 
 ## Resources
 
-- **Full rules reference**: See `docs/SEO-AUDIT-RULES.md` for all 373 rules
+- **Full rules reference**: See `docs/SEO-AUDIT-RULES.md` for all 376 rules
 - **Storage architecture**: See `docs/STORAGE-ARCHITECTURE.md` for database details
 - **CLI help**: `seomator --help` and `seomator <command> --help`

@@ -4,7 +4,7 @@
 
 In this tutorial you install SEOmator, audit one web page, read the report, and
 then compare two audits of the same site. SEOmator checks a page against
-**373 rules** across **20 categories** and gives it a score out of 100.
+**376 rules** across **20 categories** and gives it a score out of 100.
 
 You will audit https://example.com, a public page reserved for documentation
 examples. When you are done, swap in the URL of your own site.

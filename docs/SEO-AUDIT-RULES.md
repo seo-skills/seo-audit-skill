@@ -2,7 +2,7 @@
 
 > **Type:** Reference
 
-This is the catalog of every check SEOmator runs: **373 rules** across **20 categories**. For each rule it lists the ID, the name reports print, the rule's weight, the result it gives when it finds a problem, and what it checks. Rules that need more than one line also have a details entry below their category table. The rule IDs are the values that `[rules] enable` and `[rules] disable` in `seomator.toml` match.
+This is the catalog of every check SEOmator runs: **376 rules** across **20 categories**. For each rule it lists the ID, the name reports print, the rule's weight, the result it gives when it finds a problem, and what it checks. Rules that need more than one line also have a details entry below their category table. The rule IDs are the values that `[rules] enable` and `[rules] disable` in `seomator.toml` match.
 
 ## How to read this reference
 
@@ -91,7 +91,7 @@ The ID is the value `-c` takes and the prefix of every rule ID in the category. 
 
 <a id="core"></a>
 
-### Core (24 rules)
+### Core (27 rules)
 
 Essential SEO checks for meta tags, canonical URLs, H1 headings, and indexing directives.
 
@@ -121,6 +121,9 @@ Essential SEO checks for meta tags, canonical URLs, H1 headings, and indexing di
 | `core-canonical-multiple` | Multiple Canonical Tags | 6 | warn/fail | Detects multiple canonical elements in the HTML and whether they agree |
 | `core-robots-directive-mismatch` | Robots Directive Mismatch | 5 | warn/fail | Checks robots directives in meta tags and the X-Robots-Tag header are consistent |
 | `core-canonical-external` | Canonical Points To External URL | 1 | pass only | Reports when the canonical URL points to a different host (insight; legitimate for syndication) |
+| `core-unavailable-after` | Unavailable-After Date | 10 (advisory) | warn/fail | Checks robots `unavailable_after` dates: a past date removes the page from search results |
+| `core-obsolete-robots-directives` | Obsolete Robots Directives | 2 (advisory) | warn | Flags robots directives no search engine reads any more (`noodp`, `noydir`) |
+| `core-canonical-fragment` | Canonical Without Fragment | 5 (advisory) | warn | Checks that the canonical URL has no `#fragment`, which search engines ignore |
 
 #### core-title-present
 - **What it checks:** A non-empty `<title>` element exists. A `<title>` inside inline SVG does not count. A missing or empty title fails.
@@ -208,6 +211,18 @@ Essential SEO checks for meta tags, canonical URLs, H1 headings, and indexing di
 #### core-canonical-external
 - **What it checks:** Insight-level: the canonical URL points to a different host. Cross-domain canonicals are the legitimate mechanism for content syndication and consolidating duplicates across owned domains, but the page cedes its ranking signals to the other host. Always passes; the finding travels in the message so the intent can be confirmed
 - **Fix:** No action required; verify the external canonical target is deliberate
+
+#### core-unavailable-after
+- **What it checks:** `unavailable_after` in a `robots` or `googlebot` meta tag, or in an X-Robots-Tag header that applies to Google. Dates in RFC 822, RFC 850 and ISO 8601 form are read. A date that has passed fails: Google no longer shows the page, the same outcome as noindex. A date within 30 days warns, a date it cannot read warns, a later date passes with the date in the details. Pages without the directive are not measured. Advisory: reported, not scored yet
+- **Fix:** Remove the directive, or move its date, if the page should stay in search results
+
+#### core-obsolete-robots-directives
+- **What it checks:** `noodp` and `noydir` in any robots meta tag or X-Robots-Tag. They kept web-directory descriptions out of snippets, and the directories closed years ago. Pages with no robots directives are not measured. Advisory
+- **Fix:** Remove them
+
+#### core-canonical-fragment
+- **What it checks:** A canonical URL, in the element or the HTTP `Link` header, containing `#`. Search engines drop the fragment, so `/page#section` and a hash-bang `/#!/page` both point at the bare URL. Pages without a canonical are not measured. Advisory
+- **Fix:** Point the canonical at a URL without `#`
 
 ---
 

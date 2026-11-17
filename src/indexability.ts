@@ -53,6 +53,35 @@ export function googleRobotsDirectives({ $, headers }: Pick<IndexabilityInput, '
   return tokens;
 }
 
+/**
+ * The raw directive text Google reads, unsplit: each `robots` and `googlebot`
+ * meta content, and the Google-scoped parts of X-Robots-Tag joined by commas.
+ *
+ * For directives whose value can hold a comma (an `unavailable_after` date
+ * such as `Fri, 25 Jun 2026 15:00:00 PST`), which `googleRobotsDirectives`
+ * would cut in two.
+ */
+export function googleRobotsText({ $, headers }: Pick<IndexabilityInput, '$' | 'headers'>): Array<{ source: 'meta' | 'header'; text: string }> {
+  const out: Array<{ source: 'meta' | 'header'; text: string }> = [];
+  $('meta[name="robots" i], meta[name="googlebot" i]').each((_, el) => {
+    out.push({ source: 'meta', text: $(el).attr('content') ?? '' });
+  });
+
+  const applicable: string[] = [];
+  let agent: string | null = null;
+  for (const segment of (headers['x-robots-tag'] ?? '').split(',')) {
+    let directive = segment;
+    const prefixed = /^\s*([a-z][a-z0-9_-]*)\s*:(.*)$/i.exec(segment);
+    if (prefixed && !VALUED_DIRECTIVES.has(prefixed[1].toLowerCase())) {
+      agent = prefixed[1].toLowerCase();
+      directive = prefixed[2];
+    }
+    if (agent === null || agent === 'googlebot') applicable.push(directive);
+  }
+  if (applicable.join('').trim()) out.push({ source: 'header', text: applicable.join(',') });
+  return out;
+}
+
 /** Whether Google is told not to index the page */
 export function isNoindex(page: Pick<IndexabilityInput, '$' | 'headers'>): boolean {
   const tokens = googleRobotsDirectives(page);

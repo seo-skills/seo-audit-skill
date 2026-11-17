@@ -91,7 +91,9 @@ export function makeBaselineFetch() {
  * a "not applicable" warn: a11y keeps 98, eeat rises 87 -> 90.
  */
 const EXPECTED_CATEGORIES: Record<string, [number, number, number, number, number]> = {
-  core: [99, 21, 1, 1, 1],
+  // Not measured 1 -> 3: core-unavailable-after and core-obsolete-robots-directives
+  // (advisory) find no directive to grade on the fixture. The score does not move.
+  core: [99, 21, 1, 1, 3],
   technical: [99, 17, 0, 1, 0],
   perf: [90, 15, 5, 0, 8],
   links: [97, 17, 1, 1, 8],

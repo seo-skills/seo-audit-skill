@@ -88,6 +88,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read, and `cache_ttl_days` keeps settled answers in
   `$SEOMATOR_HOME/link-cache.db` for later runs. `audit --refresh` (now in
   `--help`) checks every link again.
+- **New advisory rules** (reported in every format, not counted in the score
+  until their verdicts are checked on real sites):
+  - `core-unavailable-after`: a past `unavailable_after` date in a robots meta
+    tag or X-Robots-Tag removes the page from Google's results, as noindex
+    does. Fails a past date, warns one within 30 days or one it cannot read.
+  - `core-obsolete-robots-directives`: `noodp` and `noydir` do nothing any
+    more.
+  - `core-canonical-fragment`: a canonical with `#`, a hash-bang included,
+    points at the bare URL.
 - The MCP `audit_url` tool takes `respectCrawlDelay` and `maxDurationS`, and
   refuses up front with `crawl-too-slow` when the site's `Crawl-delay` means
   the crawl cannot finish in time. Its summary carries `coverage` and
@@ -136,6 +145,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   starts a product token (`SEOmator` still matches), the longest match wins,
   and `*` is the fallback. A crawl can reach pages a broad group blocked
   before.
+- **Dates are judged against the run's clock.** Every page of a run shares
+  one start time, and `seomator analyze` judges a stored crawl's dates
+  (sitemap `lastmod`, `unavailable_after`) against the time it was crawled,
+  not the time it is replayed.
 - **A crawl scores four pages at a time, and a category's rules run
   together.** Rules that make requests no longer wait on each other, and the
   run's request limits still apply. Results are merged in page order, so they

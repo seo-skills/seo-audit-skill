@@ -645,6 +645,13 @@ export interface AuditContext {
 
   /** Every external link of the run, checked once each before rules run */
   externalLinks?: ExternalLinkCheck;
+
+  /**
+   * The run's clock, in ms since the epoch: when the audit or crawl started.
+   * Every date comparison reads it, so a stored crawl replays against the
+   * time it was taken. Absent when a rule is called on its own.
+   */
+  now?: number;
 }
 
 /**

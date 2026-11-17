@@ -278,6 +278,8 @@ export class Auditor {
   private urls: UrlService | undefined;
   /** The current run's external link report, for `extras.externalLinks` */
   private externalLinksReport: ExternalLinksExtras | undefined;
+  /** When the current run started: every page's `context.now` */
+  private runStartedAt = Date.now();
 
   constructor(options: AuditorOptions = {}) {
     this.options = {
@@ -450,6 +452,7 @@ export class Auditor {
     const service = this.createUrlService(siteUrl, ext.cache ?? opened ?? null);
     this.urls = service;
     this.externalLinksReport = undefined;
+    this.runStartedAt = Date.now();
     try {
       return await fn();
     } finally {
@@ -628,6 +631,7 @@ export class Auditor {
       context.signal = this.options.signal;
     }
     context.urls = this.urls;
+    context.now = this.runStartedAt;
 
     // Enrich with robots.txt, sitemap, and rendered DOM
     await this.enrichContext(context, url);
@@ -759,6 +763,7 @@ export class Auditor {
         crawledPage.context.robotsTxtContent = robotsTxtContent;
         crawledPage.context.site = site;
         crawledPage.context.urls = this.urls;
+        crawledPage.context.now = this.runStartedAt;
         if (this.options.signal) {
           crawledPage.context.signal = this.options.signal;
         }
@@ -839,7 +844,10 @@ export class Auditor {
       const siteUrl = audited[0].url;
       return this.underNetPolicy(siteUrl, () => this.withUrlService(siteUrl, () => this.auditPages(pages)));
     }
-    for (const context of audited) context.urls ??= this.urls;
+    for (const context of audited) {
+      context.urls ??= this.urls;
+      context.now ??= this.runStartedAt;
+    }
     if (audited.some((context) => !context.externalLinks)) {
       await this.prepareExternalLinks(audited, true);
     }

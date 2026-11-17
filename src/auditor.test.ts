@@ -83,8 +83,10 @@ describe('Programmatic API (createAuditor / Auditor)', () => {
     expect(core.categoryId).toBe('core');
     expect(core.score).toBeGreaterThanOrEqual(0);
     expect(core.score).toBeLessThanOrEqual(100);
+    // Advisory results that took a reading are counted on their own line, so
+    // pass, warn and fail stay the scored totals
     expect(
-      core.passCount + core.warnCount + core.failCount + (core.notMeasuredCount ?? 0)
+      core.passCount + core.warnCount + core.failCount + (core.notMeasuredCount ?? 0) + (core.advisoryCount ?? 0)
     ).toBe(core.results.length);
     expect(core.results.length).toBeGreaterThan(0);
 

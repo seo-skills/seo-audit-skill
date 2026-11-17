@@ -39,11 +39,22 @@ function getStatusIcon(status: string): string {
 }
 
 /**
- * Escape markdown special characters in text
+ * Escape text from a page for a markdown report.
+ *
+ * Markdown punctuation is escaped, and so is HTML: most markdown viewers
+ * render inline HTML, and titles, messages and extracted values come from
+ * the audited site. Line breaks collapse to a space so a value cannot break
+ * out of a table row, and control characters are dropped.
  */
 function escapeMarkdown(text: string | null | undefined): string {
   if (text == null) return '';
-  return text.replace(/[|\\`*_{}[\]()#+\-.!]/g, '\\$&');
+  return text
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, '')
+    .replace(/\r\n|[\r\n]/g, ' ')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/[|\\`*_{}[\]()#+\-.!]/g, '\\$&');
 }
 
 /**

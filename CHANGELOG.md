@@ -282,6 +282,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **Text from the audited site cannot inject into reports.** The markdown
+  report escapes `<`, `>` and `&` and collapses line breaks in everything it
+  prints from a page, so a title or an extracted value cannot render as HTML
+  in a markdown viewer or break a table. Extracted values drop control
+  characters, so a page cannot send escape sequences to the terminal.
+
 - **`seomator analyze` checks links under the same network policy as
   `audit`.** Replaying a stored crawl ran its link checks with no policy, so a
   stored page of a public site linking to a private or cloud-metadata address

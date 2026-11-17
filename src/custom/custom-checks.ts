@@ -167,11 +167,23 @@ function found(search: Normalised, context: AuditContext): boolean | null {
   return search.match === 'regex' ? regexTest(search.text!, subject) : subject.includes(search.text!);
 }
 
+/**
+ * An extracted value as reports may print it: control characters dropped (an
+ * escape sequence in a page would otherwise reach the terminal) and runs of
+ * whitespace collapsed.
+ */
+function cleanValue(raw: string): string {
+  return raw
+    .replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function extract(spec: CustomExtractConfig, context: AuditContext): string[] {
   const { $ } = context;
   const elements = $(spec.selector).toArray();
   const values = (spec.multiple ? elements : elements.slice(0, 1))
-    .map((el) => (spec.attribute ? ($(el).attr(spec.attribute) ?? '') : $(el).text()).trim())
+    .map((el) => cleanValue(spec.attribute ? ($(el).attr(spec.attribute) ?? '') : $(el).text()))
     .filter((value) => value !== '');
   return values;
 }

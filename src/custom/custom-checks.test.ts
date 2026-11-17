@@ -119,3 +119,23 @@ describe('custom results in a stored audit and the reports', () => {
     expect(renderHtmlReport(result)).toContain('Custom checks (not scored)');
   });
 });
+
+describe('site text in reports', () => {
+  it('drops control characters from extracted values', () => {
+    const context = createTestContext('<html><body><span class="v">a\u001b[31mred\u0007\nnext</span></body></html>', { url: 'https://example.com/' });
+    const runner = new CustomRunner({ extract: [{ name: 'V', selector: '.v' }] });
+    runner.runPage(context);
+    expect(runner.results().extractions[0].pages[0].values).toEqual(['a [31mred next']);
+  });
+
+  it('escapes HTML and line breaks in markdown table cells', async () => {
+    const { renderMarkdownReport } = await import('../reporters/markdown-reporter.js');
+    const result = {
+      url: 'https://example.com/', overallScore: 80, timestamp: '', crawledPages: 1, categoryResults: [],
+      extras: { custom: { searches: [], extractions: [{ name: 'V', pages: [{ url: 'https://example.com/', values: ['<img src=x onerror=alert(1)>\nnew | row'] }] }] } },
+    };
+    const md = renderMarkdownReport(result);
+    expect(md).not.toContain('<img');
+    expect(md).toContain('&lt;img src=x onerror=alert\\(1\\)&gt; new \\| row');
+  });
+});

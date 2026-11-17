@@ -162,10 +162,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tab lists the others, each with its reason and the one thing to do about
   it. A "Site" section shows the crawl's notes, broken external links by
   target and pages by Link Score; a "Custom checks" section comes last.
+- "Issues to fix" labels a failure "Fails" instead of "Critical", lists
+  advisory findings after the scored ones, and orders by the same priority
+  the reports use, `[rules.override]` included.
 - `--render` names the browser render (`--cwv` still works), and the run form
   calls it "Render in a browser". "Crawl the whole site" is now "Crawl linked
   pages", with the page cap in its hint. "Run again" keeps the audit's render
   and crawl settings.
+- While a run waits or checks links, the dashboard and desktop progress view
+  say so: "Checking 312 external links", "Waiting on example.com, 12 s", or
+  the time a site's Crawl-delay will add.
+- The MCP run summary carries `notMeasuredByReason` and `advisoryCount`, and
+  its `topFindings` are scored findings only. `get_audit` takes `maxFindings`
+  (default 50).
 - The MCP `audit_url` tool takes `respectCrawlDelay` and `maxDurationS`, and
   refuses up front with `crawl-too-slow` when the site's `Crawl-delay` means
   the crawl cannot finish in time. Its summary carries `coverage` and

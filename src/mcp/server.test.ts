@@ -115,9 +115,19 @@ describe('seomator-audit MCP server', () => {
     expect(started.isError).toBe(false);
     expect(started.json).toMatchObject({ state: 'completed' });
     const runId = started.json!['runId'] as string;
-    const summary = started.json!['summary'] as { auditId: string; score: number; topFindings: unknown[] };
+    const summary = started.json!['summary'] as {
+      auditId: string;
+      score: number;
+      topFindings: unknown[];
+      notMeasuredByReason: Record<string, number>;
+      advisoryCount: number;
+    };
     expect(typeof summary.score).toBe('number');
     expect(summary.auditId).toBeTruthy();
+    expect(summary.topFindings.length).toBeLessThanOrEqual(10);
+    // A static run: the render-only checks are named as such
+    expect(summary.notMeasuredByReason['needs-render']).toBeGreaterThan(0);
+    expect(typeof summary.advisoryCount).toBe('number');
 
     const status = await call(client, 'audit_status', { runId });
     expect(status.json).toMatchObject({ runId, state: 'completed' });
@@ -130,6 +140,8 @@ describe('seomator-audit MCP server', () => {
       (first.json!['findings'] as Array<{ ruleId: string }>)[0].ruleId
     );
 
+    const trimmed = await call(client, 'get_audit', { id: summary.auditId, maxFindings: 1 });
+    expect(trimmed.text).toMatch(/<issues count="1"/);
     const report = await call(client, 'get_audit', { id: summary.auditId });
     expect(report.text).toContain('<seo-audit');
 

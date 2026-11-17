@@ -29,6 +29,7 @@ export const IDLE_RUN_STATE: RunState = {
   lastPageAt: null,
   categories: [],
   recentRules: [],
+  activity: null,
   auditId: null,
   error: null,
 };

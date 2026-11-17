@@ -137,6 +137,11 @@ export interface RunState {
   lastPageAt: string | null;
   categories: CategoryProgress[];
   recentRules: Array<{ ruleId: string; ruleName: string; status: RuleResult['status']; message: string }>;
+  /**
+   * What a long, quiet phase is doing: "Checking 312 external links",
+   * "Waiting on example.com, 12 s". Null when the progress bar says enough.
+   */
+  activity: string | null;
   /** Set once the finished audit has been stored */
   auditId: string | null;
   error: RunError | null;
@@ -265,6 +270,7 @@ const IDLE_STATE: RunState = {
   lastPageAt: null,
   categories: [],
   recentRules: [],
+  activity: null,
   auditId: null,
   error: null,
 };
@@ -539,8 +545,21 @@ export class AuditSession {
               : recentRules,
         });
       },
+      // The phases where the bar stands still say what they are doing
+      onExternalLinks: (count) => {
+        this.patch({ activity: `Checking ${count} external link${count === 1 ? '' : 's'}` });
+      },
+      onWaiting: (waiting) => {
+        this.patch({ activity: `Waiting on ${waiting.host}, ${Math.ceil(waiting.waitMs / 1000)} s (it asked to slow down)` });
+      },
+      onCrawlDelay: (notice) => {
+        this.patch({
+          activity: `${notice.host} asks for ${notice.delayMs / 1000} s between requests; this crawl may take up to ${Math.ceil(notice.projectedMs / 60000)} min`,
+        });
+      },
       onPageComplete: (pageUrl, pageNumber, totalPages) => {
         this.patch({
+          activity: null,
           phase: 'auditing',
           pages: { completed: pageNumber, total: totalPages, currentUrl: stripUserinfo(pageUrl) },
           // First stamped once; last on every completion, so the rate is

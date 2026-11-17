@@ -159,7 +159,7 @@ export const MAX_ISSUES = 150;
  * @param prettyPrint - Whether to add indentation and newlines (default: false for minimal tokens)
  * @returns XML string
  */
-export function renderLlmReport(result: AuditResult, prettyPrint = false): string {
+export function renderLlmReport(result: AuditResult, prettyPrint = false, maxIssues = MAX_ISSUES): string {
   const nl = prettyPrint ? '\n' : '';
   const t1 = prettyPrint ? '  ' : '';
   const t2 = prettyPrint ? '    ' : '';
@@ -253,8 +253,8 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
 
   // A model reading a truncated list with no marker will treat it as the whole
   // list. Cap it, and say plainly how much was left out.
-  const omitted = Math.max(0, ranked.length - MAX_ISSUES);
-  const issues: IssueData[] = ranked.slice(0, MAX_ISSUES).map((f) => ({
+  const omitted = Math.max(0, ranked.length - maxIssues);
+  const issues: IssueData[] = ranked.slice(0, maxIssues).map((f) => ({
     severity: getSeverity(f.status === 'fail' ? 'fail' : 'warn'),
     rule: f.ruleId,
     cat: f.categoryId,

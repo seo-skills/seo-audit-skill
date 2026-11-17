@@ -112,6 +112,13 @@ export function ProgressStream({ run }: ProgressStreamProps) {
         </div>
       </div>
 
+      {/* A long, quiet phase says what it is doing, once */}
+      {run.activity && (
+        <p className="text-sm" role="status" style={{ color: 'var(--color-text-secondary)' }}>
+          {run.activity}
+        </p>
+      )}
+
       {/* What is being worked on right now */}
       {currentUrl && (
         <div className="text-xs truncate" style={{ color: 'var(--color-text-secondary)' }}>

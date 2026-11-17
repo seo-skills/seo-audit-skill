@@ -47,6 +47,7 @@ import { SCORING_VERSION } from '../scoring.js';
 import { isNotMeasured } from '../rules/define-rule.js';
 import { setUserAgent } from '../crawler/user-agent.js';
 import { getVersion } from '../version.js';
+import { getRuleById } from '../rules/registry.js';
 
 export interface McpServerOptions {
   /** Let every request reach private, loopback and link-local addresses */
@@ -132,10 +133,16 @@ function stateName(state: RunState): string {
 function summarize(outcome: RunOutcome) {
   const result = outcome.result;
   const findings = collectFindings(result).filter((f) => f.status === 'fail' || f.status === 'warn');
-  let notMeasuredCount = 0;
+  // One count per rule, by why it took no reading
+  const notMeasuredByReason: Record<string, number> = {};
+  const unmeasured = new Map<string, string>();
   for (const category of result.categoryResults) {
-    for (const r of category.results) if (isNotMeasured(r)) notMeasuredCount++;
+    for (const r of category.results) if (isNotMeasured(r)) unmeasured.set(r.ruleId, r.reason ?? 'could-not-verify');
   }
+  for (const reason of unmeasured.values()) notMeasuredByReason[reason] = (notMeasuredByReason[reason] ?? 0) + 1;
+  // Advisory findings are reported apart: they do not count toward the score
+  const isAdvisory = (ruleId: string) => getRuleById(ruleId)?.advisory === true;
+  const scored = findings.filter((f) => !isAdvisory(f.ruleId));
   return {
     auditId: outcome.saved?.auditId ?? null,
     ...(outcome.saveError && { saveError: outcome.saveError }),
@@ -154,13 +161,15 @@ function summarize(outcome: RunOutcome) {
       },
     }),
     ...(result.scoreCap && { scoreCap: result.scoreCap }),
-    topFindings: findings.slice(0, 10).map((f) => ({
+    topFindings: scored.slice(0, 10).map((f) => ({
       ruleId: f.ruleId,
       status: f.status,
       message: f.message,
       pages: f.pageCount,
     })),
-    notMeasuredCount,
+    notMeasuredCount: unmeasured.size,
+    notMeasuredByReason,
+    advisoryCount: findings.length - scored.length,
     note: UNTRUSTED,
   };
 }
@@ -438,15 +447,18 @@ export function createMcpServer(options: McpServerOptions): McpServer {
     {
       title: 'Read a stored audit',
       description: 'A stored audit as the LLM report: scores, caps and ranked findings. ' + UNTRUSTED,
-      inputSchema: { id: z.string().describe('Audit id from audit_url, audit_status or list_audits') },
+      inputSchema: {
+        id: z.string().describe('Audit id from audit_url, audit_status or list_audits'),
+        maxFindings: z.number().int().min(1).max(500).optional().describe('Most findings to include (default 50)'),
+      },
     },
-    async ({ id }) =>
+    async ({ id, maxFindings }) =>
       guarded(() => {
         const detail = getAuditDetail(getAuditsDatabase(), id);
         if (!detail) {
           return failure({ code: 'audit-not-found', message: `No stored audit with id ${id}.`, hint: 'Call list_audits for the ids.' });
         }
-        return { content: [{ type: 'text', text: renderLlmReport(detail.result) }] };
+        return { content: [{ type: 'text', text: renderLlmReport(detail.result, false, maxFindings ?? 50) }] };
       })
   );
 

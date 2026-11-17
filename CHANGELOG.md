@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The dashboard's empty history (desktop app and `seomator serve`) shows an
+  illustration in the house image style: the SEOmator agent scanning a site,
+  with the audit history it will leave below it. It comes as a light and a dark
+  twin of the same drawing, and switches with the theme.
+- The HTML report has a tab icon: the emblem, inlined, so the file still needs
+  no network.
+
 ### Changed
+
+- **The new SEOmator brand, from seomator.com.** The logo is the orange emblem
+  and the new wordmark, drawn from the designer's files byte for byte, in the
+  desktop app and dashboard header, the HTML report, the favicon and the app
+  icon (which now sits on Apple's 824px icon grid). The interface drops slate
+  and zinc for neutral greys with no colour cast, selection, focus and links
+  are ink, and the brand orange `#FE5000` is kept for the agent at work (the
+  progress bar) and the one primary action on a screen (Run audit, Run again),
+  with ink text on it for AA contrast. The CLI banner and the crawl progress
+  bar are orange too. Text is set in the brand's Geist, with Geist Mono for
+  readouts, URLs and numbers; both faces ship inside the dashboard and the
+  desktop app, so nothing is fetched at runtime. The single-file HTML report
+  falls back to the system font.
 
 - **Breaking: the browser render is opt-in. Add `--cwv` to get it.** `seomator
   audit` used to start headless Chrome on every run to measure Core Web Vitals

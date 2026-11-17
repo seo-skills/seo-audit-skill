@@ -103,6 +103,7 @@ describe('token hygiene', () => {
     const css = toCss();
     expect(css).toContain('--header-height: 52px');
     expect(css).not.toContain('fonts.googleapis.com');
-    expect(METRICS['font-sans']).toContain('IBM Plex Sans');
+    expect(METRICS['font-sans']).toMatch(/^'Geist Variable'/);
+    expect(METRICS['font-mono']).toMatch(/^'Geist Mono Variable'/);
   });
 });

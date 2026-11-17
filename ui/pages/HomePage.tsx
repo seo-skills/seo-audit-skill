@@ -15,6 +15,8 @@ import { DomainStrip } from '../components/DomainStrip.js';
 import { TrendChart } from '../components/TrendChart.js';
 import { AuditList } from '../components/AuditList.js';
 import { PageError } from '../components/PageError.js';
+import emptyArtLight from '../assets/audit-history-empty-light.webp';
+import emptyArtDark from '../assets/audit-history-empty-dark.webp';
 
 export function HomePage() {
   const [params, setParams] = useSearchParams();
@@ -119,28 +121,52 @@ export function HomePage() {
   );
 }
 
-/** What the dashboard says before anything has been audited */
+/**
+ * What the dashboard says before anything has been audited.
+ *
+ * The art is the house image style's section-background variant: the agent
+ * scanning a site, with the history it will leave below it, all in the left
+ * third. Its ground is the page colour in each theme and its edges fade out
+ * (`.art-fade`), so it sits on the page without a frame, and the copy takes the
+ * empty grid on the right. On a narrow
+ * window the copy moves below the picture instead of covering the agent.
+ */
 function EmptyHistory() {
   return (
-    <div
-      className="rounded-xl border border-dashed p-10 text-center"
-      style={{ borderColor: 'var(--color-border)' }}
-    >
-      <p className="text-base font-medium mb-1" style={{ color: 'var(--color-text)' }}>
-        No audits yet
-      </p>
-      <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>
-        Every audit you run is stored here automatically.
-      </p>
-      <code
-        className="inline-block text-sm px-3 py-2 rounded-lg"
-        style={{ backgroundColor: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
-      >
-        seomator audit https://example.com
-      </code>
-      <p className="text-xs mt-4" style={{ color: 'var(--color-text-muted)' }}>
-        Then come back to this page, or press <Link to="/" className="underline">reload</Link>.
-      </p>
+    <div className="relative">
+      <img
+        src={emptyArtLight}
+        alt=""
+        loading="lazy"
+        width={1600}
+        height={900}
+        className="art-light art-fade block w-full h-auto"
+      />
+      <img
+        src={emptyArtDark}
+        alt=""
+        loading="lazy"
+        width={1600}
+        height={900}
+        className="art-dark art-fade block w-full h-auto"
+      />
+      <div className="md:absolute md:inset-y-0 md:left-[38%] md:right-6 flex flex-col justify-center py-6 md:py-0">
+        <p className="text-xl font-semibold mb-1" style={{ color: 'var(--color-text)' }}>
+          No audits yet
+        </p>
+        <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>
+          Every audit you run is stored here automatically.
+        </p>
+        <code
+          className="self-start text-sm px-3 py-2 rounded-lg"
+          style={{ backgroundColor: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
+        >
+          seomator audit https://example.com
+        </code>
+        <p className="text-xs mt-4" style={{ color: 'var(--color-text-muted)' }}>
+          Then come back to this page, or press <Link to="/" className="underline">reload</Link>.
+        </p>
+      </div>
     </div>
   );
 }

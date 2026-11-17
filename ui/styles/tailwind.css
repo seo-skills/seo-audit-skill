@@ -1,14 +1,14 @@
 /*
- * No webfont import.
+ * No remote webfont.
  *
  * This UI runs on localhost — as a desktop app and as `seomator serve` — and
- * fetching a stylesheet from Google to render text means the dashboard needs
- * the internet to look right, leaks a request to a third party on every open,
- * and would need a hole in the dashboard's Content-Security-Policy.
+ * fetching a stylesheet from a font CDN to render text means the dashboard
+ * needs the internet to look right, leaks a request to a third party on every
+ * open, and would need a hole in the dashboard's Content-Security-Policy.
  *
- * The family names stay in --font-sans / --font-mono, so anyone who has IBM
- * Plex installed still sees it; everyone else gets the platform's own UI font,
- * which is what the native-feeling toolbar wants anyway.
+ * The brand faces (Geist and Geist Mono) are bundled instead: ui/main.tsx
+ * imports them, Vite emits the woff2 files next to the app, and
+ * --font-sans / --font-mono name them first.
  */
 @import 'tailwindcss';
 @import './globals.css';
@@ -24,6 +24,7 @@
   --color-accent: var(--color-accent);
   --color-accent-hover: var(--color-accent-hover);
   --color-accent-light: var(--color-accent-light);
+  --color-agent: var(--color-agent);
   --color-surface: var(--color-bg-elevated);
   --color-muted: var(--color-text-muted);
 

@@ -234,7 +234,8 @@ export class ProgressReporter {
   private makeBar(label: string): cliProgress.SingleBar {
     return new cliProgress.SingleBar(
       {
-        format: `${label} ` + chalk.cyan('{bar}') + ' {percentage}% | {value}/{total} pages | {url}',
+        // The agent's orange, as on the dashboard's progress bar
+        format: `${label} ` + chalk.hex('#FE5000')('{bar}') + ' {percentage}% | {value}/{total} pages | {url}',
         barCompleteChar: '\u2588',
         barIncompleteChar: '\u2591',
         hideCursor: true,

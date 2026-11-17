@@ -120,7 +120,7 @@ export function AuditRunner({
             type="submit"
             disabled={!url.trim()}
             className="px-5 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap disabled:opacity-40"
-            style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
+            style={{ backgroundColor: 'var(--color-agent)', color: 'var(--color-on-agent)' }}
           >
             Run audit
           </button>

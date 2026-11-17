@@ -233,7 +233,7 @@ export function AuditDetailPage() {
             <Link
               to={`/run?url=${encodeURIComponent(audit.startUrl)}`}
               className="px-3 py-1.5 text-sm rounded-md font-medium"
-              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
+              style={{ backgroundColor: 'var(--color-agent)', color: 'var(--color-on-agent)' }}
             >
               Run again
             </Link>

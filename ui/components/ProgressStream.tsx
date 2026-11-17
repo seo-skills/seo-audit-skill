@@ -105,7 +105,8 @@ export function ProgressStream({ run }: ProgressStreamProps) {
             className="h-full rounded-full transition-all duration-300"
             style={{
               width: `${Math.min(100, (value / total) * 100)}%`,
-              backgroundColor: 'var(--color-accent)',
+              // The agent at work: the one place orange moves on screen
+              backgroundColor: 'var(--color-agent)',
             }}
           />
         </div>

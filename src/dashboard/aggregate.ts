@@ -73,8 +73,9 @@ export function aggregateCategory(category: CategoryResult, auditUrl: string): R
     const top = worst.get(ruleId);
     if (summary.notMeasured) {
       // Exactly what notMeasured() produces live, and what the SQL read gives
-      // back: a warning-shaped placeholder that scores nothing.
-      summary.status = 'warn';
+      // back: not measured, scoring nothing. Its status says so outright, so
+      // no surface shows it as a warning.
+      summary.status = 'not-measured';
       summary.score = 50;
       summary.weight = 0;
       const any = category.results.find((r) => r.ruleId === ruleId);

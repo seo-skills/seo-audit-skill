@@ -120,7 +120,7 @@ describe('aggregateResult', () => {
       .reduce<Record<string, RuleSummary>>((map, rule) => ({ ...map, [rule.ruleId]: rule }), {});
 
     expect(rules['core-h1']!.notMeasured).toBe(true);
-    expect(rules['core-h1']!.status).toBe('warn');
+    expect(rules['core-h1']!.status).toBe('not-measured');
     expect(rules['core-h1']!.score).toBe(50);
     expect(rules['core-h1']!.measuredPages).toBe(0);
 

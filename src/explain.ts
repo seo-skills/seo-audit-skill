@@ -93,7 +93,7 @@ export function formatExplanation(explanation: RuleExplanation): string {
     explanation.advisory
       ? `Weight: ${explanation.weight} within the category once promoted. Advisory: reported, not counted in the score yet`
       : `Weight: ${explanation.weight} within the category`,
-    ...(explanation.requiresRender ? ['Needs a browser render: run with --cwv, or it is reported as not measured'] : []),
+    ...(explanation.requiresRender ? ['Needs a browser render: run with --render, or it is reported as not measured'] : []),
     '',
     explanation.description,
     '',

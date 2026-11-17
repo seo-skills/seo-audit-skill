@@ -957,7 +957,7 @@ export class Auditor {
           rule.id,
           this.options.measureCwv
             ? 'The browser render failed for this page'
-            : 'Needs a browser render: rerun with --cwv',
+            : 'Needs a browser render: rerun with --render',
           { pageUrl: context.url },
           this.options.measureCwv ? 'could-not-verify' : 'needs-render'
         ),

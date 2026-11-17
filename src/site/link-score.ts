@@ -125,10 +125,16 @@ export interface LinkScoreSummary {
 export function linkScoreSummary(site: SiteContext, scores: Map<string, number>, size = 10): LinkScoreSummary {
   const ranked = [...scores].map(([url, score]) => ({ url, score }));
   ranked.sort((a, b) => b.score - a.score || a.url.localeCompare(b.url));
-  const indexable = ranked.filter(({ url }) => pageEligibility(site, url).eligible);
+  const top = ranked.slice(0, size);
+  // Pages the best-linked list already shows, or as well linked as the best,
+  // are not "weak": on a small or evenly linked site the list would repeat
+  // the top one and advise linking to pages that need nothing
+  const best = ranked[0]?.score ?? 0;
+  const shown = new Set(top.map((page) => page.url));
+  const weak = ranked.filter(({ url, score }) => score < best && !shown.has(url) && pageEligibility(site, url).eligible);
   return {
     pages: ranked.length,
-    top: ranked.slice(0, size),
-    lowestIndexable: indexable.slice(-size).reverse(),
+    top,
+    lowestIndexable: weak.slice(-size).reverse(),
   };
 }

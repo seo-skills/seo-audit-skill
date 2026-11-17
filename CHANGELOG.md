@@ -153,6 +153,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or the time limit stopped one. Every report has a "Custom checks" section,
   the markdown one with one row per extracted value, and stored audits keep
   every value in a table of their own.
+- **The web dashboard and the desktop app show the new results.** The audit
+  page's score card names how the run ended ("Completed" or "Completed with
+  gaps"), what the crawl measured, a capped score's reason, and how many
+  checks a browser render would add, with a link to run again with rendering.
+  Advisory findings carry a chip and are counted on their own line, checks
+  that did not apply are counted apart from the rest, and a "Not measured"
+  tab lists the others, each with its reason and the one thing to do about
+  it. A "Site" section shows the crawl's notes, broken external links by
+  target and pages by Link Score; a "Custom checks" section comes last.
+- `--render` names the browser render (`--cwv` still works), and the run form
+  calls it "Render in a browser". "Crawl the whole site" is now "Crawl linked
+  pages", with the page cap in its hint. "Run again" keeps the audit's render
+  and crawl settings.
 - The MCP `audit_url` tool takes `respectCrawlDelay` and `maxDurationS`, and
   refuses up front with `crawl-too-slow` when the site's `Crawl-delay` means
   the crawl cannot finish in time. Its summary carries `coverage` and
@@ -309,6 +322,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gzip that expands without limit, can no longer exhaust memory.
 
 ### Fixed
+
+- **The dashboard showed checks that took no reading as warnings.** A stored
+  rule that was not measured on any page came back as a warning-shaped row,
+  so it took a warning icon and could be listed under "Issues to fix". It now
+  comes back as not measured, live and from the database alike.
+- Link Score's "weakest pages" no longer repeats the best-linked list on a
+  small or evenly linked site.
 
 - **A page the site kept rate-limiting is not a sitemap error or a broken
   hreflang target.** `crawl-sitemap-non-200` and `i18n-hreflang-to-broken`

@@ -1,12 +1,12 @@
 /**
- * Filter pill buttons: All | Failures | Warnings | Passed
+ * Filter pill buttons: All | Failures | Warnings | Passed | Not measured
  */
 
-export type FilterStatus = 'all' | 'fail' | 'warn' | 'pass';
+export type FilterStatus = 'all' | 'fail' | 'warn' | 'pass' | 'notmeasured';
 
 interface FilterTabsProps {
   active: FilterStatus;
-  counts: { all: number; fail: number; warn: number; pass: number };
+  counts: { all: number; fail: number; warn: number; pass: number; notmeasured: number };
   onChange: (status: FilterStatus) => void;
 }
 
@@ -15,12 +15,13 @@ const FILTERS: { key: FilterStatus; label: string; color?: string }[] = [
   { key: 'fail', label: 'Failed', color: 'var(--color-fail)' },
   { key: 'warn', label: 'Warnings', color: 'var(--color-warn)' },
   { key: 'pass', label: 'Passed', color: 'var(--color-pass)' },
+  { key: 'notmeasured', label: 'Not measured' },
 ];
 
 export function FilterTabs({ active, counts, onChange }: FilterTabsProps) {
   return (
     <div className="flex flex-wrap gap-2">
-      {FILTERS.map(({ key, label, color }) => {
+      {FILTERS.filter(({ key }) => key !== 'notmeasured' || counts.notmeasured > 0).map(({ key, label, color }) => {
         const isActive = active === key;
         return (
           <button

@@ -105,6 +105,13 @@ describe('linkScoreSummary', () => {
     expect(summary.top).toEqual([{ url: U('hub'), score: 100 }]);
     expect(summary.lowestIndexable).toHaveLength(1);
   });
+
+  it('lists no weak pages when every page is linked alike, or all fit in the top list', () => {
+    const even = site({ links: { a: ['b', 'c'], b: ['a', 'c'], c: ['a', 'b'] } });
+    expect(linkScoreSummary(even, computeLinkScores(even)).lowestIndexable).toEqual([]);
+    const small = site({ links: { hub: ['l1', 'l2'], l1: ['hub'], l2: ['hub'] } });
+    expect(linkScoreSummary(small, computeLinkScores(small)).lowestIndexable).toEqual([]);
+  });
 });
 
 describe('Link Score in a crawl, a stored audit and a report', () => {

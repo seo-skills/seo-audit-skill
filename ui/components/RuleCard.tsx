@@ -10,6 +10,7 @@ import type { RuleResult } from '../../src/types.js';
 import type { RuleMetadata } from '../../electron/shared/ipc-types.js';
 import { formatRuleIdAsName, getStatusIcon, getStatusColorClass, safeHref, statusTokens } from '../lib/format.js';
 import { getFixSuggestion } from '../lib/fix-suggestions.js';
+import { ADVISORY_CHIP, NOT_MEASURED_REASONS, reasonOf } from '../lib/audit-state.js';
 
 interface RuleCardProps {
   rule: RuleResult;
@@ -67,8 +68,10 @@ function formatKey(key: string): string {
 
 export function RuleCard({ rule, metadata }: RuleCardProps) {
   const [showDetails, setShowDetails] = useState(false);
+  // A fix only makes sense for a finding; a check that took no reading gets
+  // its reason and the one thing to do about it instead
   const fixText =
-    rule.status !== 'pass'
+    rule.status === 'warn' || rule.status === 'fail'
       ? // Fix text comes from the main-process registry metadata; the local
         // fix-suggestions map is the offline fallback only.
         (metadata?.fix ?? getFixSuggestion(rule.ruleId))
@@ -143,6 +146,14 @@ export function RuleCard({ rule, metadata }: RuleCardProps) {
             >
               {rule.ruleId}
             </span>
+            {rule.advisory && (
+              <span
+                className="text-[11px] px-1.5 py-0.5 rounded border"
+                style={{ color: 'var(--color-text-secondary)', borderColor: 'var(--color-border)' }}
+              >
+                {ADVISORY_CHIP}
+              </span>
+            )}
           </div>
 
           {/* Rule description (what this rule checks) */}
@@ -156,6 +167,13 @@ export function RuleCard({ rule, metadata }: RuleCardProps) {
           <p className="text-[13px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
             {rule.message}
           </p>
+
+          {rule.status === 'not-measured' && (
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+              Not measured: {NOT_MEASURED_REASONS[reasonOf(rule)].label}
+              {NOT_MEASURED_REASONS[reasonOf(rule)].action && ` · ${NOT_MEASURED_REASONS[reasonOf(rule)].action}`}
+            </p>
+          )}
 
           {/* Page URL badge */}
           {pageUrl && (

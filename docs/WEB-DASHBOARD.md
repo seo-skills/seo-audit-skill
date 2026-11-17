@@ -54,14 +54,16 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:7360/
 1. Click **New audit** in the toolbar, or open `http://127.0.0.1:7360/run`.
 2. Type the URL. The form adds `https://` when you leave out the scheme.
 3. Pick the options. The form remembers them for the next audit.
-   - **Core Web Vitals** opens the page in a real browser to measure speed. It is
-     off by default in this form, as it is in `seomator audit`, and adds about a
-     minute.
-   - **Crawl the whole site** audits linked pages as well. **Crawl settings**
-     then sets "Pages to audit, at most" (2 to 100) and "Pages fetched at once"
-     (1 to 10).
-   - **Mobile parity** and **Simulate interaction** appear only while Core Web
-     Vitals is on.
+   - **Render in a browser** opens each page in a real browser for Core Web
+     Vitals, accessibility (axe-core), unused code and image sizing. It is off
+     by default in this form, as it is in `seomator audit`, and adds 5 to 15
+     seconds a page. Without it, the audit page says how many checks a render
+     would add and links to a rerun with rendering on.
+   - **Crawl linked pages** audits pages linked from the start URL as well, up
+     to the page cap. **Crawl settings** then sets "Pages to audit, at most"
+     (2 to 100) and "Pages fetched at once" (1 to 10).
+   - **Mobile parity** and **Simulate interaction** appear only while
+     rendering is on.
 4. Click **Run audit**. A crawl shows pages being discovered, then each page as
    it is scored. **Cancel** stops the run.
 5. When the run finishes, the dashboard opens the stored audit.

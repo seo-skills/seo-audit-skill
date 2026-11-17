@@ -147,10 +147,11 @@ program
   .option('-v, --verbose', 'Show progress', false)
   // `--cwv` first, so the default stays unset: a lone `--no-cwv` would make it
   // true, which is how every audit used to launch a browser nobody asked for.
-  .option('--cwv', 'Render the page in a browser for Core Web Vitals and rendered-page checks (slower)')
+  .option('--render', 'Render each page in a browser: Core Web Vitals, accessibility, unused code and image sizing (slower)')
+  .option('--cwv', 'Same as --render')
   // Still parses so existing scripts keep working; skipping the render is the default now.
   .addOption(new Option('--no-cwv').hideHelp())
-  .option('--mobile', 'Also render at a mobile viewport and run mobile-first parity checks (single-page; implies --cwv)', false)
+  .option('--mobile', 'Also render at a mobile viewport and run mobile-first parity checks (single-page; implies --render)', false)
   .option('--simulate-interaction', 'Click and scroll the page so INP can be measured (reported as synthetic; implies --cwv)', false)
   .option('--staging', 'Audit a staging site: waive the noindex and robots.txt caps, and crawl past robots.txt', false)
   .option('-r, --refresh', 'Check every external link again instead of using the link cache', false)
@@ -167,6 +168,8 @@ program
   .action((url: string, options: AuditOptions, command: Command) =>
     runAudit(url, {
       ...options,
+      // --render is the name; --cwv the older one for the same thing
+      ...((options as { render?: boolean }).render && { cwv: true }),
       saveExplicit: command.getOptionValueSource('save') === 'cli' && options.save === true,
       // Only a flag the user typed overrides seomator.toml; a flag default
       // used to replace the file's value on every run.

@@ -12,7 +12,12 @@ interface ScoreStatsProps {
   passCount: number;
   warnCount: number;
   failCount: number;
+  /** Checks that took no reading for a reason worth acting on */
   notMeasuredCount?: number;
+  /** Checks for a pattern the page does not use: a quiet second line */
+  notApplicableCount?: number;
+  /** Findings reported but not counted in the score yet */
+  advisoryCount?: number;
 }
 
 export function ScoreStats({
@@ -20,10 +25,17 @@ export function ScoreStats({
   warnCount,
   failCount,
   notMeasuredCount = 0,
+  notApplicableCount = 0,
+  advisoryCount = 0,
 }: ScoreStatsProps) {
+  const quiet = [
+    advisoryCount > 0 && `${advisoryCount} advisory finding${advisoryCount === 1 ? '' : 's'}, not counted in the score yet`,
+    notApplicableCount > 0 && `${notApplicableCount} check${notApplicableCount === 1 ? '' : 's'} did not apply`,
+  ].filter(Boolean);
   return (
-    // Four counters do not fit across a phone; without wrapping, "Not
-    // measured" painted outside the viewport where nobody could read it.
+    <div className="space-y-1.5">
+    {/* Four counters do not fit across a phone; without wrapping, "Not
+        measured" painted outside the viewport where nobody could read it. */}
     <div className="flex flex-wrap gap-x-4 gap-y-2">
       <StatBadge count={failCount} label="Failed" colorVar="--color-fail" bgVar="--color-fail-bg" />
       <StatBadge count={warnCount} label="Warnings" colorVar="--color-warn" bgVar="--color-warn-bg" />
@@ -36,6 +48,12 @@ export function ScoreStats({
           bgVar="--color-bg-active"
         />
       )}
+    </div>
+    {quiet.length > 0 && (
+      <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+        {quiet.join(' · ')}
+      </p>
+    )}
     </div>
   );
 }

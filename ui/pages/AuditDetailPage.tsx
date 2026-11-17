@@ -21,6 +21,9 @@ import { IssuesTable } from '../components/IssuesTable.js';
 import { Sidebar } from '../components/Sidebar.js';
 import { CategoryRow } from '../components/CategoryRow.js';
 import { formatDate } from '../lib/format.js';
+import { SiteSection } from '../components/SiteSection.js';
+import { CustomChecksSection } from '../components/CustomChecksSection.js';
+import { advisoryCount, completionLabel, coverageText, notMeasuredByReason, renderHint, rerunHref } from '../lib/audit-state.js';
 
 const EXPORT_FORMATS = [
   { format: 'html', label: 'HTML report' },
@@ -175,7 +178,14 @@ export function AuditDetailPage() {
     fail: totals.fail,
     warn: totals.warn,
     pass: totals.pass,
+    notmeasured: totals.notMeasured,
   };
+  const notApplicable = notMeasuredByReason(result).find((group) => group.reason === 'not-applicable')?.ruleIds.length ?? 0;
+  const coverage = coverageText(result);
+  const completion = completionLabel(result);
+  // Both surfaces render; the hint links back to the run page with rendering on
+  const hint = renderHint(result, true);
+  const hasSiteSection = Boolean(result.extras?.['crawl'] || result.extras?.externalLinks || result.extras?.linkScoreSummary);
 
   return (
     <div className="flex min-h-screen">
@@ -223,15 +233,40 @@ export function AuditDetailPage() {
                 passCount={totals.pass}
                 warnCount={totals.warn}
                 failCount={totals.fail}
-                notMeasuredCount={totals.notMeasured}
+                notMeasuredCount={Math.max(0, totals.notMeasured - notApplicable)}
+                notApplicableCount={notApplicable}
+                advisoryCount={advisoryCount(result)}
               />
+              <div className="space-y-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                {result.scoreCap && (
+                  <p>
+                    Capped from {result.scoreCap.uncappedScore}: {result.scoreCap.caps.map((cap) => cap.reason).join(' ')}
+                  </p>
+                )}
+                <p>
+                  {completion}
+                  {coverage && (
+                    <>
+                      {' · '}
+                      {hasSiteSection ? <a href="#site" className="hover:underline">{coverage}</a> : coverage}
+                    </>
+                  )}
+                </p>
+                {hint && (
+                  <p>
+                    <Link to={rerunHref(audit.startUrl, result, true)} className="hover:underline" style={{ color: 'var(--color-accent)' }}>
+                      {hint}
+                    </Link>
+                  </p>
+                )}
+              </div>
             </div>
           </section>
 
           {/* Actions */}
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              to={`/run?url=${encodeURIComponent(audit.startUrl)}`}
+              to={rerunHref(audit.startUrl, result)}
               className="px-3 py-1.5 text-sm rounded-md font-medium"
               style={{ backgroundColor: 'var(--color-agent)', color: 'var(--color-on-agent)' }}
             >
@@ -335,6 +370,8 @@ export function AuditDetailPage() {
             </section>
           )}
 
+          <SiteSection result={result} />
+
           <section
             className="p-5 rounded-xl border"
             style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}
@@ -366,6 +403,8 @@ export function AuditDetailPage() {
               </div>
             )}
           </section>
+
+          <CustomChecksSection result={result} />
         </div>
       </div>
     </div>
@@ -384,7 +423,7 @@ function NoMatchingChecks({
   // not, so the same empty state should not congratulate the reader for it.
   const good = filter === 'fail' || filter === 'warn';
   const label =
-    filter === 'fail' ? 'failures' : filter === 'warn' ? 'warnings' : 'passing checks';
+    filter === 'fail' ? 'failures' : filter === 'warn' ? 'warnings' : filter === 'notmeasured' ? 'unmeasured checks' : 'passing checks';
 
   return (
     <div

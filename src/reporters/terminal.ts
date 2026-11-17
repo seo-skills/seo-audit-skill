@@ -485,7 +485,7 @@ export function renderTerminalReport(result: AuditResult): void {
     result.categoryResults.flatMap((c) => c.results).filter((r) => r.reason === 'needs-render').map((r) => r.ruleId)
   ).size;
   if (needsRender > 0) {
-    console.log(chalk.gray(`${needsRender} check${needsRender === 1 ? '' : 's'} need a browser render: rerun with --cwv`));
+    console.log(chalk.gray(`${needsRender} check${needsRender === 1 ? '' : 's'} need a browser render: rerun with --render`));
     console.log();
   }
 

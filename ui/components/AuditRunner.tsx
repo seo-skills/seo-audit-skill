@@ -129,8 +129,8 @@ export function AuditRunner({
 
       <div className="flex flex-wrap gap-x-10 gap-y-1">
         <Option
-          label="Core Web Vitals"
-          hint="Opens the page in a real browser to measure loading speed. Adds about a minute."
+          label="Render in a browser"
+          hint="Opens each page in a real browser for Core Web Vitals, accessibility (axe), unused code and image sizing. Adds 5 to 15 seconds a page."
           checked={options.measureCwv}
           disabled={isRunning || capabilities?.browserRender === false}
           disabledReason={
@@ -142,8 +142,8 @@ export function AuditRunner({
         />
 
         <Option
-          label="Crawl the whole site"
-          hint="Audits pages linked from this one, not just this URL. Much slower."
+          label="Crawl linked pages"
+          hint={`Audits pages linked from this one, up to ${options.maxPages}, not just this URL. Much slower.`}
           checked={options.crawl}
           disabled={isRunning}
           onChange={(value) => set('crawl', value)}

@@ -89,7 +89,7 @@ describe('render-only rules', () => {
     serve();
     const result = await new Auditor({ measureCwv: false, categories: ['js'] }).audit(`${ORIGIN}/`);
     const rendered = result.categoryResults[0].results.find((r) => r.ruleId === 'js-rendered-title')!;
-    expect(rendered).toMatchObject({ status: 'not-measured', reason: 'needs-render', message: 'Needs a browser render: rerun with --cwv' });
+    expect(rendered).toMatchObject({ status: 'not-measured', reason: 'needs-render', message: 'Needs a browser render: rerun with --render' });
   });
 
   it('report could-not-verify when the render ran and failed', async () => {

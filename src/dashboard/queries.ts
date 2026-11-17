@@ -112,7 +112,9 @@ export function getAuditDetail(db: AuditsDatabase, auditId: string): AuditDetail
         affectedPages: s.affectedPages,
         measuredPages: s.measuredPages,
       }),
-      status: s.status,
+      // Said outright: the UI tests the status, and a not-measured rule read
+      // as status "warn" showed as a warning and was listed as an issue
+      status: s.notMeasured ? 'not-measured' : s.status,
       message: s.message,
       score: s.score,
       weight: s.notMeasured ? 0 : 1,

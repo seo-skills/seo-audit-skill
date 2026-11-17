@@ -284,12 +284,14 @@ const CONTROL_CHARACTERS = new RegExp(CONTROL_CHARACTER.source, 'g');
  * Copies only what changes, and walks the result rather than serialising it:
  * a large crawl's result is past the longest string JSON.stringify can build.
  * The walk stops at a fixed depth: this report reads a few levels down, and a
- * page's structured data can nest deep enough to overflow the stack.
+ * page's structured data can nest deep enough to overflow the stack. What lies
+ * below is replaced, never passed on uncleaned.
  */
 const MAX_CLEAN_DEPTH = 32;
+const TOO_DEEP = '[nested too deep to show]';
 
 function withoutControlCharacters<T>(value: T, depth = 0): T {
-  if (depth > MAX_CLEAN_DEPTH) return value;
+  if (depth > MAX_CLEAN_DEPTH) return (typeof value === 'string' || (value !== null && typeof value === 'object') ? TOO_DEEP : value) as T;
   if (typeof value === 'string') {
     return (CONTROL_CHARACTER.test(value) ? value.replace(CONTROL_CHARACTERS, '') : value) as T;
   }

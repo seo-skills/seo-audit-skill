@@ -516,8 +516,12 @@ export class Auditor {
    */
   private async underNetPolicy<T>(url: string, fn: () => Promise<T>): Promise<T> {
     const { mode, allowHosts } = this.options.network;
+    throwIfAborted(this.options.signal);
     const base = await policyForTarget(url, mode ?? 'auto', allowHosts ?? []);
-    const policy = (mode ?? 'auto') === 'auto' ? await pinEntryRedirects(url, base) : base;
+    const policy =
+      (mode ?? 'auto') === 'auto'
+        ? await pinEntryRedirects(url, base, { timeoutMs: this.options.timeout, signal: this.options.signal })
+        : base;
     return runWithNetPolicy(policy, fn);
   }
 

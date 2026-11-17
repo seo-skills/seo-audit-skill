@@ -107,6 +107,25 @@ function isBlockedV6(ip: string): boolean {
 }
 
 /**
+ * True for a link-local address: 169.254.0.0/16 (where cloud metadata lives)
+ * and fe80::/10, in any spelling that embeds them.
+ */
+export function isLinkLocalAddress(ip: string): boolean {
+  const bare = ip.replace(/^\[|\]$/g, '');
+  const family = isIP(bare);
+  if (family === 4) {
+    const value = ipv4ToInt(bare);
+    return value !== null && inV4Range(value, '169.254.0.0', 16);
+  }
+  if (family !== 6) return false;
+  const g = ipv6Groups(bare);
+  if (!g) return false;
+  if ((g[0] & 0xffc0) === 0xfe80) return true;
+  const mapped = g.slice(0, 5).every((v) => v === 0) && g[5] === 0xffff;
+  return mapped && isLinkLocalAddress(embeddedV4(g));
+}
+
+/**
  * True when an audit must not connect to this address.
  *
  * Anything that is not a parseable IP is refused too: this runs on resolver

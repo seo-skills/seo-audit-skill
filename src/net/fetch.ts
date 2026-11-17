@@ -18,7 +18,8 @@
 import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
 import { isIP } from 'node:net';
 import { Agent, buildConnector } from 'undici';
-import { isBlockedAddress } from './address.js';
+import { isBlockedAddress, isLinkLocalAddress } from './address.js';
+import { rethrowIfAborted, throwIfAborted } from '../errors.js';
 import { currentNetPolicy, pinKey, privateAddressesOf, runWithNetPolicy, type NetPolicy } from './policy.js';
 import { getUserAgent } from '../crawler/user-agent.js';
 
@@ -156,21 +157,37 @@ const MAX_ENTRY_HOPS = 5;
  * name: a short name to its full name, a service behind a proxy, a sign-in
  * hop. Each hop that resolves only to private addresses is pinned the same
  * way, so the audit reaches the page it was asked for. Only the entry chain
- * is followed: a private address a page links to later is still refused.
+ * is followed: a private address a page links to later is still refused, and
+ * a link-local hop (cloud metadata) is never pinned.
+ *
+ * Each hop waits as long as the run's own page request would (`timeoutMs`),
+ * and a cancelled run sends nothing and stops at once.
  */
-export async function pinEntryRedirects(targetUrl: string, policy: NetPolicy, timeoutMs = 5000): Promise<NetPolicy> {
+export async function pinEntryRedirects(
+  targetUrl: string,
+  policy: NetPolicy,
+  options: { timeoutMs?: number; signal?: AbortSignal } = {}
+): Promise<NetPolicy> {
   if (!policy.blockPrivate || !policy.pinnedHosts || policy.pinnedHosts.size === 0) return policy;
+  const { timeoutMs = 30_000, signal } = options;
   const pins = new Map(policy.pinnedHosts);
   let url = targetUrl;
   for (let hop = 0; hop < MAX_ENTRY_HOPS; hop++) {
+    throwIfAborted(signal);
     let location: string | null;
     try {
+      const timeout = AbortSignal.timeout(timeoutMs);
       const response = await runWithNetPolicy({ ...policy, pinnedHosts: pins }, () =>
-        netFetch(url, { redirect: 'manual', headers: { 'User-Agent': getUserAgent() }, signal: AbortSignal.timeout(timeoutMs) })
+        netFetch(url, {
+          redirect: 'manual',
+          headers: { 'User-Agent': getUserAgent() },
+          signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+        })
       );
       await response.body?.cancel().catch(() => {});
       location = response.status >= 300 && response.status < 400 ? response.headers.get('location') : null;
-    } catch {
+    } catch (error) {
+      rethrowIfAborted(error, signal);
       break; // the audit's own request reports what went wrong
     }
     if (!location) break;
@@ -184,7 +201,8 @@ export async function pinEntryRedirects(targetUrl: string, policy: NetPolicy, ti
     const key = pinKey(next.hostname);
     if (!pins.has(key)) {
       const addresses = await privateAddressesOf(next.hostname);
-      if (!addresses) break; // a public hop needs no pin
+      // A public hop needs no pin; a link-local one never gets one
+      if (!addresses || addresses.some((address) => isLinkLocalAddress(address))) break;
       pins.set(key, addresses);
     }
     url = next.href;

@@ -36,9 +36,33 @@ describe('pinEntryRedirects', () => {
       res.end();
     });
     const target = `http://127.0.0.1:${port}/`;
-    const policy = await pinEntryRedirects(target, await policyForTarget(target, 'auto'), 300);
+    const policy = await pinEntryRedirects(target, await policyForTarget(target, 'auto'), { timeoutMs: 300 });
     expect(policy.pinnedHosts?.get('sibling.test')).toEqual(['10.1.2.3']);
     expect(policy.pinnedHosts?.get('127.0.0.1')).toEqual(['127.0.0.1']);
+  });
+
+  it('never pins a link-local hop, where cloud metadata lives', async () => {
+    const port = await serve((_req, res) => {
+      res.writeHead(302, { location: 'http://169.254.169.254/latest/meta-data/' });
+      res.end();
+    });
+    const target = `http://127.0.0.1:${port}/`;
+    const policy = await pinEntryRedirects(target, await policyForTarget(target, 'auto'), { timeoutMs: 300 });
+    expect([...(policy.pinnedHosts?.keys() ?? [])]).toEqual(['127.0.0.1']);
+  });
+
+  it('sends nothing once the run is cancelled', async () => {
+    let requests = 0;
+    const port = await serve((_req, res) => {
+      requests++;
+      res.writeHead(301, { location: 'http://sibling.test/' });
+      res.end();
+    });
+    const target = `http://127.0.0.1:${port}/`;
+    await expect(
+      pinEntryRedirects(target, await policyForTarget(target, 'auto'), { timeoutMs: 300, signal: AbortSignal.abort() })
+    ).rejects.toMatchObject({ name: 'AuditAbortedError' });
+    expect(requests).toBe(0);
   });
 
   it('pins nothing for a public target, and nothing a later page links to', async () => {
@@ -47,9 +71,9 @@ describe('pinEntryRedirects', () => {
       res.end('<a href="http://sibling.test/">elsewhere</a>');
     });
     const target = `http://127.0.0.1:${port}/`;
-    const policy = await pinEntryRedirects(target, await policyForTarget(target, 'auto'), 300);
+    const policy = await pinEntryRedirects(target, await policyForTarget(target, 'auto'), { timeoutMs: 300 });
     expect([...(policy.pinnedHosts?.keys() ?? [])]).toEqual(['127.0.0.1']);
     const pub = await policyForTarget('http://93.184.215.14/', 'auto');
-    expect(await pinEntryRedirects('http://93.184.215.14/', pub, 300)).toBe(pub);
+    expect(await pinEntryRedirects('http://93.184.215.14/', pub, { timeoutMs: 300 })).toBe(pub);
   });
 });

@@ -197,6 +197,22 @@ describe('time limit', () => {
   }, 15000);
 });
 
+describe('a run cancelled before it starts', () => {
+  it('sends no request to a local target, not even to follow its redirects', async () => {
+    let requests = 0;
+    const base = await serve((_req, res) => {
+      requests++;
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end(html('leaf'));
+    });
+    const { Auditor } = await import('../auditor.js');
+    await expect(
+      new Auditor({ measureCwv: false, categories: ['core'], signal: AbortSignal.abort() }).audit(`${base}/`)
+    ).rejects.toMatchObject({ name: 'AuditAbortedError' });
+    expect(requests).toBe(0);
+  });
+});
+
 describe('not fetched, when the crawl is cut short', () => {
   it('counts no more pages than the page budget had left', async () => {
     const base = await serve(async (req, res) => {

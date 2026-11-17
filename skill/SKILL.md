@@ -2,7 +2,7 @@
 name: seo-audit
 description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 373 rules and 20 categories, and can diff two audits to show what a deploy changed. Use when analyzing websites, debugging SEO issues, checking site health, or comparing a site before and after a change.
 license: MIT
-compatibility: Requires Node.js 20.3+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
+compatibility: Requires Node.js 20.18.1+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
 metadata:
   author: seomator
   version: "7.0.0"
@@ -90,7 +90,7 @@ seomator self doctor
 ```
 
 This checks:
-- Node.js version (20.3 or later required)
+- Node.js version (20.18.1 or later required)
 - npm availability
 - Chrome/Chromium for Core Web Vitals and JS rendering
 - Write permissions for ~/.seomator
@@ -177,6 +177,21 @@ Verbose output for debugging:
 seomator audit https://example.com --format llm -v
 ```
 
+## MCP server
+
+`seomator mcp` serves the same engine as MCP tools over stdio, registered as
+`seomator-audit`:
+
+```bash
+claude mcp add seomator-audit -- npx -y @seomator/seo-audit mcp                  # public sites
+claude mcp add seomator-audit -- npx -y @seomator/seo-audit mcp --allow-private  # also local and intranet sites
+```
+
+Tools: `audit_url` (returns a `runId` at once, `waitS` up to 25), `audit_status`,
+`cancel_run`, `list_audits`, `get_audit`, `get_findings` (paged), `compare_audits`,
+`list_rules`, `explain_rule`. Failures are `isError` with `{ code, message, hint }`.
+See `docs/ai-agent-integration.md` for the full contract.
+
 ## Exit codes
 
 An agent must be able to tell "the audit failed" from "the site scored badly".
@@ -186,8 +201,8 @@ An agent must be able to tell "the audit failed" from "the site scored badly".
 | Code | Meaning |
 |------|---------|
 | `0` | Success |
-| `1` | The run worked, and the result is below a threshold — `audit`/`analyze` scored under 70, or `compare --fail-on-regression` found a regression |
-| `2` | The command failed: unreachable URL, HTTP error, missing crawl, bad `--config` path |
+| `1` | The run worked, and a gate failed: `audit`/`analyze` scored under `--fail-under` (default 70), a `[rules.override]` rule with `fail_ci = true` failed or could not be measured, or `compare --fail-on-regression` found a regression. The last stderr line starts with `Exit 1:` and says which; JSON carries it in `gate` |
+| `2` | The command failed: bad flag, invalid config (including an unknown rule id in `[rules.override]`), unreachable URL, HTTP error, missing crawl, bad `--config` path |
 | `130` | Cancelled with Ctrl-C |
 
 **A non-zero exit is not automatically a failure.** `1` means the tool worked
@@ -258,6 +273,7 @@ are reported separately rather than cancelling out in a count.
 seomator init              # Create config file
 seomator self doctor       # Check system setup
 seomator config --list     # Show all config values
+seomator explain <rule-id> # What a rule checks, its weight, the fix and override lines
 seomator report --list     # List past reports
 seomator compare <domain>  # Diff the two most recent saved audits
 seomator db stats          # Show database statistics

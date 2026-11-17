@@ -244,6 +244,20 @@ seomator compare example.com --fail-on-regression   # exit 1 if worse (for CI)
 Rules are diffed by ID, so a rule that broke and a different one that got fixed
 are reported separately rather than cancelling out in a count.
 
+### `seomator mcp`
+
+The audit engine as MCP tools for AI agents, over stdio, registered as
+`seomator-audit`.
+
+```bash
+claude mcp add seomator-audit -- npx -y @seomator/seo-audit mcp
+claude mcp add seomator-audit -- npx -y @seomator/seo-audit mcp --allow-private   # local and intranet sites too
+```
+
+Destinations that resolve to loopback, private or link-local addresses are
+refused unless the server runs with `--allow-private` (or `--allow-host
+<host:port>`). See [AI agent integration](docs/ai-agent-integration.md#use-seomator-as-an-mcp-server).
+
 ### `seomator explain [rule-id]`
 
 What a rule checks, how much it counts, how to fix what it finds, and the

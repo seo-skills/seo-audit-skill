@@ -26,6 +26,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `seomator config validate --config <path> --json` checks a config file the
   way `audit` will, rule ids included, and prints the result as JSON.
 - `seomator analyze --config <path>`.
+- **`seomator mcp`, an MCP server for AI agents.** Registered as
+  `seomator-audit`, it serves `audit_url`, `audit_status`, `cancel_run`,
+  `list_audits`, `get_audit`, `get_findings`, `compare_audits`, `list_rules`
+  and `explain_rule` over stdio. `audit_url` returns a `runId` at once
+  (`waitS` up to 25 waits for short runs), one run at a time. Every failure is
+  `isError` with `{ code, message, hint }`; an unexpected one carries a
+  correlation id and logs its stack to `$SEOMATOR_HOME/mcp.log`. Private,
+  loopback and link-local destinations are refused for every request unless
+  the server runs with `--allow-private` or `--allow-host <host:port>`, and
+  browser renders need `--allow-private` for now. `seomator.toml` (or
+  `--config`) is read again at the start of every run. stdout carries
+  protocol frames only.
 - **`seomator explain <rule-id>`** says what a rule checks, its weight, how to
   fix what it finds, and the `[rules.override]` lines to re-rank it or gate CI
   on it. `--list [category]` prints every rule id, `--json` is for scripts. An

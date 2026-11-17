@@ -164,7 +164,7 @@ export interface AuditSessionOptions {
   /** What this build can do. The defaults describe the Playwright engine. */
   capabilities?: Partial<Capabilities>;
   /** Extra engine options, e.g. Electron's own browser fetcher */
-  auditorOptions?: Pick<AuditorOptions, 'browserFetcher' | 'respectRobots'>;
+  auditorOptions?: Pick<AuditorOptions, 'browserFetcher' | 'respectRobots' | 'network' | 'enableRules' | 'disableRules'>;
   /** Injectable for tests */
   createAuditor?: (options: AuditorOptions) => Auditor;
   /** Injectable for tests */

@@ -260,6 +260,28 @@ program
   .option('--fail-on-regression', 'Exit 1 when the score dropped or new failures appeared', false)
   .action(runCompare);
 
+// MCP server
+program
+  .command('mcp')
+  .description('Run the seomator-audit MCP server over stdio, so AI agents can run and read audits')
+  .option('--allow-private', 'Let audits reach loopback, private and link-local addresses (local and intranet sites)', false)
+  .option(
+    '--allow-host <host:port>',
+    'Allow one private host:port without --allow-private (repeatable)',
+    (value: string, previous: string[]) => [...previous, value],
+    [] as string[]
+  )
+  .option('--config <path>', 'Config file, read at the start of every run (default: seomator.toml search)')
+  .action(async (options: { allowPrivate: boolean; allowHost: string[]; config?: string }) => {
+    // Imported lazily so other commands do not load the MCP SDK.
+    const { startMcpServer } = await import('./mcp/server.js');
+    await startMcpServer({
+      allowPrivate: options.allowPrivate,
+      allowHosts: options.allowHost,
+      ...(options.config && { config: options.config }),
+    });
+  });
+
 // Explain command
 program
   .command('explain [rule-id]')

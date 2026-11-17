@@ -177,6 +177,21 @@ Verbose output for debugging:
 seomator audit https://example.com --format llm -v
 ```
 
+## MCP server
+
+`seomator mcp` serves the same engine as MCP tools over stdio, registered as
+`seomator-audit`:
+
+```bash
+claude mcp add seomator-audit -- npx -y @seomator/seo-audit mcp                  # public sites
+claude mcp add seomator-audit -- npx -y @seomator/seo-audit mcp --allow-private  # also local and intranet sites
+```
+
+Tools: `audit_url` (returns a `runId` at once, `waitS` up to 25), `audit_status`,
+`cancel_run`, `list_audits`, `get_audit`, `get_findings` (paged), `compare_audits`,
+`list_rules`, `explain_rule`. Failures are `isError` with `{ code, message, hint }`.
+See `docs/ai-agent-integration.md` for the full contract.
+
 ## Exit codes
 
 An agent must be able to tell "the audit failed" from "the site scored badly".

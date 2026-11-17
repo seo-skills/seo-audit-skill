@@ -79,6 +79,7 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "better-sqlite3": "^12.11.1",
     "chalk": "^5.3.0",
     "cheerio": "^1.0.0",
@@ -89,7 +90,8 @@
     "ora": "^8.1.1",
     "playwright": "^1.49.1",
     "undici": "^7.30.2",
-    "web-vitals": "^4.2.4"
+    "web-vitals": "^4.2.4",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@fontsource-variable/geist": "^5.3.0",

@@ -268,7 +268,7 @@ export type AuditStatus = 'running' | 'completed' | 'failed';
 /**
  * Which surface produced an audit.
  */
-export type AuditSource = 'cli' | 'dashboard' | 'desktop' | 'api';
+export type AuditSource = 'cli' | 'dashboard' | 'desktop' | 'api' | 'mcp';
 
 /**
  * The options an audit ran with, recorded so a run can be repeated the same

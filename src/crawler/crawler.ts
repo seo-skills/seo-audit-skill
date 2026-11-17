@@ -14,6 +14,7 @@ import { createHash } from 'node:crypto';
 import { isNoindex, isNofollow, isPaginatedPage, readCanonical } from '../indexability.js';
 import { shingleText } from '../site/near-duplicates.js';
 import { bodyText as visibleBodyText } from '../rules/content/utils/visible-text.js';
+import type { CodeCoverage } from '../render/coverage.js';
 
 /**
  * Progress callback for reporting crawl status
@@ -61,6 +62,8 @@ export interface PageRenderResult {
   assets?: AssetInfo[];
   /** Render probe results by id */
   probes?: Record<string, unknown>;
+  /** How much of each script and stylesheet the load used */
+  coverage?: CodeCoverage;
 }
 
 /**
@@ -76,6 +79,7 @@ export function applyRender(context: AuditContext, render: PageRenderResult): vo
   if (render.diagnostics) context.renderDiagnostics = render.diagnostics;
   if (render.assets) context.assets = render.assets;
   if (render.probes) context.probes = render.probes;
+  if (render.coverage) context.coverage = render.coverage;
 }
 
 /**

@@ -319,6 +319,8 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'mobile-separate-urls': 'Make the mobile page name the desktop page as its canonical, and make sure it loads',
   'technical-amp-pairing': 'Make the AMP page load and name this page as its canonical',
   'images-oversized-delivery': 'Serve each image at most twice its displayed size, with srcset for the sizes the layout uses',
+  'perf-unused-js': 'Split bundles by route and load code when it is needed; drop libraries the page does not use',
+  'perf-unused-css': 'Remove unused selectors, split CSS by page, and inline only what the first screen needs',
   'social-og-url': 'Add <meta property="og:url" content="..."> matching canonical URL',
   'social-og-url-canonical': 'Ensure og:url matches canonical URL exactly for consistent SEO signals',
   'social-twitter-card': 'Add <meta name="twitter:card" content="summary_large_image">',

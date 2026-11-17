@@ -1,6 +1,6 @@
 # SEOmator Documentation
 
-SEOmator audits web pages against 386 rules across 20 categories, from the
+SEOmator audits web pages against 388 rules across 20 categories, from the
 command line, a local dashboard, a desktop app, or an AI agent.
 
 These docs follow [Diataxis](https://diataxis.fr/). Every page states its type

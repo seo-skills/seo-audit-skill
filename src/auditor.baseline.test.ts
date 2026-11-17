@@ -98,7 +98,8 @@ const EXPECTED_CATEGORIES: Record<string, [number, number, number, number, numbe
   // (advisory) find no directive to grade on the fixture. The score does not move.
   core: [99, 21, 1, 1, 3],
   technical: [99, 17, 0, 1, 1],
-  perf: [90, 15, 5, 0, 8],
+  // Not measured 8 -> 10: perf-unused-js and perf-unused-css need a render. No score moves.
+  perf: [90, 15, 5, 0, 10],
   links: [97, 17, 1, 1, 8],
   // Not measured 0 -> 1: images-oversized-delivery needs a render. No score moves.
   images: [59, 8, 4, 2, 1],

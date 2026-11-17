@@ -123,6 +123,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     natural and displayed size in the rendered page and estimates the bytes
     wasted at a 2x pixel ratio. An image wasting over 4 KiB warns; over
     200 KiB in total fails. The top ten are listed.
+  - `perf-unused-js` and `perf-unused-css` (need `--cwv`): the browser's code
+    coverage during load, per file. A file wasting 20 KiB warns, 250 KiB in
+    total fails, and the top ten are listed as first- or third-party.
+    Coverage is collected in the same page load: measured on a fixture, it
+    does not change Core Web Vitals. The desktop app cannot collect it yet
+    and reports these as not measured.
 - The MCP `audit_url` tool takes `respectCrawlDelay` and `maxDurationS`, and
   refuses up front with `crawl-too-slow` when the site's `Crawl-delay` means
   the crawl cannot finish in time. Its summary carries `coverage` and

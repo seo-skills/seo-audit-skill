@@ -1,6 +1,7 @@
 import type { CheerioAPI } from 'cheerio';
 import type { UrlService } from './net/url-service.js';
 import type { ExternalLinkCheck, ExternalLinksExtras } from './site/external-links.js';
+import type { CodeCoverage } from './render/coverage.js';
 
 /**
  * Rule execution status.
@@ -651,6 +652,9 @@ export interface AuditContext {
    * Absent without a render; a probe that failed is absent from the record.
    */
   probes?: Record<string, unknown>;
+
+  /** Script and stylesheet usage during the render; absent without one or on the desktop app */
+  coverage?: CodeCoverage;
 
   /**
    * The run's clock, in ms since the epoch: when the audit or crawl started.

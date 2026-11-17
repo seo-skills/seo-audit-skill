@@ -2,7 +2,7 @@
 
 > **Type:** Reference
 
-This is the catalog of every check SEOmator runs: **386 rules** across **20 categories**. For each rule it lists the ID, the name reports print, the rule's weight, the result it gives when it finds a problem, and what it checks. Rules that need more than one line also have a details entry below their category table. The rule IDs are the values that `[rules] enable` and `[rules] disable` in `seomator.toml` match.
+This is the catalog of every check SEOmator runs: **388 rules** across **20 categories**. For each rule it lists the ID, the name reports print, the rule's weight, the result it gives when it finds a problem, and what it checks. Rules that need more than one line also have a details entry below their category table. The rule IDs are the values that `[rules] enable` and `[rules] disable` in `seomator.toml` match.
 
 ## How to read this reference
 
@@ -228,7 +228,7 @@ Essential SEO checks for meta tags, canonical URLs, H1 headings, and indexing di
 
 <a id="perf"></a>
 
-### Performance (28 rules)
+### Performance (30 rules)
 
 Core Web Vitals measurements and static performance optimization hints.
 
@@ -251,6 +251,8 @@ Core Web Vitals measurements and static performance optimization hints.
 | `perf-cache-policy` | Cache Policy | 7 | warn | Checks the page response for caching headers (Cache-Control, ETag, Last-Modified, Expires); none at all warns |
 | `perf-minify-css` | Minify Inline CSS | 5 | warn | Checks inline CSS is minified; with render data, also flags large external stylesheets lacking a `.min.` URL marker (heuristic) |
 | `perf-minify-js` | Minify Inline JS | 5 | warn | Checks inline JavaScript is minified; with render data, also flags large external scripts lacking a `.min.` URL marker (heuristic) |
+| `perf-unused-js` | Unused JavaScript | 5 (advisory) | warn/fail | Needs `--cwv` (CLI and web; not the desktop app). JavaScript each file loads but does not run during load: a file wasting 20 KiB warns, 250 KiB in total fails; top ten listed, first- or third-party |
+| `perf-unused-css` | Unused CSS | 5 (advisory) | warn/fail | Needs `--cwv`. CSS no element on the page uses, by stylesheet, with the same thresholds |
 | `perf-asset-cache-policy` | Static Asset Cache Policy | 6 | warn | Per-asset check: static CSS/JS/image/font responses carry a cache-control max-age of at least 1 hour (requires render; not measured without --cwv) |
 | `perf-asset-compression` | Text Asset Compression | 6 | warn | Per-asset check: text-based assets over 2KB are served with gzip/Brotli (requires render; not measured without --cwv) |
 | `perf-image-encoding` | Efficient Image Encoding | 6 | warn/fail | Per-asset check: images transferred over 100KB (warn) or served in legacy BMP/TIFF formats (fail) (requires render; not measured without --cwv) |

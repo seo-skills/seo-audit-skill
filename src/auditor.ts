@@ -264,6 +264,9 @@ type OptionalAuditorKeys =
 type ResolvedAuditorOptions = Required<Omit<AuditorOptions, OptionalAuditorKeys>> &
   Pick<AuditorOptions, OptionalAuditorKeys>;
 
+/** Pages of a crawl scored at the same time */
+const PAGE_SCORING_CONCURRENCY = 4;
+
 /**
  * Main Auditor class for running SEO audits
  */
@@ -414,6 +417,8 @@ export class Auditor {
     context.sitemapIsIndex = sitemap.isIndex;
     context.sitemapDocuments = sitemap.documents;
     context.sitemapSkippedCount = sitemap.skippedSitemaps;
+    context.sitemapComplete = sitemap.complete;
+    context.sitemapGaps = sitemap.gaps;
   }
 
   /**
@@ -847,29 +852,32 @@ export class Auditor {
       categoryRuleResults.set(category.id, []);
     }
 
-    let pageNumber = 0;
-    for (const crawledPage of crawledPages) {
-      throwIfAborted(this.options.signal);
-      pageNumber++;
-
-      // Skip pages with errors
-      if (crawledPage.error) {
-        this.options.onPageComplete(crawledPage.url, pageNumber, crawledPages.length);
-        continue;
+    // Pages are scored a few at a time, so one page's slow requests do not
+    // hold up the rest; the run's URL service still bounds the requests.
+    // Results are merged in page order, so the outcome does not depend on
+    // which page finished first. `pageNumber` counts completions, so progress
+    // only moves forward.
+    const perPage: Array<CategoryResult[] | null> = new Array(crawledPages.length).fill(null);
+    let next = 0;
+    let completed = 0;
+    const worker = async () => {
+      while (next < crawledPages.length) {
+        const index = next++;
+        const crawledPage = crawledPages[index];
+        throwIfAborted(this.options.signal);
+        // Skip pages with errors
+        if (!crawledPage.error) perPage[index] = await this.runAllCategories(crawledPage.context);
+        completed++;
+        this.options.onPageComplete(crawledPage.url, completed, crawledPages.length);
       }
+    };
+    await Promise.all(Array.from({ length: Math.min(PAGE_SCORING_CONCURRENCY, crawledPages.length) }, worker));
 
-      // Run categories for this page
-      const pageResults = await this.runAllCategories(crawledPage.context);
-
-      // Merge results into aggregated map
-      for (const categoryResult of pageResults) {
-        const existing = categoryRuleResults.get(categoryResult.categoryId);
-        if (existing) {
-          existing.push(...categoryResult.results);
-        }
+    // Merge results into the aggregated map, in page order
+    for (const pageResults of perPage) {
+      for (const categoryResult of pageResults ?? []) {
+        categoryRuleResults.get(categoryResult.categoryId)?.push(...categoryResult.results);
       }
-
-      this.options.onPageComplete(crawledPage.url, pageNumber, crawledPages.length);
     }
 
     // Build final category results from aggregated data
@@ -919,48 +927,10 @@ export class Auditor {
         continue;
       }
 
-      const ruleResults: RuleResult[] = [];
-
-      // Run each rule
-      for (const rule of rules) {
-        try {
-          const result = await rule.run(context, this.optionsFor(rule));
-          // Inject ruleId, weight and page URL for consistent tracking.
-          // A result that set its own weight keeps it — that is how
-          // notMeasured() opts a result out of scoring with weight 0.
-          const resultWithMeta: RuleResult = {
-            ...result,
-            ruleId: rule.id,
-            weight: result.weight ?? rule.weight,
-            ...(rule.advisory && { advisory: true }),
-            details: {
-              ...result.details,
-              pageUrl: context.url,
-            },
-          };
-          ruleResults.push(resultWithMeta);
-          this.options.onRuleComplete(rule.id, rule.name, resultWithMeta);
-        } catch (error) {
-          // A cancelled run is not a rule failure: stop rather than scoring
-          // 332 rules as "execution failed".
-          rethrowIfAborted(error, this.options.signal);
-
-          // A check that crashed took no reading. Scoring it as a weighted
-          // fail blamed the site for the engine's bug, and let any thrown
-          // network or parse error drag the score down.
-          const errorResult: RuleResult = {
-            ...notMeasured(
-              rule.id,
-              `The check failed to run: ${error instanceof Error ? error.message : 'Unknown error'}`,
-              { pageUrl: context.url },
-              'rule-error'
-            ),
-            ...(rule.advisory && { advisory: true }),
-          };
-          ruleResults.push(errorResult);
-          this.options.onRuleComplete(rule.id, rule.name, errorResult);
-        }
-      }
+      // A category's rules run together: they read the context and never
+      // write it, and their requests share the run's limits. Results keep
+      // the rules' order whatever order they finish in.
+      const ruleResults = await Promise.all(rules.map((rule) => this.runRule(rule, context)));
 
       // Build category result
       const categoryResult = buildCategoryResult(category.id, ruleResults);
@@ -971,6 +941,47 @@ export class Auditor {
     }
 
     return results;
+  }
+
+  /** Run one rule on one page; a crash is a not-measured result, a cancel is thrown */
+  private async runRule(rule: AuditRule, context: AuditContext): Promise<RuleResult> {
+    try {
+      const result = await rule.run(context, this.optionsFor(rule));
+      // Inject ruleId, weight and page URL for consistent tracking.
+      // A result that set its own weight keeps it — that is how
+      // notMeasured() opts a result out of scoring with weight 0.
+      const resultWithMeta: RuleResult = {
+        ...result,
+        ruleId: rule.id,
+        weight: result.weight ?? rule.weight,
+        ...(rule.advisory && { advisory: true }),
+        details: {
+          ...result.details,
+          pageUrl: context.url,
+        },
+      };
+      this.options.onRuleComplete(rule.id, rule.name, resultWithMeta);
+      return resultWithMeta;
+    } catch (error) {
+      // A cancelled run is not a rule failure: stop rather than scoring
+      // 332 rules as "execution failed".
+      rethrowIfAborted(error, this.options.signal);
+
+      // A check that crashed took no reading. Scoring it as a weighted
+      // fail blamed the site for the engine's bug, and let any thrown
+      // network or parse error drag the score down.
+      const errorResult: RuleResult = {
+        ...notMeasured(
+          rule.id,
+          `The check failed to run: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          { pageUrl: context.url },
+          'rule-error'
+        ),
+        ...(rule.advisory && { advisory: true }),
+      };
+      this.options.onRuleComplete(rule.id, rule.name, errorResult);
+      return errorResult;
+    }
   }
 
   /** Effective options per rule, resolved once per run */

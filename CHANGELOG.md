@@ -136,6 +136,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   starts a product token (`SEOmator` still matches), the longest match wins,
   and `*` is the fallback. A crawl can reach pages a broad group blocked
   before.
+- **A crawl scores four pages at a time, and a category's rules run
+  together.** Rules that make requests no longer wait on each other, and the
+  run's request limits still apply. Results are merged in page order, so they
+  do not depend on which page finished first.
 - **Site-wide questions are asked once per run.** robots.txt, the sitemap,
   the made-up URL that tests the 404 page, the GEO well-known files, PDF sizes,
   redirect hops and internal link statuses were requested by every page's
@@ -211,6 +215,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gzip that expands without limit, can no longer exhaust memory.
 
 ### Fixed
+
+- **A page the site kept rate-limiting is not a sitemap error or a broken
+  hreflang target.** `crawl-sitemap-non-200` and `i18n-hreflang-to-broken`
+  read its 429 or 503 as an error; they now count it with the pages that could
+  not be fetched.
+- **Sitemap orphans are not cleared on a partial sitemap.** The sitemap loader
+  dropped, without a word, sitemaps it could not fetch or parse, URLs past
+  50,000 and sitemaps past its limits. It now records each, and
+  `crawl-sitemap-orphan-urls` reports not measured, instead of passing, when
+  part of the sitemap was not read. Orphans it does find are still reported.
 
 - **Sitemap orphans no longer depend on the order pages were audited.**
   `crawl-sitemap-orphan-urls` grew its list of linked URLs page by page, so

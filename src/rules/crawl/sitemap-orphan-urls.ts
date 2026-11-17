@@ -1,5 +1,6 @@
 import type { AuditContext, SiteContext } from '../../types.js';
 import { defineRule, pass, warn, notMeasured } from '../define-rule.js';
+import { describeSitemapGaps } from '../../crawler/sitemap.js';
 
 interface OrphanAnalysis {
   reachedCount: number;
@@ -67,23 +68,36 @@ export const sitemapOrphanUrlsRule = defineRule({
     }
 
     const { reachedCount, sitemapCount, orphanUrls } = analyse(context.site, sitemapUrls);
+    // A partial sitemap can still show real orphans; it cannot show there are none
+    const partial = context.sitemapComplete === false ? describeSitemapGaps(context.sitemapGaps ?? []) : '';
     const details = {
       crawledUrlCount: reachedCount,
       sitemapUrlCount: sitemapCount,
       orphanCount: orphanUrls.length,
       orphanUrls: orphanUrls.slice(0, 10),
+      ...(partial && { sitemapIncomplete: partial }),
     };
 
     if (orphanUrls.length > 0) {
       const orphanPercent = ((orphanUrls.length / sitemapCount) * 100).toFixed(1);
       return warn(
         'crawl-sitemap-orphan-urls',
-        `${orphanUrls.length} sitemap URL(s) (${orphanPercent}%) are not linked from any crawled page`,
+        `${orphanUrls.length} sitemap URL(s) (${orphanPercent}%) are not linked from any crawled page` +
+          (partial ? `; the sitemap was read in part (${partial}), so there may be more` : ''),
         {
           ...details,
           impact: 'Orphan pages lack internal links, reducing discoverability and crawl priority',
           recommendation: 'Add internal links to orphan pages or remove them from the sitemap if obsolete',
         }
+      );
+    }
+
+    if (partial) {
+      return notMeasured(
+        'crawl-sitemap-orphan-urls',
+        `The sitemap could not be read in full (${partial}), so it cannot be said that no sitemap URL is an orphan`,
+        details,
+        'could-not-verify'
       );
     }
 

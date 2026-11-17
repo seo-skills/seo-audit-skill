@@ -34,6 +34,16 @@ export function pageOutcome(info: Pick<SitePageInfo, 'statusCode'> & { rateLimit
 }
 
 /**
+ * A crawled page's HTTP status, when the crawl learned it. `null` for a page
+ * that timed out or that the site kept rate-limiting: its status says nothing
+ * about the page. Cross-page rules read status through this or
+ * `pageOutcome()`, never from `SitePageInfo.statusCode` (a test enforces it).
+ */
+export function pageStatus(info: Pick<SitePageInfo, 'statusCode'> & { rateLimited?: boolean }): number | null {
+  return pageOutcome(info) === 'unknown' ? null : info.statusCode;
+}
+
+/**
  * Whether a page takes part in duplicate comparisons, and why not.
  *
  * Mirrors what a search engine would index: a page that returned 200, is not

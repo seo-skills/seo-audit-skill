@@ -19,8 +19,10 @@ function html(path: string): string {
 <body><main><h1>Page ${path}</h1>${nav} <a href="/files/guide.pdf">Guide</a></main></body></html>`;
 }
 
-function serve() {
+function serve(mdDelay: (page: number) => number = () => 0) {
   const requests: string[] = [];
+  let mdInFlight = 0;
+  const mdPeak = { value: 0 };
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -32,11 +34,19 @@ function serve() {
         return new Response(method === 'HEAD' ? null : html(path), { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
       }
       if (path === '/robots.txt') return new Response('User-agent: *\nAllow: /\n', { status: 200, headers: { 'content-type': 'text/plain' } });
+      const md = path.match(/^\/p(\d+)\.md$/);
+      if (md) {
+        mdInFlight++;
+        mdPeak.value = Math.max(mdPeak.value, mdInFlight);
+        await new Promise((r) => setTimeout(r, mdDelay(Number(md[1]))));
+        mdInFlight--;
+        return new Response('Not found', { status: 404, headers: { 'content-type': 'text/html' } });
+      }
       if (path === '/files/guide.pdf') return new Response(null, { status: 200, headers: { 'content-type': 'application/pdf', 'content-length': '2048' } });
       return new Response('Not found', { status: 404, headers: { 'content-type': 'text/html' } });
     })
   );
-  return requests;
+  return Object.assign(requests, { mdPeak });
 }
 
 const dirs: string[] = [];
@@ -71,5 +81,22 @@ describe('site-wide questions are asked once per run', () => {
     // every page's rules share one more answer
     expect(count(/^GET \/robots\.txt$/)).toBeLessThanOrEqual(3);
     expect(count(/^GET \/sitemap\.xml$/)).toBeLessThanOrEqual(3);
+  });
+});
+
+describe('pages are scored a few at a time', () => {
+  const summary = (result: Awaited<ReturnType<Auditor['auditWithCrawl']>>) =>
+    result.categoryResults.map((c) => [c.categoryId, c.score, c.results.map((r) => `${r.ruleId}:${r.status}:${r.details?.['pageUrl']}`)]);
+
+  it('overlaps pages, and gives the same result whichever page finishes first', async () => {
+    const slowFirst = serve((page) => (PAGES - page) * 15);
+    const a = await new Auditor({ measureCwv: false, categories: ['geo', 'links'] }).auditWithCrawl(`${ORIGIN}/`, PAGES, 4);
+    expect(slowFirst.mdPeak.value).toBeGreaterThan(1);
+    vi.unstubAllGlobals();
+
+    serve((page) => page * 15);
+    const b = await new Auditor({ measureCwv: false, categories: ['geo', 'links'] }).auditWithCrawl(`${ORIGIN}/`, PAGES, 4);
+    expect(summary(b)).toEqual(summary(a));
+    expect(b.overallScore).toBe(a.overallScore);
   });
 });

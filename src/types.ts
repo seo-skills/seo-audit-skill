@@ -234,7 +234,26 @@ export interface SitemapFetchResult {
    * sitemaps" is detected. Omitted when nothing was fetched.
    */
   urlSources?: Map<string, string[]>;
+  /**
+   * Whether every sitemap the site declares was read in full. A rule that
+   * needs the whole inventory ("no sitemap URL is an orphan") must not pass
+   * on a partial one.
+   */
+  complete: boolean;
+  /** Why the inventory is partial; empty when complete */
+  gaps: SitemapGap[];
 }
+
+/** One reason a sitemap inventory is partial */
+export type SitemapGap =
+  /** A sitemap could not be fetched; `status` when the server answered */
+  | { kind: 'fetch-failed'; url: string; status?: number }
+  /** Fetched, but neither a urlset nor a sitemap index */
+  | { kind: 'invalid'; url: string }
+  /** More than 50,000 URLs: the rest were dropped */
+  | { kind: 'truncated'; limit: number }
+  /** Declared but never read, because a limit was reached first */
+  | { kind: 'unread'; url: string };
 
 /**
  * A cookie set by the server via a `Set-Cookie` response header.
@@ -573,6 +592,9 @@ export interface AuditContext {
   sitemapDocuments?: SitemapDocument[];
   /** Child sitemaps an index listed that were not fetched, because a limit was reached */
   sitemapSkippedCount?: number;
+  /** `false` when the sitemap inventory is partial; see `SitemapFetchResult.gaps` */
+  sitemapComplete?: boolean;
+  sitemapGaps?: SitemapGap[];
   /** Redirect chain followed to reach this page */
   redirectChain?: RedirectChainEntry[];
 

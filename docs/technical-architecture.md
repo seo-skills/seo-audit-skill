@@ -92,7 +92,7 @@ The desktop app renders pages in an Electron `BrowserWindow` (`electron/main/ele
 
 **Order of enrichment.** robots.txt is fetched before the sitemaps because it can name them: the sitemap module reads every `Sitemap:` line, follows sitemap indexes and decompresses gzipped files. A robots.txt that cannot be fetched is treated as absent rather than as a failure.
 
-**Running the rules.** Rules run one at a time, each receiving the page's `AuditContext`. The auditor adds the rule's weight and the page URL to each result. A rule that throws becomes a `fail` result with the message `Rule execution failed: ...`. That makes a broken rule visible in every report, at the cost of marking the site down for a bug in SEOmator. A category whose rules are all filtered out by `[rules]` is dropped from the result rather than scored 0, so a narrower audit is not reported as a disastrous one.
+**Running the rules.** Each receives the page's `AuditContext`. Categories run in order; the rules of one category run together, since rules read the context and never write it, and their results keep the rules' order. The auditor adds the rule's weight and the page URL to each result. A rule that throws becomes a `not-measured` result with reason `rule-error`: it took no reading, so it stays visible in every report without marking the site down for a bug in SEOmator. A category whose rules are all filtered out by `[rules]` is dropped from the result rather than scored 0, so a narrower audit is not reported as a disastrous one.
 
 ## The rule system
 
@@ -118,7 +118,7 @@ A rule is a plain object with a `run(context)` function. The context always carr
 
 **Trade-off: registration by import.** Adding a rule takes a file and one `registerRule()` call, and the registry becomes the single source of the rule count: the CLI's help text, the package's `getRuleCount()` and `npm run check:docs` all read it. The cost is that the coupling is invisible. A rule file that is never imported never runs, and no type error says so. All rules load at start-up through static imports, even for a `-c core` run; `loadAllRules()` is kept for API compatibility and does nothing. In exchange there is no module lookup at run time that could fail.
 
-**Cross-page questions** are answered from **the site graph** (`SiteContext`, built by the crawler after the crawl). It is complete and shared by reference with every page: inbound and outbound links, click depth, how each URL was discovered, and a per-page record of status, canonical, indexability and content fingerprints. Every page sees the whole site, so a verdict never depends on the order pages were audited in. Groups such as "pages with this title" and the near-duplicate analysis are computed once per site from it and memoised on the `SiteContext` (`src/site/groups.ts`). Rules hold no state of their own between pages; there is no registry to reset between audits.
+**Cross-page questions** are answered from **the site graph** (`SiteContext`, built by the crawler after the crawl). It is complete and shared by reference with every page: inbound and outbound links, click depth, how each URL was discovered, and a per-page record of status, canonical, indexability and content fingerprints. Every page sees the whole site, so a verdict never depends on the order pages were audited in. Groups such as "pages with this title" and the near-duplicate analysis are computed once per site from it and memoised on the `SiteContext` (`src/site/groups.ts`). Rules hold no state of their own between pages; there is no registry to reset between audits. A rule reads another page's status through `pageStatus()` or `pageOutcome()`, never `SitePageInfo.statusCode`: those fold a timed-out or rate-limited page into "unknown" so it is never read as broken, and a test fails on a direct read. A rule that needs the whole sitemap checks `sitemapComplete`: the loader records every sitemap it could not fetch or parse, the URLs past 50,000, and the sitemaps a limit kept it from reading.
 
 A single-page audit has no site graph, so `core-title-unique` and the other cross-page rules report not measured and point to `--crawl`.
 
@@ -231,7 +231,7 @@ With `--staging` the same crawl scored 86 and listed the cap under `waivedCaps`,
                       sources (entry, link, canonical, redirect, sitemap)
         |
         v
- auditPages()         every page through every rule, one page at a time
+ auditPages()         every page through every rule, four pages at a time, merged in page order
         |
         v
  category scores over every rule-page result -> overall -> start-page caps

@@ -196,7 +196,7 @@ describe('markSitemapDiscoverySources', () => {
   }
 
   function makeSitemap(urls: string[]): SitemapFetchResult {
-    return { urls, entries: [], sources: [], isIndex: false, skippedSitemaps: 0, documents: [] };
+    return { urls, entries: [], sources: [], isIndex: false, skippedSitemaps: 0, documents: [], complete: true, gaps: [] };
   }
 
   it('marks every sitemap URL as sitemap-discovered', () => {

@@ -8,6 +8,8 @@ import { duplicateExactRule } from '../rules/content/duplicate-exact.js';
 import { duplicateNearRule } from '../rules/content/duplicate-near.js';
 import { duplicateH1Rule } from '../rules/content/duplicate-h1.js';
 import { sitemapOrphanUrlsRule } from '../rules/crawl/sitemap-orphan-urls.js';
+import { sitemapNon200Rule } from '../rules/crawl/sitemap-non-200.js';
+import { hreflangToBrokenRule } from '../rules/i18n/hreflang-to-broken.js';
 import { findNearDuplicates, jaccardSorted, shingleText } from './near-duplicates.js';
 import { canonicalFromLinkHeader, isNoindex, isPaginatedPage, readCanonical } from '../indexability.js';
 
@@ -81,6 +83,60 @@ describe('sitemap orphans are judged over the whole crawl', () => {
         expect(result.details?.orphanUrls).toEqual(['https://example.com/c']);
       }
     }
+  });
+});
+
+describe('sitemap orphans on a partial sitemap', () => {
+  const pages: TestPage[] = [
+    { url: 'https://example.com/a', html: '<html><head><title>t</title></head><body><a href="/b">b</a></body></html>' },
+    { url: 'https://example.com/b', html: '<html><head><title>t</title></head><body><a href="/a">a</a></body></html>' },
+  ];
+  const partial = (context: import('../types.js').AuditContext, sitemapUrls: string[]) => {
+    context.sitemapUrls = sitemapUrls;
+    context.sitemapComplete = false;
+    context.sitemapGaps = [{ kind: 'fetch-failed', url: 'https://example.com/b.xml', status: 503 }];
+  };
+
+  it('still reports the orphans it found, and says there may be more', async () => {
+    const { contexts } = await createTestSite(pages);
+    const context = contexts.get('https://example.com/a')!;
+    partial(context, ['https://example.com/a', 'https://example.com/lost']);
+    const result = await sitemapOrphanUrlsRule.run(context);
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('1 sitemap could not be fetched');
+  });
+
+  it('does not claim there are no orphans', async () => {
+    const { contexts } = await createTestSite(pages);
+    const context = contexts.get('https://example.com/a')!;
+    partial(context, ['https://example.com/a', 'https://example.com/b']);
+    const result = await sitemapOrphanUrlsRule.run(context);
+    expect(result).toMatchObject({ status: 'not-measured', reason: 'could-not-verify' });
+  });
+});
+
+describe('a page the site kept rate-limiting is unknown, not broken', () => {
+  it('is not a sitemap error or a broken hreflang target', async () => {
+    const { site, contexts } = await createTestSite([
+      {
+        url: 'https://example.com/',
+        html: '<html><head><title>t</title><link rel="alternate" hreflang="de" href="https://example.com/de"></head><body></body></html>',
+      },
+      { url: 'https://example.com/busy', html: '<html></html>', statusCode: 503 },
+      { url: 'https://example.com/de', html: '<html></html>', statusCode: 429 },
+    ]);
+    site.pages!.get('https://example.com/busy')!.rateLimited = true;
+    site.pages!.get('https://example.com/de')!.rateLimited = true;
+    const home = contexts.get('https://example.com/')!;
+    home.sitemapUrls = ['https://example.com/', 'https://example.com/busy'];
+
+    const sitemap = await sitemapNon200Rule.run(home);
+    expect(sitemap.details).toMatchObject({ serverErrorCount: 0, clientErrorCount: 0, timedOutCount: 1 });
+    expect(sitemap.status).not.toBe('fail');
+
+    const hreflang = await hreflangToBrokenRule.run(home);
+    expect(hreflang.status).toBe('warn');
+    expect(hreflang.details).toMatchObject({ timeoutCount: 1 });
   });
 });
 

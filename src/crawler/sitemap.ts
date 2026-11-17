@@ -1,7 +1,7 @@
 import { gunzipSync } from 'node:zlib';
 import { getUserAgent } from './user-agent.js';
 import { rethrowIfAborted, throwIfAborted } from '../errors.js';
-import type { SitemapDocument, SitemapEntry, SitemapFetchResult } from '../types.js';
+import type { SitemapDocument, SitemapEntry, SitemapFetchResult, SitemapGap } from '../types.js';
 import { netFetch, readBodyCapped } from '../net/fetch.js';
 
 /**
@@ -35,7 +35,7 @@ const MAX_SITEMAP_BYTES = 50 * 1024 * 1024;
  * served as `application/gzip` is a gzip *payload*, not a gzip encoding, and
  * arrives compressed.
  */
-async function fetchSitemapDocument(url: string, signal?: AbortSignal): Promise<string | null> {
+async function fetchSitemapDocument(url: string, signal?: AbortSignal): Promise<{ xml: string } | { status?: number }> {
   throwIfAborted(signal);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -44,22 +44,25 @@ async function fetchSitemapDocument(url: string, signal?: AbortSignal): Promise<
       signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
       headers: { 'User-Agent': getUserAgent() },
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => {});
+      return { status: response.status };
+    }
 
     // Capped while reading and while decompressing: the sitemap protocol
     // allows 50 MB uncompressed, and a small gzip can expand far past that.
     const bytes = await readBodyCapped(response, MAX_SITEMAP_BYTES);
     if (isGzip(bytes)) {
       try {
-        return gunzipSync(bytes, { maxOutputLength: MAX_SITEMAP_BYTES }).toString('utf8');
+        return { xml: gunzipSync(bytes, { maxOutputLength: MAX_SITEMAP_BYTES }).toString('utf8') };
       } catch {
-        return null;
+        return {};
       }
     }
-    return new TextDecoder('utf-8').decode(bytes);
+    return { xml: new TextDecoder('utf-8').decode(bytes) };
   } catch (error) {
     rethrowIfAborted(error, signal);
-    return null;
+    return {};
   } finally {
     clearTimeout(timeoutId);
   }
@@ -181,6 +184,8 @@ export async function fetchSitemap(
     isIndex: false,
     skippedSitemaps: 0,
     documents: [],
+    complete: false,
+    gaps: [],
   };
 
   let origin: string;
@@ -204,8 +209,26 @@ export async function fetchSitemap(
   let sawIndex = false;
   let skippedSitemaps = 0;
   let childBudget = MAX_CHILD_SITEMAPS;
+  const gaps: SitemapGap[] = [];
+  let truncated = false;
+
+  /** The document's XML, or null with the reason recorded */
+  const read = async (url: string): Promise<string | null> => {
+    const fetched = await fetchSitemapDocument(url, signal);
+    if (!('xml' in fetched)) {
+      gaps.push({ kind: 'fetch-failed', url, ...(fetched.status !== undefined && { status: fetched.status }) });
+      return null;
+    }
+    return fetched.xml;
+  };
 
   const collectEntries = (documentUrl: string, xml: string): void => {
+    // An HTML page or an error body at the sitemap's URL lists nothing, and
+    // says nothing about what the real sitemap would have listed
+    if (!/<urlset[\s>]/i.test(xml)) {
+      gaps.push({ kind: 'invalid', url: documentUrl });
+      return;
+    }
     const parsed = parseSitemapEntries(xml);
     documents.push({
       url: documentUrl,
@@ -226,11 +249,16 @@ export async function fetchSitemap(
     }
   };
 
-  for (const start of startingPoints) {
+  for (const [index, start] of startingPoints.entries()) {
     if (seen.has(start)) continue;
+    // Roots the URL cap stopped us reaching
+    if (entries.length >= MAX_URLS) {
+      for (const unread of startingPoints.slice(index)) if (!seen.has(unread)) gaps.push({ kind: 'unread', url: unread });
+      break;
+    }
     seen.add(start);
 
-    const xml = await fetchSitemapDocument(start, signal);
+    const xml = await read(start);
     if (xml === null) continue;
 
     sources.push(start);
@@ -241,15 +269,16 @@ export async function fetchSitemap(
       documents.push({ url: start, urlCount: 0, bytes: Buffer.byteLength(xml, 'utf8'), isIndex: true });
       const children = parseSitemapIndex(xml);
       for (const child of children) {
+        if (seen.has(child)) continue;
         if (childBudget <= 0 || entries.length >= MAX_URLS) {
           skippedSitemaps++;
+          gaps.push({ kind: 'unread', url: child });
           continue;
         }
-        if (seen.has(child)) continue;
         seen.add(child);
         childBudget--;
 
-        const childXml = await fetchSitemapDocument(child, signal);
+        const childXml = await read(child);
         if (childXml === null) continue;
         sources.push(child);
         collectEntries(child, childXml);
@@ -258,9 +287,13 @@ export async function fetchSitemap(
       collectEntries(start, xml);
     }
 
-    if (entries.length >= MAX_URLS) break;
   }
 
+  // Counted across every document, a single oversized urlset included
+  if (entries.length > MAX_URLS) {
+    truncated = true;
+    gaps.push({ kind: 'truncated', limit: MAX_URLS });
+  }
   const capped = entries.slice(0, MAX_URLS);
   const urlSources = new Map<string, string[]>();
   for (const entry of capped) {
@@ -278,5 +311,21 @@ export async function fetchSitemap(
     // Omitted when nothing was fetched, so "unknown" stays distinguishable
     // from "fetched, and no URL is listed twice".
     ...(sources.length > 0 && { urlSources }),
+    // Nothing read at all is not a complete inventory either
+    complete: gaps.length === 0 && sources.length > 0 && !truncated,
+    gaps,
   };
+}
+
+/** Why a sitemap inventory is partial, in one line a finding can show */
+export function describeSitemapGaps(gaps: SitemapGap[]): string {
+  const count = (kind: SitemapGap['kind']) => gaps.filter((gap) => gap.kind === kind).length;
+  const sitemaps = (n: number) => `${n} sitemap${n === 1 ? '' : 's'}`;
+  const parts = [
+    count('fetch-failed') > 0 ? `${sitemaps(count('fetch-failed'))} could not be fetched` : '',
+    count('invalid') > 0 ? `${sitemaps(count('invalid'))} could not be parsed` : '',
+    count('unread') > 0 ? `${sitemaps(count('unread'))} were not read (limit reached)` : '',
+    count('truncated') > 0 ? 'URLs past 50,000 were dropped' : '',
+  ];
+  return parts.filter(Boolean).join(', ');
 }

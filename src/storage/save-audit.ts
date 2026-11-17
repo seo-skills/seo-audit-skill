@@ -166,9 +166,13 @@ export function saveAuditToDatabase(result: AuditResult, options: SaveAuditOptio
         message: ruleResult.message,
         weight: ruleResult.weight ?? 1,
         ...(ruleResult.details && { details: ruleResult.details }),
+        ...(ruleResult.reason && { reason: ruleResult.reason }),
+        ...(ruleResult.advisory && { advisory: true }),
       });
     }
   }
+
+  const extras = buildStoredExtras(result);
 
   // The engine records how it measured (scoring version, rule filters) on the
   // result; callers add what they know, such as the configured page limit.
@@ -185,6 +189,7 @@ export function saveAuditToDatabase(result: AuditResult, options: SaveAuditOptio
       source: options.source ?? 'cli',
       engineVersion: getVersion(),
       ...(run && { run }),
+      ...(extras && { extras }),
       ...(options.projectName && { projectName: options.projectName }),
       ...(options.config && { config: options.config }),
     });
@@ -210,4 +215,40 @@ export function saveAuditToDatabase(result: AuditResult, options: SaveAuditOptio
   });
 
   return withBusyRetry(() => write(), options.retry);
+}
+
+/** Most bytes one extras section may take; a larger one is stored as a marker */
+export const MAX_EXTRAS_SECTION_BYTES = 1024 * 1024;
+
+/**
+ * The run-level data stored beside an audit's results.
+ *
+ * The score cap and the staging waivers used to be lost on save, so history,
+ * `seomator report` and the dashboard showed a capped score with no reason.
+ * Each section is capped: one oversized section is stored as
+ * `{ truncated: true, bytes }` instead of pushing the row past what a detail
+ * view should read whole.
+ */
+export function buildStoredExtras(result: AuditResult): Record<string, unknown> | undefined {
+  const sections: Record<string, unknown> = {};
+  if (result.scoreCap) sections['scoreCap'] = result.scoreCap;
+  if (result.waivedCaps) sections['waivedCaps'] = result.waivedCaps;
+
+  const overrides: Record<string, unknown> = {};
+  for (const category of result.categoryResults) {
+    for (const ruleResult of category.results) {
+      if (ruleResult.overridden) overrides[ruleResult.ruleId] = ruleResult.overridden;
+    }
+  }
+  if (Object.keys(overrides).length > 0) sections['overrides'] = overrides;
+
+  for (const [key, value] of Object.entries(result.extras ?? {})) {
+    if (value !== undefined && !(key in sections)) sections[key] = value;
+  }
+
+  for (const [key, value] of Object.entries(sections)) {
+    const bytes = Buffer.byteLength(JSON.stringify(value), 'utf8');
+    if (bytes > MAX_EXTRAS_SECTION_BYTES) sections[key] = { truncated: true, bytes };
+  }
+  return Object.keys(sections).length > 0 ? sections : undefined;
 }

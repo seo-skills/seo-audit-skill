@@ -301,6 +301,8 @@ export interface DbAudit {
   engine_version: string | null;
   /** NULL on rows written before 3.4.0 */
   run_json: string | null;
+  /** NULL on rows written before 8.0.0, and when the run had nothing to store */
+  extras_json?: string | null;
 }
 
 /**
@@ -329,6 +331,12 @@ export interface HydratedAudit {
   engineVersion: string | null;
   /** null for audits stored before 3.4.0 */
   run: AuditRunOptions | null;
+  /**
+   * Run-level data stored with the audit (caps, override marks, crawl-wide
+   * sections). Null when none was stored, or when the stored value could not
+   * be read.
+   */
+  extras: Record<string, unknown> | null;
 }
 
 /**
@@ -461,6 +469,10 @@ export interface StoredRuleSummary {
   notMeasured: boolean;
   /** Up to five pages, worst first */
   samplePages: Array<{ pageUrl: string; status: RuleResultStatus; message: string }>;
+  /** From an advisory rule: reported, not counted in the score */
+  advisory: boolean;
+  /** Why the rule took no reading, when it measured nothing; null when unrecorded */
+  reason: string | null;
 }
 
 /**
@@ -678,6 +690,8 @@ export interface CreateAuditInput {
   source?: AuditSource;
   engineVersion?: string;
   run?: AuditRunOptions;
+  /** Run-level data: caps, override marks and crawl-wide sections */
+  extras?: Record<string, unknown>;
 }
 
 /**
@@ -707,6 +721,10 @@ export interface InsertResultInput {
   details?: Record<string, unknown>;
   /** Defaults to 1; pass 0 for a not-measured result */
   weight?: number;
+  /** Why a not-measured result took no reading */
+  reason?: string;
+  /** From an advisory rule */
+  advisory?: boolean;
 }
 
 /**

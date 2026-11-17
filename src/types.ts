@@ -972,6 +972,23 @@ export interface AuditResult {
    * findings, such as a clamped argument. Also printed to stderr.
    */
   warnings?: string[];
+  /**
+   * Run-level data beyond the per-rule results, kept with a stored audit:
+   * the `[rules.override]` marks, and the crawl-wide sections later steps
+   * add. Null on an audit whose stored extras could not be read.
+   */
+  extras?: AuditExtras | null;
+}
+
+/**
+ * Run-level data stored with an audit. Each section is optional; an audit
+ * stored before a section existed simply lacks it.
+ */
+export interface AuditExtras {
+  /** `[rules.override]` marks by rule id, so a stored audit shows them */
+  overrides?: Record<string, RuleOverrideMark>;
+  /** A section that exceeded its size cap, replaced by this marker */
+  [section: string]: unknown;
 }
 
 /**

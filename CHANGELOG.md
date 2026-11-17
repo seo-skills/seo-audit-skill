@@ -149,6 +149,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A stored audit keeps its score cap.** The `audits` table kept the run
+  options but not the cap, so history, `seomator report` and the dashboard
+  showed a capped score with no reason, which is the confusion the cap was
+  added to prevent. The cap, the caps a staging audit waived, and the
+  `[rules.override]` marks are now stored in a new `extras_json` column and
+  come back with the audit. Each result also keeps its not-measured `reason`
+  and `advisory` flag. A stored value that cannot be read loads as empty, with
+  a line on stderr naming the audit, and the rest of the audit is intact.
 - **`audit` reads `[crawler] max_pages`, `concurrency` and `timeout_ms` from
   `seomator.toml`.** It passed the defaults of `-m`, `--concurrency` and
   `--timeout` to the config loader as overrides, so the file's values never

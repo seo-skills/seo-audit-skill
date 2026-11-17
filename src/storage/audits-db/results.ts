@@ -197,8 +197,9 @@ export function insertResult(
       `
     INSERT INTO audit_results (
       audit_id, category_id, rule_id, rule_name,
-      page_url, page_url_hash, status, score, message, details_json, weight
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      page_url, page_url_hash, status, score, message, details_json, weight,
+      reason, advisory
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING *
   `
     )
@@ -213,7 +214,9 @@ export function insertResult(
       input.score,
       input.message,
       input.details ? JSON.stringify(input.details) : null,
-      input.weight ?? 1
+      input.weight ?? 1,
+      input.reason ?? null,
+      input.advisory ? 1 : null
     ) as DbAuditResult;
 
   return hydrateResult(result);
@@ -237,8 +240,9 @@ export function insertResults(
   const stmt = db.prepare(`
     INSERT INTO audit_results (
       audit_id, category_id, rule_id, rule_name,
-      page_url, page_url_hash, status, score, message, details_json, weight
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      page_url, page_url_hash, status, score, message, details_json, weight,
+      reason, advisory
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertAll = db.transaction((inputs: InsertResultInput[]) => {
@@ -256,7 +260,9 @@ export function insertResults(
         input.score,
         input.message,
         input.details ? JSON.stringify(input.details) : null,
-        input.weight ?? 1
+        input.weight ?? 1,
+        input.reason ?? null,
+        input.advisory ? 1 : null
       );
       count++;
     }
@@ -378,6 +384,8 @@ export function getRuleSummaries(db: Database.Database, auditId: number): Stored
       COUNT(*) AS total_pages,
       SUM(CASE WHEN ${NOT_MEASURED_SQL} THEN 0 ELSE 1 END) AS measured_pages,
       SUM(CASE WHEN NOT ${NOT_MEASURED_SQL} AND status <> 'pass' THEN 1 ELSE 0 END) AS affected_pages,
+      MAX(COALESCE(advisory, 0)) AS advisory,
+      MAX(CASE WHEN ${NOT_MEASURED_SQL} THEN reason END) AS reason,
       MIN(id) AS first_id
     FROM audit_results
     WHERE audit_id = ?
@@ -392,6 +400,8 @@ export function getRuleSummaries(db: Database.Database, auditId: number): Stored
     total_pages: number;
     measured_pages: number;
     affected_pages: number;
+    advisory: number;
+    reason: string | null;
   }>;
 
   const samples = db
@@ -440,6 +450,8 @@ export function getRuleSummaries(db: Database.Database, auditId: number): Stored
       measuredPages: row.measured_pages,
       affectedPages: row.affected_pages,
       notMeasured,
+      advisory: row.advisory === 1,
+      reason: row.reason,
       samplePages: ruleSamples.map((s) => ({
         pageUrl: s.page_url,
         status: s.status,

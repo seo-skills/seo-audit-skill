@@ -122,6 +122,8 @@ export function getAuditDetail(db: AuditsDatabase, auditId: string): AuditDetail
       affectedPages: s.affectedPages,
       notMeasured: s.notMeasured,
       samplePages: s.samplePages,
+      ...(s.advisory && { advisory: true }),
+      ...(s.notMeasured && s.reason && { reason: s.reason as RuleSummary['reason'] }),
     };
     const list = byCategory.get(s.categoryId);
     if (list) list.push(entry);
@@ -154,6 +156,29 @@ export function getAuditDetail(db: AuditsDatabase, auditId: string): AuditDetail
   // support instead of a per-page filter that only sees sampled pages.
   const pages = db.getAuditPages(audit.id);
 
+  // Caps and waivers come back from the stored extras, so a capped score is
+  // never shown without its reason. Override marks go back on the results.
+  const extras = audit.extras;
+  const overrides = (extras?.['overrides'] ?? {}) as Record<string, RuleSummary['overridden']>;
+  for (const category of categoryResults) {
+    for (const entry of category.results) {
+      const mark = overrides[entry.ruleId];
+      if (!mark) continue;
+      entry.overridden = mark;
+      const summary = entry as RuleSummary;
+      if (mark.priority) {
+        summary.priority = rulePriority({
+          ruleId: summary.ruleId,
+          categoryId: category.categoryId,
+          status: summary.notMeasured ? 'not-measured' : summary.status,
+          affectedPages: summary.affectedPages,
+          measuredPages: summary.measuredPages,
+          override: mark.priority,
+        });
+      }
+    }
+  }
+
   const result: AuditResult = {
     url: audit.startUrl,
     overallScore: audit.overallScore,
@@ -161,6 +186,9 @@ export function getAuditDetail(db: AuditsDatabase, auditId: string): AuditDetail
     timestamp: audit.startedAt.toISOString(),
     crawledPages: audit.pagesAudited,
     coverage: { pages, detail: 'aggregated' },
+    ...(isCap(extras?.['scoreCap']) && { scoreCap: extras!['scoreCap'] as AuditResult['scoreCap'] }),
+    ...(Array.isArray(extras?.['waivedCaps']) && { waivedCaps: extras!['waivedCaps'] as AuditResult['waivedCaps'] }),
+    ...(extras && { extras }),
   };
 
   return {
@@ -326,4 +354,14 @@ export function compareStored(
     engineChanged: comparison.engineChanged,
     rules: diffRules(db.getAllResults(previous.id), db.getAllResults(current.id)),
   };
+}
+
+/** A stored score cap that has the shape the reporters render */
+function isCap(value: unknown): boolean {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as { uncappedScore?: unknown }).uncappedScore === 'number' &&
+    Array.isArray((value as { caps?: unknown }).caps)
+  );
 }

@@ -4,7 +4,8 @@ import type { AuditContext, SiteContext } from '../../types.js';
 import { canonicalHeaderRule } from './canonical-header.js';
 import { nosnippetRule } from './nosnippet.js';
 import { robotsMetaRule } from './robots-meta.js';
-import { titleUniqueRule, resetTitleRegistry, getTitleRegistryStats } from './title-unique.js';
+import { titleUniqueRule } from './title-unique.js';
+import { createTestSite } from '../test-context.js';
 import { canonicalOutsideHeadRule } from './canonical-outside-head.js';
 import { canonicalAttributesRule } from './canonical-attributes.js';
 import { canonicalMultipleRule } from './canonical-multiple.js';
@@ -204,82 +205,81 @@ describe('Core SEO Rules', () => {
   });
 
   describe('titleUniqueRule', () => {
-    // core-title-unique compares pages, so it only measures inside a crawl.
-    const crawlContext = (...args: Parameters<typeof createContext>): AuditContext => ({
-      ...createContext(...args),
-      site: { pageCount: 2, normalize: (url: string) => url } as unknown as SiteContext,
-    });
-    beforeEach(() => {
-      resetTitleRegistry();
-    });
+    // core-title-unique compares pages, so it reads a whole crawl.
+    const titled = (title: string, head = '') => `<html><head><title>${title}</title>${head}</head><body></body></html>`;
+    const statusOf = async (pages: Array<{ url: string; html: string }>, url: string) => {
+      const { contexts } = await createTestSite(pages);
+      return titleUniqueRule.run(contexts.get(url)!);
+    };
 
     it('should fail when page has no title', async () => {
-      const html = '<html><head></head></html>';
-      const context = crawlContext(html);
-      const result = await titleUniqueRule.run(context);
+      const result = await statusOf([{ url: 'https://example.com/', html: '<html><head></head></html>' }], 'https://example.com/');
       expect(result.status).toBe('fail');
       expect(result.message).toContain('no title tag');
     });
 
-    it('should pass for first occurrence of a title', async () => {
-      const html = '<html><head><title>Unique Page Title</title></head></html>';
-      const context = crawlContext(html, {}, 'https://example.com/page1');
-      const result = await titleUniqueRule.run(context);
+    it('should pass for a unique title', async () => {
+      const result = await statusOf(
+        [
+          { url: 'https://example.com/page1', html: titled('Unique Page Title') },
+          { url: 'https://example.com/page2', html: titled('Another Title') },
+        ],
+        'https://example.com/page1'
+      );
       expect(result.status).toBe('pass');
       expect(result.message).toContain('unique');
     });
 
-    it('should warn for duplicate titles', async () => {
-      const html1 = '<html><head><title>Same Title</title></head></html>';
-      const html2 = '<html><head><title>Same Title</title></head></html>';
-
-      const context1 = crawlContext(html1, {}, 'https://example.com/page1');
-      const context2 = crawlContext(html2, {}, 'https://example.com/page2');
-
-      await titleUniqueRule.run(context1);
-      const result = await titleUniqueRule.run(context2);
-
-      expect(result.status).toBe('warn');
-      expect(result.message).toContain('Duplicate title');
-      expect(result.details?.duplicateUrls).toContain('https://example.com/page1');
-      expect(result.details?.duplicateUrls).toContain('https://example.com/page2');
+    it('flags every page in a duplicate group, the first one included', async () => {
+      const pages = [
+        { url: 'https://example.com/page1', html: titled('Same Title') },
+        { url: 'https://example.com/page2', html: titled('Same Title') },
+      ];
+      const first = await statusOf(pages, 'https://example.com/page1');
+      const second = await statusOf(pages, 'https://example.com/page2');
+      expect(first.status).toBe('warn');
+      expect(second.status).toBe('warn');
+      expect(second.message).toContain('Duplicate title');
+      expect(second.details?.duplicateUrls).toEqual(['https://example.com/page1']);
     });
 
     it('should detect duplicates with different case', async () => {
-      const html1 = '<html><head><title>Same Title</title></head></html>';
-      const html2 = '<html><head><title>SAME TITLE</title></head></html>';
-
-      const context1 = crawlContext(html1, {}, 'https://example.com/page1');
-      const context2 = crawlContext(html2, {}, 'https://example.com/page2');
-
-      await titleUniqueRule.run(context1);
-      const result = await titleUniqueRule.run(context2);
-
+      const result = await statusOf(
+        [
+          { url: 'https://example.com/page1', html: titled('Same Title') },
+          { url: 'https://example.com/page2', html: titled('SAME TITLE') },
+        ],
+        'https://example.com/page1'
+      );
       expect(result.status).toBe('warn');
     });
 
-    it('should track registry stats correctly', async () => {
-      const html1 = '<html><head><title>Title A</title></head></html>';
-      const html2 = '<html><head><title>Title B</title></head></html>';
-      const html3 = '<html><head><title>Title A</title></head></html>'; // Duplicate
-
-      await titleUniqueRule.run(crawlContext(html1, {}, 'https://example.com/1'));
-      await titleUniqueRule.run(crawlContext(html2, {}, 'https://example.com/2'));
-      await titleUniqueRule.run(crawlContext(html3, {}, 'https://example.com/3'));
-
-      const stats = getTitleRegistryStats();
-      expect(stats.totalTitles).toBe(2);
-      expect(stats.duplicateGroups).toBe(1);
+    it('does not compare a later page of a paginated archive', async () => {
+      const result = await statusOf(
+        [
+          { url: 'https://example.com/blog', html: titled('Blog') },
+          { url: 'https://example.com/blog/page/2', html: titled('Blog') },
+        ],
+        'https://example.com/blog'
+      );
+      expect(result.status).toBe('pass');
     });
 
-    it('should reset registry between audits', async () => {
-      const html = '<html><head><title>Test Title</title></head></html>';
+    it('does not compare a variant canonicalised to the base URL', async () => {
+      const pages = [
+        { url: 'https://example.com/shirt', html: titled('Shirt') },
+        { url: 'https://example.com/shirt?color=red', html: titled('Shirt', '<link rel="canonical" href="https://example.com/shirt">') },
+      ];
+      expect((await statusOf(pages, 'https://example.com/shirt')).status).toBe('pass');
+      const variant = await statusOf(pages, 'https://example.com/shirt?color=red');
+      expect(variant.status).toBe('not-measured');
+      expect(variant.reason).toBe('not-compared');
+    });
 
-      await titleUniqueRule.run(crawlContext(html, {}, 'https://example.com/1'));
-      resetTitleRegistry();
-
-      const result = await titleUniqueRule.run(crawlContext(html, {}, 'https://example.com/2'));
-      expect(result.status).toBe('pass'); // No duplicate after reset
+    it('is not measured outside a crawl', async () => {
+      const result = await titleUniqueRule.run(createContext(titled('Alone')));
+      expect(result.status).toBe('not-measured');
+      expect(result.reason).toBe('not-applicable');
     });
   });
 

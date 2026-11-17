@@ -10,6 +10,10 @@ import { RobotsMatcher } from './robots.js';
 import { getUserAgent } from './user-agent.js';
 import { DOCUMENT_TITLE } from '../rules/document-title.js';
 import { netFetch, readTextCapped, MAX_PAGE_BYTES } from '../net/fetch.js';
+import { createHash } from 'node:crypto';
+import { isNoindex, isNofollow, isPaginatedPage, readCanonical } from '../indexability.js';
+import { shingleText } from '../site/near-duplicates.js';
+import { bodyText as visibleBodyText } from '../rules/content/utils/visible-text.js';
 
 /**
  * Progress callback for reporting crawl status
@@ -114,21 +118,6 @@ export interface CrawledPage {
   context: AuditContext;
   /** Any error that occurred */
   error?: string;
-}
-
-/**
- * Split a robots directive string (meta content or X-Robots-Tag value) into
- * lowercase tokens.
- *
- * A copy of the parser in `src/rules/core/robots-meta.ts`, kept local because
- * the layering runs rules → crawler, never the reverse.
- */
-function parseRobotsDirectiveTokens(content: string): string[] {
-  return content
-    .toLowerCase()
-    .split(/[,\s]+/)
-    .map((d) => d.trim())
-    .filter((d) => d.length > 0);
 }
 
 /**
@@ -492,72 +481,11 @@ export class Crawler {
     };
   }
 
-  /**
-   * Distil one crawled page into its SitePageInfo record.
-   *
-   * Parses only what is already in memory (`context.$`, headers) — no new
-   * fetches. Errored pages carry an empty context, so parsing them yields the
-   * defaults with `statusCode: 0`.
-   */
+  /** One crawled page's record, with this crawl's robots.txt answer */
   private buildPageInfo(page: CrawledPage): SitePageInfo {
-    const { $, headers, statusCode } = page.context;
-
-    const info: SitePageInfo = {
-      statusCode,
-      noindex: false,
-      nofollow: false,
-      // Best-effort: the matcher exists only when respectRobots is on and
-      // robots.txt was reachable, so "unknown" is reported as false.
-      disallowed: this.robots ? !this.robots.isAllowed(page.url) : false,
-      hreflangOut: {},
-    };
-
-    const canonicalHref = $('link[rel="canonical"]').first().attr('href');
-    if (canonicalHref !== undefined) {
-      try {
-        info.canonical = new URL(canonicalHref, page.url).href;
-      } catch {
-        info.canonical = null;
-      }
-    }
-
-    const directives: string[] = [];
-    $('meta[name="robots"]').each((_, el) => {
-      directives.push(...parseRobotsDirectiveTokens($(el).attr('content') ?? ''));
-    });
-    const xRobotsTag = headers['x-robots-tag'];
-    if (xRobotsTag) {
-      directives.push(...parseRobotsDirectiveTokens(xRobotsTag));
-    }
-    info.noindex = directives.includes('noindex') || directives.includes('none');
-    info.nofollow = directives.includes('nofollow') || directives.includes('none');
-
-    $('link[rel="alternate"][hreflang]').each((_, el) => {
-      const code = $(el).attr('hreflang')?.trim();
-      const href = $(el).attr('href');
-      if (!code || !href) return;
-      try {
-        info.hreflangOut[code] = new URL(href, page.url).href;
-      } catch {
-        // An unresolvable hreflang target is a per-page finding, not recorded here.
-      }
-    });
-
-    const h1 = $('h1').first().text().trim();
-    if (h1) info.h1 = h1;
-
-    const title = $(DOCUMENT_TITLE).first().text().replace(/\s+/g, ' ').trim();
-    if (title) info.title = title;
-    info.wordCount = countWords(extractMainContent($));
-
-    const schemaNodes = summarizeSchemaNodes($);
-    info.pageKind = pageKindFrom(
-      schemaNodes.flatMap((node) => node.types),
-      page.url
-    );
-    if (schemaNodes.length > 0) info.schemaNodes = schemaNodes;
-
-    return info;
+    // Best-effort: the matcher exists only when respectRobots is on and
+    // robots.txt was reachable, so "unknown" is reported as false.
+    return buildSitePageInfo(page, this.robots ? !this.robots.isAllowed(page.url) : false);
   }
 
   /**
@@ -826,6 +754,78 @@ export class Crawler {
     const wait = nextAllowed - now;
     if (wait > 0) await this.sleep(wait);
   }
+}
+
+/**
+ * Distil one crawled page into its SitePageInfo record.
+ *
+ * Exported so a stored crawl or a test can build the same records the
+ * crawler does.
+ *
+ * Parses only what is already in memory (`context.$`, headers) — no new
+ * fetches. Errored pages carry an empty context, so parsing them yields the
+ * defaults with `statusCode: 0`.
+ */
+export function buildSitePageInfo(page: Pick<CrawledPage, 'url' | 'context'>, disallowed: boolean): SitePageInfo {
+  const { $, headers, statusCode } = page.context;
+
+  const info: SitePageInfo = {
+    statusCode,
+    noindex: false,
+    nofollow: false,
+    disallowed,
+    hreflangOut: {},
+  };
+
+  // One classifier for every reader of indexability: the score caps, these
+  // records and the cross-page checks built on them.
+  const page$ = { $, headers, url: page.url };
+  const canonical = readCanonical(page$);
+  if (canonical !== undefined) info.canonical = canonical;
+  info.noindex = isNoindex(page$);
+  info.nofollow = isNofollow(page$);
+  if (isPaginatedPage(page$)) info.isPaginated = true;
+
+  $('link[rel="alternate"][hreflang]').each((_, el) => {
+    const code = $(el).attr('hreflang')?.trim();
+    const href = $(el).attr('href');
+    if (!code || !href) return;
+    try {
+      info.hreflangOut[code] = new URL(href, page.url).href;
+    } catch {
+      // An unresolvable hreflang target is a per-page finding, not recorded here.
+    }
+  });
+
+  const h1 = $('h1').first().text().trim();
+  if (h1) info.h1 = h1;
+
+  const title = $(DOCUMENT_TITLE).first().text().replace(/\s+/g, ' ').trim();
+  if (title) info.title = title;
+  const mainContent = extractMainContent($);
+  info.wordCount = countWords(mainContent);
+
+  // What the cross-page duplicate checks compare, computed once per page
+  // while the parsed document is still in memory.
+  const description = $('meta[name="description"]').first().attr('content')?.trim();
+  if (description) info.description = description;
+  const ogTitle = $('meta[property="og:title"]').first().attr('content')?.trim();
+  if (ogTitle) info.ogTitle = ogTitle;
+  const ogDescription = $('meta[property="og:description"]').first().attr('content')?.trim();
+  if (ogDescription) info.ogDescription = ogDescription;
+  const bodyText = visibleBodyText($);
+  if (bodyText.length >= 50) info.contentHash = createHash('md5').update(bodyText).digest('hex');
+  const main = mainContent.replace(/\s+/g, ' ').trim();
+  if (main.length >= 100) info.shingles = shingleText(main);
+
+  const schemaNodes = summarizeSchemaNodes($);
+  info.pageKind = pageKindFrom(
+    schemaNodes.flatMap((node) => node.types),
+    page.url
+  );
+  if (schemaNodes.length > 0) info.schemaNodes = schemaNodes;
+
+  return info;
 }
 
 /**

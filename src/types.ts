@@ -434,14 +434,14 @@ export interface SitePageInfo {
   /** Final HTTP status of the page fetch; 0 when it failed or timed out */
   statusCode: number;
   /**
-   * Resolved absolute target of `link[rel=canonical]`. Null when the tag was
-   * declared but its href could not be resolved against the page URL;
-   * undefined when the page declares no canonical.
+   * Resolved absolute canonical: `link[rel=canonical]`, else the HTTP `Link`
+   * header. Null when declared but unresolvable; undefined when the page
+   * declares no canonical.
    */
   canonical?: string | null;
-  /** `noindex` (or `none`) in the meta robots tag or X-Robots-Tag header */
+  /** Google is told not to index: `noindex` or `none` in robots/googlebot meta or a Google-scoped X-Robots-Tag */
   noindex: boolean;
-  /** `nofollow` (or `none`) in the meta robots tag or X-Robots-Tag header */
+  /** Google is told not to follow links, read the same way as `noindex` */
   nofollow: boolean;
   /**
    * Whether robots.txt disallows this URL. Best-effort: the crawler only
@@ -464,6 +464,22 @@ export interface SitePageInfo {
    * Omitted when the page has no parseable typed nodes.
    */
   schemaNodes?: SchemaNodeSummary[];
+  /** `<meta name="description">` content, trimmed; undefined when absent or empty */
+  description?: string;
+  /** `og:title` content, trimmed */
+  ogTitle?: string;
+  /** `og:description` content, trimmed */
+  ogDescription?: string;
+  /** Hash of the visible body text, for exact-duplicate detection; undefined below 50 characters */
+  contentHash?: string;
+  /**
+   * Sorted hashed word trigrams of the first 500 words of main content, for
+   * near-duplicate detection. Undefined when the page has under 100
+   * characters of main content.
+   */
+  shingles?: Uint32Array;
+  /** A later page of a series: `rel="prev"`, `/page/N`, `?page=N` and similar */
+  isPaginated?: boolean;
 }
 
 /**

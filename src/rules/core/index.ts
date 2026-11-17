@@ -33,7 +33,7 @@ import { h1SingleRule } from './h1-single.js';
 import { canonicalHeaderRule } from './canonical-header.js';
 import { nosnippetRule } from './nosnippet.js';
 import { robotsMetaRule } from './robots-meta.js';
-import { titleUniqueRule, resetTitleRegistry, getTitleRegistryStats } from './title-unique.js';
+import { titleUniqueRule } from './title-unique.js';
 
 // Canonical validation rules
 import { canonicalConflictingRule } from './canonical-conflicting.js';
@@ -80,7 +80,6 @@ export {
 };
 
 // Export utility functions
-export { resetTitleRegistry, getTitleRegistryStats };
 
 // Register all rules
 registerRule(titlePresentRule);

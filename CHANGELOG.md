@@ -84,6 +84,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A check that crashes is not measured, not failed.** It used to score as a
   `fail` at the rule's full weight, blaming the site for the engine's bug. It
   is now `not-measured` with reason `rule-error`, and never moves the score.
+- A page's canonical is read from the HTTP `Link` header when the HTML has
+  no `<link rel="canonical">`, and its noindex from the `googlebot` meta tag
+  and Google-scoped `X-Robots-Tag` (not other engines'). The score caps and
+  the crawl's per-page records now share one reader.
+- The `reset*Registry` and `get*RegistryStats` helpers of the duplicate rules
+  are gone; nothing needs resetting between audits any more.
 - The `blog` preset wrote `rule_options` for `meta-tags/description-length`, a
   rule id that does not exist. It now writes `core-description-length`.
 - Requires Node.js 20.18.1 or later (was 20.3.0). The HTML parser already
@@ -141,6 +147,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Duplicate checks compare the whole crawl, so the first page of a group is
+  flagged too.** `core-title-unique`, `content-duplicate-description`,
+  `content-duplicate-exact` and `content-duplicate-near` kept their own
+  registries as pages were scored, so the first page of a duplicate group
+  passed, only later pages were flagged, and the answer depended on scoring
+  order. They now read the finished crawl: every page in a group is flagged,
+  and shuffling the scoring order changes nothing. Only pages a search engine
+  would index are compared: status 200, not noindex or robots-blocked,
+  self-canonical (or no canonical), and not a later page of a series, so a
+  paginated archive or a `?color=red` variant canonicalised to its product no
+  longer counts as a duplicate. A page outside that set is `not-measured`
+  with reason `not-compared` and says why. `content-duplicate-h1` uses the
+  same set. Each check declares `include_paginated` and
+  `include_non_indexable` options to widen it.
+- **Near-duplicate detection reads every language and scales.** The
+  tokenizer dropped everything outside ASCII, so a Turkish or Greek page
+  looked empty. It now keeps Unicode letters and digits. Pages are compared
+  through MinHash candidate pairs confirmed by exact similarity, so a 10,000
+  page crawl is compared in seconds instead of 50 million set intersections,
+  and `fail_threshold` / `warn_threshold` (0.8 / 0.6) are rule options. A
+  crawl so template-heavy that it yields more than five million candidate
+  pairs reports `could-not-verify` instead of running without bound.
 - **Soft-404 detection stops failing real pages.** It matched "error", "404"
   and "not found" anywhere in the title or H1, so long pages titled "Error
   Handling in Rust", "Terrorism Studies MA" or "Book Room 404" failed. It now

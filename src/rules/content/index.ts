@@ -32,11 +32,7 @@ import { articleLinksRule } from './article-links.js';
 import { brokenHtmlRule } from './broken-html.js';
 import { metaInBodyRule } from './meta-in-body.js';
 import { mimeTypeRule } from './mime-type.js';
-import {
-  duplicateDescriptionRule,
-  resetDescriptionRegistry,
-  getDescriptionRegistryStats,
-} from './duplicate-description.js';
+import { duplicateDescriptionRule } from './duplicate-description.js';
 
 // Heading rules (moved from headings category)
 import { hierarchyRule } from './heading-hierarchy.js';
@@ -49,14 +45,8 @@ import { titleSameAsH1Rule } from './title-same-as-h1.js';
 import { titleSameAsDescriptionRule } from './title-same-as-description.js';
 import { titlePixelWidthRule } from './title-pixel-width.js';
 import { descriptionPixelWidthRule } from './description-pixel-width.js';
-import {
-  duplicateExactRule,
-  resetDuplicateContentRegistry,
-} from './duplicate-exact.js';
-import {
-  duplicateNearRule,
-  resetNearDuplicateRegistry,
-} from './duplicate-near.js';
+import { duplicateExactRule } from './duplicate-exact.js';
+import { duplicateNearRule } from './duplicate-near.js';
 import { duplicateH1Rule } from './duplicate-h1.js';
 import { mojibakeRule } from './mojibake.js';
 import { unrenderedMarkupRule } from './unrendered-markup.js';
@@ -99,12 +89,6 @@ export {
   thinVsSiteRule,
   titlePatternRule,
 };
-
-// Export utility functions for duplicate description tracking
-export { resetDescriptionRegistry, getDescriptionRegistryStats };
-
-// Export reset functions for cross-page duplicate detection
-export { resetDuplicateContentRegistry, resetNearDuplicateRegistry };
 
 // Register all rules
 registerRule(wordCountRule);

@@ -244,6 +244,20 @@ seomator compare example.com --fail-on-regression   # exit 1 if worse (for CI)
 Rules are diffed by ID, so a rule that broke and a different one that got fixed
 are reported separately rather than cancelling out in a count.
 
+### `seomator explain [rule-id]`
+
+What a rule checks, how much it counts, how to fix what it finds, and the
+`[rules.override]` lines to re-rank it or gate CI on it.
+
+```bash
+seomator explain core-canonical-present    # One rule
+seomator explain --list                    # Every rule id
+seomator explain --list security           # The ids in one category
+seomator explain url-underscores --json    # For scripts and agents
+```
+
+An unknown id exits 2 and names the closest ids.
+
 ### `seomator config [key] [value]`
 
 View or modify configuration.
@@ -251,7 +265,8 @@ View or modify configuration.
 ```bash
 seomator config --list                     # Show all config
 seomator config crawler.max_pages 50       # Set value
-seomator config validate                   # Validate config
+seomator config validate                   # Validate config (exit 2 on an error)
+seomator config validate --config ci.toml --json
 ```
 
 ### `seomator db`

@@ -23,6 +23,7 @@ import {
   runDbStats,
   runDbRestore,
   runSelfDoctor,
+  runExplain,
 } from './commands/index.js';
 
 /**
@@ -258,6 +259,14 @@ program
   .option('-j, --json', 'Output as JSON', false)
   .option('--fail-on-regression', 'Exit 1 when the score dropped or new failures appeared', false)
   .action(runCompare);
+
+// Explain command
+program
+  .command('explain [rule-id]')
+  .description('Explain what a rule checks, how much it counts and how to configure it')
+  .option('--list [category]', 'List every rule id, or the ids in one category')
+  .option('--json', 'Output as JSON', false)
+  .action(runExplain);
 
 // Config command
 program

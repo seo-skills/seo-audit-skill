@@ -15,3 +15,4 @@ export {
 } from './db.js';
 export { runSelfDoctor, type SelfDoctorOptions } from './doctor.js';
 export { runServe, type ServeOptions } from './serve.js';
+export { runExplain, type ExplainOptions } from './explain.js';

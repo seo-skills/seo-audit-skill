@@ -258,6 +258,7 @@ are reported separately rather than cancelling out in a count.
 seomator init              # Create config file
 seomator self doctor       # Check system setup
 seomator config --list     # Show all config values
+seomator explain <rule-id> # What a rule checks, its weight, the fix and override lines
 seomator report --list     # List past reports
 seomator compare <domain>  # Diff the two most recent saved audits
 seomator db stats          # Show database statistics

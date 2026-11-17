@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `seomator config validate --config <path> --json` checks a config file the
   way `audit` will, rule ids included, and prints the result as JSON.
 - `seomator analyze --config <path>`.
+- **`seomator explain <rule-id>`** says what a rule checks, its weight, how to
+  fix what it finds, and the `[rules.override]` lines to re-rank it or gate CI
+  on it. `--list [category]` prints every rule id, `--json` is for scripts. An
+  unknown id exits 2 and names the closest ids.
 
 - The dashboard's empty history (desktop app and `seomator serve`) shows an
   illustration in the house image style: the SEOmator agent scanning a site,

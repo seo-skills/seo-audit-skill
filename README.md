@@ -5,7 +5,7 @@
 [![node](https://img.shields.io/node/v/@seomator/seo-audit.svg)](https://www.npmjs.com/package/@seomator/seo-audit)
 [![license: MIT](https://img.shields.io/npm/l/@seomator/seo-audit.svg)](./LICENSE)
 
-**SEOmator is a comprehensive SEO audit tool that scans any website against 380 rules across 20 categories** — technical SEO, Core Web Vitals, structured data, accessibility, security headers, and AI/GEO search readiness — and returns a prioritized, actionable report. It ships as a **command-line tool**, an **Electron desktop app**, and a **Claude Code skill**, so you can run an SEO audit from a terminal, a visual dashboard, or directly inside an AI coding agent.
+**SEOmator is a comprehensive SEO audit tool that scans any website against 385 rules across 20 categories** — technical SEO, Core Web Vitals, structured data, accessibility, security headers, and AI/GEO search readiness — and returns a prioritized, actionable report. It ships as a **command-line tool**, an **Electron desktop app**, and a **Claude Code skill**, so you can run an SEO audit from a terminal, a visual dashboard, or directly inside an AI coding agent.
 
 > **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
 
@@ -27,7 +27,7 @@
 
 ## Features
 
-- **380 SEO Audit Rules** across 20 categories
+- **385 SEO Audit Rules** across 20 categories
 - **Desktop App** - Visual audit dashboard with real-time progress, interactive results, score history, and light/dark theme
 - **CLI Tool** - Single page & crawl mode with 5 output formats
 - **Core Web Vitals** - LCP, CLS, FCP, TTFB, INP measurement via Playwright
@@ -341,7 +341,7 @@ A staging site is blocked on purpose: audit it with `--staging`. That waives the
 noindex and robots.txt caps, crawls past robots.txt, and lists what it waived as
 the launch checklist.
 
-## Categories & Rules (380 total)
+## Categories & Rules (385 total)
 
 ### Core (27 rules) - 11% weight
 
@@ -490,7 +490,7 @@ the launch checklist.
 | `security-obfuscated-script` | No long high-entropy inline script calls eval, Function, or atob |
 | `security-brand-impersonation` | Brand sign-in links point at the brand or this host |
 
-### Technical SEO (18 rules) - 7% weight
+### Technical SEO (19 rules) - 7% weight
 
 | Rule | Description |
 |------|-------------|
@@ -502,6 +502,7 @@ the launch checklist.
 | `technical-trailing-slash` | Consistent trailing slash usage |
 | `technical-www-redirect` | www/non-www should redirect to one version |
 | `technical-404-page` | Custom 404 page should exist |
+| `technical-amp-pairing` | The AMP version loads and points back (advisory) |
 | `technical-soft-404` | Soft 404 pages should return proper 404 status |
 | `technical-server-error` | No 5xx server errors |
 | `technical-4xx-non-404` | No 400, 403, 410 client errors |
@@ -513,7 +514,7 @@ the launch checklist.
 | `technical-duplicate-ga` | No multiple Google Analytics property IDs |
 | `technical-consent-mode` | A Google tag is paired with a consent update |
 
-### Crawlability (38 rules) - 5% weight
+### Crawlability (39 rules) - 5% weight
 
 | Rule | Description |
 |------|-------------|
@@ -527,6 +528,7 @@ the launch checklist.
 | `crawl-sitemap-size-limit` | Sitemap should be <50MB |
 | `crawl-sitemap-duplicate-urls` | No duplicate URLs in sitemap |
 | `crawl-sitemap-orphan-urls` | Sitemap URLs should be linked internally |
+| `crawl-indexable-not-in-sitemap` | Indexable pages should be in the sitemap (advisory) |
 | `crawl-blocked-resources` | Critical resources not blocked by robots.txt |
 | `crawl-crawl-delay` | Excessive Crawl-delay slows indexing |
 | `crawl-sitemap-in-robotstxt` | robots.txt should reference sitemap |
@@ -580,7 +582,7 @@ the launch checklist.
 | `schema-entity-type-drift` | One absolute @id keeps the same @type (requires `--crawl`) |
 | `schema-entity-split` | One organization or person name is not published under two absolute @ids (requires `--crawl`) |
 
-### JavaScript Rendering (16 rules) - 5% weight
+### JavaScript Rendering (17 rules) - 5% weight
 
 | Rule | Description |
 |------|-------------|
@@ -597,6 +599,7 @@ the launch checklist.
 | `js-rendered-links` | Navigation links present without JavaScript |
 | `js-blocked-resources` | Critical JS not blocked by robots.txt |
 | `js-ssr-check` | Server-side rendering detected |
+| `js-ajax-crawling-scheme` | No `#!` URLs, which Google no longer crawls (advisory) |
 | `js-console-errors` | No uncaught JavaScript exceptions or console errors while rendering |
 | `js-failed-requests` | Scripts, stylesheets and other subresources load successfully |
 | `js-document-write` | Inline scripts should not use `document.write()` |
@@ -748,7 +751,7 @@ the launch checklist.
 | `redirect-resource-loop` | Resources should not be caught in redirect loops (requires render) |
 | `redirect-resource-chain` | Resources should not go through multi-hop redirect chains (requires render) |
 
-### Mobile (12 rules) - 2% weight
+### Mobile (13 rules) - 2% weight
 
 | Rule | Description |
 |------|-------------|
@@ -758,6 +761,7 @@ the launch checklist.
 | `mobile-viewport-width` | No fixed viewport width |
 | `mobile-multiple-viewports` | Single viewport meta tag |
 | `mobile-image-maps` | No `<map>`/`<area>` image maps |
+| `mobile-separate-urls` | A separate mobile URL loads and points back (advisory) |
 | `mobile-viewport-content` | Viewport directives: width, initial-scale, no minimum-scale |
 | `mobile-parity-content` | Mobile render carries as much content as desktop (`--cwv --mobile`) |
 | `mobile-parity-title` | Title and meta description match mobile vs desktop (`--cwv --mobile`) |
@@ -783,7 +787,7 @@ the launch checklist.
 | `i18n-hreflang-x-default` | Language annotation targets same URL as x-default (insight) |
 | `i18n-hreflang-incoming-invalid` | Incoming hreflang annotations use valid language codes (requires `--crawl`) |
 
-### HTML Validation (11 rules) - 2% weight
+### HTML Validation (12 rules) - 2% weight
 
 | Rule | Description |
 |------|-------------|
@@ -798,6 +802,7 @@ the launch checklist.
 | `htmlval-multiple-descriptions` | Single meta description only |
 | `htmlval-title-outside-head` | No `<title>` element outside of `<head>` |
 | `htmlval-base-url` | At most one `<base>` element with a valid href |
+| `htmlval-body-structure` | One `<body>`, after `<html>`, nothing before `<head>` (advisory) |
 
 ### AI/GEO Readiness (13 rules) - 2% weight
 
@@ -1001,7 +1006,7 @@ npx skills add seo-skills/seo-audit-skill
 
 ### What is SEOmator?
 
-SEOmator is an SEO audit tool that checks a website against 380 rules across 20 categories — covering technical SEO, Core Web Vitals, structured data, accessibility, security headers, content quality, and AI/GEO search readiness — and returns a scored, prioritized report of what to fix first. It's available as an open-source CLI, an Electron desktop app, and a Claude Code skill.
+SEOmator is an SEO audit tool that checks a website against 385 rules across 20 categories — covering technical SEO, Core Web Vitals, structured data, accessibility, security headers, content quality, and AI/GEO search readiness — and returns a scored, prioritized report of what to fix first. It's available as an open-source CLI, an Electron desktop app, and a Claude Code skill.
 
 ### How is SEOmator different from Lighthouse or PageSpeed Insights?
 

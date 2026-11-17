@@ -107,6 +107,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `social-twitter-attribute`: `twitter:*` written with `property=`.
   - `social-duplicate-og`: in a crawl, `og:title` or `og:description` shared
     with other indexable pages.
+  - `htmlval-body-structure`: reads the raw source for a second `<body>`, a
+    `<body>` before `<html>`, or content before `<head>`, which the parser
+    repairs out of sight. Markup inside comments, attribute values, scripts,
+    textareas and titles does not count.
+  - `crawl-indexable-not-in-sitemap`: in a crawl, a page search engines can
+    index that the sitemap leaves out. Not measured when the sitemap was read
+    only in part.
+  - `js-ajax-crawling-scheme`: `#!` links or the fragment meta tag, which
+    Google stopped supporting in 2018.
+  - `mobile-separate-urls` and `technical-amp-pairing`: a declared mobile or
+    AMP version that does not load, or does not name this page as its
+    canonical.
 - The MCP `audit_url` tool takes `respectCrawlDelay` and `maxDurationS`, and
   refuses up front with `crawl-too-slow` when the site's `Crawl-delay` means
   the crawl cannot finish in time. Its summary carries `coverage` and

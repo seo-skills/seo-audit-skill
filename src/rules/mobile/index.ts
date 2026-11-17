@@ -34,6 +34,7 @@ import { viewportWidthRule } from './viewport-width.js';
 import { multipleViewportsRule } from './multiple-viewports.js';
 import { imageMapsRule } from './image-maps.js';
 import { viewportContentRule } from './viewport-content.js';
+import { separateUrlsRule } from './separate-urls.js';
 import {
   mobileParityContentRule,
   mobileParityTitleRule,
@@ -71,3 +72,4 @@ registerRule(mobileParityTitleRule);
 registerRule(mobileParityCanonicalRule);
 registerRule(mobileParityStructuredDataRule);
 registerRule(mobileParityLinksRule);
+registerRule(separateUrlsRule);

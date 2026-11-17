@@ -56,6 +56,7 @@ import { crawlIsolatedUrlRule } from './isolated-url.js';
 import { canonicalFormDriftRule } from './canonical-form-drift.js';
 import { sitemapDateDriftRule } from './sitemap-date-drift.js';
 import { pdfSizeRule } from './pdf-size.js';
+import { indexableNotInSitemapRule } from './indexable-not-in-sitemap.js';
 
 // Export all rules
 export {
@@ -159,3 +160,4 @@ registerRule(crawlIsolatedUrlRule);
 registerRule(canonicalFormDriftRule);
 registerRule(sitemapDateDriftRule);
 registerRule(pdfSizeRule);
+registerRule(indexableNotInSitemapRule);

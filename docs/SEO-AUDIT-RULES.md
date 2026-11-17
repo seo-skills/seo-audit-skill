@@ -2,7 +2,7 @@
 
 > **Type:** Reference
 
-This is the catalog of every check SEOmator runs: **380 rules** across **20 categories**. For each rule it lists the ID, the name reports print, the rule's weight, the result it gives when it finds a problem, and what it checks. Rules that need more than one line also have a details entry below their category table. The rule IDs are the values that `[rules] enable` and `[rules] disable` in `seomator.toml` match.
+This is the catalog of every check SEOmator runs: **385 rules** across **20 categories**. For each rule it lists the ID, the name reports print, the rule's weight, the result it gives when it finds a problem, and what it checks. Rules that need more than one line also have a details entry below their category table. The rule IDs are the values that `[rules] enable` and `[rules] disable` in `seomator.toml` match.
 
 ## How to read this reference
 
@@ -593,7 +593,7 @@ Validates HTTPS, security headers, mixed content, SSL, and leaked secrets.
 
 <a id="technical"></a>
 
-### Technical SEO (18 rules)
+### Technical SEO (19 rules)
 
 Validates robots.txt, sitemap, status codes, URL structure, and analytics tag setup.
 
@@ -607,6 +607,7 @@ Validates robots.txt, sitemap, status codes, URL structure, and analytics tag se
 | `technical-trailing-slash` | Trailing Slash Consistency | 1 | warn | Warns when one internal path is linked both with and without a trailing slash |
 | `technical-www-redirect` | WWW Redirect | 1 | warn/fail | Validates www/non-www consistency |
 | `technical-404-page` | Custom 404 Page | 1 | warn/fail | Checks for custom 404 page |
+| `technical-amp-pairing` | AMP Pairing | 5 (advisory) | warn/fail | An `amphtml` page that does not load, or names no canonical back, fails; one indexable on its own warns |
 | `technical-soft-404` | Soft 404 Detection | 10 | fail | Detects pages returning 200 but showing error content |
 | `technical-server-error` | Server Error Detection | 10 | fail | Detects 5xx server errors |
 | `technical-4xx-non-404` | 4xx Client Error Detection | 8 | warn/fail | Detects 4xx errors other than 404 (403, 410, etc.) |
@@ -663,7 +664,7 @@ Validates robots.txt, sitemap, status codes, URL structure, and analytics tag se
 
 <a id="crawl"></a>
 
-### Crawlability (38 rules)
+### Crawlability (39 rules)
 
 Validates indexability signals, sitemap conflicts, canonical chains, and pagination.
 
@@ -681,6 +682,7 @@ The cross-page rules (`crawl-sitemap-orphan-urls`, `crawl-pagination-isolated`, 
 | `crawl-sitemap-size-limit` | Sitemap Size Limit | 5 | warn/fail | A sitemap file is over 40 MB (warn) or 50 MB (fail) uncompressed; each file behind an index is judged on its own |
 | `crawl-sitemap-duplicate-urls` | Sitemap Duplicate URLs | 6 | warn | A page URL appears more than once across the fetched sitemap files |
 | `crawl-sitemap-orphan-urls` | Sitemap Orphan URLs | 7 | warn | Sitemap URLs not linked from any crawled page (requires --crawl) |
+| `crawl-indexable-not-in-sitemap` | Indexable Page In Sitemap | 5 (advisory) | warn | Crawl: a 200, indexable, self-canonical page missing from the sitemap. Not measured when the sitemap was read only in part |
 | `crawl-blocked-resources` | Blocked Resources | 7 | warn | CSS/JS blocked by robots.txt |
 | `crawl-blocked-images` | Blocked Images | 7 | fail | Image URLs disallowed by robots.txt cannot be crawled for image indexing |
 | `crawl-crawl-delay` | Crawl Delay | 5 | warn | Crawl-delay above 10 seconds for `*`, Googlebot or Bingbot in robots.txt |
@@ -1005,7 +1007,7 @@ Analyzes text quality, readability, headings, and duplicate content.
 
 <a id="js"></a>
 
-### JavaScript Rendering (16 rules)
+### JavaScript Rendering (17 rules)
 
 Compares the served HTML with the DOM after JavaScript runs, and checks the render for errors and failed requests.
 
@@ -1024,6 +1026,7 @@ Compares the served HTML with the DOM after JavaScript runs, and checks the rend
 | `js-rendered-links` | Rendered Links Dependency | 7 | warn | JavaScript adds most links: the rendered `a[href]` count is over double the source count and more than 10 higher (requires render; not measured without --cwv) |
 | `js-blocked-resources` | Blocked JavaScript Resources | 7 | warn | Same-host scripts disallowed for `User-agent: *` in robots.txt; stylesheets are not checked |
 | `js-ssr-check` | Server-Side Rendering Check | 10 | warn/fail | Checks if server-side rendering is implemented |
+| `js-ajax-crawling-scheme` | AJAX Crawling Scheme | 5 (advisory) | fail | Internal `#!` links or `<meta name="fragment" content="!">`: Google stopped supporting the scheme in 2018 |
 | `js-console-errors` | JavaScript Console Errors | 8 | warn/fail | Uncaught exceptions (fail) and console errors (warn) captured while rendering (requires render; not measured without --cwv) |
 | `js-failed-requests` | Failed Resource Requests | 8 | warn/fail | Subresources that failed to load while rendering; a failed script, stylesheet, document, fetch or XHR fails (requires render; not measured without --cwv) |
 | `js-document-write` | No document.write() | 7 | warn | Inline scripts do not use `document.write()` |
@@ -1459,7 +1462,7 @@ Validates redirect implementation, types, and common redirect issues.
 
 <a id="mobile"></a>
 
-### Mobile (12 rules)
+### Mobile (13 rules)
 
 Mobile-friendliness checks for font size, viewport, and responsive layout.
 
@@ -1476,6 +1479,7 @@ Mobile-friendliness checks for font size, viewport, and responsive layout.
 | `mobile-parity-structured-data` | Mobile Structured Data Parity | 8 | fail | JSON-LD present on mobile as on desktop (requires --cwv --mobile) |
 | `mobile-parity-links` | Mobile Internal Link Parity | 6 | warn | Mobile shows at least half as many links as desktop; counts every `a[href]` except fragments and `javascript:` (requires --cwv --mobile) |
 | `mobile-image-maps` | Image Maps | 8 | warn | Detects `<map>`/`<area>` image maps, whose fixed-coordinate tap targets do not adapt to mobile screens |
+| `mobile-separate-urls` | Separate Mobile URL | 5 (advisory) | warn/fail | A mobile alternate (`max-width` up to 640px) that does not load fails; one without a canonical back to this page warns |
 | `mobile-viewport-content` | Viewport Meta Content | 10 | warn | Validates viewport directives: width present, initial-scale=1, no minimum-scale |
 
 #### mobile-font-size
@@ -1577,7 +1581,7 @@ Checks language declarations and multi-language hreflang implementation.
 
 <a id="htmlval"></a>
 
-### HTML Validation (11 rules)
+### HTML Validation (12 rules)
 
 Validates HTML document structure, DOCTYPE, charset, and common markup issues.
 
@@ -1594,6 +1598,7 @@ Validates HTML document structure, DOCTYPE, charset, and common markup issues.
 | `htmlval-multiple-descriptions` | Single Meta Description | 10 | fail | Detects multiple meta description tags |
 | `htmlval-title-outside-head` | Title Element Inside Head | 12 | fail | Detects `<title>` elements placed outside of `<head>` |
 | `htmlval-base-url` | Valid Base URL | 6 | warn/fail | Checks the document has at most one `<base>` element with a valid href |
+| `htmlval-body-structure` | Document Structure | 5 (advisory) | fail | Raw source: a second `<body>`, a `<body>` before `<html>`, or content between `<html>` and `<head>` |
 
 #### htmlval-missing-doctype
 - **Fix:** Add `<!DOCTYPE html>` as the first line of every HTML document.

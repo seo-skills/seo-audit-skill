@@ -7,11 +7,15 @@
  * have to read the source, because the parsed tree no longer contains them.
  */
 
-/** Source with comments removed and script, style and template bodies emptied */
+import { scanSource } from './source-scanner.js';
+
+/**
+ * Source with comments, attribute values and raw-text content (script,
+ * style, textarea, title, template) blanked, offsets kept. See
+ * `source-scanner.ts`, which the body-structure rule reads too.
+ */
 function stripInert(html: string): string {
-  return html
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<(script|style|template)\b([^>]*)>[\s\S]*?<\/\1\s*>/gi, '<$1$2></$1>');
+  return scanSource(html).masked;
 }
 
 const HEAD_START = /<head(?=[\s/>])[^>]*>/gi;
@@ -23,8 +27,8 @@ export function countHeadStartTags(html: string): number {
 
 /**
  * The source between the first <head> start tag and the first </head> (or
- * <body>, when </head> is omitted). Comments are removed and script, style
- * and template bodies emptied, so markup quoted inside them never counts.
+ * <body>, when </head> is omitted). Comments, attribute values and raw-text
+ * content are blanked, so markup quoted inside them never counts.
  *
  * @returns The head source, or null when the document has no <head> tag
  */

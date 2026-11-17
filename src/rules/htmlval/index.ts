@@ -29,6 +29,7 @@ import { multipleTitlesRule } from './multiple-titles.js';
 import { multipleDescriptionsRule } from './multiple-descriptions.js';
 import { titleOutsideHeadRule } from './title-outside-head.js';
 import { baseUrlRule } from './base-url.js';
+import { bodyStructureRule } from './body-structure.js';
 
 // Export all rules
 export {
@@ -57,3 +58,4 @@ registerRule(multipleTitlesRule);
 registerRule(multipleDescriptionsRule);
 registerRule(titleOutsideHeadRule);
 registerRule(baseUrlRule);
+registerRule(bodyStructureRule);

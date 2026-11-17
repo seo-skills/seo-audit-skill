@@ -6,7 +6,7 @@ import type {
   PageSnapshot,
   AuditRunOptions, AuditCoverage } from './types.js';
 import { AUDIT_SCHEMA_VERSION } from './types.js';
-import { isNotMeasured } from './rules/define-rule.js';
+import { countsTowardScore, isNotMeasured } from './rules/define-rule.js';
 
 /**
  * Score values for each rule status
@@ -40,6 +40,9 @@ export function calculateCategoryScore(results: RuleResult[]): number {
   let totalWeight = 0;
 
   for (const result of results) {
+    // Advisory results are reported but not scored yet; they carry their
+    // future weight, so skipping them here is what keeps them out.
+    if (result.advisory) continue;
     // Weight 0 makes the contribution zero either way, so the score of an
     // unmeasured result never reaches the average. Mapped explicitly so the
     // record stays exhaustive over RuleStatus.
@@ -140,6 +143,7 @@ export function buildCategoryResult(
   let warnCount = 0;
   let failCount = 0;
   let notMeasuredCount = 0;
+  let advisoryCount = 0;
 
   for (const result of ruleResults) {
     // A check that took no reading is neither a pass nor a warning. Counting it
@@ -147,6 +151,11 @@ export function buildCategoryResult(
     // warnings" — a score that excluded the rules the count was advertising.
     if (isNotMeasured(result)) {
       notMeasuredCount++;
+      continue;
+    }
+    // Counted on their own line, so pass/warn/fail stay the scored totals.
+    if (!countsTowardScore(result)) {
+      advisoryCount++;
       continue;
     }
 
@@ -170,6 +179,7 @@ export function buildCategoryResult(
     warnCount,
     failCount,
     notMeasuredCount,
+    ...(advisoryCount > 0 && { advisoryCount }),
     results: ruleResults,
   };
 }

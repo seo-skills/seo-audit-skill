@@ -1,5 +1,5 @@
-import type { AuditContext } from '../../types.js';
-import { defineRule, pass, fail } from '../define-rule.js';
+import type { AuditContext, RuleOptionValues } from '../../types.js';
+import { defineRule, pass, fail, readRuleOptions } from '../define-rule.js';
 import { DOCUMENT_TITLE } from '../document-title.js';
 import { bodyText as visibleBodyText } from '../content/utils/visible-text.js';
 
@@ -90,9 +90,10 @@ export function titleSegments(text: string): string[] {
 }
 
 /** The phrase a title or H1 matches as a whole segment, or null */
-export function errorShapedHeading(text: string): string | null {
+export function errorShapedHeading(text: string, extraPhrases: readonly string[] = []): string | null {
+  const extra = extraPhrases.map(normalize);
   for (const segment of titleSegments(text)) {
-    if (TITLE_PHRASES.includes(segment)) return segment;
+    if (TITLE_PHRASES.includes(segment) || extra.includes(segment)) return segment;
   }
   return null;
 }
@@ -101,14 +102,20 @@ function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-const BODY_PATTERNS = BODY_PHRASES.map(
-  (phrase) => [phrase, new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(phrase)}(?![\\p{L}\\p{N}])`, 'u')] as const
-);
+function phrasePattern(phrase: string): RegExp {
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(phrase)}(?![\\p{L}\\p{N}])`, 'u');
+}
+
+const BODY_PATTERNS = BODY_PHRASES.map((phrase) => [phrase, phrasePattern(phrase)] as const);
 
 /** The body phrase found on word boundaries, or null */
-export function errorShapedBody(text: string): string | null {
+export function errorShapedBody(text: string, extraPhrases: readonly string[] = []): string | null {
   const normalized = normalize(text);
-  for (const [phrase, pattern] of BODY_PATTERNS) {
+  const patterns = [
+    ...BODY_PATTERNS,
+    ...extraPhrases.map((phrase) => [phrase, phrasePattern(normalize(phrase))] as const),
+  ];
+  for (const [phrase, pattern] of patterns) {
     if (pattern.test(normalized)) return phrase;
   }
   return null;
@@ -134,8 +141,39 @@ export const soft404Rule = defineRule({
     'Detects pages that return HTTP 200 but display error page content (soft 404)',
   category: 'technical',
   weight: 10,
-  run: async (context: AuditContext) => {
+  options: {
+    min_words: {
+      type: 'number',
+      default: MAX_WORDS_WITH_TITLE_SIGNAL,
+      min: 1,
+      max: 100000,
+      description: 'A page with an error-shaped title or H1 fails only below this many words',
+    },
+    min_words_body: {
+      type: 'number',
+      default: MAX_WORDS_WITH_BODY_SIGNAL,
+      min: 1,
+      max: 100000,
+      description: 'A page whose text alone says it is gone fails only below this many words',
+    },
+    extra_title_phrases: {
+      type: 'string[]',
+      default: [],
+      description: 'More title or H1 segments that mean "this page does not exist", such as your CMS default',
+    },
+    extra_body_phrases: {
+      type: 'string[]',
+      default: [],
+      description: 'More phrases in the text that mean "this page does not exist"',
+    },
+  },
+  run: async (context: AuditContext, options?: RuleOptionValues) => {
     const { statusCode, $ } = context;
+    const opts = readRuleOptions(soft404Rule, options);
+    const maxWordsTitle = opts.min_words as number;
+    const maxWordsBody = opts.min_words_body as number;
+    const extraTitle = opts.extra_title_phrases as readonly string[];
+    const extraBody = opts.extra_body_phrases as readonly string[];
 
     // If the server correctly returns 404, this rule passes
     if (statusCode === 404) {
@@ -158,15 +196,15 @@ export const soft404Rule = defineRule({
 
     const indicators: string[] = [];
 
-    if (wordCount < MAX_WORDS_WITH_TITLE_SIGNAL) {
-      const titleMatch = errorShapedHeading(title);
+    if (wordCount < maxWordsTitle) {
+      const titleMatch = errorShapedHeading(title, extraTitle);
       if (titleMatch) indicators.push(`title reads "${titleMatch}"`);
-      const h1Match = errorShapedHeading(h1);
+      const h1Match = errorShapedHeading(h1, extraTitle);
       if (h1Match) indicators.push(`H1 reads "${h1Match}"`);
     }
 
-    if (wordCount < MAX_WORDS_WITH_BODY_SIGNAL) {
-      const bodyMatch = errorShapedBody(bodyText);
+    if (wordCount < maxWordsBody) {
+      const bodyMatch = errorShapedBody(bodyText, extraBody);
       if (bodyMatch) indicators.push(`the text says "${bodyMatch}"`);
     }
 

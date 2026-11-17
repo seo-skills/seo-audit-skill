@@ -26,6 +26,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `seomator config validate --config <path> --json` checks a config file the
   way `audit` will, rule ids included, and prints the result as JSON.
 - `seomator analyze --config <path>`.
+- **`rule_options` reaches the rules.** Rules declare the options they read,
+  starting with `technical-soft-404` (`min_words`, `min_words_body`,
+  `extra_title_phrases`, `extra_body_phrases`) and `core-description-length`
+  (`min_length`, `max_length`). An undeclared key, a wrong type or an
+  out-of-range value stops the run with exit 2 and lists the keys the rule
+  reads; an unknown rule id is a warning at run start. Values that differ from
+  the defaults are stored with the audit, and `compare` treats a change as a
+  different measurement. `seomator explain` lists every option.
+- **Advisory rules.** A rule can be reported in full, with its findings
+  ranked, while not counting toward the score yet. Results carry
+  `advisory: true` and each category counts them in `advisoryCount`, outside
+  pass/warn/fail.
+- **Why a check was not measured.** A `not-measured` result now carries
+  `reason`: `not-applicable`, `not-compared`, `needs-render`,
+  `could-not-verify`, `probe-failed`, `disabled`, `unsupported` or
+  `rule-error`. A `fail_ci` gate reads it: "nothing to find on this page"
+  satisfies the gate, "could not look" on any page exits 1.
 - **`seomator mcp`, an MCP server for AI agents.** Registered as
   `seomator-audit`, it serves `audit_url`, `audit_status`, `cancel_run`,
   `list_audits`, `get_audit`, `get_findings`, `compare_audits`, `list_rules`
@@ -62,7 +79,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stderr.
 - **Breaking: a bad flag or argument exits 2, not 1.** Exit 1 now always means
   a gate failed (score, `fail_ci`), never that the command line was wrong.
-- The JSON schema version is 3 (`gate`, `warnings`, `RuleResult.overridden`).
+- The JSON schema version is 4 (`gate`, `warnings`, `RuleResult.overridden`,
+  `reason`, `advisory`, `CategoryResult.advisoryCount`).
+- **A check that crashes is not measured, not failed.** It used to score as a
+  `fail` at the rule's full weight, blaming the site for the engine's bug. It
+  is now `not-measured` with reason `rule-error`, and never moves the score.
+- The `blog` preset wrote `rule_options` for `meta-tags/description-length`, a
+  rule id that does not exist. It now writes `core-description-length`.
 - Requires Node.js 20.18.1 or later (was 20.3.0). The HTML parser already
   needed it; `package.json` now says so.
 - **The new SEOmator brand, from seomator.com.** The logo is the orange emblem

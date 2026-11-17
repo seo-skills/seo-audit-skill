@@ -213,6 +213,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   const cliFormat: OutputFormat = options.format ?? (options.json ? 'json' : 'console');
 
   let loaded;
+  let configWarnings: string[] = [];
   try {
     loaded = loadConfig(
       process.cwd(),
@@ -228,13 +229,16 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
     // A config that does not mean what it says stops here, before any
     // request: a typo'd `fail_ci` rule id would otherwise be a gate that
     // never fires.
-    assertRunnableConfig(loaded.config, loaded.configPath, { categories: selectedCategories });
+    configWarnings = assertRunnableConfig(loaded.config, loaded.configPath, { categories: selectedCategories });
   } catch (error) {
     reportAuditError(error, url, isDocumentFormat(cliFormat), cliFormat === 'json');
     return;
   }
   const { config, configPath } = loaded;
   const failUnder = options.failUnder ?? config.ci.fail_under;
+  for (const warning of configWarnings) {
+    console.error(chalk.yellow(`Config warning: ${warning}`));
+  }
 
   warnUnimplementedFlags(options as unknown as Record<string, unknown>);
 
@@ -321,6 +325,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       urlFilter: toUrlFilterOptions(config.crawler),
       enableRules: config.rules.enable,
       disableRules: config.rules.disable,
+      ruleOptions: config.rule_options,
       delayMs: config.crawler.delay_ms,
       perHostDelayMs: config.crawler.per_host_delay_ms,
       onCategoryStart: (categoryId, categoryName) => {
@@ -357,6 +362,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
     // score. The gate is decided here so every format carries it.
     applyRuleOverrides(result, config.rules.override);
     result.gate = evaluateGate(result, { failUnder, overrides: config.rules.override });
+    if (configWarnings.length > 0) result.warnings = [...(result.warnings ?? []), ...configWarnings];
 
     // Calculate elapsed time
     const elapsedMs = Date.now() - startTime;

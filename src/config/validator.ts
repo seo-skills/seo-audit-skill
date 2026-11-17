@@ -6,6 +6,8 @@ import {
 } from './schema.js';
 import { getDefaultConfig } from './defaults.js';
 import { didYouMean } from './suggest.js';
+import type { RuleOptionSpec } from '../types.js';
+import { checkRuleOptionValue } from '../rules/define-rule.js';
 
 /** What the validator may check beyond the config's own shape */
 export interface ValidationContext {
@@ -15,6 +17,19 @@ export interface ValidationContext {
    * validator does not load the 300-odd rule modules itself.
    */
   ruleIds?: readonly string[];
+  /**
+   * The options each rule declares, by rule id. When given, `rule_options`
+   * is checked against them: undeclared keys, wrong types and out-of-range
+   * numbers are errors.
+   */
+  ruleOptionSpecs?: Readonly<Record<string, Record<string, RuleOptionSpec> | undefined>>;
+  /**
+   * How to treat a `rule_options` entry for an unknown rule id. `error` for
+   * `config validate`; `warning` when a run starts, so a config written
+   * before options were read keeps running and the entry is listed as
+   * ignored.
+   */
+  unknownRuleOptionIds?: 'error' | 'warning';
 }
 
 /**
@@ -366,6 +381,15 @@ export function validateConfig(
 
   validateRuleOverrides(getNestedValue(configObj, 'rules.override'), context.ruleIds, errors);
 
+  if (context.ruleOptionSpecs && ruleOptions && typeof ruleOptions === 'object' && !Array.isArray(ruleOptions)) {
+    validateRuleOptions(
+      ruleOptions as Record<string, unknown>,
+      context.ruleOptionSpecs,
+      context.unknownRuleOptionIds === 'warning' ? warnings : errors,
+      errors
+    );
+  }
+
   validateUnhonouredKeys(configObj, getDefaultConfig() as unknown as Record<string, unknown>, warnings);
 
   return {
@@ -436,6 +460,76 @@ function validateRuleOverrides(
 }
 
 /**
+ * Rule ids that configs in the wild still use, and what they are called now.
+ * The `blog` preset wrote the first one for years.
+ */
+const RENAMED_RULE_IDS: Record<string, string> = {
+  'meta-tags/description-length': 'core-description-length',
+};
+
+/** "min_words (number, default 500, 0 to 10000)" */
+function describeOption(key: string, spec: RuleOptionSpec): string {
+  const range =
+    spec.min !== undefined || spec.max !== undefined
+      ? `, ${spec.min ?? '-inf'} to ${spec.max ?? 'inf'}`
+      : '';
+  return `${key} (${spec.type}, default ${JSON.stringify(spec.default)}${range})`;
+}
+
+/**
+ * Check `rule_options` against what each rule declares.
+ *
+ * A key a rule does not read is an error naming the keys it does read: the
+ * old behaviour, accepting anything and acting on nothing, is how a
+ * threshold could look configured and change nothing.
+ */
+function validateRuleOptions(
+  ruleOptions: Record<string, unknown>,
+  specs: Readonly<Record<string, Record<string, RuleOptionSpec> | undefined>>,
+  unknownIdSink: ValidationError[],
+  errors: ValidationError[]
+): void {
+  const knownIds = Object.keys(specs);
+  for (const [ruleId, entry] of Object.entries(ruleOptions)) {
+    const path = `rule_options."${ruleId}"`;
+    if (!(ruleId in specs)) {
+      const renamed = RENAMED_RULE_IDS[ruleId];
+      unknownIdSink.push({
+        path,
+        message: renamed
+          ? `"${ruleId}" is now "${renamed}"; this entry is ignored until it uses the new id.`
+          : `unknown rule id "${ruleId}"; this entry is ignored.${didYouMean(ruleId, knownIds)}`,
+      });
+      continue;
+    }
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+      errors.push({ path, message: `${path} must be a table of option values`, value: entry });
+      continue;
+    }
+    const declared = specs[ruleId] ?? {};
+    const declaredKeys = Object.keys(declared);
+    for (const [key, value] of Object.entries(entry as Record<string, unknown>)) {
+      const spec = declared[key];
+      if (!spec) {
+        const available =
+          declaredKeys.length > 0
+            ? ` It reads: ${declaredKeys.map((k) => describeOption(k, declared[k])).join('; ')}.`
+            : ' It reads no options.';
+        errors.push({
+          path: `${path}.${key}`,
+          message: `${ruleId} has no option "${key}".${didYouMean(key, declaredKeys)}${available}`,
+        });
+        continue;
+      }
+      const problem = checkRuleOptionValue(spec, value);
+      if (problem) {
+        errors.push({ path: `${path}.${key}`, message: `${describeOption(key, spec)} ${problem}`, value });
+      }
+    }
+  }
+}
+
+/**
  * Config keys this build parses, validates, and does not act on.
  *
  * Each one's default matches what the crawler actually does, so a default
@@ -456,7 +550,6 @@ const UNHONOURED_KEYS: Array<{ path: string; effect: string }> = [
   { path: 'external_links.cache_ttl_days', effect: 'the link cache is never opened' },
   { path: 'external_links.timeout_ms', effect: 'no external link is ever requested' },
   { path: 'external_links.concurrency', effect: 'no external link is ever requested' },
-  { path: 'rule_options', effect: 'rules do not receive per-rule options' },
 ];
 
 /**

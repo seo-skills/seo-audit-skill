@@ -18,22 +18,48 @@ export interface RunFilters {
   categories: string[];
 }
 
+/** What a run's config check found: errors stop the run, warnings are listed */
+export interface RunConfigCheck {
+  errors: string[];
+  warnings: string[];
+}
+
+/** The validation context every run uses: the live rule registry */
+export function registryValidationContext(unknownRuleOptionIds: 'error' | 'warning') {
+  const rules = getAllRules();
+  return {
+    ruleIds: rules.map((rule) => rule.id),
+    ruleOptionSpecs: Object.fromEntries(rules.map((rule) => [rule.id, rule.options])),
+    unknownRuleOptionIds,
+  };
+}
+
+export function checkRunConfig(config: SeomatorConfig, filters: RunFilters): RunConfigCheck {
+  const validation = validateConfig(config, registryValidationContext('warning'));
+  return {
+    errors: [
+      ...validation.errors.map((error) => `${error.path}: ${error.message}`),
+      ...findFilteredGates(config.rules.override, {
+        categories: filters.categories,
+        enableRules: config.rules.enable,
+        disableRules: config.rules.disable,
+      }),
+    ],
+    // Only warnings that change what this run does; the general ones
+    // (a rule filter is in force) are said elsewhere.
+    warnings: validation.warnings
+      .filter((warning) => warning.path.startsWith('rule_options'))
+      .map((warning) => `${warning.path}: ${warning.message}`),
+  };
+}
+
 /**
  * Every reason this config cannot run as written, in reading order.
  *
  * Requires the rule registry to be loaded, so unknown rule ids can be named.
  */
 export function findRunConfigProblems(config: SeomatorConfig, filters: RunFilters): string[] {
-  const ruleIds = getAllRules().map((rule) => rule.id);
-  const validation = validateConfig(config, { ruleIds });
-  return [
-    ...validation.errors.map((error) => `${error.path}: ${error.message}`),
-    ...findFilteredGates(config.rules.override, {
-      categories: filters.categories,
-      enableRules: config.rules.enable,
-      disableRules: config.rules.disable,
-    }),
-  ];
+  return checkRunConfig(config, filters).errors;
 }
 
 /**
@@ -41,14 +67,17 @@ export function findRunConfigProblems(config: SeomatorConfig, filters: RunFilter
  *
  * The message names the first problem; the hint carries the rest, so a
  * machine reader gets every problem from one run.
+ *
+ * @returns Warnings the run should print and carry on with, such as a
+ *          `rule_options` entry for an unknown rule id
  */
 export function assertRunnableConfig(
   config: SeomatorConfig,
   configPath: string | null,
   filters: RunFilters
-): void {
-  const problems = findRunConfigProblems(config, filters);
-  if (problems.length === 0) return;
+): string[] {
+  const { errors: problems, warnings } = checkRunConfig(config, filters);
+  if (problems.length === 0) return warnings;
 
   const where = configPath ? ` (${configPath})` : '';
   const more = problems.length > 1 ? ` (and ${problems.length - 1} more)` : '';

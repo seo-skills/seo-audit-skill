@@ -23,8 +23,14 @@ export interface RuleExplanation {
   categoryWeight: number;
   description: string;
   fix: string;
+  /** Shown in reports but not counted in the score yet */
+  advisory: boolean;
+  /** The options the rule reads from `rule_options` */
+  options: Array<{ key: string; type: string; default: unknown; min?: number; max?: number; description: string }>;
   /** Paste-ready `[rules.override]` lines for this rule */
   overrideExample: string;
+  /** Paste-ready `rule_options` lines, when the rule reads options */
+  optionsExample?: string;
 }
 
 /** A rule id `explain` could not find, with the ids it most likely meant */
@@ -52,6 +58,22 @@ export function explainRule(ruleId: string): RuleExplanation | UnknownRule {
     categoryWeight: category?.weight ?? 0,
     description: rule.description,
     fix: getFixSuggestion(rule.id),
+    advisory: rule.advisory === true,
+    options: Object.entries(rule.options ?? {}).map(([key, spec]) => ({
+      key,
+      type: spec.type,
+      default: spec.default,
+      ...(spec.min !== undefined && { min: spec.min }),
+      ...(spec.max !== undefined && { max: spec.max }),
+      description: spec.description,
+    })),
+    ...(rule.options &&
+      Object.keys(rule.options).length > 0 && {
+        optionsExample: [
+          `[rule_options."${rule.id}"]`,
+          ...Object.entries(rule.options).map(([key, spec]) => `${key} = ${JSON.stringify(spec.default)}`),
+        ].join('\n'),
+      }),
     overrideExample: [
       '[rules.override]',
       `"${rule.id}" = { priority = "low" }    # high | normal | low | ignore`,
@@ -62,18 +84,28 @@ export function explainRule(ruleId: string): RuleExplanation | UnknownRule {
 
 /** Plain-text explanation, identical for the CLI and the MCP tool */
 export function formatExplanation(explanation: RuleExplanation): string {
-  return [
+  const lines = [
     `${explanation.id}: ${explanation.name}`,
     `Category: ${explanation.categoryName} (${explanation.category}, ${explanation.categoryWeight}% of the score)`,
-    `Weight: ${explanation.weight} within the category`,
+    explanation.advisory
+      ? `Weight: ${explanation.weight} within the category once promoted. Advisory: reported, not counted in the score yet`
+      : `Weight: ${explanation.weight} within the category`,
     '',
     explanation.description,
     '',
     `How to fix: ${explanation.fix}`,
-    '',
-    'Configure it in seomator.toml:',
-    explanation.overrideExample,
-  ].join('\n');
+  ];
+  if (explanation.options.length > 0) {
+    lines.push('', 'Options:');
+    for (const option of explanation.options) {
+      const range =
+        option.min !== undefined || option.max !== undefined ? `, ${option.min ?? '-inf'} to ${option.max ?? 'inf'}` : '';
+      lines.push(`  ${option.key} (${option.type}, default ${JSON.stringify(option.default)}${range}): ${option.description}`);
+    }
+  }
+  lines.push('', 'Configure it in seomator.toml:', explanation.overrideExample);
+  if (explanation.optionsExample) lines.push('', explanation.optionsExample);
+  return lines.join('\n');
 }
 
 /** The message for an id that is not a rule */

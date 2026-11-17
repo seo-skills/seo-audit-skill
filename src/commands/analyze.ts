@@ -128,10 +128,11 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
   // Loaded inside the error handling, so a bad config reaches the same
   // code, message and exit 2 as every other failure instead of a stack trace.
   let config: SeomatorConfig;
+  let configWarnings: string[];
   try {
     await loadAllRules();
     const loaded = loadConfig(baseDir, {}, options.config);
-    assertRunnableConfig(loaded.config, loaded.configPath, { categories: options.categories ?? [] });
+    configWarnings = assertRunnableConfig(loaded.config, loaded.configPath, { categories: options.categories ?? [] });
     config = loaded.config;
   } catch (error) {
     const audited = classifyError(error);
@@ -145,6 +146,9 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
     return;
   }
   const failUnder = options.failUnder ?? config.ci.fail_under;
+  for (const warning of configWarnings) {
+    console.error(chalk.yellow(`Config warning: ${warning}`));
+  }
 
   const persistence = resolvePersistence({
     save: options.save,
@@ -202,6 +206,7 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
     // audit that would have produced it is not a difference anyone asked for.
     enableRules: config.rules.enable,
     disableRules: config.rules.disable,
+    ruleOptions: config.rule_options,
     measureCwv: false, // CWV already measured during crawl
     onCategoryStart: (id, name) => progress.onCategoryStart(id, name),
     onCategoryComplete: (id, name, result) => progress.onCategoryComplete(id, name, result),
@@ -303,6 +308,7 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
             simulateInteraction: false,
             categories: options.categories ?? [],
             scoringVersion: SCORING_VERSION,
+            ...(auditor.getRunRuleOptions() && { ruleOptions: auditor.getRunRuleOptions() }),
             // analyze applies rules.enable/disable too, so the run has to carry
             // them or `compare` reads a filtered analysis as like-for-like.
             enableRules: config.rules.enable,

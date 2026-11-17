@@ -25,7 +25,7 @@ export function getPresetConfig(preset: ConfigPreset): PartialSeomatorConfig {
           exclude: ['/wp-admin/**', '/wp-content/uploads/**', '*.pdf'],
         },
         rule_options: {
-          'meta-tags/description-length': { min_length: 120, max_length: 160 },
+          'core-description-length': { min_length: 120, max_length: 160 },
         },
       };
 

@@ -36,6 +36,7 @@ const LABELS: Record<string, string> = {
   disableRules: 'disabled rules',
   maxPages: 'page limit',
   staging: 'staging mode',
+  ruleOptions: 'rule options',
 };
 
 /**
@@ -45,6 +46,9 @@ const LABELS: Record<string, string> = {
  */
 const ABSENT_MEANS: Partial<Record<keyof AuditRunOptions, unknown>> = {
   staging: false,
+  // Recorded only when an option differs from its default, so absent means
+  // "every rule ran on its defaults".
+  ruleOptions: {},
 };
 
 /**
@@ -69,7 +73,24 @@ const MATERIAL = new Set([
   // Staging waives the noindex and robots.txt caps: the same site scores 20
   // in production and its average in staging.
   'staging',
+  // A threshold change moves verdicts without the site changing.
+  'ruleOptions',
 ]);
+
+/**
+ * JSON with keys sorted at every level, so two maps holding the same values
+ * render the same whatever order they were written in.
+ */
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const entries = Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`);
+    return `{${entries.join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
 
 function render(option: string, value: unknown): string {
   // Audits saved before a field was recorded have no value for it
@@ -80,6 +101,12 @@ function render(option: string, value: unknown): string {
   if (Array.isArray(value)) {
     if (option === 'enableRules' && value.length === 1 && value[0] === '*') return 'all';
     return value.length ? value.join(', ') : option === 'disableRules' ? 'none' : 'all';
+  }
+  // Objects (rule options) render as canonical JSON. `String()` gave
+  // "[object Object]" for every map, so two different option sets compared
+  // equal and a threshold change went unreported.
+  if (typeof value === 'object') {
+    return Object.keys(value as object).length === 0 ? 'defaults' : canonicalJson(value);
   }
   return String(value);
 }

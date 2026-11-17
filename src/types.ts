@@ -617,6 +617,10 @@ export interface RuleResult {
    * placement and CI gating; never `status`, `score` or `weight`.
    */
   overridden?: RuleOverrideMark;
+  /** Why a `not-measured` result took no reading; see {@link NotMeasuredReason} */
+  reason?: NotMeasuredReason;
+  /** From an advisory rule: reported, not counted in the score */
+  advisory?: boolean;
 }
 
 /** Where an overridden finding ranks; `ignore` hides it from reports but not from JSON */
@@ -663,9 +667,65 @@ export interface AuditRule {
   category: string;
   /** Weight within the category (0-100) */
   weight: number;
-  /** Function that executes the rule and returns a result */
-  run: (context: AuditContext) => RuleResult | Promise<RuleResult>;
+  /**
+   * Options this rule reads, set per project under `rule_options."<id>"`.
+   * Declared here so the config can be checked against them and `explain`
+   * can list them; a key the rule does not declare is a config error.
+   */
+  options?: Record<string, RuleOptionSpec>;
+  /**
+   * Shown in every report, with an "Advisory" chip, but not counted in the
+   * score yet. New rules start advisory and are promoted once their
+   * verdicts have been checked on real sites.
+   */
+  advisory?: boolean;
+  /**
+   * Function that executes the rule and returns a result. The Auditor
+   * always passes `options`: the rule's declared options, defaults merged
+   * with the project's `rule_options`. A direct call (a test) may leave it
+   * out, so a rule reads it through `readRuleOptions`.
+   */
+  run: (context: AuditContext, options?: RuleOptionValues) => RuleResult | Promise<RuleResult>;
 }
+
+/** One option a rule declares */
+export interface RuleOptionSpec {
+  type: 'number' | 'string' | 'boolean' | 'string[]';
+  default: number | string | boolean | string[];
+  /** Inclusive bounds, for numbers */
+  min?: number;
+  max?: number;
+  description: string;
+}
+
+/** A rule's effective options: declared defaults merged with `rule_options` */
+export type RuleOptionValues = Readonly<Record<string, number | string | boolean | readonly string[]>>;
+
+/**
+ * Why a check took no reading.
+ *
+ * - `not-applicable`: nothing to check on this page (the pattern is absent).
+ * - `not-compared`: a cross-page check skipped this page on purpose
+ *   (noindex, canonicalised elsewhere, paginated).
+ * - `needs-render`: needs a browser render that this run did not do.
+ * - `could-not-verify`: an outside resource could not be fetched reliably.
+ * - `probe-failed`: the in-page script that measures it failed.
+ * - `disabled`: turned off in the config.
+ * - `unsupported`: the engine running this audit cannot do it.
+ * - `rule-error`: the check itself crashed.
+ *
+ * Only `not-applicable` and `not-compared` mean "nothing was wrong to find";
+ * the rest mean "could not look", which a CI gate must not read as a pass.
+ */
+export type NotMeasuredReason =
+  | 'not-applicable'
+  | 'not-compared'
+  | 'needs-render'
+  | 'could-not-verify'
+  | 'probe-failed'
+  | 'disabled'
+  | 'unsupported'
+  | 'rule-error';
 
 /**
  * Aggregated results for a category
@@ -687,6 +747,11 @@ export interface CategoryResult {
    * audits stored before this field existed do not carry it.
    */
   notMeasuredCount?: number;
+  /**
+   * Results from advisory rules that took a reading. Counted here and not in
+   * pass/warn/fail, because they do not count toward the score yet.
+   */
+  advisoryCount?: number;
   /** Individual rule results */
   results: RuleResult[];
 }
@@ -746,8 +811,11 @@ export interface PageSnapshot {
  *
  * 3 added `gate` (why the run exits as it does), `warnings` and
  * `RuleResult.overridden`.
+ * 4 added `RuleResult.reason` and `RuleResult.advisory`, and
+ * `CategoryResult.advisoryCount`. A rule that crashes is now `not-measured`
+ * with reason `rule-error`, not a `fail`.
  */
-export const AUDIT_SCHEMA_VERSION = 3;
+export const AUDIT_SCHEMA_VERSION = 4;
 
 /**
  * The options an audit actually ran with.
@@ -777,6 +845,12 @@ export interface AuditRunOptions {
    * before the option existed reads as a production audit.
    */
   staging?: boolean;
+  /**
+   * `rule_options` values that differ from the rules' defaults, by rule id.
+   * Recorded because a threshold change moves verdicts without the site
+   * changing. Absent when every rule ran on its defaults.
+   */
+  ruleOptions?: Record<string, Record<string, unknown>>;
   timeout: number;
 }
 

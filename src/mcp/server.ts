@@ -269,7 +269,7 @@ export function createMcpServer(options: McpServerOptions): McpServer {
         // Config is read at the start of every run, so editing seomator.toml
         // between runs takes effect without restarting the server.
         const loaded = loadConfig(process.cwd(), {}, options.config);
-        assertRunnableConfig(loaded.config, loaded.configPath, { categories: categories ?? [] });
+        warnings.push(...assertRunnableConfig(loaded.config, loaded.configPath, { categories: categories ?? [] }));
         setUserAgent(loaded.config.crawler.user_agent);
 
         if (!options.allowPrivate) {
@@ -283,6 +283,7 @@ export function createMcpServer(options: McpServerOptions): McpServer {
             network: { mode: options.allowPrivate ? 'open' : 'strict', allowHosts: options.allowHosts },
             enableRules: loaded.config.rules.enable,
             disableRules: loaded.config.rules.disable,
+            ruleOptions: loaded.config.rule_options,
             respectRobots: loaded.config.crawler.respect_robots,
           },
         });

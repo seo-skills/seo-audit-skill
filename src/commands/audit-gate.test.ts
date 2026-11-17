@@ -10,6 +10,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runAudit, type AuditOptions } from './audit.js';
+import { AUDIT_SCHEMA_VERSION } from '../types.js';
 
 // No description, no canonical: two rules that fail deterministically.
 const PAGE = `<!doctype html><html lang="en"><head><title>Gate fixture page</title>
@@ -90,7 +91,7 @@ describe('CI gates', () => {
     );
     expect(exitCode).toBe(1);
     const payload = JSON.parse(stdout);
-    expect(payload.schemaVersion).toBe(3);
+    expect(payload.schemaVersion).toBe(AUDIT_SCHEMA_VERSION);
     expect(payload.gate.failedCiRules[0].ruleId).toBe('core-canonical-present');
     expect(payload.gate.exitCode).toBe(1);
     expect(stderr.trim().split('\n').at(-1)).toMatch(/^.*Exit 1: core-canonical-present failed \(fail_ci\); score \d+ passed fail-under 0/);

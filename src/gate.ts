@@ -4,9 +4,12 @@
  * Exit 1 means a gate failed:
  * - the overall score is below `fail-under` (default 70);
  * - a rule marked `fail_ci` failed on any page, scored or not;
- * - a rule marked `fail_ci` produced no reading at all, so its gate could not
- *   be evaluated. A gate that cannot run must not pass silently: that is how
- *   a CI check stays green over the very failure it was set up to catch.
+ * - a rule marked `fail_ci` could not look on some page (it needed a render,
+ *   a resource could not be verified, the check crashed), or took no reading
+ *   anywhere. A gate that cannot run must not pass silently: that is how a
+ *   CI check stays green over the very failure it was set up to catch. A page
+ *   where there was nothing to find (`not-applicable`, `not-compared`) does
+ *   not count against it.
  *
  * Exit 2 (usage, config, runtime) is decided before an audit result exists
  * and is not this module's business.
@@ -14,7 +17,7 @@
 
 import type { AuditGate, AuditResult, RuleResult } from './types.js';
 import type { RuleOverride } from './config/schema.js';
-import { isNotMeasured } from './rules/define-rule.js';
+import { couldNotLook, isNotMeasured } from './rules/define-rule.js';
 import { isRuleEnabled } from './rules/pattern-matcher.js';
 import { getRuleById } from './rules/registry.js';
 
@@ -67,7 +70,19 @@ export function evaluateGate(result: AuditResult, options: GateOptions): AuditGa
       continue;
     }
 
-    if (results.every((r) => isNotMeasured(r))) {
+    // "Could not look" on any page leaves the gate unevaluated there. "Nothing
+    // to find" (the pattern is absent, the page was not compared) satisfies
+    // it: otherwise gating any rule that only applies to some pages would
+    // fail every run.
+    const blind = results.find((r) => isNotMeasured(r) && couldNotLook(r));
+    if (blind) {
+      unevaluated.push({ ruleId, reason: blind.message });
+      continue;
+    }
+
+    // A result with no recorded reason is ambiguous; only when the rule took
+    // no reading anywhere is the gate treated as unevaluated.
+    if (results.every((r) => isNotMeasured(r) && r.reason === undefined)) {
       unevaluated.push({ ruleId, reason: results[0].message });
     }
   }

@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import { loadConfig, findConfigFile, writeSettingsFile, validateConfig } from '../config/index.js';
 import { getGlobalSettingsPath, getProjectSettingsPath, getGlobalDir } from '../storage/index.js';
 import { loadAllRules } from '../rules/loader.js';
-import { getAllRules } from '../rules/registry.js';
+import { registryValidationContext } from './run-config.js';
 
 export interface ConfigOptions {
   global: boolean;
@@ -80,8 +80,7 @@ async function runConfigValidate(options: ConfigOptions): Promise<void> {
   const { config, configPath } = loaded;
 
   await loadAllRules();
-  const ruleIds = getAllRules().map((rule) => rule.id);
-  const result = validateConfig(config, { ruleIds });
+  const result = validateConfig(config, registryValidationContext('error'));
 
   if (options.json) {
     console.log(JSON.stringify({ valid: result.valid, configPath, errors: result.errors, warnings: result.warnings }, null, 2));

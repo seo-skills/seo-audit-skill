@@ -230,10 +230,29 @@ them. `enabled = false` does not stop the `crawl-pdf-size` rule, which sends a
 
 ### [rule_options]
 
-Not implemented. A table of tables keyed by rule, for example
-`[rule_options."some-rule"]`. Default: empty. A value that is not a table is an
-error. No rule receives these options, and `config validate` warns when the
-table is not empty. The `blog` preset writes one entry.
+Read by `audit`, `analyze` and `mcp`. Per-rule thresholds and lists, keyed by
+rule id. Each rule declares the options it reads; `seomator explain <rule-id>`
+lists them with their type, default and range, and prints a block to paste.
+
+```toml
+[rule_options."technical-soft-404"]
+min_words = 800                       # an error-shaped title fails only below this
+extra_title_phrases = ["Sorry, that page is gone"]
+
+[rule_options."core-description-length"]
+min_length = 100
+max_length = 170
+```
+
+- A key the rule does not declare, a value of the wrong type and a number out
+  of range are errors: `audit` and `analyze` stop with exit 2 and error code
+  `config`, and the message lists the keys the rule does read.
+- An entry for an unknown rule id is an error in `config validate` and a
+  warning when a run starts: the run continues and says the entry is ignored,
+  so a config written before options were read keeps working.
+- Values that differ from a rule's defaults are stored with the audit.
+  `seomator compare` reports two audits run with different options as not
+  like-for-like.
 
 ## Pattern syntax
 
@@ -328,7 +347,7 @@ writes `[project]` with `name` (the `--name` value or the directory name) and
 | Preset | Keys written besides `[project]` |
 |---|---|
 | `default` | None |
-| `blog` | `[crawler]`: `max_pages = 500`, `exclude = ["/wp-admin/**", "/wp-content/uploads/**", "*.pdf"]`. `[rule_options."meta-tags/description-length"]`: `min_length = 120`, `max_length = 160`. |
+| `blog` | `[crawler]`: `max_pages = 500`, `exclude = ["/wp-admin/**", "/wp-content/uploads/**", "*.pdf"]`. `[rule_options."core-description-length"]`: `min_length = 120`, `max_length = 160`. |
 | `ecommerce` | `[crawler]`: `max_pages = 1000`, `include = ["/products/**", "/categories/**", "/collections/**"]`, `exclude = ["/cart/**", "/checkout/**", "/account/**", "*.pdf"]`, `allow_query_params = ["category", "sort", "filter", "page"]`. |
 | `ci` | `[crawler]`: `max_pages = 100`, `delay_ms = 0`, `respect_robots = false`. `[external_links]`: `enabled = false`, `cache_ttl_days = 7`, `timeout_ms = 10000`, `concurrency = 5`. `[output]`: `format = "json"`, `path = "reports/audit.json"`. |
 
@@ -341,7 +360,7 @@ Preset values with limited or no effect:
   follows `.pdf` links anyway.
 - `delay_ms = 0` in `ci`: `per_host_delay_ms` still spaces a crawl's requests
   200 ms apart. Add `per_host_delay_ms = 0` to remove the delay.
-- `[rule_options]` in `blog` and `[external_links]` in `ci`: not implemented.
+- `[external_links]` in `ci`: not implemented.
   `config validate` warns about both.
 
 ## seomator init

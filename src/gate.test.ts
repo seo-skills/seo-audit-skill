@@ -73,6 +73,29 @@ describe('fail_ci rules', () => {
     expect(gate.reason).toContain('was not measured (needs a browser render)');
   });
 
+  it('nothing to find on some pages satisfies the gate', () => {
+    const gate = evaluateGate(
+      result(90, [
+        canonical('pass', 'https://example.com/a'),
+        { ...canonical('not-measured', 'https://example.com/b', 0), reason: 'not-applicable' },
+      ]),
+      { failUnder: 70, overrides: gated }
+    );
+    expect(gate.exitCode).toBe(0);
+  });
+
+  it('could not look on any page leaves the gate unevaluated, even when another page passed', () => {
+    const gate = evaluateGate(
+      result(90, [
+        canonical('pass', 'https://example.com/a'),
+        { ...canonical('not-measured', 'https://example.com/b', 0), reason: 'rule-error', message: 'The check failed to run: boom' },
+      ]),
+      { failUnder: 70, overrides: gated }
+    );
+    expect(gate.unevaluated).toEqual([{ ruleId: 'core-canonical-present', reason: 'The check failed to run: boom' }]);
+    expect(gate.exitCode).toBe(1);
+  });
+
   it('a gated rule with no result at all exits 1', () => {
     const gate = evaluateGate(result(90, []), { failUnder: 70, overrides: gated });
     expect(gate.unevaluated).toEqual([{ ruleId: 'core-canonical-present', reason: 'the rule did not run' }]);

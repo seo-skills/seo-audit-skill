@@ -66,10 +66,10 @@ describe('changing an inert key says so', () => {
     expect(paths).toContain('external_links.cache_ttl_days');
   });
 
-  it('warns when rule_options is populated', () => {
+  it('no longer calls rule_options inert: rules read it now', () => {
     const config = getDefaultConfig();
-    config.rule_options = { 'content-word-count': { min: 500 } };
-    expect(unhonoured(config)).toContain('rule_options');
+    config.rule_options = { 'technical-soft-404': { min_words: 800 } };
+    expect(unhonoured(config)).not.toContain('rule_options');
   });
 
   it('stays a warning, not an error, so the audit still runs', () => {

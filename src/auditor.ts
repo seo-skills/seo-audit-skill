@@ -12,7 +12,7 @@ import type {
   AuditRunOptions,
 } from './types.js';
 import { categories, getCategoryById } from './categories/index.js';
-import { getRulesByCategory, resetCrossPageState } from './rules/registry.js';
+import { getRuleById, getRulesByCategory, resetCrossPageState } from './rules/registry.js';
 import { isRuleEnabled } from './rules/pattern-matcher.js';
 import { loadAllRules } from './rules/loader.js';
 import {
@@ -40,6 +40,8 @@ import {
 } from './scoring.js';
 import { netFetch, readTextCapped, MAX_PAGE_BYTES } from './net/fetch.js';
 import { policyForTarget, runWithNetPolicy, type NetMode } from './net/policy.js';
+import { notMeasured, resolveRuleOptions, defaultRuleOptions } from './rules/define-rule.js';
+import type { AuditRule, RuleOptionValues } from './types.js';
 
 /**
  * Callback for when a category audit starts
@@ -191,6 +193,13 @@ export interface AuditorOptions {
    * `host:port` pairs that stay reachable.
    */
   network?: { mode?: NetMode; allowHosts?: string[] };
+  /**
+   * Per-rule option values, keyed by rule id: the `rule_options` table of
+   * `seomator.toml`. Each rule receives its declared defaults with these laid
+   * over them. Validate with `validateConfig` first; undeclared keys are
+   * ignored here.
+   */
+  ruleOptions?: Record<string, Record<string, unknown>>;
 }
 
 /**
@@ -236,6 +245,7 @@ export class Auditor {
       onCrawlProgress: options.onCrawlProgress ?? (() => {}),
       onPageStart: options.onPageStart ?? (() => {}),
       network: { mode: options.network?.mode ?? 'auto', allowHosts: options.network?.allowHosts ?? [] },
+      ruleOptions: options.ruleOptions ?? {},
     };
 
     // Determine which categories to audit
@@ -697,7 +707,10 @@ export class Auditor {
       // the overall score down and report a narrower audit as a catastrophic
       // one. Dropping it lets calculateOverallScore renormalise over the
       // categories that actually ran.
-      if (rules.length === 0) {
+      // Advisory rules do not count toward the score, so a category with
+      // nothing else in it would score 0 at its full weight: dropped the same
+      // way, so adding an advisory rule never moves the overall score.
+      if (rules.length === 0 || rules.every((rule) => rule.advisory)) {
         continue;
       }
 
@@ -706,7 +719,7 @@ export class Auditor {
       // Run each rule
       for (const rule of rules) {
         try {
-          const result = await rule.run(context);
+          const result = await rule.run(context, this.optionsFor(rule));
           // Inject ruleId, weight and page URL for consistent tracking.
           // A result that set its own weight keeps it — that is how
           // notMeasured() opts a result out of scoring with weight 0.
@@ -714,6 +727,7 @@ export class Auditor {
             ...result,
             ruleId: rule.id,
             weight: result.weight ?? rule.weight,
+            ...(rule.advisory && { advisory: true }),
             details: {
               ...result.details,
               pageUrl: context.url,
@@ -726,16 +740,17 @@ export class Auditor {
           // 332 rules as "execution failed".
           rethrowIfAborted(error, this.options.signal);
 
-          // Rule threw an error, treat as fail
+          // A check that crashed took no reading. Scoring it as a weighted
+          // fail blamed the site for the engine's bug, and let any thrown
+          // network or parse error drag the score down.
           const errorResult: RuleResult = {
-            ruleId: rule.id,
-            status: 'fail',
-            message: `Rule execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            score: 0,
-            weight: rule.weight,
-            details: {
-              pageUrl: context.url,
-            },
+            ...notMeasured(
+              rule.id,
+              `The check failed to run: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              { pageUrl: context.url },
+              'rule-error'
+            ),
+            ...(rule.advisory && { advisory: true }),
           };
           ruleResults.push(errorResult);
           this.options.onRuleComplete(rule.id, rule.name, errorResult);
@@ -751,6 +766,45 @@ export class Auditor {
     }
 
     return results;
+  }
+
+  /** Effective options per rule, resolved once per run */
+  private resolvedOptions = new Map<string, RuleOptionValues>();
+
+  /** A rule's declared defaults with the configured `rule_options` over them */
+  private optionsFor(rule: AuditRule): RuleOptionValues {
+    let values = this.resolvedOptions.get(rule.id);
+    if (!values) {
+      values = resolveRuleOptions(rule, this.options.ruleOptions[rule.id]);
+      this.resolvedOptions.set(rule.id, values);
+    }
+    return values;
+  }
+
+  /** The `rule_options` values this run used that differ from the defaults */
+  getRunRuleOptions(): Record<string, Record<string, unknown>> | undefined {
+    return this.changedRuleOptions();
+  }
+
+  /**
+   * Configured option values that differ from the rules' defaults.
+   *
+   * Recorded on the run because a threshold change moves verdicts without
+   * the site changing. Undefined when every rule ran on its defaults.
+   */
+  private changedRuleOptions(): Record<string, Record<string, unknown>> | undefined {
+    const changed: Record<string, Record<string, unknown>> = {};
+    for (const [ruleId, configured] of Object.entries(this.options.ruleOptions)) {
+      const rule = getRuleById(ruleId);
+      if (!rule?.options) continue;
+      const defaults = defaultRuleOptions(rule);
+      for (const [key, value] of Object.entries(configured)) {
+        if (!(key in rule.options)) continue;
+        if (JSON.stringify(value) === JSON.stringify(defaults[key])) continue;
+        (changed[ruleId] ??= {})[key] = value;
+      }
+    }
+    return Object.keys(changed).length > 0 ? changed : undefined;
   }
 
   /**
@@ -776,6 +830,7 @@ export class Auditor {
       // Recorded only when set: absent reads as a production audit, which is
       // what every audit stored before the option existed was.
       ...(this.options.staging && { staging: true }),
+      ...(this.changedRuleOptions() && { ruleOptions: this.changedRuleOptions() }),
       timeout: this.options.timeout,
     };
   }

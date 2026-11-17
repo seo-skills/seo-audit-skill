@@ -242,6 +242,18 @@ export class AuditsDatabase {
   /**
    * Insert rule results
    */
+  /** One row per page: a crawl's Link Scores, too many for the extras row */
+  insertLinkScores(auditId: number, scores: Record<string, number>): void {
+    const insert = this.db.prepare('INSERT INTO audit_link_scores (audit_id, url, score) VALUES (?, ?, ?)');
+    for (const [url, score] of Object.entries(scores)) insert.run(auditId, url, score);
+  }
+
+  /** A stored audit's Link Scores by page URL; empty when it has none */
+  getLinkScores(auditId: number): Record<string, number> {
+    const rows = this.db.prepare('SELECT url, score FROM audit_link_scores WHERE audit_id = ?').all(auditId) as Array<{ url: string; score: number }>;
+    return Object.fromEntries(rows.map((row) => [row.url, row.score]));
+  }
+
   insertResults(auditId: number, resultInputs: InsertResultInput[]): number {
     return results.insertResults(this.db, auditId, resultInputs);
   }

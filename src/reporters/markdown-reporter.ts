@@ -3,6 +3,7 @@ import { collectFindings, type Finding } from './findings.js';
 import { collectIgnoredFindings } from '../rules/overrides.js';
 import { coverageLine } from './coverage-line.js';
 import { brokenExternalSection } from './external-links-section.js';
+import type { LinkScoreSummary } from '../site/link-score.js';
 import { scoreToVerdict } from '../verdict.js';
 import { getCategoryById } from '../categories/index.js';
 
@@ -248,6 +249,21 @@ export function renderMarkdownReport(result: AuditResult): string {
     if (brokenExternal.moreTargets > 0) lines.push(`+${brokenExternal.moreTargets} more broken targets in the JSON report.`);
     if (brokenExternal.aside) lines.push(`Also: ${brokenExternal.aside}.`);
     lines.push('');
+  }
+
+  const linkSummary = result.extras?.linkScoreSummary as LinkScoreSummary | undefined;
+  if (linkSummary && linkSummary.pages > 1) {
+    lines.push('## Link Score');
+    lines.push('');
+    lines.push(`Internal link strength of the ${linkSummary.pages} crawled pages, 0 to 100. A metric: it changes no score.`);
+    lines.push('');
+    const table = (title: string, pages: LinkScoreSummary['top']) => {
+      lines.push(`**${title}**`, '', '| Page | Link Score |', '|------|-----------:|');
+      for (const page of pages) lines.push(`| ${escapeMarkdown(page.url)} | ${page.score.toFixed(1)} |`);
+      lines.push('');
+    };
+    table('Best linked', linkSummary.top);
+    if (linkSummary.lowestIndexable.length > 0) table('Weakest indexable pages', linkSummary.lowestIndexable);
   }
 
   lines.push('## Summary');

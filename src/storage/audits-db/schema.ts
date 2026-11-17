@@ -69,6 +69,16 @@ export function initializeAuditsSchema(db: Database.Database): void {
     )
   `).run();
 
+  // Internal Link Score per page of a crawl: too many rows for extras_json
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS audit_link_scores (
+      audit_id INTEGER NOT NULL REFERENCES audits(id) ON DELETE CASCADE,
+      url TEXT NOT NULL,
+      score REAL NOT NULL
+    )
+  `).run();
+  db.prepare('CREATE INDEX IF NOT EXISTS idx_audit_link_scores_audit ON audit_link_scores(audit_id)').run();
+
   // Aggregated issues table
   db.prepare(`
     CREATE TABLE IF NOT EXISTS issues (

@@ -875,6 +875,10 @@ Config priority (highest to lowest):
 4. Global `~/.seomator/config.toml`
 5. Built-in defaults
 
+## Link Score
+
+A crawl (`audit --crawl`) also computes an internal **Link Score** for each page: PageRank over the site's own links, scaled 0 to 100, where the best-linked page scores 100. Redirecting URLs are folded into their target, a canonicalised page passes everything to its canonical, and nofollow links pass nothing. Every report lists the ten best-linked pages and the ten weakest pages a search engine would index; JSON carries every page's score in `extras.linkScores`. It is a metric for deciding which pages need more internal links: it changes no score and no ranking.
+
 ## Output Formats
 
 | Format | Flag | Best For |

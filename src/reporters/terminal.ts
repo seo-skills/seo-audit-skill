@@ -13,6 +13,7 @@ import { rulePriority } from '../rules/priority.js';
 import { collectIgnoredFindings, isIgnoredByConfig } from '../rules/overrides.js';
 import { coverageLine } from './coverage-line.js';
 import { brokenExternalSection } from './external-links-section.js';
+import type { LinkScoreSummary } from '../site/link-score.js';
 import type { OverridePriority } from '../types.js';
 import { normalizeMessage } from './findings.js';
 import { getRuleById } from '../rules/registry.js';
@@ -433,6 +434,26 @@ export function renderTerminalReport(result: AuditResult): void {
     }
     if (brokenExternal.moreTargets > 0) console.log(chalk.gray(`  ... +${brokenExternal.moreTargets} more`));
     if (brokenExternal.aside) console.log(chalk.gray(`  ${brokenExternal.aside}`));
+    console.log();
+  }
+
+  // A metric, not a finding: which pages the site's own links favour
+  const linkSummary = result.extras?.linkScoreSummary as LinkScoreSummary | undefined;
+  if (linkSummary && linkSummary.pages > 1) {
+    const path = (url: string) => {
+      try {
+        return new URL(url).pathname || '/';
+      } catch {
+        return url;
+      }
+    };
+    console.log(chalk.bold('LINK SCORE') + chalk.gray(' (internal links, 0-100; changes no score)'));
+    console.log(chalk.gray('  Best linked'));
+    for (const page of linkSummary.top) console.log(`    ${page.score.toFixed(1).padStart(5)}  ${path(page.url)}`);
+    if (linkSummary.lowestIndexable.length > 0) {
+      console.log(chalk.gray('  Weakest indexable pages'));
+      for (const page of linkSummary.lowestIndexable) console.log(`    ${page.score.toFixed(1).padStart(5)}  ${path(page.url)}`);
+    }
     console.log();
   }
 

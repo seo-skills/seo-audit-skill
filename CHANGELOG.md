@@ -136,6 +136,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     area (names, landmarks, keyboard and focus, tables, lists, media, frames,
     ARIA, language, other), each naming the axe rule, impact and WCAG tags.
     `disable_axe_rules` in `[rule_options]` leaves out known exceptions.
+- **Internal Link Score.** A crawl computes PageRank over the site's own links,
+  scaled 0 to 100: redirecting URLs fold into their target, a canonicalised
+  page passes everything to its canonical, nofollow links pass nothing. Every
+  report lists the ten best-linked pages and the ten weakest indexable ones;
+  JSON has every page in `extras.linkScores`, and stored audits keep them in
+  a table of their own. A metric: it changes no score.
 - The MCP `audit_url` tool takes `respectCrawlDelay` and `maxDurationS`, and
   refuses up front with `crawl-too-slow` when the site's `Crawl-delay` means
   the crawl cannot finish in time. Its summary carries `coverage` and

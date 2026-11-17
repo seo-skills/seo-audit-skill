@@ -15,6 +15,7 @@ import { getFixSuggestion } from './fix-suggestions.js';
 import { getRuleById } from '../rules/registry.js';
 import { isNotMeasured } from '../rules/define-rule.js';
 import { brokenExternalSection } from './external-links-section.js';
+import type { LinkScoreSummary } from '../site/link-score.js';
 
 /**
  * Rule metadata cache structure
@@ -2151,6 +2152,23 @@ function renderPageSnapshot(page: PageSnapshot | undefined, url: string): string
       </div>`;
 }
 
+/** Internal Link Score: the best-linked pages and the weakest indexable ones */
+function renderLinkScores(result: AuditResult): string {
+  const summary = result.extras?.linkScoreSummary as LinkScoreSummary | undefined;
+  if (!summary || summary.pages <= 1) return '';
+  const rows = (pages: LinkScoreSummary['top']) =>
+    pages
+      .map((p) => `<tr class="issue-row"><td><span class="issue-row-url" title="${escapeHtml(p.url)}">${escapeHtml(getShortUrl(p.url))}</span></td><td>${p.score.toFixed(1)}</td></tr>`)
+      .join('');
+  const table = (title: string, pages: LinkScoreSummary['top']) =>
+    `<div class="category-progress-title">${title}</div><table class="issues-table"><thead><tr><th>Page</th><th>Link Score</th></tr></thead><tbody>${rows(pages)}</tbody></table>`;
+  return `<section class="category-progress-section" id="link-score">
+        <div class="category-progress-title">Link Score (internal links, 0-100; changes no score)</div>
+        ${table('Best linked', summary.top)}
+        ${summary.lowestIndexable.length > 0 ? table('Weakest indexable pages', summary.lowestIndexable) : ''}
+      </section>`;
+}
+
 /** Broken external links, one row per dead target with the pages that link to it */
 function renderBrokenExternal(result: AuditResult): string {
   const section = brokenExternalSection(result, 100, 5);
@@ -2687,6 +2705,7 @@ export function renderHtmlReport(result: AuditResult): string {
       ${categorySectionsHtml}
 
       ${renderBrokenExternal(result)}
+      ${renderLinkScores(result)}
 
       <!-- Footer -->
       <footer class="footer">

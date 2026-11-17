@@ -2,6 +2,7 @@ import type { CheerioAPI } from 'cheerio';
 import type { UrlService } from './net/url-service.js';
 import type { ExternalLinkCheck, ExternalLinksExtras } from './site/external-links.js';
 import type { CodeCoverage } from './render/coverage.js';
+import type { LinkScoreSummary } from './site/link-score.js';
 
 /**
  * Rule execution status.
@@ -442,6 +443,8 @@ export interface SiteContext {
    * self-links); a page linking twice to the same target yields two edges.
    */
   inboundEdgesByUrl?: Map<string, InboundEdge[]>;
+  /** Crawled URL to the URL its redirects ended at, both normalised; only for URLs that redirect */
+  redirectTargetByUrl?: Map<string, string>;
 }
 
 /**
@@ -1073,6 +1076,10 @@ export interface AuditExtras {
   overrides?: Record<string, RuleOverrideMark>;
   /** Broken external link targets with the pages that link to each */
   externalLinks?: ExternalLinksExtras;
+  /** Internal Link Score, 0 to 100, by normalised page URL (crawls only) */
+  linkScores?: Record<string, number>;
+  /** The ten best-linked pages and the ten weakest indexable ones */
+  linkScoreSummary?: LinkScoreSummary;
   /** A section that exceeded its size cap, replaced by this marker */
   [section: string]: unknown;
 }

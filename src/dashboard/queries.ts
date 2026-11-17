@@ -158,7 +158,8 @@ export function getAuditDetail(db: AuditsDatabase, auditId: string): AuditDetail
 
   // Caps and waivers come back from the stored extras, so a capped score is
   // never shown without its reason. Override marks go back on the results.
-  const extras = audit.extras;
+  const linkScores = db.getLinkScores(audit.id);
+  const extras = Object.keys(linkScores).length > 0 ? { ...audit.extras, linkScores } : audit.extras;
   const overrides = (extras?.['overrides'] ?? {}) as Record<string, RuleSummary['overridden']>;
   for (const category of categoryResults) {
     for (const entry of category.results) {

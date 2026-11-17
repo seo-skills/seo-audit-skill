@@ -736,10 +736,17 @@ export class Crawler {
     const outboundLinksByUrl = new Map<string, Set<string>>();
     const inboundEdgesByUrl = new Map<string, InboundEdge[]>();
     const pages = new Map<string, SitePageInfo>();
+    const redirectTargetByUrl = new Map<string, string>();
     let pageCount = 0;
 
     for (const page of this.results) {
       const from = this.normalizeUrl(page.url);
+      // Where this URL's redirects ended, so an alias can be folded into it
+      const chain = page.context?.redirectChain;
+      if (chain && chain.length > 1) {
+        const final = this.normalizeUrl(chain[chain.length - 1].url);
+        if (final !== from) redirectTargetByUrl.set(from, final);
+      }
       // Recorded for every result, including failed fetches (statusCode 0):
       // sitemap cross-reference rules need to see those too. Cheap primitives
       // only — no HTML is retained.
@@ -790,6 +797,7 @@ export class Crawler {
       pages,
       discoverySourceByUrl: this.discoverySourceByUrl,
       inboundEdgesByUrl,
+      redirectTargetByUrl,
       normalize: (url: string) => this.normalizeUrl(url),
     };
   }

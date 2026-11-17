@@ -38,6 +38,7 @@ import {
 import { netFetch, readTextCapped, MAX_PAGE_BYTES } from './net/fetch.js';
 import { policyForTarget, runWithNetPolicy, type NetMode } from './net/policy.js';
 import { UrlService, type StatusCache } from './net/url-service.js';
+import { computeLinkScores, linkScoreSummary } from './site/link-score.js';
 import { LinkCache } from './storage/link-cache.js';
 import {
   EXTERNAL_LINKS_DISABLED,
@@ -770,8 +771,14 @@ export class Auditor {
     );
     const gaps = coverage.rateLimited + coverage.failed + coverage.notFetched > 0 || report.stoppedByDeadline;
     built.completionState = gaps ? 'completed-with-gaps' : 'completed';
+    // A metric, not a rule: shown in reports, changes no score
+    const linkScores = computeLinkScores(site);
     built.extras = {
       ...built.extras,
+      ...(linkScores.size > 0 && {
+        linkScores: Object.fromEntries(linkScores),
+        linkScoreSummary: linkScoreSummary(site, linkScores),
+      }),
       ...(this.externalLinksReport && { externalLinks: this.externalLinksReport }),
       crawl: {
         rateLimitedPages: coverage.rateLimited,

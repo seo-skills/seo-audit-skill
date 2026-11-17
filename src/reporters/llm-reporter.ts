@@ -22,6 +22,7 @@ import { collectFindings } from './findings.js';
 import { collectIgnoredFindings } from '../rules/overrides.js';
 import { coverageLine } from './coverage-line.js';
 import { brokenExternalSection } from './external-links-section.js';
+import type { LinkScoreSummary } from '../site/link-score.js';
 import { AUDIT_SCHEMA_VERSION } from '../types.js';
 import type { AuditResult } from '../types.js';
 import { getFixSuggestion } from './fix-suggestions.js';
@@ -318,6 +319,17 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
       lines.push(`${t2}<link answer="${escapeXml(target.reason)}">${wrapUntrusted(target.url, nonce)} from ${wrapUntrusted(pages, nonce)}</link>${nl}`);
     }
     lines.push(`${t1}</broken-external-links>${nl}`);
+  }
+  // Internal link strength: a metric, not a finding
+  const linkSummary = result.extras?.linkScoreSummary as LinkScoreSummary | undefined;
+  if (linkSummary && linkSummary.pages > 1) {
+    const list = (pages: LinkScoreSummary['top']) => pages.map((p) => `${p.score.toFixed(1)} ${p.url}`).join('; ');
+    lines.push(`${t1}<link-score pages="${linkSummary.pages}">${nl}`);
+    lines.push(`${t2}<best-linked>${wrapUntrusted(list(linkSummary.top), nonce)}</best-linked>${nl}`);
+    if (linkSummary.lowestIndexable.length > 0) {
+      lines.push(`${t2}<weakest-indexable>${wrapUntrusted(list(linkSummary.lowestIndexable), nonce)}</weakest-indexable>${nl}`);
+    }
+    lines.push(`${t1}</link-score>${nl}`);
   }
   // Hidden by `[rules.override]`. Named so an agent never mistakes a finding
   // the team chose to hide for one the audit did not raise.

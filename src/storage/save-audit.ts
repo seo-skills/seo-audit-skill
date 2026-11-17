@@ -196,6 +196,7 @@ export function saveAuditToDatabase(result: AuditResult, options: SaveAuditOptio
 
     db.insertCategories(audit.id, categoryInputs);
     db.insertResults(audit.id, resultInputs);
+    if (result.extras?.linkScores) db.insertLinkScores(audit.id, result.extras.linkScores);
 
     db.completeAudit(auditId, {
       overallScore: result.overallScore,
@@ -243,6 +244,8 @@ export function buildStoredExtras(result: AuditResult): Record<string, unknown> 
   if (Object.keys(overrides).length > 0) sections['overrides'] = overrides;
 
   for (const [key, value] of Object.entries(result.extras ?? {})) {
+    // Link Scores have a table of their own; the summary stays here
+    if (key === 'linkScores') continue;
     if (value !== undefined && !(key in sections)) sections[key] = value;
   }
 

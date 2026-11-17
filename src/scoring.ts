@@ -79,8 +79,11 @@ export function calculateCategoryScore(results: RuleResult[]): number {
  * 4 — a crawl is capped when its start page cannot be indexed. A site that
  *     was noindex on every page crawled to 92, and one behind `Disallow: /`
  *     to 93, while a single-page audit of either scored 20.
+ * 5 — 8.0.0. Rules that gave wrong answers were fixed: soft-404 needs an
+ *     error-shaped title, H1 or text on a thin page, so long articles about
+ *     errors no longer fail it.
  */
-export const SCORING_VERSION = 4;
+export const SCORING_VERSION = 5;
 
 /**
  * Calculate the overall audit score from category results

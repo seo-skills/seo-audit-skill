@@ -118,6 +118,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Soft-404 detection stops failing real pages.** It matched "error", "404"
+  and "not found" anywhere in the title or H1, so long pages titled "Error
+  Handling in Rust", "Terrorism Studies MA" or "Book Room 404" failed. It now
+  takes two signals. The first is a title or H1 that *is* an error message:
+  any segment (split at `|`, `·`, `–`, `—`, ` - ` and `: `) equals "404",
+  "page not found", "not found", "error 404", "404 not found", "this page
+  could not be found" or "oops! that page can't be found"; or text that says
+  so ("no longer available", "does not exist" and similar, on word
+  boundaries). The second is a thin page: under 500 words with the title or
+  H1 signal, under 100 with the text signal alone. Common CMS defaults such as
+  "404 - Page Not Found | Shop" are now caught. This is part of scoring model
+  5: `compare` reads audits from before it as a different model, not a
+  regression.
 - **Crawls now use the concurrency you set.** A crawl worker that found the
   queue empty waited 100 ms and then quit for good. The start page almost
   always takes longer than that, so every other worker left before the first

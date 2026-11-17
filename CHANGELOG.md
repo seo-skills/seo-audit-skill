@@ -52,6 +52,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `--no-cwv` hints in rule messages now read "run with `--cwv`", and the
   mobile-parity hint reads "run with `--cwv --mobile`".
 
+### Fixed
+
+- **Crawls now use the concurrency you set.** A crawl worker that found the
+  queue empty waited 100 ms and then quit for good. The start page almost
+  always takes longer than that, so every other worker left before the first
+  links were queued, and crawls ran one request at a time whatever
+  `--concurrency` or `crawler.concurrency` said. Idle workers now wait for a
+  running page to finish, and stop only when the queue is empty and nothing
+  is in flight. Crawls with `concurrency` above 1 are faster, and may reach
+  pages in a different order.
+
 ## [7.0.0] - 2026-10-15
 
 ### Added

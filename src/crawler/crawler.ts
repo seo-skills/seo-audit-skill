@@ -150,6 +150,8 @@ export class Crawler {
   /** Earliest time the next request to each host may start */
   private nextHostSlot = new Map<string, number>();
   private activeCount = 0;
+  /** Idle workers waiting for a running page to finish */
+  private progressWaiters: Array<() => void> = [];
   private urlFilter: UrlFilter;
   /** Built once per crawl from the site's robots.txt; null when not applied. */
   private robots: RobotsMatcher | null = null;
@@ -222,6 +224,7 @@ export class Crawler {
     this.discoverySourceByUrl.clear();
     this.results = [];
     this.activeCount = 0;
+    this.progressWaiters = [];
 
     // Apply overrides
     if (maxPages !== undefined) {
@@ -274,6 +277,12 @@ export class Crawler {
 
   /**
    * Worker that processes URLs from the queue
+   *
+   * An empty queue only means the crawl is over when no request is still in
+   * flight: a page being fetched can add links. So an idle worker waits for
+   * a running page to finish and looks again, rather than leaving. Leaving
+   * after a fixed pause made every crawl whose start page took longer than
+   * that pause run one request at a time, whatever `concurrency` said.
    */
   private async worker(): Promise<void> {
     while (true) {
@@ -284,26 +293,36 @@ export class Crawler {
         break;
       }
 
-      // Get next URL from queue
       const url = this.getNextUrl();
-      if (!url) {
-        // No more URLs to process
-        // Wait a bit in case other workers are adding URLs
-        await this.sleep(100);
-
-        // Check again
-        const retryUrl = this.getNextUrl();
-        if (!retryUrl) {
-          break;
-        }
-
-        await this.waitForTurn(retryUrl);
-        await this.processUrl(retryUrl);
-      } else {
+      if (url) {
         await this.waitForTurn(url);
         await this.processUrl(url);
+        continue;
       }
+
+      if (this.activeCount === 0) break;
+      await this.waitForProgress();
     }
+  }
+
+  /** Resolve when a page finishes (and may have queued links) or the run is cancelled */
+  private waitForProgress(): Promise<void> {
+    return new Promise((resolve) => {
+      const signal = this.options.signal;
+      const onAbort = () => resolve();
+      this.progressWaiters.push(() => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve();
+      });
+      signal?.addEventListener('abort', onAbort, { once: true });
+    });
+  }
+
+  /** Wake every idle worker */
+  private notifyProgress(): void {
+    const waiters = this.progressWaiters;
+    this.progressWaiters = [];
+    for (const wake of waiters) wake();
   }
 
   /**
@@ -395,6 +414,7 @@ export class Crawler {
       this.discoverFromPageSignals(context);
     } finally {
       this.activeCount--;
+      this.notifyProgress();
     }
   }
 

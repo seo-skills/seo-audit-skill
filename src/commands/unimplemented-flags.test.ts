@@ -66,8 +66,10 @@ describe('the flags are not advertised', () => {
 
   it('registers them hidden rather than as documented options', () => {
     // A `.option('-r, --refresh', 'Ignore cache, ...')` line is what put a
-    // promise of caching into `--help` on two commands.
-    expect(cli).not.toMatch(/\.option\(\s*'-r, --refresh'/);
+    // promise of caching into `--help` on two commands. `audit --refresh` is
+    // real now (it bypasses the link cache), so only `audit` documents it.
+    expect(cli.match(/\.option\(\s*'-r, --refresh'/g)).toHaveLength(1);
+    expect(cli).toMatch(/\.option\('-r, --refresh', 'Check every external link again/);
     expect(cli).not.toMatch(/\.option\(\s*'--resume'/);
     expect(cli).toMatch(/hideHelp\(\)/);
   });
@@ -77,6 +79,13 @@ describe('the flags are not advertised', () => {
     // option" on a command line that used to work.
     expect(cli).toMatch(/new Option\('-r, --refresh'\)/);
     expect(cli).toMatch(/new Option\('--resume'\)/);
+  });
+
+  it('does not call --refresh a no-op where it is implemented', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    warnUnimplementedFlags({ refresh: true, resume: true }, ['refresh']);
+    expect(err).toHaveBeenCalledTimes(1);
+    expect(err).toHaveBeenCalledWith(expect.stringContaining('--resume'));
   });
 
   it('keeps both flags in one list, so neither is half-removed', () => {

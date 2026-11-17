@@ -8,6 +8,7 @@
  */
 
 import type { SeomatorConfig } from '../config/schema.js';
+import type { ExternalLinksOptions } from '../auditor.js';
 import { validateConfig } from '../config/validator.js';
 import { findFilteredGates } from '../gate.js';
 import { getAllRules } from '../rules/registry.js';
@@ -84,4 +85,16 @@ export function assertRunnableConfig(
   const rest = problems.slice(1).map((p) => `- ${p}`);
   const hint = [...rest, 'Run `seomator config validate` to check the config without auditing.'].join('\n');
   throw new AuditError('config', `Invalid configuration${where}: ${problems[0]}${more}`, { hint });
+}
+
+/** `[external_links]` as the auditor takes it; `refresh` is `--refresh` */
+export function externalLinksOptions(config: SeomatorConfig, refresh = false): ExternalLinksOptions {
+  const ext = config.external_links;
+  return {
+    enabled: ext.enabled,
+    timeoutMs: ext.timeout_ms,
+    concurrency: ext.concurrency,
+    cacheTtlDays: ext.cache_ttl_days,
+    refresh,
+  };
 }

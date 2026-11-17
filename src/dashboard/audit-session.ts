@@ -179,6 +179,7 @@ export interface AuditSessionOptions {
     | 'respectCrawlDelay'
     | 'maxRetryAfterMs'
     | 'maxDurationMs'
+    | 'externalLinks'
   >;
   /** Injectable for tests */
   createAuditor?: (options: AuditorOptions) => Auditor;

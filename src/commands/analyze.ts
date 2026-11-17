@@ -24,7 +24,7 @@ import type { AuditContext } from '../types.js';
 import { emitCommandError } from './machine-error.js';
 import { SCORING_VERSION } from '../scoring.js';
 import { applyScoreCaps, readPageFacts, siteCaps } from '../score-caps.js';
-import { assertRunnableConfig } from './run-config.js';
+import { assertRunnableConfig, externalLinksOptions } from './run-config.js';
 import { applyRuleOverrides } from '../rules/overrides.js';
 import { evaluateGate } from '../gate.js';
 import { classifyError } from '../errors.js';
@@ -207,6 +207,7 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
     enableRules: config.rules.enable,
     disableRules: config.rules.disable,
     ruleOptions: config.rule_options,
+    externalLinks: externalLinksOptions(config),
     measureCwv: false, // CWV already measured during crawl
     onCategoryStart: (id, name) => progress.onCategoryStart(id, name),
     onCategoryComplete: (id, name, result) => progress.onCategoryComplete(id, name, result),
@@ -263,6 +264,8 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
       undefined,
       { pages: pages.map((p) => p.url), detail: 'per-page' }
     );
+    const externalLinks = auditor.getExternalLinksReport();
+    if (externalLinks) built.extras = { ...built.extras, externalLinks };
 
     // Capped like `audit --crawl` when search engines cannot index the start
     // page. That is the first stored page: the crawler records the entry

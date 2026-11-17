@@ -175,7 +175,12 @@ export async function readTextCapped(response: Response, maxBytes: number): Prom
  * is not an error, just more than they need.
  */
 export async function readTextPrefix(response: Response, maxBytes: number): Promise<string> {
-  if (!response.body) return '';
+  return new TextDecoder('utf-8').decode(await readBytesPrefix(response, maxBytes));
+}
+
+/** The first `maxBytes` of a body; the rest is never downloaded. */
+export async function readBytesPrefix(response: Response, maxBytes: number): Promise<Uint8Array> {
+  if (!response.body) return new Uint8Array(0);
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -194,5 +199,5 @@ export async function readTextPrefix(response: Response, maxBytes: number): Prom
     body.set(chunk.subarray(0, room), offset);
     offset += Math.min(chunk.byteLength, room);
   }
-  return new TextDecoder('utf-8').decode(body);
+  return body;
 }

@@ -245,6 +245,7 @@ route), `tls` (certificate rejected), `timeout`, `http-error`, `non-html`,
 | `--min-coverage <pct>` | | With `--crawl`: exit 1 when fewer than pct% of the attempted pages were measured | 0 |
 | `--max-duration <s>` | | With `--crawl`: stop requesting pages after s seconds and score what was fetched | no limit |
 | `--ignore-crawl-delay` | | With `--crawl`: do not honour the site's robots.txt `Crawl-delay` | false |
+| `--refresh` | `-r` | Check every external link again instead of using the link cache | false |
 
 Audits are stored by default, so `compare` and `report` always have history.
 

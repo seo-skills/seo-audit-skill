@@ -1,4 +1,6 @@
 import type { CheerioAPI } from 'cheerio';
+import type { UrlService } from './net/url-service.js';
+import type { ExternalLinkCheck, ExternalLinksExtras } from './site/external-links.js';
 
 /**
  * Rule execution status.
@@ -612,6 +614,15 @@ export interface AuditContext {
    * finishing in the background.
    */
   signal?: AbortSignal;
+
+  /**
+   * The run's requests for URLs other than its pages, made once each.
+   * Absent when a rule is called on its own; see `urlServiceFor()`.
+   */
+  urls?: UrlService;
+
+  /** Every external link of the run, checked once each before rules run */
+  externalLinks?: ExternalLinkCheck;
 }
 
 /**
@@ -1015,6 +1026,8 @@ export interface AuditResult {
 export interface AuditExtras {
   /** `[rules.override]` marks by rule id, so a stored audit shows them */
   overrides?: Record<string, RuleOverrideMark>;
+  /** Broken external link targets with the pages that link to each */
+  externalLinks?: ExternalLinksExtras;
   /** A section that exceeded its size cap, replaced by this marker */
   [section: string]: unknown;
 }

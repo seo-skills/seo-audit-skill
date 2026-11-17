@@ -2,6 +2,7 @@ import type { AuditResult, RuleResult } from '../types.js';
 import { collectFindings, type Finding } from './findings.js';
 import { collectIgnoredFindings } from '../rules/overrides.js';
 import { coverageLine } from './coverage-line.js';
+import { brokenExternalSection } from './external-links-section.js';
 import { scoreToVerdict } from '../verdict.js';
 import { getCategoryById } from '../categories/index.js';
 
@@ -232,6 +233,22 @@ export function renderMarkdownReport(result: AuditResult): string {
   // Summary
   const totalPassed = result.categoryResults.reduce((sum, cat) => sum + cat.passCount, 0);
   const totalChecks = totalPassed + warnings.length + failures.length;
+
+  const brokenExternal = brokenExternalSection(result, 50, 3);
+  if (brokenExternal) {
+    lines.push('## Broken external links');
+    lines.push('');
+    lines.push('| Target | Answer | Linked from |');
+    lines.push('|--------|--------|-------------|');
+    for (const target of brokenExternal.targets) {
+      const more = target.morePages > 0 ? `, +${target.morePages} more` : '';
+      lines.push(`| ${escapeMarkdown(target.url)} | ${escapeMarkdown(target.reason)} | ${target.pages.map(escapeMarkdown).join(', ')}${more} |`);
+    }
+    lines.push('');
+    if (brokenExternal.moreTargets > 0) lines.push(`+${brokenExternal.moreTargets} more broken targets in the JSON report.`);
+    if (brokenExternal.aside) lines.push(`Also: ${brokenExternal.aside}.`);
+    lines.push('');
+  }
 
   lines.push('## Summary');
   lines.push('');

@@ -14,6 +14,7 @@ import { getCategoryById } from '../categories/index.js';
 import { getFixSuggestion } from './fix-suggestions.js';
 import { getRuleById } from '../rules/registry.js';
 import { isNotMeasured } from '../rules/define-rule.js';
+import { brokenExternalSection } from './external-links-section.js';
 
 /**
  * Rule metadata cache structure
@@ -2150,6 +2151,30 @@ function renderPageSnapshot(page: PageSnapshot | undefined, url: string): string
       </div>`;
 }
 
+/** Broken external links, one row per dead target with the pages that link to it */
+function renderBrokenExternal(result: AuditResult): string {
+  const section = brokenExternalSection(result, 100, 5);
+  if (!section) return '';
+  const rows = section.targets
+    .map(
+      (t) => `<tr class="issue-row">
+            <td><span class="issue-row-url" title="${escapeHtml(t.url)}">${escapeHtml(t.url)}</span></td>
+            <td>${escapeHtml(t.reason)}</td>
+            <td>${t.pages.map((p) => `<span class="issue-row-url" title="${escapeHtml(p)}">${escapeHtml(getShortUrl(p))}</span>`).join('<br>')}${t.morePages > 0 ? `<br>+${t.morePages} more` : ''}</td>
+          </tr>`
+    )
+    .join('');
+  return `<section class="category-progress-section" id="broken-external-links">
+        <div class="category-progress-title">Broken external links (${section.targets.length + section.moreTargets})</div>
+        <table class="issues-table">
+          <thead><tr><th>Target</th><th>Answer</th><th>Linked from</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        ${section.moreTargets > 0 ? `<p>+${section.moreTargets} more in the JSON report.</p>` : ''}
+        ${section.aside ? `<p>Also: ${escapeHtml(section.aside)}.</p>` : ''}
+      </section>`;
+}
+
 export function renderHtmlReport(result: AuditResult): string {
   const scoreColor = getScoreColor(result.overallScore);
   const scoreLabel = scoreToVerdict(result.overallScore).label;
@@ -2660,6 +2685,8 @@ export function renderHtmlReport(result: AuditResult): string {
 
       <!-- Category Sections -->
       ${categorySectionsHtml}
+
+      ${renderBrokenExternal(result)}
 
       <!-- Footer -->
       <footer class="footer">

@@ -549,10 +549,6 @@ const UNHONOURED_KEYS: Array<{ path: string; effect: string }> = [
   { path: 'crawler.breadth_first', effect: 'the queue is always breadth-first' },
   { path: 'crawler.follow_redirects', effect: 'redirects are always followed, up to the hop limit' },
   { path: 'crawler.max_prefix_budget', effect: 'no prefix budget is applied' },
-  { path: 'external_links.enabled', effect: 'no external link is ever requested' },
-  { path: 'external_links.cache_ttl_days', effect: 'the link cache is never opened' },
-  { path: 'external_links.timeout_ms', effect: 'no external link is ever requested' },
-  { path: 'external_links.concurrency', effect: 'no external link is ever requested' },
 ];
 
 /**

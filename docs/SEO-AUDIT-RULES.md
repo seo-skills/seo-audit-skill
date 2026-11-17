@@ -368,7 +368,7 @@ Analyzes internal and external links, anchor text, broken links, and link qualit
 - **Fix:** Update or remove links returning 404. Point to correct destination URLs.
 
 #### links-external-valid
-- **What it checks:** The first 20 external links on the page, each with HEAD and then GET when HEAD fails. A 4xx, a 5xx or no answer warns. Results are not cached between audits.
+- **What it checks:** Every external link on the page. The run checks each target once (HEAD, then GET when HEAD fails) before rules run, so a link on many pages is one request. A target that is gone (404, 410, another 5xx, a domain that does not resolve) warns. A refusal (401, 403, 429, 999) or no answer is listed as could not verify and never changes the status. Settled answers are cached for `[external_links] cache_ttl_days`; `audit --refresh` checks again. Options: `max_urls` (2000) and `max_seconds` (300) bound a crawl's checks; a single page gets 30 seconds.
 - **Fix:** Fix or remove dead external links.
 
 #### links-anchor-text

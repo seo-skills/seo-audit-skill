@@ -24,7 +24,7 @@ import { AuditAbortedError, classifyError } from '../errors.js';
 import { setUserAgent } from '../crawler/user-agent.js';
 import { saveReport, createReport, saveAuditToDatabase, getAuditsDbPath } from '../storage/index.js';
 import { resolvePersistence, SAVE_DEPRECATION_NOTICE } from './persistence.js';
-import { assertRunnableConfig } from './run-config.js';
+import { assertRunnableConfig, externalLinksOptions } from './run-config.js';
 import { applyRuleOverrides } from '../rules/overrides.js';
 import { evaluateGate } from '../gate.js';
 
@@ -302,7 +302,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
     console.error(chalk.yellow(`Config warning: ${warning}`));
   }
 
-  warnUnimplementedFlags(options as unknown as Record<string, unknown>);
+  warnUnimplementedFlags(options as unknown as Record<string, unknown>, ['refresh']);
 
   // A filtered run scores differently from a full one. Say so on the run it
   // affects, on stderr so a redirected document is still only the document.
@@ -394,6 +394,12 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       respectCrawlDelay: !options.ignoreCrawlDelay && config.crawler.respect_crawl_delay,
       maxRetryAfterMs: config.crawler.max_retry_after_ms,
       ...(maxDurationS > 0 && { maxDurationMs: maxDurationS * 1000 }),
+      externalLinks: externalLinksOptions(config, options.refresh === true),
+      onExternalLinks: (count) => {
+        if (outputFormat === 'console' || isVerbose) {
+          console.error(chalk.dim(`  checking ${count} external link${count === 1 ? '' : 's'}`));
+        }
+      },
       // Said before the first page, on stderr, and the run carries on: a
       // projection is information, not a question an unattended run can answer.
       onCrawlDelay: (notice) => {

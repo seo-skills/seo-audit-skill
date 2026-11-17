@@ -153,7 +153,7 @@ program
   .option('--mobile', 'Also render at a mobile viewport and run mobile-first parity checks (single-page; implies --cwv)', false)
   .option('--simulate-interaction', 'Click and scroll the page so INP can be measured (reported as synthetic; implies --cwv)', false)
   .option('--staging', 'Audit a staging site: waive the noindex and robots.txt caps, and crawl past robots.txt', false)
-  .addOption(new Option('-r, --refresh').hideHelp().default(false))
+  .option('-r, --refresh', 'Check every external link again instead of using the link cache', false)
   .addOption(new Option('--resume').hideHelp().default(false))
   .option('--config <path>', 'Config file path')
   // --no-save must be declared before --save so the default stays true.

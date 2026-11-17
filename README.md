@@ -156,6 +156,7 @@ Run SEO audit on a URL.
 | `--min-coverage <pct>` | - | With `--crawl`: exit 1 when fewer than pct% of the attempted pages were measured | 0 |
 | `--max-duration <s>` | - | With `--crawl`: stop requesting pages after s seconds and score what was fetched | no limit |
 | `--ignore-crawl-delay` | - | With `--crawl`: do not honour the site's robots.txt `Crawl-delay` | false |
+| `--refresh` | `-r` | Check every external link again instead of using the link cache | false |
 | `--verbose` | `-v` | Show progress | false |
 | `--config <path>` | - | Config file path | - |
 | `--no-save` | - | Do not store this audit in your history | - |

@@ -12,6 +12,7 @@ import { isNotMeasured } from '../rules/define-rule.js';
 import { rulePriority } from '../rules/priority.js';
 import { collectIgnoredFindings, isIgnoredByConfig } from '../rules/overrides.js';
 import { coverageLine } from './coverage-line.js';
+import { brokenExternalSection } from './external-links-section.js';
 import type { OverridePriority } from '../types.js';
 import { normalizeMessage } from './findings.js';
 import { getRuleById } from '../rules/registry.js';
@@ -422,6 +423,19 @@ export function renderTerminalReport(result: AuditResult): void {
 
   // Findings `[rules.override]` hid. Listed, not dropped: a reader should be
   // able to see what the config chose not to show them.
+  const brokenExternal = brokenExternalSection(result);
+  if (brokenExternal) {
+    console.log(chalk.bold(`BROKEN EXTERNAL LINKS (${brokenExternal.targets.length + brokenExternal.moreTargets})`));
+    for (const target of brokenExternal.targets) {
+      console.log(`  ${chalk.yellow(target.reason)}  ${target.url}`);
+      renderPagesList(target.pages, target.pages.length);
+      if (target.morePages > 0) console.log(chalk.gray(`      ... +${target.morePages} more`));
+    }
+    if (brokenExternal.moreTargets > 0) console.log(chalk.gray(`  ... +${brokenExternal.moreTargets} more`));
+    if (brokenExternal.aside) console.log(chalk.gray(`  ${brokenExternal.aside}`));
+    console.log();
+  }
+
   const ignored = collectIgnoredFindings(result);
   if (ignored.length > 0) {
     console.log(chalk.gray(`Ignored by config (${ignored.length}): ${ignored.map((i) => i.ruleId).join(', ')}`));

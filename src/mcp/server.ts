@@ -31,7 +31,7 @@ import { AuditSession, RUN_LIMITS, SESSION_MAX_DURATION_MS, type RunOutcome, typ
 import { loadAllRules } from '../rules/loader.js';
 import { getCategoryIds } from '../categories/index.js';
 import { loadConfig } from '../config/index.js';
-import { assertRunnableConfig } from '../commands/run-config.js';
+import { assertRunnableConfig, externalLinksOptions } from '../commands/run-config.js';
 import { AuditError, classifyError } from '../errors.js';
 import { explainRule, formatExplanation, formatUnknownRule, listRuleIds } from '../explain.js';
 import { collectFindings } from '../reporters/findings.js';
@@ -331,6 +331,7 @@ export function createMcpServer(options: McpServerOptions): McpServer {
             maxRetryAfterMs: loaded.config.crawler.max_retry_after_ms,
             maxDurationMs: durationS * 1000,
             respectRobots: loaded.config.crawler.respect_robots,
+            externalLinks: externalLinksOptions(loaded.config),
           },
         });
 

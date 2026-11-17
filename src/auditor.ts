@@ -40,6 +40,15 @@ import {
 } from './scoring.js';
 import { netFetch, readTextCapped, MAX_PAGE_BYTES } from './net/fetch.js';
 import { policyForTarget, runWithNetPolicy, type NetMode } from './net/policy.js';
+import { UrlService, type StatusCache } from './net/url-service.js';
+import { LinkCache } from './storage/link-cache.js';
+import {
+  EXTERNAL_LINKS_DISABLED,
+  SINGLE_PAGE_BUDGET_MS,
+  checkExternalLinks,
+  externalLinksExtras,
+  type ExternalLinksExtras,
+} from './site/external-links.js';
 import { MAX_RATE_LIMIT_RETRIES, parseRetryAfter, rateLimitedMessage, type CrawlDelayNotice, type CrawlWaiting } from './crawler/crawler.js';
 import { notMeasured, resolveRuleOptions, defaultRuleOptions } from './rules/define-rule.js';
 import type { AuditRule, RuleOptionValues } from './types.js';
@@ -216,6 +225,28 @@ export interface AuditorOptions {
   onCrawlDelay?: (notice: CrawlDelayNotice) => void;
   /** Told when the crawl waits on a rate-limited host */
   onWaiting?: (waiting: CrawlWaiting) => void;
+  /**
+   * `[external_links]`. Without `cacheTtlDays` nothing persists between runs;
+   * the CLI passes the configured 7 days.
+   */
+  externalLinks?: ExternalLinksOptions;
+  /** Told how many unique external URLs the run is about to check */
+  onExternalLinks?: (count: number) => void;
+}
+
+export interface ExternalLinksOptions {
+  /** `false` makes `links-external-valid` not measured and requests nothing */
+  enabled?: boolean;
+  /** Per request, in ms (default 10000) */
+  timeoutMs?: number;
+  /** Requests in flight at once (default 5) */
+  concurrency?: number;
+  /** Days a settled answer persists in the link cache; 0 or absent: never */
+  cacheTtlDays?: number;
+  /** Ask again even when the link cache has an answer (`--refresh`) */
+  refresh?: boolean;
+  /** A cache to use instead of opening the one under SEOMATOR_HOME (tests) */
+  cache?: StatusCache;
 }
 
 /**
@@ -228,7 +259,8 @@ type OptionalAuditorKeys =
   | 'perHostConcurrency'
   | 'maxDurationMs'
   | 'onCrawlDelay'
-  | 'onWaiting';
+  | 'onWaiting'
+  | 'onExternalLinks';
 type ResolvedAuditorOptions = Required<Omit<AuditorOptions, OptionalAuditorKeys>> &
   Pick<AuditorOptions, OptionalAuditorKeys>;
 
@@ -239,6 +271,10 @@ export class Auditor {
   private options: ResolvedAuditorOptions;
   private rulesLoaded = false;
   private categoriesToAudit: CategoryDefinition[] = [];
+  /** The current run's URL requests; see `withUrlService` */
+  private urls: UrlService | undefined;
+  /** The current run's external link report, for `extras.externalLinks` */
+  private externalLinksReport: ExternalLinksExtras | undefined;
 
   constructor(options: AuditorOptions = {}) {
     this.options = {
@@ -275,6 +311,8 @@ export class Auditor {
       maxDurationMs: options.maxDurationMs,
       onCrawlDelay: options.onCrawlDelay,
       onWaiting: options.onWaiting,
+      externalLinks: options.externalLinks ?? {},
+      onExternalLinks: options.onExternalLinks,
     };
 
     // Determine which categories to audit
@@ -384,7 +422,76 @@ export class Auditor {
    * @returns AuditResult for the page
    */
   async audit(url: string): Promise<AuditResult> {
-    return this.underNetPolicy(url, () => this.auditSinglePage(url));
+    return this.underNetPolicy(url, () => this.withUrlService(url, () => this.auditSinglePage(url)));
+  }
+
+  /**
+   * Give `fn` one URL service for the whole run, with the link cache open
+   * when `externalLinks.cacheTtlDays` asks for one, and close it after.
+   */
+  private async withUrlService<T>(siteUrl: string, fn: () => Promise<T>): Promise<T> {
+    const previous = this.urls;
+    const ext = this.options.externalLinks;
+    // A cache the caller passed is theirs to close; one opened here is ours
+    let opened: LinkCache | undefined;
+    if (!ext.cache && ext.enabled !== false && (ext.cacheTtlDays ?? 0) > 0) {
+      try {
+        opened = new LinkCache({ ttlDays: ext.cacheTtlDays });
+      } catch (error) {
+        // A link cache that cannot open costs speed, not correctness
+        console.error(`Link cache unavailable, checking every link fresh: ${error instanceof Error ? error.message : error}`);
+      }
+    }
+    const service = this.createUrlService(siteUrl, ext.cache ?? opened ?? null);
+    this.urls = service;
+    this.externalLinksReport = undefined;
+    try {
+      return await fn();
+    } finally {
+      service.close();
+      opened?.close();
+      this.urls = previous;
+    }
+  }
+
+  private createUrlService(siteUrl: string, cache: StatusCache | null): UrlService {
+    const ext = this.options.externalLinks;
+    return new UrlService({
+      siteUrl,
+      ...(ext.timeoutMs !== undefined && { timeoutMs: ext.timeoutMs }),
+      ...(ext.concurrency !== undefined && { concurrency: ext.concurrency }),
+      ...(this.options.perHostConcurrency !== undefined && { perHostConcurrency: this.options.perHostConcurrency }),
+      cache,
+      refresh: ext.refresh ?? false,
+      maxRetryAfterMs: this.options.maxRetryAfterMs,
+      ...(this.options.signal && { signal: this.options.signal }),
+    });
+  }
+
+  /**
+   * Check every external link on `contexts` once, and hand each context the
+   * answers before its rules run. Skipped when `links-external-valid` will not
+   * run. A crawl uses the rule's `max_urls` and `max_seconds`; a single page
+   * gets 30 seconds.
+   */
+  private async prepareExternalLinks(contexts: AuditContext[], crawl: boolean): Promise<void> {
+    const rule = getRuleById('links-external-valid');
+    const runs =
+      rule !== undefined &&
+      this.categoriesToAudit.some((category) => category.id === rule.category) &&
+      isRuleEnabled(rule.id, this.options.enableRules, this.options.disableRules);
+    if (!runs || contexts.length === 0) return;
+
+    if (this.options.externalLinks.enabled === false) {
+      for (const context of contexts) context.externalLinks = EXTERNAL_LINKS_DISABLED;
+      return;
+    }
+    const options = this.optionsFor(rule);
+    const maxUrls = Number(options['max_urls']);
+    const budgetMs = crawl ? Number(options['max_seconds']) * 1000 : SINGLE_PAGE_BUDGET_MS;
+    const check = await checkExternalLinks(this.urls!, contexts, { maxUrls, budgetMs }, this.options.onExternalLinks);
+    for (const context of contexts) context.externalLinks = check;
+    this.externalLinksReport = externalLinksExtras(check);
   }
 
   /**
@@ -516,6 +623,7 @@ export class Auditor {
     if (this.options.signal) {
       context.signal = this.options.signal;
     }
+    context.urls = this.urls;
 
     // Enrich with robots.txt, sitemap, and rendered DOM
     await this.enrichContext(context, url);
@@ -535,6 +643,7 @@ export class Auditor {
     }
 
     // Run all categories
+    await this.prepareExternalLinks([context], false);
     const categoryResults = await this.runAllCategories(context);
 
     // Build the final result, then hold the score down for any condition the
@@ -550,6 +659,7 @@ export class Auditor {
       this.runOptions(false, 1, 1),
       { pages: [url], detail: 'per-page' }
     );
+    if (this.externalLinksReport) result.extras = { ...result.extras, externalLinks: this.externalLinksReport };
     return applyScoreCaps(result, pageCaps(readPageFacts(context), { staging: this.options.staging }));
   }
 
@@ -565,7 +675,7 @@ export class Auditor {
     maxPages = 10,
     concurrency = 3
   ): Promise<AuditResult> {
-    return this.underNetPolicy(url, () => this.auditCrawl(url, maxPages, concurrency));
+    return this.underNetPolicy(url, () => this.withUrlService(url, () => this.auditCrawl(url, maxPages, concurrency)));
   }
 
   private async auditCrawl(url: string, maxPages: number, concurrency: number): Promise<AuditResult> {
@@ -645,6 +755,7 @@ export class Auditor {
       if (crawledPage.context) {
         crawledPage.context.robotsTxtContent = robotsTxtContent;
         crawledPage.context.site = site;
+        crawledPage.context.urls = this.urls;
         if (this.options.signal) {
           crawledPage.context.signal = this.options.signal;
         }
@@ -684,6 +795,7 @@ export class Auditor {
     built.completionState = gaps ? 'completed-with-gaps' : 'completed';
     built.extras = {
       ...built.extras,
+      ...(this.externalLinksReport && { externalLinks: this.externalLinksReport }),
       crawl: {
         rateLimitedPages: coverage.rateLimited,
         rateLimitedHosts: report.rateLimitedHosts,
@@ -716,6 +828,15 @@ export class Auditor {
    * @returns One CategoryResult per audited category
    */
   async auditPages(pages: CrawledPage[]): Promise<CategoryResult[]> {
+    const audited = pages.filter((page) => !page.error && page.context).map((page) => page.context);
+    // `seomator analyze` calls this outside a run: it gets a service of its own
+    if (!this.urls && audited.length > 0) {
+      return this.withUrlService(audited[0].url, () => this.auditPages(pages));
+    }
+    for (const context of audited) context.urls ??= this.urls;
+    if (audited.some((context) => !context.externalLinks)) {
+      await this.prepareExternalLinks(audited, true);
+    }
     const crawledPages = pages;
     // Collect all rule results per category across all pages
     const categoryRuleResults = new Map<string, RuleResult[]>();
@@ -758,6 +879,11 @@ export class Auditor {
     }
 
     return finalResults;
+  }
+
+  /** The last run's external link report, for a caller building its own result */
+  getExternalLinksReport(): ExternalLinksExtras | undefined {
+    return this.externalLinksReport;
   }
 
   /**

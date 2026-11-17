@@ -77,6 +77,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pages · 1 rate-limited`. JSON carries the counts in `coverage` and sets
   `completionState` to `completed-with-gaps` when pages were skipped.
   `--min-coverage <pct>` or `[ci] min_coverage` exits 1 below the threshold.
+- **External links are checked once per run, all of them.** A footer link on
+  500 pages is one request, not 500, and a single page checks every external
+  link instead of the first 20 (within 30 seconds). A crawl checks up to
+  2,000 unique targets within 300 seconds, most-linked first; the
+  `links-external-valid` options `max_urls` and `max_seconds` change that.
+  Every report lists each broken target once, with the pages that link to it
+  (`extras.externalLinks` in JSON).
+- **`[external_links]` works.** `enabled`, `timeout_ms` and `concurrency` are
+  read, and `cache_ttl_days` keeps settled answers in
+  `$SEOMATOR_HOME/link-cache.db` for later runs. `audit --refresh` (now in
+  `--help`) checks every link again.
 - The MCP `audit_url` tool takes `respectCrawlDelay` and `maxDurationS`, and
   refuses up front with `crawl-too-slow` when the site's `Crawl-delay` means
   the crawl cannot finish in time. Its summary carries `coverage` and
@@ -125,6 +136,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   starts a product token (`SEOmator` still matches), the longest match wins,
   and `*` is the fallback. A crawl can reach pages a broad group blocked
   before.
+- **An external link counts as broken only when its target is gone**: 404,
+  410, another 5xx, or a domain that does not resolve. A 401, 403, 429, 999 or
+  a timeout used to warn; now it is listed as "could not verify" and never
+  changes the status. This is part of scoring model 5.
 - **Breaking: a page that answers 503 is retried before the run gives up.** A
   single-page `audit` of a start page that stays 503 now fails with error code
   `rate-limited` (still exit 2) instead of `http-error`, and the message says

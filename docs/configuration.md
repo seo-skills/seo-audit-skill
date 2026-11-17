@@ -211,18 +211,32 @@ Read by `audit`. `analyze` reads `save` only.
 
 ### [external_links]
 
-Not implemented. No command reads these keys, and the link cache is never
-opened. `config validate` warns about each key you change from its default.
+Read by `audit`, `analyze` and `seomator mcp`. An audit checks every external
+link once per run, however many pages carry it: a footer link on 500 pages is
+one request. `links-external-valid` reads the answers.
 
-| Key | Type | Default | Valid values |
-|---|---|---|---|
-| `enabled` | boolean | `true` | `true`, `false` |
-| `cache_ttl_days` | number | `7` | 0 to 365 |
-| `timeout_ms` | number | `10000` | 1000 to 60000 |
-| `concurrency` | number | `5` | 1 to 20 |
+| Key | Type | Default | Valid values | Effect |
+|---|---|---|---|---|
+| `enabled` | boolean | `true` | `true`, `false` | `false` requests no external link, and `links-external-valid` is reported as not measured. |
+| `cache_ttl_days` | number | `7` | 0 to 365 | Days a settled answer is kept in the link cache (`$SEOMATOR_HOME/link-cache.db`) and reused by later runs. `0` keeps nothing. `audit --refresh` checks every link again and stores the fresh answers. |
+| `timeout_ms` | number | `10000` | 1000 to 60000 | Per request. A link that does not answer in time could not be verified, and never counts as broken. |
+| `concurrency` | number | `5` | 1 to 20 | External requests in flight at once. `crawler.per_host_concurrency` also limits requests to any one host. |
 
-The `links` rules inspect the links in each page's HTML and do not request
-them. `enabled = false` does not stop the `crawl-pdf-size` rule, which sends a
+- **Broken** means the target is gone: 404, 410, another 5xx, or a domain that
+  does not resolve. Only that warns.
+- **Could not verify** means the server refused the check (401, 403, 429,
+  999, other 4xx) or did not answer. It is listed and never changes the
+  status.
+- **Cached** are only `ok` answers and 404 or 410. A 5xx or a DNS failure can be
+  a short outage, so it is remembered for the run only.
+- **Budget.** A single-page audit checks every external link on the page within
+  30 seconds. A crawl checks up to `max_urls` (2000) unique targets within
+  `max_seconds` (300), most-linked first; both are `[rule_options]` of
+  `links-external-valid`. Links past the budget are reported as not checked.
+- Every report lists broken targets once each, with the pages that link to
+  them. JSON carries the list in `extras.externalLinks`.
+
+`enabled = false` does not stop the `crawl-pdf-size` rule, which sends a
 `HEAD` request to up to eight linked PDFs per page, on any host.
 
 ### [rule_options]
@@ -354,8 +368,9 @@ Preset values with limited or no effect:
   follows `.pdf` links anyway.
 - `delay_ms = 0` in `ci`: `per_host_delay_ms` still spaces a crawl's requests
   200 ms apart. Add `per_host_delay_ms = 0` to remove the delay.
-- `[external_links]` in `ci`: not implemented.
-  `config validate` warns about both.
+- `[external_links] enabled = false` in `ci`: CI runs request no external
+  link, so `links-external-valid` is reported as not measured. Remove the line
+  to check external links in CI.
 
 ## seomator init
 
@@ -571,6 +586,7 @@ Local settings:
 | `--min-coverage <pct>` | `audit` | `ci.min_coverage` | Range 0 to 100. Crawls only. |
 | `--max-duration <s>` | `audit` | `crawler.max_duration_s` | Range 1 to 86400. Crawls only. |
 | `--ignore-crawl-delay` | `audit` | `crawler.respect_crawl_delay` | Sets it to `false` for this run. |
+| `-r, --refresh` | `audit` | `external_links.cache_ttl_days` | Ignores the link cache for this run and stores the fresh answers. |
 | `-f, --format <type>` | `audit` | `output.format` | `console`, `json`, `html`, `markdown` or `llm`. Also cancels `output.path`. |
 | `-j, --json` | `audit` | `output.format` | Deprecated form of `--format json`. Also cancels `output.path`. |
 | `-o, --output <path>` | `audit` | `output.path` | |

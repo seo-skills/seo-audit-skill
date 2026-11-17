@@ -21,6 +21,7 @@ import { isNotMeasured } from '../rules/define-rule.js';
 import { collectFindings } from './findings.js';
 import { collectIgnoredFindings } from '../rules/overrides.js';
 import { coverageLine } from './coverage-line.js';
+import { brokenExternalSection } from './external-links-section.js';
 import { AUDIT_SCHEMA_VERSION } from '../types.js';
 import type { AuditResult } from '../types.js';
 import { getFixSuggestion } from './fix-suggestions.js';
@@ -307,6 +308,17 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
   // A crawl that could not measure every page: the score covers the rest
   const coverage = coverageLine(result);
   if (coverage) lines.push(`${t1}<coverage>${escapeXml(coverage)}</coverage>${nl}`);
+  // One entry per dead target, with the pages that carry it. URLs come from
+  // the audited site, so they are wrapped like every other site string.
+  const brokenExternal = brokenExternalSection(result, 25, 3);
+  if (brokenExternal) {
+    lines.push(`${t1}<broken-external-links count="${brokenExternal.targets.length + brokenExternal.moreTargets}">${nl}`);
+    for (const target of brokenExternal.targets) {
+      const pages = target.pages.join(' ') + (target.morePages > 0 ? ` +${target.morePages} more` : '');
+      lines.push(`${t2}<link answer="${escapeXml(target.reason)}">${wrapUntrusted(target.url, nonce)} from ${wrapUntrusted(pages, nonce)}</link>${nl}`);
+    }
+    lines.push(`${t1}</broken-external-links>${nl}`);
+  }
   // Hidden by `[rules.override]`. Named so an agent never mistakes a finding
   // the team chose to hide for one the audit did not raise.
   const ignored = collectIgnoredFindings(result);

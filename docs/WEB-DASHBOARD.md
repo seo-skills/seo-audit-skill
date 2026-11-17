@@ -11,7 +11,7 @@ This page has two parts: four tasks, then the [Reference](#reference) for every
 
 ## Prerequisites
 
-- SEOmator 7.0.0 on Node.js 20.3 or later: `npm install -g @seomator/seo-audit`.
+- SEOmator 7.0.0 on Node.js 20.18.1 or later: `npm install -g @seomator/seo-audit`.
   In a source checkout, run `node dist/cli.js serve` instead of `seomator serve`.
 - Stored audits to look at. `seomator audit <url>` stores each audit by default
   (`--no-save` skips it), and the dashboard can run audits itself.

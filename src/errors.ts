@@ -8,6 +8,8 @@
  * the hint says what to do about it.
  */
 
+import { findPrivateAddressError } from './net/fetch.js';
+
 export type AuditErrorCode =
   | 'dns'
   | 'unreachable'
@@ -18,6 +20,7 @@ export type AuditErrorCode =
   | 'playwright-missing'
   | 'no-pages'
   | 'config'
+  | 'private-address'
   | 'aborted'
   | 'unknown';
 
@@ -29,6 +32,8 @@ const HINTS: Partial<Record<AuditErrorCode, string>> = {
   'non-html': 'Point the audit at an HTML page rather than a file, API or feed.',
   'http-error': 'Make sure the URL is publicly reachable and returns 200.',
   config: 'Check the --config path, or drop the flag to search for seomator.toml.',
+  'private-address':
+    'The address is loopback, private or link-local, which this run may not reach. To audit a local or intranet site over MCP, register the server with `seomator mcp --allow-private`.',
   'playwright-missing': 'Run `npx playwright install chromium`, or audit without --cwv to skip the browser render.',
   'no-pages': 'The crawl found nothing to audit. Check robots.txt, the include/exclude patterns and that the start URL links to other pages.',
 };
@@ -109,6 +114,13 @@ export function classifyError(error: unknown): AuditError {
   const text = `${message} ${causeCode}`;
 
   if (isAbortError(error)) return new AuditAbortedError();
+
+  // A refusal by the network policy rides inside fetch's "fetch failed" as a
+  // cause; name it, or it reads as an unreachable site.
+  const refused = findPrivateAddressError(error);
+  if (refused) {
+    return new AuditError('private-address', refused.message, { cause: error });
+  }
 
   if (/ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(text)) {
     return new AuditError('dns', `Could not resolve the hostname: ${message}`, { cause: error });

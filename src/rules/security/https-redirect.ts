@@ -3,6 +3,7 @@ import { defineRule, pass, warn, fail } from '../define-rule.js';
 import { getUserAgent } from '../../crawler/user-agent.js';
 import { requestSignal } from '../../crawler/fetcher.js';
 import { rethrowIfAborted, throwIfAborted } from '../../errors.js';
+import { netFetch } from '../../net/fetch.js';
 
 /**
  * Makes a fetch request without following redirects to check redirect behavior
@@ -16,7 +17,7 @@ async function checkRedirect(
   const request = requestSignal(timeout, signal);
 
   try {
-    const response = await fetch(url, {
+    const response = await netFetch(url, {
       method: 'HEAD',
       signal: request.signal,
       headers: {

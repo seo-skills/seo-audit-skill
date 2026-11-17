@@ -2,6 +2,7 @@ import { gunzipSync } from 'node:zlib';
 import { getUserAgent } from './user-agent.js';
 import { rethrowIfAborted, throwIfAborted } from '../errors.js';
 import type { SitemapDocument, SitemapEntry, SitemapFetchResult } from '../types.js';
+import { netFetch, readBodyCapped } from '../net/fetch.js';
 
 /**
  * Sitemap discovery and parsing.
@@ -24,6 +25,9 @@ function isGzip(bytes: Uint8Array): boolean {
   return bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
 }
 
+/** The sitemap protocol's own size limit for one file, uncompressed */
+const MAX_SITEMAP_BYTES = 50 * 1024 * 1024;
+
 /**
  * Fetch a sitemap URL, transparently decompressing a gzipped body.
  *
@@ -36,16 +40,18 @@ async function fetchSitemapDocument(url: string, signal?: AbortSignal): Promise<
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
+    const response = await netFetch(url, {
       signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
       headers: { 'User-Agent': getUserAgent() },
     });
     if (!response.ok) return null;
 
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    // Capped while reading and while decompressing: the sitemap protocol
+    // allows 50 MB uncompressed, and a small gzip can expand far past that.
+    const bytes = await readBodyCapped(response, MAX_SITEMAP_BYTES);
     if (isGzip(bytes)) {
       try {
-        return gunzipSync(bytes).toString('utf8');
+        return gunzipSync(bytes, { maxOutputLength: MAX_SITEMAP_BYTES }).toString('utf8');
       } catch {
         return null;
       }

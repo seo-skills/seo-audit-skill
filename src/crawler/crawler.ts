@@ -9,6 +9,7 @@ import { UrlFilter, type UrlFilterOptions } from './url-filter.js';
 import { RobotsMatcher } from './robots.js';
 import { getUserAgent } from './user-agent.js';
 import { DOCUMENT_TITLE } from '../rules/document-title.js';
+import { netFetch, readTextCapped, MAX_PAGE_BYTES } from '../net/fetch.js';
 
 /**
  * Progress callback for reporting crawl status
@@ -192,12 +193,12 @@ export class Crawler {
     try {
       const robotsUrl = new URL('/robots.txt', startUrl).href;
       const timeout = AbortSignal.timeout(this.options.timeout);
-      const response = await fetch(robotsUrl, {
+      const response = await netFetch(robotsUrl, {
         headers: { 'User-Agent': getUserAgent() },
         signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
       });
       if (!response.ok) return;
-      this.robots = new RobotsMatcher(await response.text(), getUserAgent());
+      this.robots = new RobotsMatcher(await readTextCapped(response, MAX_PAGE_BYTES), getUserAgent());
     } catch (error) {
       // Unreachable robots.txt is not a reason to refuse to crawl — but a
       // cancelled one is a cancelled crawl.

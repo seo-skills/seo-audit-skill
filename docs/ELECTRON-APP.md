@@ -20,7 +20,7 @@ re-signed. The desktop app is not published to npm; only the CLI is.
   npm install
   ```
 
-- Node.js 20.3 or later.
+- Node.js 20.18.1 or later.
 - On macOS, `codesign` from the Xcode command line tools. The rebuild scripts
   use it to re-sign the native module.
 

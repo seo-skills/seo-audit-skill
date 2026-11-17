@@ -16,6 +16,7 @@ import type {
   CookieInfo,
   RedirectChainEntry,
 } from '../types.js';
+import { netFetch, readTextCapped, MAX_PAGE_BYTES } from '../net/fetch.js';
 
 /**
  * Result of fetching a page
@@ -162,7 +163,7 @@ async function fetchFollowingRedirects(
   let currentUrl = url;
 
   for (let hop = 0; hop <= MAX_TRACKED_REDIRECTS; hop++) {
-    const response = await fetch(currentUrl, {
+    const response = await netFetch(currentUrl, {
       method: 'GET',
       signal,
       headers: pageRequestHeaders(),
@@ -211,7 +212,7 @@ export async function fetchPage(
       response = tracked.response;
       redirectChain = tracked.chain;
     } else {
-      response = await fetch(url, {
+      response = await netFetch(url, {
         method: 'GET',
         signal: request.signal,
         headers: pageRequestHeaders(),
@@ -220,7 +221,7 @@ export async function fetchPage(
     }
 
     const responseTime = performance.now() - startTime;
-    const html = await response.text();
+    const html = await readTextCapped(response, MAX_PAGE_BYTES);
 
     const $ = cheerio.load(html);
 
@@ -285,7 +286,7 @@ async function requestStatus(
   const request = requestSignal(timeout, signal);
 
   try {
-    const response = await fetch(url, {
+    const response = await netFetch(url, {
       method,
       signal: request.signal,
       headers: {
@@ -619,7 +620,7 @@ export async function fetchUrlWithRedirects(
     const request = requestSignal(timeout, signal);
 
     try {
-      const response = await fetch(currentUrl, {
+      const response = await netFetch(currentUrl, {
         method: 'HEAD',
         signal: request.signal,
         headers: {

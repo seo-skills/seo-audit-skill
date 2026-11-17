@@ -2,7 +2,7 @@
 name: seo-audit
 description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 373 rules and 20 categories, and can diff two audits to show what a deploy changed. Use when analyzing websites, debugging SEO issues, checking site health, or comparing a site before and after a change.
 license: MIT
-compatibility: Requires Node.js 20.3+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
+compatibility: Requires Node.js 20.18.1+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
 metadata:
   author: seomator
   version: "7.0.0"
@@ -90,7 +90,7 @@ seomator self doctor
 ```
 
 This checks:
-- Node.js version (20.3 or later required)
+- Node.js version (20.18.1 or later required)
 - npm availability
 - Chrome/Chromium for Core Web Vitals and JS rendering
 - Write permissions for ~/.seomator

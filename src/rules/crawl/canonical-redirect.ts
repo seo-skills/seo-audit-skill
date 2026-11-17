@@ -2,6 +2,7 @@ import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
 import { requestSignal } from '../../crawler/fetcher.js';
 import { rethrowIfAborted, throwIfAborted } from '../../errors.js';
+import { netFetch } from '../../net/fetch.js';
 
 /**
  * Normalize URL for comparison (lowercase host, consistent trailing slash)
@@ -37,7 +38,7 @@ async function checkCanonicalRedirect(
   const head = requestSignal(10000, signal);
   try {
     // Use fetch with redirect: 'manual' to detect redirects
-    const response = await fetch(canonicalUrl, {
+    const response = await netFetch(canonicalUrl, {
       method: 'HEAD',
       redirect: 'manual',
       signal: head.signal,
@@ -61,7 +62,7 @@ async function checkCanonicalRedirect(
           throwIfAborted(signal);
           const hop = requestSignal(5000, signal);
           try {
-            const chainResponse = await fetch(currentUrl, {
+            const chainResponse = await netFetch(currentUrl, {
               method: 'HEAD',
               redirect: 'manual',
               signal: hop.signal,

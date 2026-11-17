@@ -94,11 +94,12 @@ function findChrome(): { found: boolean; path?: string; version?: string } {
  */
 function checkNode(): CheckResult {
   const version = process.version;
-  const [major, minor] = version.slice(1).split('.').map((n) => parseInt(n, 10));
+  const [major, minor, patch] = version.slice(1).split('.').map((n) => parseInt(n, 10));
 
-  // 20.3 is the floor: AbortSignal.any(), which cancellation is built on,
-  // arrived there. Matches `engines` in package.json.
-  if (major > 20 || (major === 20 && minor >= 3)) {
+  // 20.18.1 is the floor: the HTTP client the HTML parser and the network
+  // module are built on (undici 7) requires it. Matches `engines` in
+  // package.json.
+  if (major > 20 || (major === 20 && (minor > 18 || (minor === 18 && patch >= 1)))) {
     return {
       name: 'Node.js',
       status: 'pass',
@@ -108,7 +109,7 @@ function checkNode(): CheckResult {
   return {
     name: 'Node.js',
     status: 'fail',
-    message: `Node.js ${version} is too old (require v20.3+)`,
+    message: `Node.js ${version} is too old (require v20.18.1+)`,
   };
 }
 

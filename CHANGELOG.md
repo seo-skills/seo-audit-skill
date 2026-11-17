@@ -51,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking: a bad flag or argument exits 2, not 1.** Exit 1 now always means
   a gate failed (score, `fail_ci`), never that the command line was wrong.
 - The JSON schema version is 3 (`gate`, `warnings`, `RuleResult.overridden`).
+- Requires Node.js 20.18.1 or later (was 20.3.0). The HTML parser already
+  needed it; `package.json` now says so.
 - **The new SEOmator brand, from seomator.com.** The logo is the orange emblem
   and the new wordmark, drawn from the designer's files byte for byte, in the
   desktop app and dashboard header, the HTML report, the favicon and the app
@@ -84,6 +86,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unless `--no-cwv` is also given.
 - The `--no-cwv` hints in rule messages now read "run with `--cwv`", and the
   mobile-parity hint reads "run with `--cwv --mobile`".
+
+### Security
+
+- **A public site can no longer point an audit at your network.** Every
+  request the engine makes now goes through one network module. When the site
+  you audit is public, a link, image, redirect or sitemap entry on it that
+  resolves to a loopback, private, link-local (cloud metadata), shared or
+  unique-local address is refused instead of requested. The address is checked
+  when the connection opens, after DNS, so a hostname that changes its answer
+  between check and connect cannot get through, and every spelling of those
+  addresses (IPv4-mapped IPv6, decimal, NAT64) is covered. Auditing a site on
+  `localhost` or an intranet works as before: the rule only applies when the
+  target itself is public. A refused request reports error code
+  `private-address`.
+- Response bodies are read with a cap: 10 MB for a page or robots.txt, and
+  50 MB for a sitemap, decompressed. A huge or endless response, or a small
+  gzip that expands without limit, can no longer exhaust memory.
 
 ### Fixed
 

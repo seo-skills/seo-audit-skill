@@ -40,7 +40,7 @@ configuration reference with a short how-to section.
 ## Quick commands
 
 ```bash
-npm install -g @seomator/seo-audit             # install the CLI (Node.js 20.3+)
+npm install -g @seomator/seo-audit             # install the CLI (Node.js 20.18.1+)
 seomator self doctor                           # check the setup
 seomator audit https://example.com             # audit one page
 seomator audit https://example.com --format llm            # compact output for AI agents

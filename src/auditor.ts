@@ -38,6 +38,8 @@ import {
   buildCategoryResult,
   buildAuditResult,
 } from './scoring.js';
+import { netFetch, readTextCapped, MAX_PAGE_BYTES } from './net/fetch.js';
+import { policyForTarget, runWithNetPolicy, type NetMode } from './net/policy.js';
 
 /**
  * Callback for when a category audit starts
@@ -181,6 +183,14 @@ export interface AuditorOptions {
    * the background. The call rejects with an `AuditAbortedError`.
    */
   signal?: AbortSignal;
+  /**
+   * Which destinations the run may reach. `auto` (the default) blocks
+   * private, loopback and link-local destinations when the target itself is
+   * public, so a page cannot point the audit at an internal service. `strict`
+   * blocks them for every request, the target included. `allowHosts` lists
+   * `host:port` pairs that stay reachable.
+   */
+  network?: { mode?: NetMode; allowHosts?: string[] };
 }
 
 /**
@@ -225,6 +235,7 @@ export class Auditor {
       onPageComplete: options.onPageComplete ?? (() => {}),
       onCrawlProgress: options.onCrawlProgress ?? (() => {}),
       onPageStart: options.onPageStart ?? (() => {}),
+      network: { mode: options.network?.mode ?? 'auto', allowHosts: options.network?.allowHosts ?? [] },
     };
 
     // Determine which categories to audit
@@ -268,7 +279,7 @@ export class Auditor {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
-        const response = await fetch(robotsUrl, {
+        const response = await netFetch(robotsUrl, {
           signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
           headers: {
             'User-Agent': getUserAgent(),
@@ -276,7 +287,7 @@ export class Auditor {
         });
         clearTimeout(timeoutId);
         if (response.ok) {
-          return await response.text();
+          return await readTextCapped(response, MAX_PAGE_BYTES);
         }
       } finally {
         clearTimeout(timeoutId);
@@ -334,6 +345,20 @@ export class Auditor {
    * @returns AuditResult for the page
    */
   async audit(url: string): Promise<AuditResult> {
+    return this.underNetPolicy(url, () => this.auditSinglePage(url));
+  }
+
+  /**
+   * Run `fn` with every request it makes under this run's network policy.
+   * See `net/policy.ts`.
+   */
+  private async underNetPolicy<T>(url: string, fn: () => Promise<T>): Promise<T> {
+    const { mode, allowHosts } = this.options.network;
+    const policy = await policyForTarget(url, mode ?? 'auto', allowHosts ?? []);
+    return runWithNetPolicy(policy, fn);
+  }
+
+  private async auditSinglePage(url: string): Promise<AuditResult> {
     throwIfAborted(this.options.signal);
     await this.ensureRulesLoaded();
     resetCrossPageState();
@@ -484,6 +509,10 @@ export class Auditor {
     maxPages = 10,
     concurrency = 3
   ): Promise<AuditResult> {
+    return this.underNetPolicy(url, () => this.auditCrawl(url, maxPages, concurrency));
+  }
+
+  private async auditCrawl(url: string, maxPages: number, concurrency: number): Promise<AuditResult> {
     throwIfAborted(this.options.signal);
     await this.ensureRulesLoaded();
     resetCrossPageState();

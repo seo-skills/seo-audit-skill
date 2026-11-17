@@ -2,6 +2,7 @@ import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn } from '../define-rule.js';
 import { registerResettable } from '../registry.js';
 import { getUserAgent } from '../../crawler/user-agent.js';
+import { netFetch } from '../../net/fetch.js';
 
 /** A linked PDF above this size is expensive to crawl and to download. */
 const WARN_BYTES = 10 * 1024 * 1024;
@@ -34,7 +35,7 @@ function contentLength(url: string, signal?: AbortSignal): Promise<number | null
     const timer = setTimeout(() => controller.abort(), 8000);
     const requestSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
     try {
-      const response = await fetch(url, {
+      const response = await netFetch(url, {
         method: 'HEAD',
         redirect: 'follow',
         signal: requestSignal,

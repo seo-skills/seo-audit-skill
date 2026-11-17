@@ -17,7 +17,7 @@ The CLI runs the audits. The skill is a `SKILL.md` file that tells the agent whe
 
 ### Prerequisites
 
-- Node.js 20.3 or later, and npm.
+- Node.js 20.18.1 or later, and npm.
 - For Core Web Vitals and JavaScript rendering, a browser: Chrome, Chromium or Edge. SEOmator uses an installed one first, then Playwright's Chromium (`npx playwright install chromium`). Without a browser, audits still run and the browser checks report unmeasured.
 - An agent that can run shell commands.
 
@@ -82,7 +82,7 @@ All 7 checks passed. Ready to audit!
 ### Troubleshooting
 
 - **`seomator: command not found`.** The global install failed, or npm's global bin directory is not on `PATH`. Run `npm install -g @seomator/seo-audit` again and read its output.
-- **`self doctor` says Node.js is too old.** SEOmator needs 20.3 or later.
+- **`self doctor` says Node.js is too old.** SEOmator needs 20.18.1 or later.
 - **No browser found.** Install Chrome, or run `npx playwright install chromium`. Or audit without `--cwv` and accept that the browser checks report unmeasured.
 - **The agent does not use the skill.** Check that `npx skills list` shows it, then start a new session.
 - **The agent runs `seomator init` and no `seomator.toml` appears.** The skill tells the agent to create a config when the project has none. Plain `seomator init` asks questions, and with no terminal attached it exits 0 without writing a file. Use `seomator init -y`. An audit does not need a config file.

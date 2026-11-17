@@ -75,7 +75,7 @@
   },
   "homepage": "https://github.com/seo-skills/seo-audit-skill#readme",
   "engines": {
-    "node": ">=20.3.0"
+    "node": ">=20.18.1"
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
@@ -88,6 +88,7 @@
     "log-update": "^6.1.0",
     "ora": "^8.1.1",
     "playwright": "^1.49.1",
+    "undici": "^7.30.2",
     "web-vitals": "^4.2.4"
   },
   "devDependencies": {

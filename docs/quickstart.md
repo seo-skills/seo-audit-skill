@@ -13,7 +13,7 @@ It takes about five minutes.
 
 ## What you'll need
 
-- Node.js 20.3 or later. Check with `node --version`.
+- Node.js 20.18.1 or later. Check with `node --version`.
 - npm, which comes with Node.js.
 - An internet connection.
 - Google Chrome, Chromium or Microsoft Edge, if you want Core Web Vitals

@@ -33,6 +33,10 @@ describe('isBlockedAddress', () => {
     '::ffff:7f00:1',
     '::ffff:169.254.169.254',
     '64:ff9b::7f00:1',
+    '64:ff9b:1::a',
+    '::ffff:0:7f00:1',
+    '2002:7f00:1::1',
+    '2002:a9fe:a9fe::1',
     'fc00::1',
     'fd12:3456::1',
     'fe80::1',
@@ -44,7 +48,7 @@ describe('isBlockedAddress', () => {
     expect(isBlockedAddress(ip)).toBe(true);
   });
 
-  it.each(['8.8.8.8', '172.32.0.1', '93.184.215.14', '2606:4700:4700::1111', '::ffff:8.8.8.8'])(
+  it.each(['8.8.8.8', '172.32.0.1', '93.184.215.14', '2606:4700:4700::1111', '::ffff:8.8.8.8', '2002:808:808::1'])(
     'allows public %s',
     (ip) => {
       expect(isBlockedAddress(ip)).toBe(false);
@@ -122,9 +126,14 @@ describe('netFetch under a blocking policy', () => {
 });
 
 describe('policyForTarget', () => {
-  it('auto blocks private destinations only for a public target', async () => {
+  it('auto opens only for a target that is private, and blocks for a public one', async () => {
     expect((await policyForTarget('http://127.0.0.1:3000/', 'auto')).blockPrivate).toBe(false);
+    expect((await policyForTarget('http://localhost:3000/', 'auto')).blockPrivate).toBe(false);
     expect((await policyForTarget('http://93.184.215.14/', 'auto')).blockPrivate).toBe(true);
+  });
+
+  it('auto fails closed when the target cannot be resolved', async () => {
+    expect((await policyForTarget('http://no-such-host.invalid/', 'auto')).blockPrivate).toBe(true);
   });
 
   it('strict blocks and open never does', async () => {

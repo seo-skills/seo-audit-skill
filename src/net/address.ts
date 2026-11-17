@@ -92,7 +92,14 @@ function isBlockedV6(ip: string): boolean {
   if (allZero(0, 7) && g[7] === 1) return true; // ::1
   if (allZero(0, 5) && g[5] === 0xffff) return isBlockedV4(embeddedV4(g)); // ::ffff:a.b.c.d
   if (allZero(0, 6)) return isBlockedV4(embeddedV4(g)); // ::a.b.c.d (deprecated compatible form)
-  if (g[0] === 0x64 && g[1] === 0xff9b && allZero(2, 6)) return isBlockedV4(embeddedV4(g)); // NAT64
+  if (g[0] === 0x64 && g[1] === 0xff9b && allZero(2, 6)) return isBlockedV4(embeddedV4(g)); // NAT64 well-known
+  if (g[0] === 0x64 && g[1] === 0xff9b && g[2] === 0x0001) return true; // 64:ff9b:1::/48 local-use NAT64
+  if (allZero(0, 4) && g[4] === 0xffff && g[5] === 0) return isBlockedV4(embeddedV4(g)); // ::ffff:0:a.b.c.d translated
+  if (g[0] === 0x2002) {
+    // 6to4 carries an IPv4 address in its second and third groups
+    const v4 = `${g[1] >> 8}.${g[1] & 0xff}.${g[2] >> 8}.${g[2] & 0xff}`;
+    return isBlockedV4(v4);
+  }
   if ((g[0] & 0xfe00) === 0xfc00) return true; // fc00::/7 unique local
   if ((g[0] & 0xffc0) === 0xfe80) return true; // fe80::/10 link local
   if ((g[0] & 0xff00) === 0xff00) return true; // ff00::/8 multicast

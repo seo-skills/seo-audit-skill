@@ -48,12 +48,32 @@ export async function resolvesPublic(hostname: string): Promise<boolean> {
 }
 
 /**
+ * True only when every address `hostname` resolves to is private.
+ *
+ * The test that may turn blocking off, so it fails closed: a mixed answer
+ * (one public address, one private) or a failed lookup is not a private
+ * target. One DNS answer must never open the guard for a whole run.
+ */
+export async function resolvesOnlyPrivate(hostname: string): Promise<boolean> {
+  const bare = hostname.replace(/^\[|\]$/g, '');
+  if (isIP(bare)) return isBlockedAddress(bare);
+  try {
+    const addresses = await lookup(bare, { all: true, verbatim: true });
+    return addresses.length > 0 && addresses.every((a) => isBlockedAddress(a.address));
+  } catch {
+    return false;
+  }
+}
+
+/**
  * How an audit run treats private destinations.
  *
- * - `auto` (CLI, dashboard, desktop): a public target blocks private
- *   destinations taken from its pages, so a page cannot point the audit at
- *   your router or a cloud metadata endpoint. A private target (a local dev
- *   server, an intranet site) is audited as before.
+ * - `auto` (CLI, dashboard, desktop): private destinations are blocked,
+ *   so a page cannot point the audit at your router or a cloud metadata
+ *   endpoint. The one exception is a target that resolves *only* to private
+ *   addresses (a local dev server, an intranet site), which is audited as
+ *   before; a target whose DNS answer mixes public and private addresses
+ *   stays blocked.
  * - `strict` (MCP without `--allow-private`): private destinations are
  *   blocked for every request, the target included.
  * - `open`: nothing is blocked.
@@ -70,5 +90,5 @@ export async function policyForTarget(
   if (mode === 'open') return { blockPrivate: false, allowHosts: allow };
   if (mode === 'strict') return { blockPrivate: true, allowHosts: allow };
   const hostname = new URL(targetUrl).hostname;
-  return { blockPrivate: await resolvesPublic(hostname), allowHosts: allow };
+  return { blockPrivate: !(await resolvesOnlyPrivate(hostname)), allowHosts: allow };
 }

@@ -185,3 +185,60 @@ describe('the persisted link cache', () => {
     expect(calls).toHaveLength(2);
   });
 });
+
+describe('a link cache that fails after it opened', () => {
+  it('costs the cache, not the request: a read error is a miss, a write error is skipped', async () => {
+    const broken = {
+      get: () => {
+        throw new Error('SQLITE_BUSY: database is locked');
+      },
+      set: () => {
+        throw new Error('SQLITE_FULL: database or disk is full');
+      },
+    } as unknown as LinkCache;
+    stub({ 'https://other.test/gone': 404 });
+    const info = await new UrlService({ siteUrl: SITE, cache: broken }).status('https://other.test/gone');
+    expect(info).toMatchObject({ verdict: 'broken', status: 404 });
+  });
+});
+
+describe('reading a large text body', () => {
+  it('reads a sitemap past the page cap when asked for the sitemap limit', async () => {
+    const { getText } = await import('./url-service.js');
+    const { MAX_PAGE_BYTES, MAX_SITEMAP_BYTES } = await import('./fetch.js');
+    const big = `<urlset>${'x'.repeat(MAX_PAGE_BYTES + 1024)}</urlset>`;
+    stub({ 'https://site.test/sitemap.xml': { status: 200, body: big } });
+    const context = { url: SITE, urls: new UrlService({ siteUrl: SITE }) };
+    await expect(getText(context, 'https://site.test/sitemap.xml')).rejects.toThrow(/too-large/);
+    const read = await getText(context, 'https://site.test/sitemap.xml', { maxBytes: MAX_SITEMAP_BYTES });
+    expect(read.html.length).toBe(big.length);
+  });
+});
+
+describe('a host that asks for a long pause', () => {
+  it('does not hold a shared slot while it waits: another host is still answered', async () => {
+    stub({ 'https://slow.test/': { status: 429, headers: { 'retry-after': '60' } } });
+    const run = new AbortController();
+    const service = new UrlService({ siteUrl: SITE, concurrency: 1, signal: run.signal });
+    const slow = service.status('https://slow.test/').catch((error: unknown) => error);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const other = await Promise.race([
+      service.status(EXT),
+      new Promise((resolve) => setTimeout(() => resolve('blocked'), 3000)),
+    ]);
+    run.abort();
+    expect(other).toMatchObject({ verdict: 'ok' });
+    await slow;
+  }, 10000);
+
+  it('stops waiting at once when the run is cancelled', async () => {
+    stub({ 'https://slow.test/': { status: 429, headers: { 'retry-after': '60' } } });
+    const run = new AbortController();
+    const service = new UrlService({ siteUrl: SITE, signal: run.signal });
+    const slow = service.status('https://slow.test/').then(() => 'answered', (error: unknown) => (error as Error).name);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    run.abort();
+    const outcome = await Promise.race([slow, new Promise((resolve) => setTimeout(() => resolve('still waiting'), 2000))]);
+    expect(outcome).toBe('AuditAbortedError');
+  }, 10000);
+});

@@ -273,7 +273,25 @@ function renderDetailsList(details: Array<{ key: string; value: string }>, maxIt
  * Render the terminal report for an audit result
  * @param result - The audit result to render
  */
-export function renderTerminalReport(result: AuditResult): void {
+/** C0 and C1 control characters other than tab and line feed */
+const CONTROL_CHARACTERS = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g;
+
+/**
+ * The result with control characters removed from every string.
+ *
+ * Messages, titles, URLs and values come from the audited site, and a page
+ * can write ESC or BEL as a character reference. Printed raw, that is an
+ * escape sequence the site sends to whoever reads this report: it can hide
+ * lines, retitle the window or, on some terminals, write the clipboard.
+ */
+function withoutControlCharacters(result: AuditResult): AuditResult {
+  return JSON.parse(JSON.stringify(result), (_key, value: unknown) =>
+    typeof value === 'string' ? value.replace(CONTROL_CHARACTERS, '') : value
+  ) as AuditResult;
+}
+
+export function renderTerminalReport(unsafeResult: AuditResult): void {
+  const result = withoutControlCharacters(unsafeResult);
   console.log();
 
   // Report header

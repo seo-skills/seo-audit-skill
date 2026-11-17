@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import { fetchPage as defaultFetchPage, createAuditContext, type FetchPageOptions, type FetchResult } from './fetcher.js';
-import { AuditError, rethrowIfAborted, throwIfAborted } from '../errors.js';
+import { AuditError, rethrowIfAborted, throwIfAborted, waitUnlessAborted } from '../errors.js';
 import type { AssetInfo, AuditContext, CoreWebVitals, DiscoverySource, InboundEdge, RenderDiagnostics, SiteContext, SitePageInfo } from '../types.js';
 import { summarizeSchemaNodes } from '../rules/schema/utils.js';
 import { pageKindFrom } from '../rules/content/page-kind.js';
@@ -474,9 +474,17 @@ export class Crawler {
     this.options.onCrawlDelay?.(notice);
   }
 
-  /** Close the report: what was queued and never requested, per-host counts */
+  /**
+   * Close the report: what was queued and never requested, per-host counts.
+   *
+   * A link left in the queue is a gap only when something cut the crawl
+   * short: the time limit, or its host given up. A crawl that stopped at its
+   * page limit found more links than it had pages to spend, and is complete.
+   */
   private finishReport(): void {
-    for (const url of this.queue) this.report.notFetched.push(url);
+    for (const url of this.queue) {
+      if (this.report.stoppedByDeadline || this.hosts.get(this.hostOf(url))?.abandoned) this.report.notFetched.push(url);
+    }
     this.queue = [];
     for (const [host, state] of this.hosts) {
       if (state.rateLimitedPages > 0) {
@@ -1039,7 +1047,7 @@ export class Crawler {
    * Sleep helper
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return waitUnlessAborted(ms, this.options.signal);
   }
 
   /**
@@ -1081,6 +1089,7 @@ export class Crawler {
 
     const wait = nextAllowed - now;
     if (wait > 0) await this.sleep(wait);
+    throwIfAborted(this.options.signal);
   }
 }
 

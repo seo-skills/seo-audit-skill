@@ -119,6 +119,23 @@ describe('netFetch under a blocking policy', () => {
     expect(response.status).toBe(200);
   });
 
+  it('reaches a pinned host at its pinned addresses, without asking DNS again', async () => {
+    // rebind.test resolves nowhere: the request can only succeed through the pin,
+    // which is what keeps a later DNS answer from moving the audited host
+    const policy: NetPolicy = { blockPrivate: true, allowHosts: new Set(), pinnedHosts: new Map([['rebind.test', ['127.0.0.1']]]) };
+    const response = await runWithNetPolicy(policy, () => netFetch(`http://rebind.test:${port}/ok`));
+    expect(await response.text()).toBe('ok');
+  });
+
+  it('reaches a pinned address written as an IP literal, and refuses every other private address', async () => {
+    const policy: NetPolicy = { blockPrivate: true, allowHosts: new Set(), pinnedHosts: new Map([['localhost', ['127.0.0.1']]]) };
+    const response = await runWithNetPolicy(policy, () => netFetch(`http://127.0.0.1:${port}/ok`));
+    expect(response.status).toBe(200);
+    await expect(runWithNetPolicy(policy, () => netFetch('http://169.254.169.254/latest/meta-data/'))).rejects.toSatisfy(
+      isPrivateAddressError
+    );
+  });
+
   it('classifies a refusal as private-address, not as an unreachable site', async () => {
     const error = await runWithNetPolicy(STRICT, () => netFetch(`http://127.0.0.1:${port}/ok`)).catch((e) => e);
     expect(classifyError(error).code).toBe('private-address');
@@ -126,10 +143,16 @@ describe('netFetch under a blocking policy', () => {
 });
 
 describe('policyForTarget', () => {
-  it('auto opens only for a target that is private, and blocks for a public one', async () => {
-    expect((await policyForTarget('http://127.0.0.1:3000/', 'auto')).blockPrivate).toBe(false);
-    expect((await policyForTarget('http://localhost:3000/', 'auto')).blockPrivate).toBe(false);
-    expect((await policyForTarget('http://93.184.215.14/', 'auto')).blockPrivate).toBe(true);
+  it('auto never turns the guard off: a private target is pinned to the addresses it resolved to', async () => {
+    const ip = await policyForTarget('http://127.0.0.1:3000/', 'auto');
+    expect(ip.blockPrivate).toBe(true);
+    expect(ip.pinnedHosts?.get('127.0.0.1')).toEqual(['127.0.0.1']);
+    const named = await policyForTarget('http://localhost:3000/', 'auto');
+    expect(named.blockPrivate).toBe(true);
+    expect(named.pinnedHosts?.get('localhost')?.length).toBeGreaterThan(0);
+    const pub = await policyForTarget('http://93.184.215.14/', 'auto');
+    expect(pub.blockPrivate).toBe(true);
+    expect(pub.pinnedHosts).toBeUndefined();
   });
 
   it('auto fails closed when the target cannot be resolved', async () => {

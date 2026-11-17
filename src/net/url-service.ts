@@ -12,7 +12,7 @@ import { netFetch, findPrivateAddressError, readBodyCapped, readBytesPrefix, MAX
 import { requestSignal } from '../crawler/fetcher.js';
 import { getUserAgent } from '../crawler/user-agent.js';
 import { MAX_RATE_LIMIT_RETRIES, parseRetryAfter } from '../crawler/crawler.js';
-import { throwIfAborted } from '../errors.js';
+import { throwIfAborted, waitUnlessAborted } from '../errors.js';
 
 /**
  * What a status means for a link to another site.
@@ -35,6 +35,8 @@ export interface UrlRequest {
   headers?: Record<string, string>;
   /** Read the first n bytes of the body (a ranged GET), or `'all'` of it */
   needBytes?: number | 'all';
+  /** With `needBytes: 'all'`, the most to read (default: the page cap); part of the memo key */
+  maxBytes?: number;
   /** This request's timeout in ms, instead of the service's; not part of the memo key */
   timeoutMs?: number;
 }
@@ -152,8 +154,6 @@ function throwIfAbandoned(signal?: AbortSignal): void {
   if (signal?.aborted) throw new RequestAbandonedError();
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 export class UrlService {
   private readonly memo = new Map<string, Promise<UrlInfo>>();
   private readonly global: Slots;
@@ -227,10 +227,31 @@ export class UrlService {
     );
   }
 
+  /**
+   * The cache saves requests; it never decides an answer. A cache that
+   * opened and then fails (locked, disk full, corrupt) reads as a miss and
+   * skips the write, so it costs speed, never the audit.
+   */
+  private readCache(url: string): ReturnType<StatusCache['get']> {
+    try {
+      return this.options.cache!.get(url);
+    } catch {
+      return null;
+    }
+  }
+
+  private writeCache(url: string, status: number): void {
+    try {
+      this.options.cache!.set(url, status);
+    } catch {
+      // Not remembered; the answer itself stands
+    }
+  }
+
   private async load(url: string, request: UrlRequest, signal?: AbortSignal): Promise<UrlInfo> {
     const persists = this.persists(url, request);
     if (persists && !this.options.refresh) {
-      const hit = this.options.cache!.get(url);
+      const hit = this.readCache(url);
       if (hit?.isValid) {
         const verdict = verdictFor(hit.statusCode);
         // Only settled answers are stored; anything else is asked again
@@ -244,7 +265,7 @@ export class UrlService {
     // A 5xx or DNS failure can be a short outage: remembered for this run
     // only, so it does not read as broken for the cache's whole lifetime.
     if (persists && !this.closed && (info.verdict === 'ok' || GONE_STATUSES.has(info.status))) {
-      this.options.cache!.set(url, info.status);
+      this.writeCache(url, info.status);
     }
     return info;
   }
@@ -271,12 +292,14 @@ export class UrlService {
     }
     await slots.take();
     try {
+      // The host's pause is waited out before a shared slot is taken: a host
+      // that asked for minutes must not hold up requests to every other one
+      const paused = (this.pausedUntil.get(host) ?? 0) - Date.now();
+      if (paused > 0) await waitUnlessAborted(paused, this.options.signal, signal);
+      throwIfAborted(this.options.signal);
+      throwIfAbandoned(signal);
       await this.global.take();
       try {
-        const paused = (this.pausedUntil.get(host) ?? 0) - Date.now();
-        if (paused > 0) await sleep(paused);
-        throwIfAborted(this.options.signal);
-        throwIfAbandoned(signal);
         return await run();
       } finally {
         this.global.give();
@@ -317,7 +340,7 @@ export class UrlService {
         if (value !== null) kept[name] = value;
       }
       let bytes: Uint8Array | undefined;
-      if (request.needBytes === 'all') bytes = await readBodyCapped(response, MAX_PAGE_BYTES);
+      if (request.needBytes === 'all') bytes = await readBodyCapped(response, request.maxBytes ?? MAX_PAGE_BYTES);
       else if (typeof request.needBytes === 'number') bytes = await readBytesPrefix(response, request.needBytes);
       else await response.body?.cancel().catch(() => {});
       return {
@@ -356,7 +379,7 @@ function memoKey(url: string, request: UrlRequest): string {
         .map(([k, v]) => [k.toLowerCase(), v])
         .sort(([a], [b]) => a.localeCompare(b))
     : [];
-  return JSON.stringify([url, request.method ?? 'STATUS', request.followRedirects !== false, headers, request.needBytes ?? null]);
+  return JSON.stringify([url, request.method ?? 'STATUS', request.followRedirects !== false, headers, request.needBytes ?? null, request.maxBytes ?? null]);
 }
 
 /**
@@ -368,9 +391,15 @@ function memoKey(url: string, request: UrlRequest): string {
  */
 export async function getText(
   context: { url: string; urls?: UrlService; signal?: AbortSignal },
-  url: string
+  url: string,
+  options: { maxBytes?: number } = {}
 ): Promise<{ statusCode: number; html: string; headers: Record<string, string> }> {
-  const info = await urlServiceFor(context).get(url, { method: 'GET', needBytes: 'all', timeoutMs: 30_000 });
+  const info = await urlServiceFor(context).get(url, {
+    method: 'GET',
+    needBytes: 'all',
+    timeoutMs: 30_000,
+    ...(options.maxBytes !== undefined && { maxBytes: options.maxBytes }),
+  });
   if (info.status === 0) throw new Error(`${url} did not answer (${info.failure ?? 'network'})`);
   return { statusCode: info.status, html: new TextDecoder('utf-8').decode(info.bytes ?? new Uint8Array(0)), headers: info.headers };
 }

@@ -197,6 +197,107 @@ describe('time limit', () => {
   }, 15000);
 });
 
+describe('page limit', () => {
+  it('leaves nothing "not fetched" when the crawl stops at max pages', async () => {
+    const base = await serve((req, res) => {
+      if (req.url === '/robots.txt') return void res.writeHead(404).end();
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end(html(req.url === '/' ? links(10) : 'leaf'));
+    });
+    const crawler = new Crawler({ maxPages: 3, concurrency: 1 });
+    const pages = await crawler.crawl(`${base}/`);
+    expect(pages.length).toBe(3);
+    expect(crawler.getReport().notFetched).toEqual([]);
+  }, 15000);
+
+  it('reports an audit that reached its page limit as complete, with full coverage', async () => {
+    const { vi } = await import('vitest');
+    const { Auditor } = await import('../auditor.js');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = new URL(String(input instanceof Request ? input.url : input)).pathname;
+        if (path === '/robots.txt' || path.endsWith('.xml')) return new Response('', { status: 404 });
+        return new Response(html(path === '/' ? links(10) : 'leaf'), { headers: { 'content-type': 'text/html' } });
+      })
+    );
+    try {
+      const result = await new Auditor({ measureCwv: false, categories: ['core'] }).auditWithCrawl('https://site.test/', 3, 1);
+      expect(result.coverage).toMatchObject({ attempted: 3, measured: 3, notFetched: 0 });
+      expect(result.completionState).toBe('completed');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('robots.txt that never finishes', () => {
+  it('is given up after its 5 s timeout, body included, and the audit goes on', async () => {
+    const base = await serve((req, res) => {
+      if (req.url === '/robots.txt') {
+        // Headers at once, then a byte at a time, never ending
+        res.writeHead(200, { 'content-type': 'text/plain' });
+        res.write('U');
+        const drip = setInterval(() => res.write('s'), 200);
+        res.on('close', () => clearInterval(drip));
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end(html('leaf'));
+    });
+    const { Auditor } = await import('../auditor.js');
+    const started = Date.now();
+    const result = await new Auditor({ measureCwv: false, categories: ['core'] }).audit(`${base}/`);
+    expect(result.overallScore).toBeGreaterThan(0);
+    // gstack-timing-ok: the bound is the 5 s robots timeout plus slack, and an unbounded read never returns
+    expect(Date.now() - started).toBeLessThan(12_000);
+  }, 20000);
+});
+
+describe('cancelling during a rate-limit wait', () => {
+  const tooManyRequests = (req: http.IncomingMessage, res: http.ServerResponse) => {
+    if (req.url === '/robots.txt') return void res.writeHead(404).end();
+    res.writeHead(429, { 'retry-after': '60' });
+    res.end();
+  };
+
+  it('ends a single-page audit at once, not after the Retry-After', async () => {
+    const base = await serve(tooManyRequests);
+    const { Auditor } = await import('../auditor.js');
+    const cancel = new AbortController();
+    setTimeout(() => cancel.abort(), 200);
+    const outcome = await Promise.race([
+      new Auditor({ measureCwv: false, categories: ['core'], signal: cancel.signal }).audit(`${base}/`).then(
+        () => 'finished',
+        (error: Error) => error.name
+      ),
+      new Promise((resolve) => setTimeout(() => resolve('still waiting'), 3000)),
+    ]);
+    expect(outcome).toBe('AuditAbortedError');
+  }, 10000);
+
+  it('ends a crawl at once, not after the Retry-After', async () => {
+    const base = await serve((req, res) => {
+      if (req.url === '/') {
+        res.writeHead(200, { 'content-type': 'text/html' });
+        return void res.end(html(links(3)));
+      }
+      tooManyRequests(req, res);
+    });
+    const cancel = new AbortController();
+    const crawler = new Crawler({ maxPages: 4, concurrency: 1, signal: cancel.signal });
+    setTimeout(() => cancel.abort(), 300);
+    const outcome = await Promise.race([
+      crawler.crawl(`${base}/`).then(
+        () => 'finished',
+        (error: Error) => error.name
+      ),
+      new Promise((resolve) => setTimeout(() => resolve('still waiting'), 3000)),
+    ]);
+    expect(outcome).toBe('AuditAbortedError');
+  }, 10000);
+});
+
 describe('coverage gate', () => {
   const result = (measured: number, attempted: number): AuditResult => ({
     url: 'https://example.com/',

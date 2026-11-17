@@ -45,11 +45,18 @@ function hydrateAudit(row: DbAudit): HydratedAudit {
  * no extras, and says so on stderr with the audit id and where parsing
  * stopped. The rest of the audit is intact.
  */
+function isTruncationMarker(section: unknown): boolean {
+  return typeof section === 'object' && section !== null && (section as { truncated?: unknown }).truncated === true;
+}
+
 function parseExtras(row: DbAudit): Record<string, unknown> | null {
   if (!row.extras_json) return null;
   try {
     const value = JSON.parse(row.extras_json) as unknown;
-    return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    // A section too large to store was saved as { truncated, bytes }. No
+    // reader expects that shape, so it loads as absent, not as the section.
+    return Object.fromEntries(Object.entries(value).filter(([, section]) => !isTruncationMarker(section)));
   } catch (error) {
     const where = error instanceof Error ? error.message : 'unknown position';
     console.error(

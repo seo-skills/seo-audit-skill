@@ -17,6 +17,12 @@ export interface NetPolicy {
   blockPrivate: boolean;
   /** `host:port` pairs reachable even when `blockPrivate` is on */
   allowHosts: ReadonlySet<string>;
+  /**
+   * Hostnames reachable on private addresses, each only at the addresses it
+   * resolved to when the run started. Auto mode pins a local or intranet
+   * target this way, so a later DNS answer cannot move it elsewhere.
+   */
+  pinnedHosts?: ReadonlyMap<string, readonly string[]>;
 }
 
 /** A policy that lets every request through */
@@ -47,21 +53,26 @@ export async function resolvesPublic(hostname: string): Promise<boolean> {
   }
 }
 
+/** A hostname as a pin key: lower case, an IPv6 literal without brackets */
+export function pinKey(hostname: string): string {
+  return hostname.replace(/^\[|\]$/g, '').toLowerCase();
+}
+
 /**
- * True only when every address `hostname` resolves to is private.
+ * The addresses `hostname` resolves to, when every one of them is private.
  *
- * The test that may turn blocking off, so it fails closed: a mixed answer
- * (one public address, one private) or a failed lookup is not a private
- * target. One DNS answer must never open the guard for a whole run.
+ * The test that lets a private target through, so it fails closed: a mixed
+ * answer (one public address, one private) or a failed lookup is not a
+ * private target, and returns null.
  */
-export async function resolvesOnlyPrivate(hostname: string): Promise<boolean> {
-  const bare = hostname.replace(/^\[|\]$/g, '');
-  if (isIP(bare)) return isBlockedAddress(bare);
+async function privateAddressesOf(hostname: string): Promise<string[] | null> {
+  const bare = pinKey(hostname);
+  if (isIP(bare)) return isBlockedAddress(bare) ? [bare] : null;
   try {
-    const addresses = await lookup(bare, { all: true, verbatim: true });
-    return addresses.length > 0 && addresses.every((a) => isBlockedAddress(a.address));
+    const addresses = (await lookup(bare, { all: true, verbatim: true })).map((a) => a.address);
+    return addresses.length > 0 && addresses.every((address) => isBlockedAddress(address)) ? addresses : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -71,9 +82,11 @@ export async function resolvesOnlyPrivate(hostname: string): Promise<boolean> {
  * - `auto` (CLI, dashboard, desktop): private destinations are blocked,
  *   so a page cannot point the audit at your router or a cloud metadata
  *   endpoint. The one exception is a target that resolves *only* to private
- *   addresses (a local dev server, an intranet site), which is audited as
- *   before; a target whose DNS answer mixes public and private addresses
- *   stays blocked.
+ *   addresses (a local dev server, an intranet site): that hostname is let
+ *   through, pinned to the addresses it resolved to at the start, so a DNS
+ *   answer that changes mid-run (rebinding) cannot open the guard. Other
+ *   private hosts stay blocked, and a target whose DNS answer mixes public
+ *   and private addresses stays blocked.
  * - `strict` (MCP without `--allow-private`): private destinations are
  *   blocked for every request, the target included.
  * - `open`: nothing is blocked.
@@ -90,5 +103,6 @@ export async function policyForTarget(
   if (mode === 'open') return { blockPrivate: false, allowHosts: allow };
   if (mode === 'strict') return { blockPrivate: true, allowHosts: allow };
   const hostname = new URL(targetUrl).hostname;
-  return { blockPrivate: !(await resolvesOnlyPrivate(hostname)), allowHosts: allow };
+  const pinned = await privateAddressesOf(hostname);
+  return { blockPrivate: true, allowHosts: allow, ...(pinned && { pinnedHosts: new Map([[pinKey(hostname), pinned]]) }) };
 }

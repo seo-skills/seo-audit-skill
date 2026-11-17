@@ -27,7 +27,7 @@ import {
 import { buildPageSnapshot } from './page-snapshot.js';
 import { SCORING_VERSION } from './scoring.js';
 import { applyScoreCaps, pageCaps, readPageFacts, siteCaps } from './score-caps.js';
-import { AuditError, rethrowIfAborted, throwIfAborted } from './errors.js';
+import { AuditError, rethrowIfAborted, throwIfAborted, waitUnlessAborted } from './errors.js';
 import { getUserAgent } from './crawler/user-agent.js';
 import type { UrlFilterOptions } from './crawler/url-filter.js';
 import { fetchSitemap } from './crawler/sitemap.js';
@@ -373,7 +373,8 @@ export class Auditor {
             'User-Agent': getUserAgent(),
           },
         });
-        clearTimeout(timeoutId);
+        // The timer stays armed through the body: a robots.txt that sends
+        // headers and then drips bytes is cut off at the same 5 s
         if (response.ok) {
           return await readTextCapped(response, MAX_PAGE_BYTES);
         }
@@ -539,7 +540,7 @@ export class Auditor {
         );
       }
       const waitMs = Math.min(requested ?? 5000 * 2 ** (attempt - 1), this.options.maxRetryAfterMs);
-      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      await waitUnlessAborted(waitMs, this.options.signal);
       throwIfAborted(this.options.signal);
       fetchResult = await fetchPage(url, this.options.timeout, {
         trackRedirects: true,

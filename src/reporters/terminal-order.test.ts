@@ -108,3 +108,18 @@ describe('terminal issue ordering', () => {
     expect(line).not.toContain('⚠');
   });
 });
+
+describe('site text in the terminal', () => {
+  it('cannot send a terminal escape sequence through a rule message', async () => {
+    const { twitterAttributeRule } = await import('../rules/social/twitter-attribute.js');
+    const { createTestContext } = await import('../rules/test-context.js');
+    // A page writes ESC, BEL and CR as character references; the parser decodes them
+    const page = '<html><head><meta property="twitter:card&#x1b;]0;retitled&#x07;&#x0d;" content="summary"></head><body></body></html>';
+    const finding = await twitterAttributeRule.run(createTestContext(page));
+    expect(finding.message).toContain(String.fromCharCode(27));
+
+    const out = capture(report('social', [{ ...finding, weight: 1, details: { pageUrl: 'https://example.com/' } }]));
+    expect(out).toContain('retitled');
+    expect(out).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/);
+  });
+});

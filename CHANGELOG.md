@@ -317,8 +317,10 @@ what can break a script or CI job, why scores move, and what to change.
 - **Text from the audited site cannot inject into reports.** The markdown
   report escapes `<`, `>` and `&` and collapses line breaks in everything it
   prints from a page, so a title or an extracted value cannot render as HTML
-  in a markdown viewer or break a table. Extracted values drop control
-  characters, so a page cannot send escape sequences to the terminal.
+  in a markdown viewer or break a table. The console report drops control
+  characters from everything it prints, so a page cannot send escape
+  sequences to the terminal through a title, a URL or an attribute a rule
+  quotes.
 
 - **`seomator analyze` checks links under the same network policy as
   `audit`.** Replaying a stored crawl ran its link checks with no policy, so a
@@ -333,8 +335,10 @@ what can break a script or CI job, why scores move, and what to change.
   when the connection opens, after DNS, so a hostname that changes its answer
   between check and connect cannot get through, and every spelling of those
   addresses (IPv4-mapped IPv6, decimal, NAT64) is covered. Auditing a site on
-  `localhost` or an intranet works as before: the rule only applies when the
-  target itself is public. A refused request reports error code
+  `localhost` or an intranet still works: that host is let through, held to
+  the addresses it resolved to when the run started, so a DNS answer that
+  changes mid-run cannot open the guard. Other private hosts it links to are
+  refused, and read "could not verify". A refused request reports error code
   `private-address`.
 - Response bodies are read with a cap: 10 MB for a page or robots.txt, and
   50 MB for a sitemap, decompressed. A huge or endless response, or a small

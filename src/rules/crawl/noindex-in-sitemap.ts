@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
 import { getText } from '../../net/url-service.js';
+import { MAX_SITEMAP_BYTES } from '../../net/fetch.js';
 
 /**
  * Extracts the base URL (origin) from a full URL
@@ -140,7 +141,7 @@ export const noindexInSitemapRule = defineRule({
     let fetchedSitemapUrl = sitemapUrl;
 
     try {
-      const result = await getText(context, sitemapUrl);
+      const result = await getText(context, sitemapUrl, { maxBytes: MAX_SITEMAP_BYTES });
       if (result.statusCode === 200) {
         sitemapContent = result.html;
       }
@@ -156,7 +157,7 @@ export const noindexInSitemapRule = defineRule({
           const sitemapsInRobots = extractSitemapUrlsFromRobotsTxt(robotsResult.html);
           if (sitemapsInRobots.length > 0) {
             fetchedSitemapUrl = sitemapsInRobots[0];
-            const result = await getText(context, fetchedSitemapUrl);
+            const result = await getText(context, fetchedSitemapUrl, { maxBytes: MAX_SITEMAP_BYTES });
             if (result.statusCode === 200) {
               sitemapContent = result.html;
             }
@@ -190,7 +191,7 @@ export const noindexInSitemapRule = defineRule({
       // Fetch first child sitemap to check (limit HTTP requests)
       for (const childUrl of childSitemapUrls.slice(0, 3)) {
         try {
-          const childResult = await getText(context, childUrl);
+          const childResult = await getText(context, childUrl, { maxBytes: MAX_SITEMAP_BYTES });
           if (childResult.statusCode === 200 && !isSitemapIndex(childResult.html)) {
             const urls = extractUrlsFromSitemap(childResult.html);
             allSitemapUrls.push(...urls);

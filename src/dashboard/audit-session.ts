@@ -20,6 +20,8 @@ import { saveAuditToDatabase, stripUserinfo, type SavedAudit } from '../storage/
 import { generateId } from '../storage/utils/hash.js';
 import type { AuditRunOptions, AuditSource } from '../storage/types.js';
 import { buildRuleMetadata } from './queries.js';
+import { applyRuleOverrides } from '../rules/overrides.js';
+import type { RuleOverride } from '../config/schema.js';
 import type { RuleMetadata } from './contract.js';
 
 /** Rule results kept in the live state; older ones are dropped */
@@ -195,7 +197,12 @@ export interface AuditSessionOptions {
     | 'maxDurationMs'
     | 'externalLinks'
     | 'custom'
+    | 'urlFilter'
+    | 'delayMs'
+    | 'perHostDelayMs'
   >;
+  /** `[rules.override]`: re-ranks findings before the result is summarized or stored */
+  ruleOverrides?: Record<string, RuleOverride>;
   /** Injectable for tests */
   createAuditor?: (options: AuditorOptions) => Auditor;
   /** Injectable for tests */
@@ -574,6 +581,7 @@ export class AuditSession {
       const result = args.crawl
         ? await auditor.auditWithCrawl(args.url, args.maxPages, args.concurrency)
         : await auditor.audit(args.url);
+      if (this.options.ruleOverrides) applyRuleOverrides(result, this.options.ruleOverrides);
 
       const outcome: RunOutcome = {
         runId,

@@ -39,6 +39,7 @@ import { renderLlmReport } from '../reporters/llm-reporter.js';
 import { getAuditsDatabase, getGlobalDir } from '../storage/index.js';
 import { compareStored, getAuditDetail, listAudits } from '../dashboard/queries.js';
 import { policyForTarget, resolvesPublic, runWithNetPolicy } from '../net/policy.js';
+import { toUrlFilterOptions } from '../config/url-filter-options.js';
 import { projectCrawlDelay } from '../crawler/crawler.js';
 import { isBlockedAddress } from '../net/address.js';
 import { lookup } from 'node:dns/promises';
@@ -219,6 +220,18 @@ export function createMcpServer(options: McpServerOptions): McpServer {
     return null;
   };
 
+  /** The refusal for a second run while one is in flight, or null when free */
+  const refuseIfBusy = (): ToolResult | null => {
+    const busy = activeRunId();
+    if (!busy) return null;
+    return failure({
+      code: 'busy',
+      message: `An audit is already running (runId ${busy}).`,
+      hint: 'Poll audit_status with that runId, or cancel_run it, then start again.',
+      runId: busy,
+    });
+  };
+
   const runNotFound = (runId: string): ToolResult =>
     failure({
       code: 'run-not-found',
@@ -255,15 +268,8 @@ export function createMcpServer(options: McpServerOptions): McpServer {
     },
     async ({ url, crawl, maxPages, render, categories, respectCrawlDelay, maxDurationS, waitS }) =>
       guarded(async () => {
-        const busy = activeRunId();
-        if (busy) {
-          return failure({
-            code: 'busy',
-            message: `An audit is already running (runId ${busy}).`,
-            hint: 'Poll audit_status with that runId, or cancel_run it, then start again.',
-            runId: busy,
-          });
-        }
+        const busyBefore = refuseIfBusy();
+        if (busyBefore) return busyBefore;
 
         let parsed: URL;
         try {
@@ -328,6 +334,12 @@ export function createMcpServer(options: McpServerOptions): McpServer {
           }
         }
 
+        // Checked again after the awaits above: a call sent at the same time
+        // may have started its run meanwhile. Nothing from here to runs.set
+        // awaits, so the slot cannot be taken twice.
+        const busyNow = refuseIfBusy();
+        if (busyNow) return busyNow;
+
         const session = makeSession({
           source: 'mcp',
           auditorOptions: {
@@ -335,6 +347,9 @@ export function createMcpServer(options: McpServerOptions): McpServer {
             enableRules: loaded.config.rules.enable,
             disableRules: loaded.config.rules.disable,
             ruleOptions: loaded.config.rule_options,
+            urlFilter: toUrlFilterOptions(loaded.config.crawler),
+            delayMs: loaded.config.crawler.delay_ms,
+            perHostDelayMs: loaded.config.crawler.per_host_delay_ms,
             perHostConcurrency: loaded.config.crawler.per_host_concurrency,
             respectCrawlDelay: honourDelay,
             maxRetryAfterMs: loaded.config.crawler.max_retry_after_ms,
@@ -343,6 +358,7 @@ export function createMcpServer(options: McpServerOptions): McpServer {
             externalLinks: externalLinksOptions(loaded.config),
             custom: loaded.config.custom,
           },
+          ruleOverrides: loaded.config.rules.override,
         });
 
         const startPromise = session.start({
@@ -351,6 +367,8 @@ export function createMcpServer(options: McpServerOptions): McpServer {
           ...(maxPages !== undefined && { maxPages }),
           measureCwv: render ?? false,
           ...(categories && { categories }),
+          timeout: loaded.config.crawler.timeout_ms,
+          save: loaded.config.output.save,
         });
         const runId = session.getState().runId!;
         const record: RunRecord = { session, outcome: null, failure: null, configPath: loaded.configPath, done: null as never };

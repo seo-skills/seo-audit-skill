@@ -152,6 +152,15 @@ interface IssueData {
  */
 export const MAX_ISSUES = 150;
 
+/** Pages, values per page and characters per value an extraction lists */
+const MAX_EXTRACTION_PAGES = 20;
+const MAX_EXTRACTION_VALUES = 5;
+const MAX_EXTRACTION_VALUE_CHARS = 200;
+
+function clipValue(value: string): string {
+  return value.length > MAX_EXTRACTION_VALUE_CHARS ? `${value.slice(0, MAX_EXTRACTION_VALUE_CHARS)}…` : value;
+}
+
 /**
  * Render audit result in LLM-optimized XML format
  *
@@ -331,8 +340,18 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false, maxIss
       lines.push(`${t2}<search name="${escapeXml(row.name)}" result="${row.outcome}">${escapeXml(row.summary)}${pages}</search>${nl}`);
     }
     for (const extraction of custom.extractions) {
-      const values = extraction.pages.map((p) => `${p.url}: ${p.values.join(' | ')}`).join('\n');
-      lines.push(`${t2}<extraction name="${escapeXml(extraction.name)}" pages="${extraction.pages.length}">${wrapUntrusted(values, nonce)}</extraction>${nl}`);
+      // Bounded like the issues list: an agent reads this in its context
+      // window, and a multi-value extraction over a large crawl has no limit
+      const shown = extraction.pages.slice(0, MAX_EXTRACTION_PAGES);
+      const omitted = extraction.pages.length - shown.length;
+      const values = shown
+        .map((p) => `${p.url}: ${p.values.slice(0, MAX_EXTRACTION_VALUES).map(clipValue).join(' | ')}`)
+        .join('\n');
+      lines.push(
+        `${t2}<extraction name="${escapeXml(extraction.name)}" pages="${extraction.pages.length}"` +
+          (omitted > 0 ? ` omitted="${omitted}" note="first ${MAX_EXTRACTION_PAGES} pages; --format json has every value"` : '') +
+          `>${wrapUntrusted(values, nonce)}</extraction>${nl}`
+      );
     }
     lines.push(`${t1}</custom-checks>${nl}`);
   }

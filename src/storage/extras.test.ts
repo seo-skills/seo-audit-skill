@@ -96,6 +96,29 @@ describe('stored audits keep their run-level data', () => {
     expect(buildStoredExtras(big)?.['blob']).toEqual({ truncated: true, bytes: MAX_EXTRAS_SECTION_BYTES + 12 });
   });
 
+  it('loads an audit with an oversized section as if that section were absent', async () => {
+    const { renderMarkdownReport } = await import('../reporters/markdown-reporter.js');
+    const { db } = open();
+    const big = audit();
+    const linkedFrom = Array.from({ length: 20 }, (_, i) => `https://example.com/${'p'.repeat(100)}${i}`);
+    big.extras = {
+      externalLinks: {
+        broken: 600,
+        brokenTargets: Array.from({ length: 600 }, (_, i) => ({
+          url: `https://gone.example/${'a'.repeat(100)}${i}`,
+          status: 404,
+          reason: 'HTTP 404',
+          linkedFrom,
+          linkedFromCount: 20,
+        })),
+      },
+    } as unknown as AuditResult['extras'];
+    const saved = saveAuditToDatabase(big, { db });
+    const loaded = getAuditDetail(db, saved.auditId)!.result;
+    expect(loaded.extras?.externalLinks).toBeUndefined();
+    expect(() => renderMarkdownReport(loaded)).not.toThrow();
+  });
+
   it('loads an audit whose stored extras are corrupt, without them, and says so', () => {
     const { db } = open();
     const saved = saveAuditToDatabase(audit(), { db });

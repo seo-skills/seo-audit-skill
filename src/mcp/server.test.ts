@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -162,6 +162,50 @@ describe('seomator-audit MCP server', () => {
     expect(cancelled.json).toMatchObject({ runId, cancelled: true, state: 'cancelled' });
     slowRelease?.();
   }, 30000);
+
+  it('refuses the second of two audit_url calls sent together as busy', async () => {
+    const client = await connect();
+    // A crawl awaits robots.txt before it starts, which is where two calls
+    // sent at once could both get past the busy check
+    const args = { url: `http://${host}/slow`, crawl: true, maxPages: 1 };
+    const both = await Promise.all([call(client, 'audit_url', args), call(client, 'audit_url', args)]);
+    const started = both.filter((r) => r.json?.['state'] === 'running');
+    for (const run of started) await call(client, 'cancel_run', { runId: run.json!['runId'] });
+    slowRelease?.();
+    expect(started).toHaveLength(1);
+    expect(both.filter((r) => r.json?.['code'] === 'busy')).toHaveLength(1);
+  }, 30000);
+
+  it('runs with the config file: crawl filters, rule overrides and save = false all apply', async () => {
+    const requested: string[] = [];
+    const site = http.createServer((req, res) => {
+      requested.push(`${req.method} ${req.url}`);
+      if (req.url === '/robots.txt') return void res.writeHead(404).end();
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end(PAGE.replace('</body>', '<a href="/public">public</a><a href="/private/x">private</a></body>'));
+    });
+    await new Promise<void>((resolve) => site.listen(0, '127.0.0.1', resolve));
+    const siteHost = `127.0.0.1:${(site.address() as AddressInfo).port}`;
+    const configPath = join(home, 'mcp-config.toml');
+    writeFileSync(
+      configPath,
+      ['[crawler]', 'exclude = ["/private/**"]', '', '[output]', 'save = false', '', '[rules.override]', '"core-description-present" = { priority = "ignore" }', ''].join('\n')
+    );
+    try {
+      const client = await connect({ allowHosts: [siteHost], config: configPath });
+      const started = await call(client, 'audit_url', { url: `http://${siteHost}/`, crawl: true, maxPages: 5, waitS: 25 });
+      expect(started.json).toMatchObject({ state: 'completed' });
+      const summary = started.json!['summary'] as { auditId: string | null; pages: number; topFindings: Array<{ ruleId: string }> };
+      // The crawl fetched / and /public as pages; /private/x is excluded
+      expect(summary.pages).toBe(2);
+      expect(requested).toContain('GET /public');
+      expect(requested).not.toContain('GET /private/x');
+      expect(summary.auditId).toBeNull();
+      expect(summary.topFindings.map((f) => f.ruleId)).not.toContain('core-description-present');
+    } finally {
+      site.close();
+    }
+  }, 60000);
 
   it("refuses a crawl the site's Crawl-delay could not finish in time, before requesting a page", async () => {
     const pageRequests: string[] = [];

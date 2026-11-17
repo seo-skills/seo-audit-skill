@@ -69,6 +69,11 @@ export function CustomChecksSection({ result }: { result: AuditResult }) {
               </tbody>
             </table>
           </div>
+          {extraction.pages.length > 50 && (
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+              showing 50 of {extraction.pages.length} pages; export markdown or HTML for the rest
+            </p>
+          )}
         </div>
       ))}
     </section>

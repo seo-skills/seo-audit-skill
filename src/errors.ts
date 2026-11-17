@@ -92,6 +92,27 @@ export function throwIfAborted(signal?: AbortSignal): void {
 }
 
 /**
+ * Wait `ms`, or until any of `signals` fires, whichever comes first.
+ *
+ * Resolves either way; the caller checks its signals after. A plain timer
+ * cannot be cancelled, and a Retry-After wait can last minutes, so a run
+ * cancelled during one would otherwise hold its slot until the wait ended.
+ */
+export function waitUnlessAborted(ms: number, ...signals: Array<AbortSignal | undefined>): Promise<void> {
+  const live = signals.filter((signal): signal is AbortSignal => signal !== undefined);
+  if (ms <= 0 || live.some((signal) => signal.aborted)) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      for (const signal of live) signal.removeEventListener('abort', done);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    for (const signal of live) signal.addEventListener('abort', done, { once: true });
+  });
+}
+
+/**
  * Re-raise a caught error as a cancellation when the run was cancelled.
  *
  * Catch blocks that turn network failures into "unmeasured" results call this

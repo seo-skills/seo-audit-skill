@@ -19,7 +19,7 @@ import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
 import { isIP } from 'node:net';
 import { Agent, buildConnector } from 'undici';
 import { isBlockedAddress } from './address.js';
-import { currentNetPolicy, type NetPolicy } from './policy.js';
+import { currentNetPolicy, pinKey, type NetPolicy } from './policy.js';
 
 /** A request refused because its destination resolves to a private address */
 export class PrivateAddressError extends Error {
@@ -67,11 +67,28 @@ function guardedLookup(hostname: string, options: object, callback: LookupCallba
   });
 }
 
+/** A resolver that answers with the addresses a host was pinned to, never DNS */
+function pinnedLookup(addresses: readonly string[]) {
+  const list: LookupAddress[] = addresses.map((address) => ({ address, family: isIP(address) }));
+  return (_hostname: string, options: object, callback: LookupCallback): void => {
+    process.nextTick(() => {
+      if ((options as { all?: boolean }).all === true) return callback(null, list);
+      callback(null, list[0].address, list[0].family);
+    });
+  };
+}
+
+/** True when `address` is one a pinned host resolved to */
+function isPinnedAddress(policy: NetPolicy, address: string): boolean {
+  for (const addresses of policy.pinnedHosts?.values() ?? []) if (addresses.includes(address)) return true;
+  return false;
+}
+
 const agents = new Map<string, Agent>();
 
-/** One agent per distinct allow-list, reused across requests */
+/** One agent per distinct allow-list and pin set, reused across requests */
 function agentFor(policy: NetPolicy): Agent {
-  const key = [...policy.allowHosts].sort().join(',');
+  const key = JSON.stringify([[...policy.allowHosts].sort(), [...(policy.pinnedHosts ?? [])].sort()]);
   const existing = agents.get(key);
   if (existing) return existing;
 
@@ -82,8 +99,10 @@ function agentFor(policy: NetPolicy): Agent {
       if (policy.allowHosts.has(`${options.hostname}:${port}`)) {
         return buildConnector({})(options, callback);
       }
-      const bare = options.hostname.replace(/^\[|\]$/g, '');
-      if (isIP(bare) && isBlockedAddress(bare)) {
+      const bare = pinKey(options.hostname);
+      const pinned = policy.pinnedHosts?.get(bare);
+      if (pinned) return buildConnector({ lookup: pinnedLookup(pinned) as never })(options, callback);
+      if (isIP(bare) && isBlockedAddress(bare) && !isPinnedAddress(policy, bare)) {
         callback(new PrivateAddressError(options.hostname, bare), null);
         return;
       }
@@ -121,6 +140,9 @@ export class BodyTooLargeError extends Error {
 
 /** The most a page body may be: larger answers are not HTML anyone ranks */
 export const MAX_PAGE_BYTES = 10 * 1024 * 1024;
+
+/** The sitemap protocol's own size limit for one file, uncompressed */
+export const MAX_SITEMAP_BYTES = 50 * 1024 * 1024;
 
 /**
  * Read a response body as bytes, stopping at `maxBytes`.

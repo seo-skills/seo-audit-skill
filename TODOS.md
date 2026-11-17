@@ -618,6 +618,34 @@ time, a public target blocks private and cloud-metadata addresses, and
 Scope consciously left for later. The PRD and its review live outside the
 repository, under `~/.gstack/projects/`.
 
+### P1: deferred from the 8.0 PRD at ship
+
+Five PRD items were not built in 8.0.0 and were deferred when it shipped:
+
+- **Memory at 10,000 pages.** The crawler keeps every page's parsed DOM until
+  the run ends. Keep only what the cross-page checks read (`SitePageInfo`),
+  drop the DOM after a page is scored, and add a heap benchmark at 10,000
+  pages that fails on a regression.
+- **Group findings** (`extras.groups`) and the shared **`details.table`**
+  contract. See "Dashboard and desktop items not taken in 8.0.0" below.
+- **Scoring model on the compare page and trend chart.** Same section below.
+- **A preparation state before a crawl with a Crawl-delay.** Same section below.
+
+The desktop parity check for axe-core (below) was dropped from 8.0.0 at ship:
+the code is in place but was never run in the desktop app.
+
+### P2: memory in long-lived processes
+
+- The MCP server keeps every finished run's full result and session until
+  it exits. Keep the summary and the auditId once a run ends, or evict
+  finished runs after a retention window as `AuditSession` does.
+- The per-run URL memo keeps whole response bodies for `needBytes: 'all'`
+  requests, such as the AMP or mobile alternate of every crawled page. Keep the
+  parsed result instead, or drop the bytes once read, and bound the memo by
+  total size.
+
+Measure both with the 10,000-page benchmark above.
+
 ### Release P: promote the advisory rules
 
 The 25 rules added in 8.0.0 are advisory: reported, not scored. Promote them

@@ -98,6 +98,41 @@ export interface OutputConfig {
   save: boolean;
 }
 
+/** A `[[custom.search]]` entry: a site-specific check every page is tested against */
+export interface CustomSearchConfig {
+  name: string;
+  /** Where to look: page text, the HTML, the head or body HTML, or elements matching `selector` */
+  where?: 'text' | 'html' | 'head' | 'body' | 'selector';
+  selector?: string;
+  /** What to find; omit with `where = "selector"` to test that the selector matches */
+  text?: string;
+  /** `text` and `scope` are literal strings, or regular expressions */
+  match?: 'literal' | 'regex';
+  /** What a passing page shows */
+  expect?: 'present' | 'absent';
+  /** How a failing page is shown */
+  severity?: 'warn' | 'fail';
+  /** CI exits 1 when any page fails, none was checked, or the time limit stopped one */
+  fail_ci?: boolean;
+  /** URL path prefix, or a regular expression when `match = "regex"`, limiting the pages */
+  scope?: string;
+}
+
+/** A `[[custom.extract]]` entry: a value pulled from every page */
+export interface CustomExtractConfig {
+  name: string;
+  selector: string;
+  /** Empty: the element's text */
+  attribute?: string;
+  /** Every match rather than the first */
+  multiple?: boolean;
+}
+
+export interface CustomConfig {
+  search: CustomSearchConfig[];
+  extract: CustomExtractConfig[];
+}
+
 /**
  * Complete SEOmator configuration
  */
@@ -109,6 +144,7 @@ export interface SeomatorConfig {
   output: OutputConfig;
   ci: CiConfig;
   rule_options: Record<string, Record<string, unknown>>;
+  custom: CustomConfig;
 }
 
 /**
@@ -122,4 +158,5 @@ export type PartialSeomatorConfig = {
   output?: Partial<OutputConfig>;
   ci?: Partial<CiConfig>;
   rule_options?: Record<string, Record<string, unknown>>;
+  custom?: Partial<CustomConfig>;
 };

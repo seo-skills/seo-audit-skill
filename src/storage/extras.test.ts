@@ -92,8 +92,8 @@ describe('stored audits keep their run-level data', () => {
 
   it('replaces an oversized section with a marker', () => {
     const big = audit();
-    big.extras = { custom: 'x'.repeat(MAX_EXTRAS_SECTION_BYTES + 10) };
-    expect(buildStoredExtras(big)?.['custom']).toEqual({ truncated: true, bytes: MAX_EXTRAS_SECTION_BYTES + 12 });
+    big.extras = { blob: 'x'.repeat(MAX_EXTRAS_SECTION_BYTES + 10) };
+    expect(buildStoredExtras(big)?.['blob']).toEqual({ truncated: true, bytes: MAX_EXTRAS_SECTION_BYTES + 12 });
   });
 
   it('loads an audit whose stored extras are corrupt, without them, and says so', () => {

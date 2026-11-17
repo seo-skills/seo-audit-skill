@@ -8,6 +8,7 @@ import { getDefaultConfig } from './defaults.js';
 import { didYouMean } from './suggest.js';
 import type { RuleOptionSpec } from '../types.js';
 import { checkRuleOptionValue } from '../rules/define-rule.js';
+import { customConfigProblems } from '../custom/custom-checks.js';
 
 /** What the validator may check beyond the config's own shape */
 export interface ValidationContext {
@@ -275,6 +276,11 @@ export function validateConfig(
   const warnings: ValidationError[] = [];
 
   const configObj = config as Record<string, unknown>;
+
+  // Custom checks: every selector and pattern compiles before a run
+  for (const problem of customConfigProblems((config as PartialSeomatorConfig).custom)) {
+    errors.push({ path: problem.path, message: problem.message, value: undefined });
+  }
 
   // Validate numeric fields with ranges
   for (const [path, rules] of Object.entries(VALIDATION_RULES)) {

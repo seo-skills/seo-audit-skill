@@ -332,6 +332,7 @@ export function createMcpServer(options: McpServerOptions): McpServer {
             maxDurationMs: durationS * 1000,
             respectRobots: loaded.config.crawler.respect_robots,
             externalLinks: externalLinksOptions(loaded.config),
+            custom: loaded.config.custom,
           },
         });
 

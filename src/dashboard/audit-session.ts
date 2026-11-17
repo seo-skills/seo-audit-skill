@@ -189,6 +189,7 @@ export interface AuditSessionOptions {
     | 'maxRetryAfterMs'
     | 'maxDurationMs'
     | 'externalLinks'
+    | 'custom'
   >;
   /** Injectable for tests */
   createAuditor?: (options: AuditorOptions) => Auditor;

@@ -39,6 +39,8 @@ import { netFetch, readTextCapped, MAX_PAGE_BYTES } from './net/fetch.js';
 import { policyForTarget, runWithNetPolicy, type NetMode } from './net/policy.js';
 import { UrlService, type StatusCache } from './net/url-service.js';
 import { computeLinkScores, linkScoreSummary } from './site/link-score.js';
+import { CustomRunner, type CustomResults } from './custom/custom-checks.js';
+import type { CustomConfig } from './config/schema.js';
 import { LinkCache } from './storage/link-cache.js';
 import {
   EXTERNAL_LINKS_DISABLED,
@@ -230,6 +232,8 @@ export interface AuditorOptions {
   externalLinks?: ExternalLinksOptions;
   /** Told how many unique external URLs the run is about to check */
   onExternalLinks?: (count: number) => void;
+  /** `[[custom.search]]` and `[[custom.extract]]`: a separate pass, never scored */
+  custom?: Partial<CustomConfig>;
 }
 
 export interface ExternalLinksOptions {
@@ -258,7 +262,8 @@ type OptionalAuditorKeys =
   | 'maxDurationMs'
   | 'onCrawlDelay'
   | 'onWaiting'
-  | 'onExternalLinks';
+  | 'onExternalLinks'
+  | 'custom';
 type ResolvedAuditorOptions = Required<Omit<AuditorOptions, OptionalAuditorKeys>> &
   Pick<AuditorOptions, OptionalAuditorKeys>;
 
@@ -278,6 +283,8 @@ export class Auditor {
   private externalLinksReport: ExternalLinksExtras | undefined;
   /** When the current run started: every page's `context.now` */
   private runStartedAt = Date.now();
+  /** The current run's custom checks */
+  private custom = new CustomRunner({});
 
   constructor(options: AuditorOptions = {}) {
     this.options = {
@@ -316,6 +323,7 @@ export class Auditor {
       onWaiting: options.onWaiting,
       externalLinks: options.externalLinks ?? {},
       onExternalLinks: options.onExternalLinks,
+      custom: options.custom,
     };
 
     // Determine which categories to audit
@@ -451,6 +459,7 @@ export class Auditor {
     this.urls = service;
     this.externalLinksReport = undefined;
     this.runStartedAt = Date.now();
+    this.custom = new CustomRunner(this.options.custom ?? {});
     try {
       return await fn();
     } finally {
@@ -629,6 +638,7 @@ export class Auditor {
     // Run all categories
     await this.prepareExternalLinks([context], false);
     const categoryResults = await this.runAllCategories(context);
+    this.custom.runPage(context);
 
     // Build the final result, then hold the score down for any condition the
     // category average cannot express (see score-caps.ts)
@@ -644,6 +654,7 @@ export class Auditor {
       { pages: [url], detail: 'per-page' }
     );
     if (this.externalLinksReport) result.extras = { ...result.extras, externalLinks: this.externalLinksReport };
+    if (!this.custom.empty) result.extras = { ...result.extras, custom: this.custom.results() };
     return applyScoreCaps(result, pageCaps(readPageFacts(context), { staging: this.options.staging }));
   }
 
@@ -780,6 +791,7 @@ export class Auditor {
         linkScoreSummary: linkScoreSummary(site, linkScores),
       }),
       ...(this.externalLinksReport && { externalLinks: this.externalLinksReport }),
+      ...(!this.custom.empty && { custom: this.custom.results() }),
       crawl: {
         rateLimitedPages: coverage.rateLimited,
         rateLimitedHosts: report.rateLimitedHosts,
@@ -850,7 +862,10 @@ export class Auditor {
         const crawledPage = crawledPages[index];
         throwIfAborted(this.options.signal);
         // Skip pages with errors
-        if (!crawledPage.error) perPage[index] = await this.runAllCategories(crawledPage.context);
+        if (!crawledPage.error) {
+          perPage[index] = await this.runAllCategories(crawledPage.context);
+          this.custom.runPage(crawledPage.context);
+        }
         completed++;
         this.options.onPageComplete(crawledPage.url, completed, crawledPages.length);
       }
@@ -877,6 +892,11 @@ export class Auditor {
   /** The last run's external link report, for a caller building its own result */
   getExternalLinksReport(): ExternalLinksExtras | undefined {
     return this.externalLinksReport;
+  }
+
+  /** The last run's custom check results, when it had any */
+  getCustomResults(): CustomResults | undefined {
+    return this.custom.empty ? undefined : this.custom.results();
   }
 
   /**

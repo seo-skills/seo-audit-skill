@@ -3,6 +3,7 @@ import type { UrlService } from './net/url-service.js';
 import type { ExternalLinkCheck, ExternalLinksExtras } from './site/external-links.js';
 import type { CodeCoverage } from './render/coverage.js';
 import type { LinkScoreSummary } from './site/link-score.js';
+import type { CustomResults } from './custom/custom-checks.js';
 
 /**
  * Rule execution status.
@@ -725,6 +726,8 @@ export interface AuditGate {
   unevaluated: Array<{ ruleId: string; reason: string }>;
   /** The coverage gate, when one is set: percent of attempted pages measured */
   coverage?: { minCoverage: number; measured: number; attempted: number; percent: number; passed: boolean };
+  /** `fail_ci` custom searches that failed, checked nothing, or were stopped by the regex time limit */
+  failedCustomSearches?: Array<{ name: string; failing: number; checked: number; stopped: number }>;
   exitCode: 0 | 1;
   /** One line explaining a non-zero exit; absent when the run passes */
   reason?: string;
@@ -1080,6 +1083,8 @@ export interface AuditExtras {
   linkScores?: Record<string, number>;
   /** The ten best-linked pages and the ten weakest indexable ones */
   linkScoreSummary?: LinkScoreSummary;
+  /** Results of `[[custom.search]]` and `[[custom.extract]]` */
+  custom?: CustomResults;
   /** A section that exceeded its size cap, replaced by this marker */
   [section: string]: unknown;
 }

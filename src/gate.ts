@@ -103,9 +103,21 @@ export function evaluateGate(result: AuditResult, options: GateOptions): AuditGa
     coverageGate = { minCoverage: options.minCoverage, ...coverage, passed: coverage.percent >= options.minCoverage };
   }
 
+  // A gated custom search fails on a failing page, and on a run it could
+  // not vouch for: none of its pages checked, or one stopped by the time limit
+  const failedCustomSearches = (result.extras?.custom?.searches ?? [])
+    .filter((search) => search.failCi && (search.failing > 0 || search.checked === 0 || search.stopped > 0))
+    .map(({ name, failing, checked, stopped }) => ({ name, failing, checked, stopped }));
+
   const scoreFailed = score < failUnder;
   const exitCode: 0 | 1 =
-    scoreFailed || failedCiRules.length > 0 || unevaluated.length > 0 || coverageGate?.passed === false ? 1 : 0;
+    scoreFailed ||
+    failedCiRules.length > 0 ||
+    unevaluated.length > 0 ||
+    coverageGate?.passed === false ||
+    failedCustomSearches.length > 0
+      ? 1
+      : 0;
 
   const gate: AuditGate = {
     failUnder,
@@ -113,6 +125,7 @@ export function evaluateGate(result: AuditResult, options: GateOptions): AuditGa
     failedCiRules,
     unevaluated,
     ...(coverageGate && { coverage: coverageGate }),
+    ...(failedCustomSearches.length > 0 && { failedCustomSearches }),
     exitCode,
   };
   if (exitCode === 1) gate.reason = describeGateFailure(gate);
@@ -133,6 +146,11 @@ export function describeGateFailure(gate: Omit<AuditGate, 'reason'>): string {
   }
   for (const { ruleId, reason } of gate.unevaluated) {
     parts.push(`fail_ci rule ${ruleId} was not measured (${reason}); fix what stopped it or drop fail_ci`);
+  }
+  for (const search of gate.failedCustomSearches ?? []) {
+    if (search.failing > 0) parts.push(`custom search "${search.name}" failed on ${search.failing} page${search.failing === 1 ? '' : 's'} (fail_ci)`);
+    else if (search.stopped > 0) parts.push(`custom search "${search.name}" was stopped by the regex time limit on ${search.stopped} page${search.stopped === 1 ? '' : 's'} (fail_ci)`);
+    else parts.push(`custom search "${search.name}" checked 0 pages (fail_ci); check its scope`);
   }
   if (gate.coverage && !gate.coverage.passed) {
     parts.push(

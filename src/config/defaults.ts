@@ -52,5 +52,9 @@ export function getDefaultConfig(): SeomatorConfig {
       min_coverage: 0,
     },
     rule_options: {},
+    custom: {
+      search: [],
+      extract: [],
+    },
   };
 }

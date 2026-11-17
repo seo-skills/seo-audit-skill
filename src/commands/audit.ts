@@ -395,6 +395,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       maxRetryAfterMs: config.crawler.max_retry_after_ms,
       ...(maxDurationS > 0 && { maxDurationMs: maxDurationS * 1000 }),
       externalLinks: externalLinksOptions(config, options.refresh === true),
+      custom: config.custom,
       onExternalLinks: (count) => {
         if (outputFormat === 'console' || isVerbose) {
           console.error(chalk.dim(`  checking ${count} external link${count === 1 ? '' : 's'}`));

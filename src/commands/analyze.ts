@@ -207,6 +207,7 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
     disableRules: config.rules.disable,
     ruleOptions: config.rule_options,
     externalLinks: externalLinksOptions(config),
+    custom: config.custom,
     measureCwv: false, // CWV already measured during crawl
     onCategoryStart: (id, name) => progress.onCategoryStart(id, name),
     onCategoryComplete: (id, name, result) => progress.onCategoryComplete(id, name, result),
@@ -266,6 +267,8 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
     );
     const externalLinks = auditor.getExternalLinksReport();
     if (externalLinks) built.extras = { ...built.extras, externalLinks };
+    const custom = auditor.getCustomResults();
+    if (custom) built.extras = { ...built.extras, custom };
 
     // Capped like `audit --crawl` when search engines cannot index the start
     // page. That is the first stored page: the crawler records the entry

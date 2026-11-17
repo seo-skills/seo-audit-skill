@@ -142,6 +142,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   report lists the ten best-linked pages and the ten weakest indexable ones;
   JSON has every page in `extras.linkScores`, and stored audits keep them in
   a table of their own. A metric: it changes no score.
+- **Custom checks in `seomator.toml`.** `[[custom.search]]` tests every page
+  for text, HTML, head or body content, or a CSS selector, literally or by
+  regular expression, limited by `scope`, expecting it present or absent.
+  `[[custom.extract]]` pulls text or an attribute from a selector. They run
+  beside the rules and never change the score; results are in JSON
+  `extras.custom`. Every selector and pattern is checked before a run (exit
+  2, naming the entry), a regular expression gets 50 ms per page, and a
+  search with `fail_ci = true` exits 1 when a page fails, no page was checked,
+  or the time limit stopped one.
 - The MCP `audit_url` tool takes `respectCrawlDelay` and `maxDurationS`, and
   refuses up front with `crawl-too-slow` when the site's `Crawl-delay` means
   the crawl cannot finish in time. Its summary carries `coverage` and

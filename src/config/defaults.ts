@@ -10,7 +10,9 @@ export function getDefaultConfig(): SeomatorConfig {
       domains: [],
     },
     crawler: {
-      max_pages: 100,
+      // 10, the same as `-m`'s default, so a crawl with no config covers the
+      // same pages whichever way it is started.
+      max_pages: 10,
       delay_ms: 100,
       timeout_ms: 30000,
       concurrency: 3,

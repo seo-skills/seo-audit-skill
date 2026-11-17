@@ -165,6 +165,13 @@ program
     runAudit(url, {
       ...options,
       saveExplicit: command.getOptionValueSource('save') === 'cli' && options.save === true,
+      // Only a flag the user typed overrides seomator.toml; a flag default
+      // used to replace the file's value on every run.
+      explicitFlags: {
+        maxPages: command.getOptionValueSource('maxPages') === 'cli',
+        concurrency: command.getOptionValueSource('concurrency') === 'cli',
+        timeout: command.getOptionValueSource('timeout') === 'cli',
+      },
     })
   );
 

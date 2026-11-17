@@ -64,6 +64,12 @@ export interface AuditOptions {
   output?: string;
   /** Exit 1 below this score; overrides `[ci] fail_under` */
   failUnder?: number;
+  /**
+   * Which of `maxPages`, `concurrency` and `timeout` the user typed. Only those
+   * override `[crawler]` in seomator.toml. Absent (a programmatic caller)
+   * means all three are explicit, as they always were.
+   */
+  explicitFlags?: { maxPages?: boolean; concurrency?: boolean; timeout?: boolean };
 }
 
 /**
@@ -215,13 +221,14 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   let loaded;
   let configWarnings: string[] = [];
   try {
+    const explicit = options.explicitFlags ?? { maxPages: true, concurrency: true, timeout: true };
     loaded = loadConfig(
       process.cwd(),
       {
         crawler: {
-          max_pages: maxPages,
-          concurrency,
-          timeout_ms: options.timeout,
+          ...(explicit.maxPages && { max_pages: maxPages }),
+          ...(explicit.concurrency && { concurrency }),
+          ...(explicit.timeout && { timeout_ms: options.timeout }),
         },
       },
       options.config
@@ -301,7 +308,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
     if (outputFormat === 'console') {
       renderBanner({
         url,
-        configPath: options.config,
+        configPath: configPath ?? undefined,
         maxPages: config.crawler.max_pages,
         crawlMode: isCrawlMode,
       });

@@ -47,53 +47,22 @@ source overrides an earlier one.
 
 | Command | Reads |
 |---|---|
-| `seomator audit` | `[project] name`, `[crawler]`, `[rules]`, `[ci]`, `[output]`. A single-page audit uses only `user_agent` from `[crawler]`; the other `[crawler]` keys apply with `--crawl`. `max_pages`, `concurrency` and `timeout_ms` are replaced by flag values: see [Known gap](#known-gap-audit-replaces-three-crawler-keys). |
+| `seomator audit` | `[project] name`, `[crawler]`, `[rules]`, `[ci]`, `[output]`. A single-page audit uses only `user_agent` from `[crawler]`; the other `[crawler]` keys apply with `--crawl`. `-m`, `--concurrency` and `--timeout` override `max_pages`, `concurrency` and `timeout_ms` only when typed: see [Flags and [crawler]](#flags-and-crawler). |
 | `seomator crawl` | `[project] name` and every implemented `[crawler]` key. `-m` replaces `max_pages` only when you pass it. |
 | `seomator analyze` | `[rules]`, `[ci]` and `[output] save`, from `--config <path>` or the `seomator.toml` the search finds. It takes the project name from the stored crawl, ignores `[output] format` and `path` (use `--json`), and fetches nothing, so `[crawler]` has no effect. |
 | `seomator config` | All sources. |
 | `seomator serve` and the desktop app | Nothing. Their audits take settings from the run form (10 pages and concurrency 3 by default) and run every rule. |
 | `seomator report`, `compare`, `db`, `self doctor` | Nothing. `self doctor` reports only whether `seomator.toml` exists in the current directory. |
 
-### Known gap: audit replaces three [crawler] keys
+### Flags and [crawler]
 
-`seomator audit` passes its `-m`, `--concurrency` and `--timeout` values to the
-config loader as overrides, and all three flags have defaults. The values of
-`max_pages`, `concurrency` and `timeout_ms` in `seomator.toml` or a settings
-file therefore never reach `audit`, whether or not you type the flags. Set them
-on the command line:
+`-m`, `--concurrency` and `--timeout` override `crawler.max_pages`,
+`crawler.concurrency` and `crawler.timeout_ms` only when you type them. Without
+the flag, `audit` uses the value from `seomator.toml` or a settings file, and
+the built-in default (10 pages, concurrency 3, 30000 ms) when neither sets it.
 
-| Key | `audit` uses when the flag is absent | Flag | Flag range |
-|---|---|---|---|
-| `crawler.max_pages` | `10` | `-m, --max-pages <n>` | 1 to 1000 |
-| `crawler.concurrency` | `3` | `--concurrency <n>` | 1 to 20 |
-| `crawler.timeout_ms` | `30000` | `--timeout <ms>` | 1000 to 120000 |
-
-`seomator crawl` reads all three from the file. With this `seomator.toml`:
-
-```toml
-[crawler]
-max_pages = 3
-concurrency = 1
-timeout_ms = 5000
-```
-
-```
-$ seomator audit https://example.com --crawl --no-save --format json | jq '.run | {maxPages, concurrency, timeout}'
-{
-  "maxPages": 10,
-  "concurrency": 3,
-  "timeout": 30000
-}
-$ seomator crawl https://example.com
-Starting crawl...
-  URL: https://example.com
-  Max pages: 3
-```
-
-A related display gap: the `Config:` line of the `audit` console banner shows
-only a `--config` path. It reads `(none, using defaults)` even when a
-`seomator.toml` was found and loaded. Run `seomator config path` to see which
-file is in use.
+The `Config:` line of the `audit` console banner names the `seomator.toml` in
+use, whether it came from `--config` or the search.
 
 ## seomator.toml keys
 
@@ -117,9 +86,9 @@ Except for `user_agent`, these keys apply to crawls only: `seomator crawl` and
 
 | Key | Type | Default | Valid values | Effect |
 |---|---|---|---|---|
-| `max_pages` | integer | `100` | 1 to 10000. Warning above 5000. | Most pages one crawl fetches. `audit` replaces it with `-m`. |
+| `max_pages` | integer | `10` | 1 to 10000. Warning above 5000. | Most pages one crawl fetches. A typed `-m` overrides it. |
 | `concurrency` | integer | `3` | 1 to 20. Warning above 10. | Pages a crawl fetches at the same time. `audit` replaces it with `--concurrency`. |
-| `timeout_ms` | integer | `30000` | 1000 to 300000 | Timeout in milliseconds for each page request and browser render, and for the crawl's robots.txt request. `audit` replaces it with `--timeout`. |
+| `timeout_ms` | integer | `30000` | 1000 to 300000 | Timeout in milliseconds for each page request and browser render, and for the crawl's robots.txt request. A typed `--timeout` overrides it. |
 | `delay_ms` | integer | `100` | 0 to 60000 | Minimum gap in milliseconds between the starts of any two page requests. |
 | `per_host_delay_ms` | integer | `200` | 0 to 60000 | Minimum gap in milliseconds between the starts of two page requests to one host. A crawl stays on one host, so the larger of the two delays sets the pace: 200 ms by default. |
 | `respect_robots` | boolean | `true` | `true`, `false` | When `true`, a crawl does not follow URLs that robots.txt disallows for the configured user agent. The start URL is always fetched. `audit --staging` crawls past robots.txt whatever this says. The robots.txt score cap does not depend on this key: the cap always reads Googlebot's rules. |
@@ -353,9 +322,6 @@ writes `[project]` with `name` (the `--name` value or the directory name) and
 
 Preset values with limited or no effect:
 
-- `max_pages` in `blog`, `ecommerce` and `ci`: `audit` replaces it (see
-  [Known gap](#known-gap-audit-replaces-three-crawler-keys)). `seomator crawl`
-  uses it.
 - `"*.pdf"` in `blog` and `ecommerce`: it matches no path, and a crawl never
   follows `.pdf` links anyway.
 - `delay_ms = 0` in `ci`: `per_host_delay_ms` still spaces a crawl's requests
@@ -711,7 +677,7 @@ $ seomator config crawler.include
 | The file has only `[project]`, and `name` is the directory name | You ran `init` without `-y`. Run it again with `-y` and answer `y` to `Overwrite? (n)`. |
 | `Overwrite? (n)` appears, then `Aborted.` | `seomator.toml` already exists. Answer `y`, or delete the file first. |
 | `error: option '--preset <type>' argument '...' is invalid` | Use `default`, `blog`, `ecommerce` or `ci`. |
-| `seomator audit --crawl` stops at 10 pages although the file says more | Pass `-m`. See [Known gap](#known-gap-audit-replaces-three-crawler-keys). |
+| `seomator audit --crawl` stops at 10 pages although the file says more | Check `seomator config path`: the file you edited may not be the one in use. A typed `-m` also wins over the file. |
 
 ### How to run only some rules
 

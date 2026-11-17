@@ -7,7 +7,7 @@ describe('getDefaultConfig', () => {
 
     expect(config.project.name).toBe('');
     expect(config.project.domains).toEqual([]);
-    expect(config.crawler.max_pages).toBe(100);
+    expect(config.crawler.max_pages).toBe(10);
     expect(config.crawler.concurrency).toBe(3);
     expect(config.rules.enable).toEqual(['*']);
     expect(config.rules.disable).toEqual([]);

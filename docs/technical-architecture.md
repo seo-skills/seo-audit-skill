@@ -251,7 +251,7 @@ With `--cwv`, the browser render in a crawl measures Core Web Vitals and capture
 
 A category's score in a crawl is the weighted average over every rule result from every page, so a rule that fails on 3 of 50 pages pulls the category down in proportion instead of deciding it. A page that failed to load stays in the site graph, so sitemap checks can see it, and is skipped by the rules. A crawl that finds no page at all fails with `no-pages`.
 
-**Known gap.** For `seomator audit`, the `-m`, `--concurrency` and `--timeout` flags have defaults (10, 3 and 30000 ms), and `src/commands/audit.ts` passes them to the config loader as overrides. The `[crawler] max_pages`, `concurrency` and `timeout_ms` values in `seomator.toml` are therefore always overridden. Set them with the flags.
+**Flags and config.** For `seomator audit`, `-m`, `--concurrency` and `--timeout` override `[crawler] max_pages`, `concurrency` and `timeout_ms` only when typed (`getOptionValueSource() === 'cli'`); otherwise the config file's values apply.
 
 **Replaying a stored crawl.** `seomator crawl` saves pages to `.seomator/crawls/<id>.json`, and `seomator analyze` replays that file through the same `auditPages()`. A replay has no site graph, robots.txt or sitemap data, so the checks that need those inputs have nothing to read. It caps on the start page's noindex only, since robots.txt is not stored with a crawl, and it takes the first stored page as the start page because the crawler records the entry before it queues a link.
 

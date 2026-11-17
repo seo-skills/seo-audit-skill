@@ -110,7 +110,7 @@ describe('loadConfig', () => {
 
     expect(configPath).toBeNull();
     expect(config.project.name).toBe('');
-    expect(config.crawler.max_pages).toBe(100);
+    expect(config.crawler.max_pages).toBe(10);
   });
 
   it('should load and merge TOML config', () => {

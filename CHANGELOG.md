@@ -92,6 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are gone; nothing needs resetting between audits any more.
 - The `blog` preset wrote `rule_options` for `meta-tags/description-length`, a
   rule id that does not exist. It now writes `core-description-length`.
+- **`crawler.max_pages` defaults to 10** (was 100), the same as `-m`, so a crawl
+  with no config covers the same pages whichever way it is started.
 - Requires Node.js 20.18.1 or later (was 20.3.0). The HTML parser already
   needed it; `package.json` now says so.
 - **The new SEOmator brand, from seomator.com.** The logo is the orange emblem
@@ -147,6 +149,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`audit` reads `[crawler] max_pages`, `concurrency` and `timeout_ms` from
+  `seomator.toml`.** It passed the defaults of `-m`, `--concurrency` and
+  `--timeout` to the config loader as overrides, so the file's values never
+  reached it. A flag now wins only when you type it. The console banner's
+  `Config:` line names the file in use, found or given.
 - **Duplicate checks compare the whole crawl, so the first page of a group is
   flagged too.** `core-title-unique`, `content-duplicate-description`,
   `content-duplicate-exact` and `content-duplicate-near` kept their own

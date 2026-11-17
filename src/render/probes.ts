@@ -8,6 +8,8 @@
  * means the rule is not measured.
  */
 
+import { IMAGE_SIZING_PROBE } from './image-sizing.js';
+
 /** What a fetcher can measure in the page; the web and desktop run pages show these */
 export type ProbeFamily = 'imageSizing' | 'accessibilityEngine';
 
@@ -19,8 +21,8 @@ export interface RenderProbe {
   timeoutMs: number;
 }
 
-/** Every probe a render runs, in order. Probe modules add themselves here. */
-export const RENDER_PROBES: RenderProbe[] = [];
+/** Every probe a render runs, in order */
+export const RENDER_PROBES: RenderProbe[] = [IMAGE_SIZING_PROBE];
 
 /** Results by probe id; a probe that threw or timed out is absent */
 export type ProbeResults = Record<string, unknown>;

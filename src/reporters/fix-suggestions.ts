@@ -318,6 +318,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'js-ajax-crawling-scheme': 'Replace #! URLs with real paths (History API) and render their content on the server',
   'mobile-separate-urls': 'Make the mobile page name the desktop page as its canonical, and make sure it loads',
   'technical-amp-pairing': 'Make the AMP page load and name this page as its canonical',
+  'images-oversized-delivery': 'Serve each image at most twice its displayed size, with srcset for the sizes the layout uses',
   'social-og-url': 'Add <meta property="og:url" content="..."> matching canonical URL',
   'social-og-url-canonical': 'Ensure og:url matches canonical URL exactly for consistent SEO signals',
   'social-twitter-card': 'Add <meta name="twitter:card" content="summary_large_image">',

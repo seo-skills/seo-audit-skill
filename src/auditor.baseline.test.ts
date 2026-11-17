@@ -100,7 +100,8 @@ const EXPECTED_CATEGORIES: Record<string, [number, number, number, number, numbe
   technical: [99, 17, 0, 1, 1],
   perf: [90, 15, 5, 0, 8],
   links: [97, 17, 1, 1, 8],
-  images: [59, 8, 4, 2, 0],
+  // Not measured 0 -> 1: images-oversized-delivery needs a render. No score moves.
+  images: [59, 8, 4, 2, 1],
   security: [78, 15, 6, 3, 2],
   crawl: [99, 20, 1, 0, 18],
   schema: [92, 13, 2, 0, 4],

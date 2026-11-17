@@ -2,7 +2,7 @@
 
 > **Type:** Reference
 
-This is the catalog of every check SEOmator runs: **385 rules** across **20 categories**. For each rule it lists the ID, the name reports print, the rule's weight, the result it gives when it finds a problem, and what it checks. Rules that need more than one line also have a details entry below their category table. The rule IDs are the values that `[rules] enable` and `[rules] disable` in `seomator.toml` match.
+This is the catalog of every check SEOmator runs: **386 rules** across **20 categories**. For each rule it lists the ID, the name reports print, the rule's weight, the result it gives when it finds a problem, and what it checks. Rules that need more than one line also have a details entry below their category table. The rule IDs are the values that `[rules] enable` and `[rules] disable` in `seomator.toml` match.
 
 ## How to read this reference
 
@@ -430,7 +430,7 @@ Analyzes internal and external links, anchor text, broken links, and link qualit
 
 <a id="images"></a>
 
-### Images (14 rules)
+### Images (15 rules)
 
 Checks alt attributes, dimensions, lazy loading, optimization, and accessibility.
 
@@ -444,6 +444,7 @@ Checks alt attributes, dimensions, lazy loading, optimization, and accessibility
 | `images-size` | Image File Size | 10 | warn | Flags images that look oversized from filename hints or declared dimensions; file sizes are not fetched |
 | `images-responsive` | Responsive Images | 10 | warn | Checks srcset for responsive images |
 | `images-broken` | No Broken Images | 15 | fail | Checks images don't return 404 |
+| `images-oversized-delivery` | Images Sized For Display | 5 (advisory) | warn/fail | Needs `--cwv`. Each image against the largest box it is shown in, at a 2x pixel ratio: waste over 4 KiB warns, over 200 KiB in total fails |
 | `images-figure-captions` | Figure Captions | 5 | warn | Checks figure elements have figcaption |
 | `images-filename-quality` | Image Filename Quality | 5 | warn | Checks for descriptive image filenames |
 | `images-inline-svg-size` | Inline SVG Size | 5 | warn | Checks inline SVGs aren't too large (>5KB) |

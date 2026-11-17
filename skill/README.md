@@ -14,7 +14,7 @@ When you ask Claude to audit a website, this skill:
 
 ## Capabilities
 
-- **385 SEO Rules** across 20 categories
+- **386 SEO Rules** across 20 categories
 - **Core Web Vitals** measurement (LCP, CLS, FCP, TTFB, INP)
 - **Multi-page crawling** for site-wide audits
 - **Actionable fixes** for every issue found

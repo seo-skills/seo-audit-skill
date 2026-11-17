@@ -95,7 +95,15 @@ describe('normalizeRunArgs', () => {
   it('turns off what the build cannot do rather than failing', () => {
     const args = normalizeRunArgs(
       { url: URL_UNDER_TEST, measureCwv: true, mobile: true, simulateInteraction: true, save: true },
-      { browserRender: false, mobileParity: false, simulateInteraction: false, persistence: false }
+      {
+        browserRender: false,
+        mobileParity: false,
+        simulateInteraction: false,
+        persistence: false,
+        imageSizing: false,
+        accessibilityEngine: false,
+        codeCoverage: false,
+      }
     );
     expect(args.measureCwv).toBe(false);
     expect(args.mobile).toBe(false);

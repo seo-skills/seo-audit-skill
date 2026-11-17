@@ -25,6 +25,7 @@ import { pictureElementRule } from './picture-element.js';
 // New image rules
 import { altLengthRule } from './alt-length.js';
 import { backgroundSeoRule } from './background-seo.js';
+import { oversizedDeliveryRule } from './oversized-delivery.js';
 
 // Export all rules
 export {
@@ -59,3 +60,4 @@ registerRule(inlineSvgSizeRule);
 registerRule(pictureElementRule);
 registerRule(altLengthRule);
 registerRule(backgroundSeoRule);
+registerRule(oversizedDeliveryRule);

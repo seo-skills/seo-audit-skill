@@ -119,6 +119,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `mobile-separate-urls` and `technical-amp-pairing`: a declared mobile or
     AMP version that does not load, or does not name this page as its
     canonical.
+  - `images-oversized-delivery` (needs `--cwv`): reads each displayed image's
+    natural and displayed size in the rendered page and estimates the bytes
+    wasted at a 2x pixel ratio. An image wasting over 4 KiB warns; over
+    200 KiB in total fails. The top ten are listed.
 - The MCP `audit_url` tool takes `respectCrawlDelay` and `maxDurationS`, and
   refuses up front with `crawl-too-slow` when the site's `Crawl-delay` means
   the crawl cannot finish in time. Its summary carries `coverage` and

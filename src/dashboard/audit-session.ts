@@ -152,6 +152,12 @@ export interface Capabilities {
   simulateInteraction: boolean;
   /** Finished audits can be stored */
   persistence: boolean;
+  /** The render reads each image's displayed size (images-oversized-delivery) */
+  imageSizing: boolean;
+  /** The render runs the accessibility engine */
+  accessibilityEngine: boolean;
+  /** The render collects JavaScript and CSS coverage (needs the DevTools protocol) */
+  codeCoverage: boolean;
 }
 
 export const DEFAULT_CAPABILITIES: Capabilities = {
@@ -159,6 +165,9 @@ export const DEFAULT_CAPABILITIES: Capabilities = {
   mobileParity: true,
   simulateInteraction: true,
   persistence: true,
+  imageSizing: true,
+  accessibilityEngine: true,
+  codeCoverage: true,
 };
 
 export interface AuditSessionOptions {

@@ -10,6 +10,8 @@ import {
 } from './banner.js';
 import { isNotMeasured } from '../rules/define-rule.js';
 import { rulePriority } from '../rules/priority.js';
+import { collectIgnoredFindings, isIgnoredByConfig } from '../rules/overrides.js';
+import type { OverridePriority } from '../types.js';
 import { normalizeMessage } from './findings.js';
 import { getRuleById } from '../rules/registry.js';
 
@@ -29,6 +31,8 @@ interface GroupedIssue {
   priority: number;
   /** Pages the rule could be measured on, for the priority share */
   measuredPages: number;
+  /** `[rules.override]` priority, when the config set one */
+  override?: OverridePriority;
 }
 
 /**
@@ -97,6 +101,8 @@ function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
 
     for (const ruleResult of categoryResult.results) {
       if (ruleResult.status === 'pass') continue;
+      // Hidden by `[rules.override]`; counted in the footer instead.
+      if (isIgnoredByConfig(ruleResult)) continue;
 
       // Get or create category entry
       if (!categoryMap.has(categoryResult.categoryId)) {
@@ -142,6 +148,7 @@ function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
           details: [],
           priority: 0,
           measuredPages: 0,
+          ...(ruleResult.overridden?.priority && { override: ruleResult.overridden.priority }),
         };
         categoryIssues.issues.push(existingIssue);
         groupsByKey.set(groupKey, existingIssue);
@@ -192,6 +199,7 @@ function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
         status: isNotMeasured(issue) ? 'not-measured' : issue.status,
         affectedPages: Math.max(issue.pages.length, 1),
         measuredPages: Math.max(issue.measuredPages, 1),
+        ...(issue.override && { override: issue.override }),
       });
     }
     const severity = (i: GroupedIssue): number =>
@@ -379,8 +387,9 @@ export function renderTerminalReport(result: AuditResult): void {
             ? chalk.gray('(not measured)')
             : chalk.yellow('(warning)');
 
-        // Rule ID and name
-        console.log(`  ${chalk.gray(issue.ruleId)} ${issue.ruleName} ${typeLabel}`);
+        // Rule ID and name, and where the config moved it
+        const overrideLabel = issue.override ? chalk.gray(` [priority: ${issue.override} · seomator.toml]`) : '';
+        console.log(`  ${chalk.gray(issue.ruleId)} ${issue.ruleName} ${typeLabel}${overrideLabel}`);
 
         // Status icon and message. Three states, not two: a check that took no
         // reading was drawn with the same yellow warning triangle as a real
@@ -405,6 +414,14 @@ export function renderTerminalReport(result: AuditResult): void {
       }
       console.log();
     }
+  }
+
+  // Findings `[rules.override]` hid. Listed, not dropped: a reader should be
+  // able to see what the config chose not to show them.
+  const ignored = collectIgnoredFindings(result);
+  if (ignored.length > 0) {
+    console.log(chalk.gray(`Ignored by config (${ignored.length}): ${ignored.map((i) => i.ruleId).join(', ')}`));
+    console.log();
   }
 
   // Summary footer. Carries the not-measured count too: without it the closing

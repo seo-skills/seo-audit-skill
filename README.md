@@ -277,9 +277,25 @@ seomator self doctor -v          # Verbose diagnostics
 
 | Code | Meaning |
 |------|---------|
-| 0 | Audit passed (score >= 70) |
-| 1 | Audit failed (score < 70) |
-| 2 | Error occurred |
+| 0 | Audit passed: the score reached `--fail-under` (default 70) and no `fail_ci` rule failed |
+| 1 | A gate failed: the score is below `--fail-under`, a `fail_ci` rule failed, or a `fail_ci` rule could not be measured. The last line on stderr says which |
+| 2 | The command could not do its job: bad flag, invalid config, unreachable URL |
+
+Gate a build on the rules that matter to you, whatever the score:
+
+```toml
+# seomator.toml
+[ci]
+fail_under = 80
+
+[rules.override]
+"core-canonical-present"   = { fail_ci = true }
+"core-description-present" = { priority = "low" }
+"url-underscores"          = { priority = "ignore" }
+```
+
+Overrides change ranking and CI exit codes, never the score. JSON output carries
+the verdict in `gate`: `{ failUnder, score, failedCiRules, unevaluated, exitCode }`.
 
 A page that cannot rank fails whatever its other checks score. In a single-page
 audit, the overall score is capped while a page-level condition holds: `noindex`
@@ -961,7 +977,7 @@ The CLI (`@seomator/seo-audit`) is MIT-licensed and free to install and run loca
 
 ### Can I run SEOmator in CI/CD?
 
-Yes. It returns exit code `0` for a passing score (≥70), `1` for a failing score, and `2` on error, plus JSON output for parsing. See the [GitHub Actions and GitLab CI examples](#cicd-integration).
+Yes. It returns exit code `0` for a passing run, `1` when a gate fails (a score below `--fail-under`, default 70, or a failing `fail_ci` rule), and `2` on error, plus JSON output for parsing. See the [GitHub Actions and GitLab CI examples](#cicd-integration).
 
 ### Can I use SEOmator with Claude or other AI agents?
 

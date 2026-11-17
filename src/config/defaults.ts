@@ -29,6 +29,7 @@ export function getDefaultConfig(): SeomatorConfig {
     rules: {
       enable: ['*'],
       disable: [],
+      override: {},
     },
     external_links: {
       enabled: true,
@@ -40,6 +41,9 @@ export function getDefaultConfig(): SeomatorConfig {
       format: 'console',
       path: '',
       save: true,
+    },
+    ci: {
+      fail_under: 70,
     },
     rule_options: {},
   };

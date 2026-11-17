@@ -1,12 +1,18 @@
 import chalk from 'chalk';
 import * as fs from 'fs';
-import { loadConfig, findConfigFile, writeSettingsFile, validateConfig, formatValidationResult } from '../config/index.js';
+import { loadConfig, findConfigFile, writeSettingsFile, validateConfig } from '../config/index.js';
 import { getGlobalSettingsPath, getProjectSettingsPath, getGlobalDir } from '../storage/index.js';
+import { loadAllRules } from '../rules/loader.js';
+import { getAllRules } from '../rules/registry.js';
 
 export interface ConfigOptions {
   global: boolean;
   local: boolean;
   list: boolean;
+  /** `validate` only: check this file instead of searching for seomator.toml */
+  config?: string;
+  /** `validate` only: print the result as JSON on stdout */
+  json?: boolean;
 }
 
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
@@ -50,57 +56,59 @@ function parseValue(value: string): unknown {
 
 /**
  * Handle 'config validate' subcommand
- * Validates the merged configuration and reports errors/warnings
+ *
+ * Runs the same checks `audit`, `analyze` and `mcp` run before they start,
+ * rule ids included, so a CI job can check a config without auditing.
+ * Problems go to stderr and exit 2, the code for a config failure; `--json`
+ * puts the result on stdout for a script to read.
  */
-async function runConfigValidate(): Promise<void> {
+async function runConfigValidate(options: ConfigOptions): Promise<void> {
   const baseDir = process.cwd();
-  const { config, configPath } = loadConfig(baseDir);
-
-  console.log(chalk.blue('Validating configuration...'));
-  console.log();
-
-  if (configPath) {
-    console.log(`Config file: ${configPath}`);
-  } else {
-    console.log('Config file: (using defaults)');
+  let loaded;
+  try {
+    loaded = loadConfig(baseDir, {}, options.config);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Could not load the config';
+    if (options.json) {
+      console.log(JSON.stringify({ valid: false, configPath: options.config ?? null, errors: [{ path: '', message }], warnings: [] }, null, 2));
+    } else {
+      console.error(chalk.red('\u2717 ') + message);
+    }
+    process.exitCode = 2;
+    return;
   }
-  console.log();
+  const { config, configPath } = loaded;
 
-  const result = validateConfig(config);
-  const formatted = formatValidationResult(result);
+  await loadAllRules();
+  const ruleIds = getAllRules().map((rule) => rule.id);
+  const result = validateConfig(config, { ruleIds });
 
-  if (result.valid && result.warnings.length === 0) {
-    console.log(chalk.green('\u2713 ') + formatted);
-  } else if (result.valid) {
-    console.log(chalk.green('\u2713 Configuration is valid (with warnings)'));
-    console.log();
-    // Print warnings in yellow
-    for (const warning of result.warnings) {
-      console.log(chalk.yellow('\u26A0 ') + chalk.yellow(warning.path) + ': ' + warning.message);
-      if (warning.value !== undefined) {
-        console.log('  Value: ' + JSON.stringify(warning.value));
-      }
-    }
-  } else {
-    console.log(chalk.red('\u2717 Configuration has errors'));
-    console.log();
-    // Print errors in red
-    for (const error of result.errors) {
-      console.log(chalk.red('\u2717 ') + chalk.red(error.path) + ': ' + error.message);
-      if (error.value !== undefined) {
-        console.log('  Value: ' + JSON.stringify(error.value));
-      }
-    }
-    // Print warnings in yellow
-    if (result.warnings.length > 0) {
-      console.log();
-      console.log(chalk.yellow('Warnings:'));
-      for (const warning of result.warnings) {
-        console.log(chalk.yellow('\u26A0 ') + chalk.yellow(warning.path) + ': ' + warning.message);
-      }
-    }
-    process.exit(1);
+  if (options.json) {
+    console.log(JSON.stringify({ valid: result.valid, configPath, errors: result.errors, warnings: result.warnings }, null, 2));
+    if (!result.valid) process.exitCode = 2;
+    return;
   }
+
+  console.error(chalk.blue('Validating configuration...'));
+  console.error(`Config file: ${configPath ?? '(using defaults)'}`);
+  console.error();
+
+  for (const error of result.errors) {
+    console.error(chalk.red('\u2717 ') + chalk.red(error.path) + ': ' + error.message);
+    if (error.value !== undefined) console.error('  Value: ' + JSON.stringify(error.value));
+  }
+  for (const warning of result.warnings) {
+    console.error(chalk.yellow('\u26A0 ') + chalk.yellow(warning.path) + ': ' + warning.message);
+    if (warning.value !== undefined) console.error('  Value: ' + JSON.stringify(warning.value));
+  }
+
+  if (!result.valid) {
+    console.error();
+    console.error(chalk.red(`\u2717 Configuration has ${result.errors.length} ${result.errors.length === 1 ? 'error' : 'errors'}`));
+    process.exitCode = 2;
+    return;
+  }
+  console.log(chalk.green('\u2713 ') + (result.warnings.length > 0 ? 'Configuration is valid (with warnings)' : 'Configuration is valid.'));
 }
 
 /**
@@ -205,7 +213,7 @@ export async function runConfig(key: string | undefined, value: string | undefin
 
   // Handle subcommands
   if (key === 'validate') {
-    return runConfigValidate();
+    return runConfigValidate(options);
   }
 
   if (key === 'show') {

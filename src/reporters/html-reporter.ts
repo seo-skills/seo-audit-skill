@@ -8,6 +8,7 @@ import type {
 import type { RuleSummary } from '../dashboard/contract.js';
 import { scoreToVerdict, verdictStyle } from '../verdict.js';
 import { rulePriority } from '../rules/priority.js';
+import type { OverridePriority } from '../types.js';
 import { toCss as tokensToCss } from '../design/tokens.js';
 import { getCategoryById } from '../categories/index.js';
 import { getFixSuggestion } from './fix-suggestions.js';
@@ -110,6 +111,8 @@ interface AggregatedIssue {
    * find out what to fix first.
    */
   priority: number;
+  /** `[rules.override]` priority, when the config set one */
+  override?: OverridePriority;
 }
 
 /**
@@ -182,6 +185,7 @@ function aggregateIssuesByRule(
           pages: [],
           pageCount: 0,
           priority: 0,
+          ...(r.overridden?.priority && { override: r.overridden.priority }),
         });
       }
 
@@ -215,6 +219,7 @@ function aggregateIssuesByRule(
         status: fromDisplayStatus(g.status),
         affectedPages: g.pageCount,
         measuredPages,
+        ...(g.override && { override: g.override }),
       });
     }
 
@@ -2343,10 +2348,17 @@ export function renderHtmlReport(result: AuditResult): string {
     // measured is kept but folded away. Rendering all 332 rules expanded is
     // what made this report 54,000 pixels tall, and the 278 that passed are
     // the part nobody scrolls to.
+    // `[rules.override]` priority = "ignore" takes a finding out of the
+    // ranked list, but never out of the report: it sits in its own fold.
+    const ignoredByConfig = (i: AggregatedIssue) =>
+      i.override === 'ignore' && i.status !== 'pass';
     const actionable = aggregatedIssues
-      .filter(i => i.status === 'fail' || i.status === 'warn')
+      .filter(i => (i.status === 'fail' || i.status === 'warn') && !ignoredByConfig(i))
       .sort(byPriority);
-    const quiet = aggregatedIssues.filter(i => i.status === 'pass' || i.status === 'notmeasured');
+    const quiet = aggregatedIssues.filter(
+      i => (i.status === 'pass' || i.status === 'notmeasured') && !ignoredByConfig(i)
+    );
+    const ignored = aggregatedIssues.filter(ignoredByConfig);
 
     const renderIssue = (issue: AggregatedIssue) => {
       const fix = getFixSuggestion(issue.ruleId);
@@ -2416,7 +2428,14 @@ export function renderHtmlReport(result: AuditResult): string {
          </details>`
       : '';
 
-    const rulesHtml = actionableHtml + quietHtml;
+    const ignoredHtml = ignored.length
+      ? `<details class="quiet-rules">
+           <summary>Ignored by config (${ignored.length})</summary>
+           <div class="quiet-rules-body">${ignored.map(renderIssue).join('')}</div>
+         </details>`
+      : '';
+
+    const rulesHtml = actionableHtml + quietHtml + ignoredHtml;
 
     return `
       <section class="category-section" id="category-${cat.categoryId}">

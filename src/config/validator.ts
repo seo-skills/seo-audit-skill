@@ -1,5 +1,21 @@
-import type { PartialSeomatorConfig, SeomatorConfig } from './schema.js';
+import {
+  OVERRIDE_PRIORITIES,
+  RULE_OVERRIDE_KEYS,
+  type PartialSeomatorConfig,
+  type SeomatorConfig,
+} from './schema.js';
 import { getDefaultConfig } from './defaults.js';
+import { didYouMean } from './suggest.js';
+
+/** What the validator may check beyond the config's own shape */
+export interface ValidationContext {
+  /**
+   * Every registered rule id. When given, `[rules.override]` entries naming
+   * an unknown rule are errors. Callers that run audits pass it; the
+   * validator does not load the 300-odd rule modules itself.
+   */
+  ruleIds?: readonly string[];
+}
 
 /**
  * Validation error/warning details
@@ -44,6 +60,7 @@ const VALIDATION_RULES = {
   'external_links.cache_ttl_days': { min: 0, max: 365 },
   'external_links.timeout_ms': { min: 1000, max: 60000 },
   'external_links.concurrency': { min: 1, max: 20 },
+  'ci.fail_under': { min: 0, max: 100 },
 } as const;
 
 /**
@@ -232,7 +249,10 @@ function validateBoolean(
  * @param config - Configuration to validate
  * @returns Validation result with errors and warnings
  */
-export function validateConfig(config: PartialSeomatorConfig | SeomatorConfig): ValidationResult {
+export function validateConfig(
+  config: PartialSeomatorConfig | SeomatorConfig,
+  context: ValidationContext = {}
+): ValidationResult {
   const errors: ValidationError[] = [];
   const warnings: ValidationError[] = [];
 
@@ -344,6 +364,8 @@ export function validateConfig(config: PartialSeomatorConfig | SeomatorConfig): 
     });
   }
 
+  validateRuleOverrides(getNestedValue(configObj, 'rules.override'), context.ruleIds, errors);
+
   validateUnhonouredKeys(configObj, getDefaultConfig() as unknown as Record<string, unknown>, warnings);
 
   return {
@@ -351,6 +373,66 @@ export function validateConfig(config: PartialSeomatorConfig | SeomatorConfig): 
     errors,
     warnings,
   };
+}
+
+/**
+ * Check `[rules.override]`.
+ *
+ * Every mistake here is an error, never a warning: an override that does not
+ * apply is a `fail_ci` gate that never fires, and CI stays green over the very
+ * failure it was set up to catch.
+ */
+function validateRuleOverrides(
+  value: unknown,
+  ruleIds: readonly string[] | undefined,
+  errors: ValidationError[]
+): void {
+  if (value === undefined) return;
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    errors.push({ path: 'rules.override', message: 'rules.override must be a table of rule ids', value });
+    return;
+  }
+
+  for (const [ruleId, entry] of Object.entries(value as Record<string, unknown>)) {
+    const path = `rules.override."${ruleId}"`;
+
+    if (ruleIds && !ruleIds.includes(ruleId)) {
+      errors.push({
+        path,
+        message: `unknown rule id "${ruleId}".${didYouMean(ruleId, ruleIds)} Run \`seomator explain --list\` for every id.`,
+      });
+      continue;
+    }
+
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+      errors.push({
+        path,
+        message: `${path} must be a table such as { priority = "low" } or { fail_ci = true }`,
+        value: entry,
+      });
+      continue;
+    }
+
+    for (const [key, setting] of Object.entries(entry as Record<string, unknown>)) {
+      if (!(RULE_OVERRIDE_KEYS as readonly string[]).includes(key)) {
+        errors.push({
+          path: `${path}.${key}`,
+          message: `unknown override key "${key}".${didYouMean(key, RULE_OVERRIDE_KEYS)} Valid keys: ${RULE_OVERRIDE_KEYS.join(', ')}`,
+        });
+        continue;
+      }
+      if (key === 'priority' && !(OVERRIDE_PRIORITIES as readonly unknown[]).includes(setting)) {
+        errors.push({
+          path: `${path}.priority`,
+          message: `priority must be one of: ${OVERRIDE_PRIORITIES.join(', ')}`,
+          value: setting,
+        });
+      }
+      if (key === 'fail_ci' && typeof setting !== 'boolean') {
+        errors.push({ path: `${path}.fail_ci`, message: 'fail_ci must be true or false', value: setting });
+      }
+    }
+  }
 }
 
 /**

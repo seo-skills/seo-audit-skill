@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { Command, InvalidArgumentError, Option } from 'commander';
+import { Command, CommanderError, InvalidArgumentError, Option } from 'commander';
 import { getCategoryIds } from './categories/index.js';
 import { getVersion } from './version.js';
 import { OUTPUT_FORMATS, type AuditOptions } from './commands/audit.js';
@@ -114,6 +114,11 @@ function parseIntValue(value: string, name: string, min: number, max: number): n
 
 const program = new Command();
 
+// Usage errors exit 2, gate failures exit 1. Commander's own default is 1 for
+// a bad flag, which a CI script cannot tell from "the audit found problems".
+// Set before any `.command()`, so every subcommand inherits it.
+program.exitOverride();
+
 program
   .name('seomator')
   .description(
@@ -154,6 +159,7 @@ program
   .option('--no-save', 'Do not store this audit in the history database')
   .option('--save', 'Deprecated: also write the legacy JSON report (use --json-report)')
   .option('--json-report', 'Also write the legacy JSON report to .seomator/reports/', false)
+  .option('--fail-under <n>', 'Exit 1 when the score is below n (default 70, or [ci] fail_under)', (v) => parseIntValue(v, 'fail-under', 0, 100))
   .action((url: string, options: AuditOptions, command: Command) =>
     runAudit(url, {
       ...options,
@@ -219,6 +225,8 @@ program
   .option('-j, --json', 'Output as JSON', false)
   .option('-v, --verbose', 'Show progress', false)
   .option('--staging', 'Analyze a staging crawl: waive the noindex cap', false)
+  .option('--config <path>', 'Config file path')
+  .option('--fail-under <n>', 'Exit 1 when the score is below n (default 70, or [ci] fail_under)', (v) => parseIntValue(v, 'fail-under', 0, 100))
   .action((crawlId: string | undefined, options: AnalyzeOptions, command: Command) =>
     runAnalyze(crawlId, {
       ...options,
@@ -258,6 +266,8 @@ program
   .option('--global', 'Modify global settings', false)
   .option('--local', 'Modify local settings', false)
   .option('--list', 'Show all config values', false)
+  .option('--config <path>', 'With validate: check this file instead of searching for seomator.toml')
+  .option('--json', 'With validate: print the result as JSON', false)
   .action(runConfig);
 
 // Database management command
@@ -297,4 +307,12 @@ selfCommand
   .option('-v, --verbose', 'Show detailed output', false)
   .action(runSelfDoctor);
 
-program.parse();
+try {
+  program.parse();
+} catch (error) {
+  // Commander has already printed its message; only the exit code is ours.
+  if (error instanceof CommanderError) {
+    process.exit(error.exitCode === 0 ? 0 : 2);
+  }
+  throw error;
+}

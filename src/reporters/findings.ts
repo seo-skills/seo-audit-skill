@@ -21,6 +21,8 @@ import { getCategoryById } from '../categories/index.js';
 import { getRuleById } from '../rules/registry.js';
 import { isNotMeasured } from '../rules/define-rule.js';
 import { rulePriority } from '../rules/priority.js';
+import { isIgnoredByConfig } from '../rules/overrides.js';
+import type { OverridePriority } from '../types.js';
 
 /** One problem, wherever it was found */
 export interface Finding {
@@ -38,6 +40,8 @@ export interface Finding {
   /** How many pages the rule could be measured on */
   measuredPages: number;
   priority: number;
+  /** `[rules.override]` priority, when the config set one */
+  override?: OverridePriority;
 }
 
 /** A stored audit arrives already ranked server-side; a live one does not. */
@@ -99,6 +103,9 @@ export function collectFindings(result: AuditResult): Finding[] {
     for (const ruleResult of category.results) {
       const status = statusOf(ruleResult);
       if (status === 'pass') continue;
+      // Hidden by `[rules.override]`; reports list these separately so hiding
+      // a finding is never invisible.
+      if (isIgnoredByConfig(ruleResult)) continue;
 
       const key = `${category.categoryId}:${ruleResult.ruleId}:${status}:${normalizeMessage(ruleResult.message)}`;
       const summary = ruleResult as Partial<RuleSummary>;
@@ -120,6 +127,7 @@ export function collectFindings(result: AuditResult): Finding[] {
           pageCount: summary.affectedPages ?? 0,
           measuredPages: summary.measuredPages ?? 0,
           priority: 0,
+          ...(ruleResult.overridden?.priority && { override: ruleResult.overridden.priority }),
         };
         group = { finding, pages: new Set(), storedPriority: summary.priority };
         byKey.set(key, group);
@@ -147,6 +155,7 @@ export function collectFindings(result: AuditResult): Finding[] {
         status: finding.status,
         affectedPages: finding.pageCount,
         measuredPages: finding.measuredPages,
+        ...(finding.override && { override: finding.override }),
       });
     return finding;
   });

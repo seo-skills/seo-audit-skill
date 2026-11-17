@@ -186,8 +186,8 @@ An agent must be able to tell "the audit failed" from "the site scored badly".
 | Code | Meaning |
 |------|---------|
 | `0` | Success |
-| `1` | The run worked, and the result is below a threshold — `audit`/`analyze` scored under 70, or `compare --fail-on-regression` found a regression |
-| `2` | The command failed: unreachable URL, HTTP error, missing crawl, bad `--config` path |
+| `1` | The run worked, and a gate failed: `audit`/`analyze` scored under `--fail-under` (default 70), a `[rules.override]` rule with `fail_ci = true` failed or could not be measured, or `compare --fail-on-regression` found a regression. The last stderr line starts with `Exit 1:` and says which; JSON carries it in `gate` |
+| `2` | The command failed: bad flag, invalid config (including an unknown rule id in `[rules.override]`), unreachable URL, HTTP error, missing crawl, bad `--config` path |
 | `130` | Cancelled with Ctrl-C |
 
 **A non-zero exit is not automatically a failure.** `1` means the tool worked

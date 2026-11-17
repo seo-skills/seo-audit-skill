@@ -1,5 +1,6 @@
 import type { AuditResult, RuleResult } from '../types.js';
 import { collectFindings, type Finding } from './findings.js';
+import { collectIgnoredFindings } from '../rules/overrides.js';
 import { scoreToVerdict } from '../verdict.js';
 import { getCategoryById } from '../categories/index.js';
 
@@ -205,6 +206,20 @@ export function renderMarkdownReport(result: AuditResult): string {
       }
       lines.push('');
     }
+  }
+
+  // What `[rules.override]` hid, folded so it never vanishes silently
+  const ignored = collectIgnoredFindings(result);
+  if (ignored.length > 0) {
+    lines.push('<details>');
+    lines.push(`<summary>Ignored by config (${ignored.length})</summary>`);
+    lines.push('');
+    for (const i of ignored) {
+      lines.push(`- \`${escapeMarkdown(i.ruleId)}\` (${i.status === 'fail' ? 'failed' : 'warning'})`);
+    }
+    lines.push('');
+    lines.push('</details>');
+    lines.push('');
   }
 
   // Summary

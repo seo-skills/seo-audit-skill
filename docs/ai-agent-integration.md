@@ -108,7 +108,7 @@ All 7 checks passed. Ready to audit!
    - To audit more than one page, add `--crawl -m 20` (up to 20 pages; the default is 10).
    - To write the report to a file instead, add `-o reports/audit.xml`. Then stdout stays empty and stderr says `LLM report saved to: reports/audit.xml`.
 
-2. Read the exit code. `0` means the score is 70 or higher, `1` means it is below 70, and both print the full report. Any other code, or `1` with nothing on stdout, means the audit did not run. See [Handle a failed run](#handle-a-failed-run).
+2. Read the exit code. `0` means the run passed its gates (by default a score of 70 or higher), `1` means a gate failed (a score below `--fail-under`, or a `fail_ci` rule), and both print the full report. Any other code, or `1` with nothing on stdout, means the audit did not run. See [Handle a failed run](#handle-a-failed-run).
 
 3. Read the report from the top. This is the run above, trimmed, with line breaks added. The CLI prints it on one line.
 
@@ -210,7 +210,7 @@ All 7 checks passed. Ready to audit!
    | Exit | Meaning | stdout |
    |------|---------|--------|
    | `0` | Success | The report |
-   | `1` | The run worked and the result is below a threshold: `audit` scored under 70, or `compare --fail-on-regression` found a regression | The report or the diff |
+   | `1` | The run worked and a gate failed: `audit` scored under `--fail-under` (default 70), a `fail_ci` rule failed or could not be measured, or `compare --fail-on-regression` found a regression. Read `gate` in the JSON for which | The report or the diff |
    | `1` | The command line was rejected before anything ran: a URL without a scheme, an unknown flag, a bad `--format` value | Empty. The reason is on stderr, starting `error:` |
    | `2` | The command failed | An error document |
    | `130` | Cancelled | An `aborted` error document, or nothing |

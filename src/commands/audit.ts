@@ -23,6 +23,9 @@ import { AuditAbortedError, classifyError } from '../errors.js';
 import { setUserAgent } from '../crawler/user-agent.js';
 import { saveReport, createReport, saveAuditToDatabase, getAuditsDbPath } from '../storage/index.js';
 import { resolvePersistence, SAVE_DEPRECATION_NOTICE } from './persistence.js';
+import { assertRunnableConfig } from './run-config.js';
+import { applyRuleOverrides } from '../rules/overrides.js';
+import { evaluateGate } from '../gate.js';
 
 /**
  * Output formats the audit command can render.
@@ -59,6 +62,8 @@ export interface AuditOptions {
   jsonReport?: boolean;
   format?: OutputFormat;
   output?: string;
+  /** Exit 1 below this score; overrides `[ci] fail_under` */
+  failUnder?: number;
 }
 
 /**
@@ -220,11 +225,16 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       },
       options.config
     );
+    // A config that does not mean what it says stops here, before any
+    // request: a typo'd `fail_ci` rule id would otherwise be a gate that
+    // never fires.
+    assertRunnableConfig(loaded.config, loaded.configPath, { categories: selectedCategories });
   } catch (error) {
     reportAuditError(error, url, isDocumentFormat(cliFormat), cliFormat === 'json');
     return;
   }
   const { config, configPath } = loaded;
+  const failUnder = options.failUnder ?? config.ci.fail_under;
 
   warnUnimplementedFlags(options as unknown as Record<string, unknown>);
 
@@ -343,6 +353,11 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
     // Stop any progress indicators
     progress.stop();
 
+    // Overrides re-rank findings and mark gated rules; they never touch the
+    // score. The gate is decided here so every format carries it.
+    applyRuleOverrides(result, config.rules.override);
+    result.gate = evaluateGate(result, { failUnder, overrides: config.rules.override });
+
     // Calculate elapsed time
     const elapsedMs = Date.now() - startTime;
     const elapsedSec = (elapsedMs / 1000).toFixed(1);
@@ -457,7 +472,12 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
     // everything past the 64KB pipe buffer while the same command redirected
     // to a file was complete. The process exits on its own once the event loop
     // drains, by which point stdout has been flushed.
-    process.exitCode = result.overallScore >= 70 ? 0 : 1;
+    process.exitCode = result.gate.exitCode;
+    // The last line says why a run failed, on stderr so stdout stays the
+    // document. Without it a CI log shows exit 1 next to a passing score.
+    if (result.gate.reason) {
+      console.error(chalk.red(`Exit 1: ${result.gate.reason}`));
+    }
   } catch (error) {
     progress.stop();
 

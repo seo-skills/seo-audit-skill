@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CI gates you control.** `--fail-under <n>` on `audit` and `analyze`, and
+  `[ci] fail_under` in `seomator.toml`, replace the fixed threshold of 70 (the
+  flag wins; `0` never fails on score).
+- **`[rules.override]`** re-ranks findings and gates CI on them without
+  touching the score. `priority = "high" | "normal" | "low" | "ignore"` moves a
+  finding in the "what to fix first" order; `ignore` takes it out of every
+  findings list and shows it in a collapsed "Ignored by config" section, and
+  JSON keeps it marked `overridden`. `fail_ci = true` exits 1 when the rule
+  fails on any page, at any score. A gated rule that ran but took no reading
+  also exits 1, so a gate that could not be evaluated never passes silently.
+- JSON output carries the CI verdict in `gate`:
+  `{ failUnder, score, failedCiRules, unevaluated, exitCode }`. When a run
+  exits 1, the last line on stderr says why, for example
+  `Exit 1: core-canonical-present failed (fail_ci); score 85 passed fail-under 70`.
+- `seomator config validate --config <path> --json` checks a config file the
+  way `audit` will, rule ids included, and prints the result as JSON.
+- `seomator analyze --config <path>`.
+
 - The dashboard's empty history (desktop app and `seomator serve`) shows an
   illustration in the house image style: the SEOmator agent scanning a site,
   with the audit history it will leave below it. It comes as a light and a dark
@@ -18,6 +36,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking: a config that does not mean what it says stops the run.**
+  `audit` and `analyze` now run the same checks as `config validate` before
+  the first request, and exit 2 with error code `config` on any error: an
+  out-of-range value, an unknown rule id or key in `[rules.override]` (with a
+  "Did you mean" suggestion), or a `fail_ci` rule that `[rules]` or
+  `--categories` leaves out. These configs used to run and ignore the bad
+  part. `config validate` now exits 2 on an error (it exited 1) and prints to
+  stderr.
+- **Breaking: a bad flag or argument exits 2, not 1.** Exit 1 now always means
+  a gate failed (score, `fail_ci`), never that the command line was wrong.
+- The JSON schema version is 3 (`gate`, `warnings`, `RuleResult.overridden`).
 - **The new SEOmator brand, from seomator.com.** The logo is the orange emblem
   and the new wordmark, drawn from the designer's files byte for byte, in the
   desktop app and dashboard header, the HTML report, the favicon and the app

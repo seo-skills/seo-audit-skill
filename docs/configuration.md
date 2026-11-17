@@ -47,9 +47,9 @@ source overrides an earlier one.
 
 | Command | Reads |
 |---|---|
-| `seomator audit` | `[project] name`, `[crawler]`, `[rules]`, `[output]`. A single-page audit uses only `user_agent` from `[crawler]`; the other `[crawler]` keys apply with `--crawl`. `max_pages`, `concurrency` and `timeout_ms` are replaced by flag values: see [Known gap](#known-gap-audit-replaces-three-crawler-keys). |
+| `seomator audit` | `[project] name`, `[crawler]`, `[rules]`, `[ci]`, `[output]`. A single-page audit uses only `user_agent` from `[crawler]`; the other `[crawler]` keys apply with `--crawl`. `max_pages`, `concurrency` and `timeout_ms` are replaced by flag values: see [Known gap](#known-gap-audit-replaces-three-crawler-keys). |
 | `seomator crawl` | `[project] name` and every implemented `[crawler]` key. `-m` replaces `max_pages` only when you pass it. |
-| `seomator analyze` | `[rules]` and `[output] save`. It takes the project name from the stored crawl, ignores `[output] format` and `path` (use `--json`), and fetches nothing, so `[crawler]` has no effect. |
+| `seomator analyze` | `[rules]`, `[ci]` and `[output] save`, from `--config <path>` or the `seomator.toml` the search finds. It takes the project name from the stored crawl, ignores `[output] format` and `path` (use `--json`), and fetches nothing, so `[crawler]` has no effect. |
 | `seomator config` | All sources. |
 | `seomator serve` and the desktop app | Nothing. Their audits take settings from the run form (10 pages and concurrency 3 by default) and run every rule. |
 | `seomator report`, `compare`, `db`, `self doctor` | Nothing. `self doctor` reports only whether `seomator.toml` exists in the current directory. |
@@ -98,7 +98,8 @@ file is in use.
 ## seomator.toml keys
 
 "Valid values" are what `seomator config validate` enforces. A value outside
-them is an error, which makes `config validate` exit 1. A warning leaves the
+them is an error, which makes `config validate` exit 2 and stops `audit` and
+`analyze` before they make a request (exit 2, error code `config`). A warning leaves the
 file valid. Defaults are the built-in defaults, which apply to every key you
 leave out.
 
@@ -162,6 +163,44 @@ Read by `audit` and `analyze`.
   `--fail-on-regression` does not fail on such a pair.
 
 Pattern syntax is under [Rule patterns](#rule-patterns).
+
+### [rules.override]
+
+Read by `audit` and `analyze`. Re-ranks findings and gates CI on them. **It
+never changes the score**: the score describes the site, not a team's
+preferences about it.
+
+```toml
+[rules.override]
+"core-description-present" = { priority = "low" }
+"url-underscores"          = { priority = "ignore" }
+"core-canonical-present"   = { fail_ci = true }
+```
+
+| Key | Type | Valid values | Effect |
+|---|---|---|---|
+| `priority` | string | `high`, `normal`, `low`, `ignore` | Moves the finding up (`high`) or down (`low`) the "what to fix first" order. `ignore` takes it out of every findings list and shows it in a collapsed "Ignored by config" section instead. JSON keeps the result, marked `"overridden": { "priority": "ignore" }`. |
+| `fail_ci` | boolean | `true`, `false` | A `fail` from this rule on any page exits 1, whatever the score. A warning never does. |
+
+- Every id must be a registered rule (`seomator explain --list`). An unknown
+  id, an unknown key or a bad value stops `audit` and `analyze` with exit 2 and
+  error code `config`, with a "Did you mean" suggestion. A typo must never
+  turn a CI gate off.
+- A `fail_ci` rule that `[rules] enable/disable` or `--categories` leaves out
+  is the same error: its gate could never run.
+- A `fail_ci` rule that ran but took no reading on any page (for example a
+  browser-render check on a run without `--cwv`) exits 1, and the last line
+  says why. A gate that could not be evaluated never passes silently.
+- `priority = "ignore"` and `fail_ci = true` together hide the finding from
+  reports and still gate CI.
+
+### [ci]
+
+Read by `audit` and `analyze`.
+
+| Key | Type | Default | Valid values | Effect |
+|---|---|---|---|---|
+| `fail_under` | number | `70` | `0` to `100` | Exit 1 when the overall score is below this. `--fail-under` wins over it. `0` never fails on score. |
 
 ### [output]
 
@@ -421,7 +460,7 @@ Options:
 | `seomator config` or `seomator config --list` | Prints the `seomator.toml` in use, or `(using defaults)`, then the merged configuration as JSON. | 0 |
 | `seomator config show` | Prints the four file-based sources in priority order, each with its path or `(not found)`, then the merged configuration as JSON. | 0 |
 | `seomator config path` | Prints the global directory, the global settings file, the `seomator.toml` the search finds, and the local settings file, each with whether it exists. Parses nothing. | 0 |
-| `seomator config validate` | Checks the merged configuration against the valid values on this page, then prints errors and warnings. | 0 with no errors (warnings allowed), 1 with errors |
+| `seomator config validate [--config <path>] [--json]` | Runs the checks `audit` and `analyze` run before they start, rule ids in `[rules.override]` included, then prints errors and warnings to stderr. `--config` checks that file instead of searching for `seomator.toml`. `--json` prints `{ valid, configPath, errors, warnings }` to stdout. | 0 with no errors (warnings allowed), 2 with errors |
 | `seomator config <key>` | Prints one merged value as JSON. `<key>` is a dotted path such as `crawler.max_pages`. | 0, or 1 with `Key not found: <key>` |
 | `seomator config <key> <value>` | Writes the value to `.seomator/settings.json` in the current directory, or with `--global` to `$SEOMATOR_HOME/settings.json`. Never edits `seomator.toml`. | 0 |
 
@@ -747,8 +786,11 @@ Make every `seomator audit` in a pipeline write its report to
    For a crawl, set the limits with flags, because `audit` ignores
    `max_pages`, `concurrency` and `timeout_ms` in the file:
    `seomator audit https://example.com --crawl -m 50 --concurrency 5`.
-3. Let the exit code decide the job: `0` for a score of 70 or more, `1` below
-   70, `2` when the audit failed, `130` when it was cancelled.
+3. Let the exit code decide the job: `0` when every gate passed, `1` when one
+   failed (a score below `[ci] fail_under` or `--fail-under`, default 70, or a
+   `fail_ci` rule), `2` when the audit could not run (bad flag, invalid config,
+   unreachable site), `130` when it was cancelled. Treat `1` as a finding and
+   `2` as a broken job: the last stderr line of a `1` says which gate failed.
 4. Keep `reports/audit.json` as a build artifact. Add `--no-save` if the runner
    should not store audit history in `$SEOMATOR_HOME/audits.db`.
 

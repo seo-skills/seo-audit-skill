@@ -612,6 +612,41 @@ export interface RuleResult {
    * results built by hand fall back to weight 1.
    */
   weight?: number;
+  /**
+   * Set when `[rules.override]` named this rule. Changes ranking, report
+   * placement and CI gating; never `status`, `score` or `weight`.
+   */
+  overridden?: RuleOverrideMark;
+}
+
+/** Where an overridden finding ranks; `ignore` hides it from reports but not from JSON */
+export type OverridePriority = 'high' | 'normal' | 'low' | 'ignore';
+
+/** What `[rules.override]` changed about one rule's results */
+export interface RuleOverrideMark {
+  priority?: OverridePriority;
+  /** A `fail` from this rule exits 1 whatever the score */
+  failCi?: boolean;
+}
+
+/**
+ * Why a run exits the way it does.
+ *
+ * Exit 1 means a gate failed: the score, a `fail_ci` rule, or a gated rule
+ * that could not be evaluated. Exit 2 (usage, config or runtime) never gets
+ * this far, so it has no gate.
+ */
+export interface AuditGate {
+  /** The threshold the score was held to */
+  failUnder: number;
+  score: number;
+  /** `fail_ci` rules that failed, with the pages they failed on */
+  failedCiRules: Array<{ ruleId: string; pages: string[] }>;
+  /** `fail_ci` rules that never produced a reading, so their gate could not pass */
+  unevaluated: Array<{ ruleId: string; reason: string }>;
+  exitCode: 0 | 1;
+  /** One line explaining a non-zero exit; absent when the run passes */
+  reason?: string;
 }
 
 /**
@@ -708,8 +743,11 @@ export interface PageSnapshot {
  *
  * Bump on any change a consumer could notice. 1 is the shape shipped through
  * 3.5.0, so a payload with no `schemaVersion` should be read as 1.
+ *
+ * 3 added `gate` (why the run exits as it does), `warnings` and
+ * `RuleResult.overridden`.
  */
-export const AUDIT_SCHEMA_VERSION = 2;
+export const AUDIT_SCHEMA_VERSION = 3;
 
 /**
  * The options an audit actually ran with.
@@ -833,6 +871,17 @@ export interface AuditResult {
    * and a stored audit predating this field has none.
    */
   page?: PageSnapshot;
+  /**
+   * The CI verdict for this run: the score threshold, every `fail_ci` rule
+   * that failed or could not be evaluated, and the exit code. Set by the
+   * commands that exit on it (`audit`, `analyze`).
+   */
+  gate?: AuditGate;
+  /**
+   * Things the run did that a caller should know about but that are not
+   * findings, such as a clamped argument. Also printed to stderr.
+   */
+  warnings?: string[];
 }
 
 /**

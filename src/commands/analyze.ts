@@ -24,6 +24,11 @@ import type { AuditContext } from '../types.js';
 import { emitCommandError } from './machine-error.js';
 import { SCORING_VERSION } from '../scoring.js';
 import { applyScoreCaps, readPageFacts, siteCaps } from '../score-caps.js';
+import { assertRunnableConfig } from './run-config.js';
+import { applyRuleOverrides } from '../rules/overrides.js';
+import { evaluateGate } from '../gate.js';
+import { classifyError } from '../errors.js';
+import type { SeomatorConfig } from '../config/schema.js';
 
 export interface AnalyzeOptions {
   categories?: string[];
@@ -38,6 +43,10 @@ export interface AnalyzeOptions {
   verbose: boolean;
   /** Analyze a staging crawl: waive the noindex cap */
   staging?: boolean;
+  /** Config file path; otherwise seomator.toml is searched for */
+  config?: string;
+  /** Exit 1 below this score; overrides `[ci] fail_under` */
+  failUnder?: number;
 }
 
 /**
@@ -114,8 +123,28 @@ export function announceAnalysis(crawl: Pick<StoredCrawl, 'id' | 'url' | 'pages'
 }
 
 export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOptions): Promise<void> {
-  const { config } = loadConfig(process.cwd());
   const baseDir = process.cwd();
+
+  // Loaded inside the error handling, so a bad config reaches the same
+  // code, message and exit 2 as every other failure instead of a stack trace.
+  let config: SeomatorConfig;
+  try {
+    await loadAllRules();
+    const loaded = loadConfig(baseDir, {}, options.config);
+    assertRunnableConfig(loaded.config, loaded.configPath, { categories: options.categories ?? [] });
+    config = loaded.config;
+  } catch (error) {
+    const audited = classifyError(error);
+    emitCommandError({
+      json: options.json === true,
+      code: audited.code,
+      message: audited.message,
+      ...(audited.hint && { hint: audited.hint }),
+      exitCode: 2,
+    });
+    return;
+  }
+  const failUnder = options.failUnder ?? config.ci.fail_under;
 
   const persistence = resolvePersistence({
     save: options.save,
@@ -165,9 +194,6 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
     crawl: true,
     verbose: options.verbose,
   });
-
-  // Load all rules before analysis
-  await loadAllRules();
 
   const auditor = new Auditor({
     categories: options.categories,
@@ -246,6 +272,9 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
 
     progress.stop();
 
+    applyRuleOverrides(result, config.rules.override);
+    result.gate = evaluateGate(result, { failUnder, overrides: config.rules.override });
+
     if (persistence.legacyJson) {
       const report = createReport(
         crawl.id,
@@ -302,7 +331,10 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
 
     // Set the code rather than exiting, so a large --json payload on stdout is
     // not truncated at the pipe buffer. See the note in commands/audit.ts.
-    process.exitCode = result.overallScore >= 70 ? 0 : 1;
+    process.exitCode = result.gate.exitCode;
+    if (result.gate.reason) {
+      console.error(chalk.red(`Exit 1: ${result.gate.reason}`));
+    }
   } catch (error) {
     progress.stop();
     console.error(chalk.red('Analysis failed:'), error instanceof Error ? error.message : 'Unknown error');

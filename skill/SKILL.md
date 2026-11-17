@@ -5,7 +5,7 @@ license: MIT
 compatibility: Requires Node.js 20.18.1+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
 metadata:
   author: seomator
-  version: "7.0.0"
+  version: "8.0.0"
 allowed-tools: Bash(seomator:*)
 ---
 

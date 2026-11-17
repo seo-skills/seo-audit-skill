@@ -201,7 +201,11 @@ and `qa-report-developer-mozilla-org-2026-10-15.md`.
 
 ### P1 — speed
 
-- **Link checks are sequential and uncached.** One page sends about 489 HEAD/GET
+- **Done (8.0.0).** Every request that is not a page now goes through one
+  service per run that asks each distinct question once, with per-host limits
+  and 429/503 backoff; external link answers persist in the link cache; a
+  crawl scores four pages at a time. Kept below for the record.
+- ~~**Link checks are sequential and uncached.**~~ One page sends about 489 HEAD/GET
   requests for 374 distinct URLs; the audited URL itself is requested 23 times.
   Categories, rules and each rule's loop run one request at a time
   (`auditor.ts`), and `LinkCache` (`src/storage/link-cache.ts`) exists but no
@@ -382,7 +386,9 @@ These were left out.
 
 ### P1 — a capped score shown without its reason
 
-- **Stored audits drop `scoreCap` and `waivedCaps`.** The `audits` table keeps
+- **Done (8.0.0).** Caps, waivers, overrides and reasons are stored in
+  `extras_json`, returned by `getAuditDetail` and shown on the score card.
+- ~~**Stored audits drop `scoreCap` and `waivedCaps`.**~~ The `audits` table keeps
   `run_json`, not the result, so history, `report`, and the score card in `ui/`
   (dashboard and desktop app) show a capped score with no reason, the confusion
   the cap was added to prevent. Persist both beside `run_json`, return them from
@@ -577,7 +583,11 @@ dashboard PRD, removed from `docs/` on 2026-10-15. Read it with
 **Priority:** P3
 **Depends on:** None
 
-### Engine SSRF hardening for redirects and link checks
+### ~~Engine SSRF hardening for redirects and link checks~~ (done in 8.0.0)
+
+Every request goes through `src/net/`: each DNS answer is checked at connect
+time, a public target blocks private and cloud-metadata addresses, and
+`seomator analyze` runs under the same policy. Kept below for the record.
 
 **What:** When the start URL is public, refuse redirect hops and link/image checks that resolve to loopback, RFC1918, link-local, or cloud-metadata addresses unless `--allow-private` is passed; validate each DNS resolution, not just the first URL.
 
@@ -602,3 +612,57 @@ dashboard PRD, removed from `docs/` on 2026-10-15. Read it with
 **Depends on:** 3.4.0 persistence default
 
 ## Completed
+
+## From the agent-ready audit engine (8.0.0, 2026-11-17)
+
+Scope consciously left for later. The PRD and its review live outside the
+repository, under `~/.gstack/projects/`.
+
+### Release P: promote the advisory rules
+
+The 25 rules added in 8.0.0 are advisory: reported, not scored. Promote them
+once their verdicts have been checked on a precision corpus of real sites,
+replayed offline (stored HTML, headers, redirect chains, recorded responses
+and the crawl clock). Also decide whether the static accessibility rules with
+an axe-core equivalent should take axe's verdict when rendered, as
+`a11y-color-contrast` and `a11y-touch-targets` already do, and whether a past
+`unavailable_after` on the start page should cap the score like noindex (run
+the strategic reasoner first).
+
+### Dashboard and desktop items not taken in 8.0.0
+
+- Group findings (`extras.groups`) rendered as expandable groups in the rule
+  card; a shared `details.table` contract rendered the same in every surface.
+- Compare page: say when two audits use different scoring models, mute the
+  deltas, and break the trend line at the change.
+- A preparation state before a crawl with a Crawl-delay, with "Keep going" and
+  "Restart without the delay"; rate-limit copy with a countdown and Try again.
+- Section states for Site and Custom checks (not run, nothing found,
+  truncated, unreadable), a one-time "new scoring model" note, output caps of
+  50 rows with a pointer to JSON, stacked tables below 640 px, a full
+  paginated Link Score list with a URL filter, sidebar anchors for Site and
+  Custom checks, and a keyboard-only walkthrough of the new sections.
+- Rerun: say when the audit used seomator.toml settings the dashboard does not
+  apply (rule options, custom checks, overrides).
+
+### `serve --config` and project settings in the dashboard and desktop app
+
+Web and desktop runs use defaults: no `[external_links]` cache, no
+`[rule_options]`, no `[[custom.*]]`. Read a project's seomator.toml there too.
+
+### Desktop parity check for axe-core
+
+The desktop app runs axe-core through `executeJavaScript` in a window set to
+Playwright's viewport. Add a smoke test comparing a fixed allowlist of axe ids
+between the two renderers (they ship different Chromium versions).
+
+### Smaller follow-ups
+
+- `[external_links] broken_statuses`: let a team count a status as broken.
+- A page carbon estimate from transfer sizes.
+- A remediation loop: re-audit only the pages whose findings were fixed.
+- Two-phase execution: fetch everything first, then score, so a crash during
+  scoring never repeats requests.
+- `seomator self doctor` checks the MCP setup; MCP saves still use the
+  blocking busy retry.
+

@@ -155,6 +155,7 @@ Every step rounds to a whole number. A rule's weight sets how far it moves its c
 | 2 | 5.0.0 | The five core presence checks (title, description, h1, viewport, canonical) were raised from weight 1. A blank document had scored 84. |
 | 3 | 6.0.0 | Page-level score caps. |
 | 4 | 7.0.0 | A crawl is capped when its start page cannot be indexed. |
+| 5 | 8.0.0 | Soft-404, duplicate, external-link, share-image-size and rendered accessibility verdicts changed; a crashed check is not measured; advisory rules are reported but not scored. |
 
 The version is stored in each audit's run profile, and `compare` treats a different version, or one that was never recorded, as a material difference rather than a regression.
 

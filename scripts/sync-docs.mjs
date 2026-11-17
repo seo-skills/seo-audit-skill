@@ -61,6 +61,9 @@ const rewrites = [
   [/\ball (\d+) rules\b/gi, (whole) => whole.replace(/\d+/, String(ruleCount))],
   // "## Categories & Rules (261 total)"
   [/\(\d+ total\)/g, `(${ruleCount} total)`],
+  // ...and the contents link to that heading, whose anchor carries the count:
+  // it stayed at 373 when the heading moved on, so the link went nowhere
+  [/#categories--rules-\d+-total\b/g, `#categories--rules-${ruleCount}-total`],
   // "Runs 261 audit rules against each page" — the phrasing that drifted to 261
   // while every other total tracked, because no pattern here matched it.
   [/\bRuns \d+ audit rules\b/g, `Runs ${ruleCount} audit rules`],

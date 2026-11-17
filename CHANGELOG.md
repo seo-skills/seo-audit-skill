@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0] - 2026-11-17
+
+Upgrading from 7.x: see [docs/upgrading-to-8.md](docs/upgrading-to-8.md) for
+what can break a script or CI job, why scores move, and what to change.
+
 ### Added
 
 - **CI gates you control.** `--fail-under <n>` on `audit` and `analyze`, and
@@ -175,6 +180,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The MCP run summary carries `notMeasuredByReason` and `advisoryCount`, and
   its `topFindings` are scored findings only. `get_audit` takes `maxFindings`
   (default 50).
+- `seomator init` appends commented examples of `[ci]`, `[rules.override]`,
+  `[rule_options]` and `[[custom.*]]`, each valid once uncommented.
+- The README says where SEOmator fits, and `docs/upgrading-to-8.md` covers
+  the upgrade from 7.x.
 - The MCP `audit_url` tool takes `respectCrawlDelay` and `maxDurationS`, and
   refuses up front with `crawl-too-slow` when the site's `Crawl-delay` means
   the crawl cannot finish in time. Its summary carries `coverage` and
@@ -223,12 +232,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   starts a product token (`SEOmator` still matches), the longest match wins,
   and `*` is the fallback. A crawl can reach pages a broad group blocked
   before.
-- **Checks that need a browser render say so the same way.** Without `--cwv`,
-  the 29 render-only checks (rendered-DOM, Core Web Vitals, asset and mobile
-  parity checks) are reported not measured with reason `needs-render`, and
-  the console report adds one line: "29 checks need a browser render: rerun
-  with --cwv". A render that ran and failed reports them as could not
-  verify. `seomator explain` says when a rule needs a render.
+- **Checks that need a browser render say so the same way.** Without
+  `--render`, the 42 render-only checks (rendered DOM, Core Web Vitals,
+  assets, mobile parity, image sizing, unused code and accessibility with
+  axe-core) are reported not measured with reason `needs-render`, and the
+  console report adds one line: "42 checks need a browser render: rerun with
+  --render". A render that ran and failed reports them as could not verify.
+  `seomator explain` says when a rule needs a render.
 - **Dates are judged against the run's clock.** Every page of a run shares
   one start time, and `seomator analyze` judges a stored crawl's dates
   (sitemap `lastmod`, `unavailable_after`) against the time it was crawled,

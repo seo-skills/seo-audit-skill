@@ -9,20 +9,44 @@
 
 > **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
 
+## Where SEOmator fits
+
+SEOmator is an SEO audit you can automate and trust the answer of.
+
+- **Built to run unattended.** A CLI with stable exit codes (0 pass, 1 a gate
+  failed, 2 the run could not happen), JSON output, CI gates on score,
+  coverage and chosen rules, your own checks in `seomator.toml`, and an MCP
+  server so an AI agent can run audits and read the findings.
+- **Honest about what it measured.** A check it could not take a reading for
+  says so and why ("needs a browser render", "could not verify") instead of
+  passing. New checks are reported as advisory until they have earned a
+  place in the score. A crawl says how many pages it measured, and a site
+  that asks it to slow down is respected, not counted as broken.
+- **Local and open source.** It runs on your machine, keeps audit history in a
+  local SQLite database, and comes with a web dashboard and a desktop app over
+  the same engine. Auditing a public site never lets that site point it at
+  your private network.
+
+What it is not: a tool for exploring every URL of a very large site in a
+spreadsheet view, or a source of search-traffic data. A crawl here is sized
+for an audit (10 pages by default, up to 1,000 per run on the command line),
+and Search Console data is not part of the audit yet.
+
 ## Contents
 
+- [Where SEOmator fits](#where-seomator-fits)
 - [Features](#features)
 - [Installation](#installation)
 - [Desktop App](#desktop-app)
 - [Quick Start (CLI)](#quick-start-cli)
 - [Commands](#commands)
-- [Categories & Rules](#categories--rules-373-total)
+- [Categories & Rules](#categories--rules-398-total)
 - [Configuration](#configuration)
 - [Output Formats](#output-formats)
 - [CI/CD Integration](#cicd-integration)
 - [Programmatic Usage](#programmatic-usage)
 - [Claude Code Skill](#claude-code-skill)
-- [FAQ](#faq)
+- [FAQ](#faq) and [upgrading to 8.0](./docs/upgrading-to-8.md)
 - [Requirements](#requirements)
 
 ## Features

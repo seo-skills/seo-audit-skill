@@ -150,7 +150,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `extras.custom`. Every selector and pattern is checked before a run (exit
   2, naming the entry), a regular expression gets 50 ms per page, and a
   search with `fail_ci = true` exits 1 when a page fails, no page was checked,
-  or the time limit stopped one.
+  or the time limit stopped one. Every report has a "Custom checks" section,
+  the markdown one with one row per extracted value, and stored audits keep
+  every value in a table of their own.
 - The MCP `audit_url` tool takes `respectCrawlDelay` and `maxDurationS`, and
   refuses up front with `crawl-too-slow` when the site's `Crawl-delay` means
   the crawl cannot finish in time. Its summary carries `coverage` and

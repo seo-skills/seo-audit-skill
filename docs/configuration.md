@@ -265,6 +265,59 @@ max_length = 170
   `seomator compare` reports two audits run with different options as not
   like-for-like.
 
+### [custom]
+
+Read by `audit`, `analyze` and `seomator mcp`. Your own checks, run on every
+page beside the rules. They are reported in a "Custom checks" section of every
+report and in JSON `extras.custom`, and they **never change the score**.
+
+```toml
+[[custom.search]]
+name = "Old brand name"
+where = "text"           # text | html | head | body | selector
+text = "Acme Old"
+expect = "absent"        # present | absent: what a passing page shows
+severity = "fail"        # warn | fail: how a failing page is shown
+fail_ci = true           # exit 1 when any page fails
+
+[[custom.search]]
+name = "Products show a price"
+where = "selector"
+selector = "[itemprop=price]"   # no text: the selector must match
+scope = "/products/"            # only pages under this path
+
+[[custom.extract]]
+name = "SKU"
+selector = "[itemprop=sku]"
+attribute = ""           # empty: the element's text
+multiple = false         # true: every match, not just the first
+```
+
+| Key | Default | Effect |
+|---|---|---|
+| `search[].name` | required | Shown in reports and in the CI exit line. |
+| `search[].where` | `"text"` | `text` is the page's body text; `html` the whole HTML; `head` and `body` those elements' HTML; `selector` the elements `selector` matches. |
+| `search[].selector` | | CSS selector, required with `where = "selector"`. |
+| `search[].text` | | What to find. Required unless `where = "selector"`, where leaving it out tests that the selector matches; with it, the text is searched inside the matched elements. |
+| `search[].match` | `"literal"` | `regex` reads `text` and `scope` as regular expressions. |
+| `search[].expect` | `"present"` | What a passing page shows. |
+| `search[].severity` | `"warn"` | How a failing page is shown. |
+| `search[].fail_ci` | `false` | Exit 1 when any page fails, when no page was checked (a scope that matches nothing), or when the time limit stopped a regular expression on any page. The last line says which. |
+| `search[].scope` | every page | A URL path prefix, or a regular expression with `match = "regex"`. |
+| `extract[].name` | required | Shown in reports. |
+| `extract[].selector` | required | CSS selector. |
+| `extract[].attribute` | `""` | Read this attribute instead of the text. |
+| `extract[].multiple` | `false` | Every match instead of the first. |
+
+- Every selector and regular expression is checked before the run starts. A
+  bad one is a `config` error (exit 2) that names the entry, for example
+  `custom.search[1] ("Products show a price"): selector "div[" is not valid CSS`.
+- A regular expression gets 50 ms per page. One that takes longer (a pattern
+  that backtracks catastrophically) is stopped and counted as `stopped`, and
+  the crawl carries on.
+- Stored audits keep every extracted value; the markdown report lists them one
+  row per value, so the table pastes into a spreadsheet.
+
 ## Pattern syntax
 
 ### URL patterns

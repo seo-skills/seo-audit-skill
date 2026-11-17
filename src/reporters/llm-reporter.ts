@@ -23,6 +23,7 @@ import { collectIgnoredFindings } from '../rules/overrides.js';
 import { coverageLine } from './coverage-line.js';
 import { brokenExternalSection } from './external-links-section.js';
 import type { LinkScoreSummary } from '../site/link-score.js';
+import { customResults, customSearchRows } from './custom-section.js';
 import { AUDIT_SCHEMA_VERSION } from '../types.js';
 import type { AuditResult } from '../types.js';
 import { getFixSuggestion } from './fix-suggestions.js';
@@ -319,6 +320,21 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
       lines.push(`${t2}<link answer="${escapeXml(target.reason)}">${wrapUntrusted(target.url, nonce)} from ${wrapUntrusted(pages, nonce)}</link>${nl}`);
     }
     lines.push(`${t1}</broken-external-links>${nl}`);
+  }
+  // The team's own checks, not scored; page URLs and extracted values come
+  // from the audited site
+  const custom = customResults(result);
+  if (custom) {
+    lines.push(`${t1}<custom-checks scored="false">${nl}`);
+    for (const row of customSearchRows(custom)) {
+      const pages = row.failingPages.length > 0 ? ` ${wrapUntrusted(row.failingPages.join(' '), nonce)}` : '';
+      lines.push(`${t2}<search name="${escapeXml(row.name)}" result="${row.outcome}">${escapeXml(row.summary)}${pages}</search>${nl}`);
+    }
+    for (const extraction of custom.extractions) {
+      const values = extraction.pages.map((p) => `${p.url}: ${p.values.join(' | ')}`).join('\n');
+      lines.push(`${t2}<extraction name="${escapeXml(extraction.name)}" pages="${extraction.pages.length}">${wrapUntrusted(values, nonce)}</extraction>${nl}`);
+    }
+    lines.push(`${t1}</custom-checks>${nl}`);
   }
   // Internal link strength: a metric, not a finding
   const linkSummary = result.extras?.linkScoreSummary as LinkScoreSummary | undefined;

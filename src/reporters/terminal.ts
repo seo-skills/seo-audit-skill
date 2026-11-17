@@ -14,6 +14,7 @@ import { collectIgnoredFindings, isIgnoredByConfig } from '../rules/overrides.js
 import { coverageLine } from './coverage-line.js';
 import { brokenExternalSection } from './external-links-section.js';
 import type { LinkScoreSummary } from '../site/link-score.js';
+import { customResults, customSearchRows } from './custom-section.js';
 import type { OverridePriority } from '../types.js';
 import { normalizeMessage } from './findings.js';
 import { getRuleById } from '../rules/registry.js';
@@ -434,6 +435,22 @@ export function renderTerminalReport(result: AuditResult): void {
     }
     if (brokenExternal.moreTargets > 0) console.log(chalk.gray(`  ... +${brokenExternal.moreTargets} more`));
     if (brokenExternal.aside) console.log(chalk.gray(`  ${brokenExternal.aside}`));
+    console.log();
+  }
+
+  // The team's own checks: shown, never scored
+  const custom = customResults(result);
+  if (custom) {
+    const icon = { pass: chalk.green('✓'), warn: chalk.yellow('!'), fail: chalk.red('✗'), stopped: chalk.yellow('…'), unchecked: chalk.gray('-') };
+    console.log(chalk.bold('CUSTOM CHECKS') + chalk.gray(' (not scored)'));
+    for (const row of customSearchRows(custom)) {
+      console.log(`  ${icon[row.outcome]} ${row.name}: ${chalk.gray(row.summary)}`);
+      renderPagesList(row.failingPages, 3);
+    }
+    for (const extraction of custom.extractions) {
+      console.log(`  ${chalk.cyan('⇢')} ${extraction.name}: ${chalk.gray(`values from ${extraction.pages.length} page${extraction.pages.length === 1 ? '' : 's'}`)}`);
+      for (const page of extraction.pages.slice(0, 3)) console.log(chalk.gray(`      ${page.values.slice(0, 3).join(', ')}`));
+    }
     console.log();
   }
 

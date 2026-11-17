@@ -56,7 +56,8 @@ describe('validation', () => {
     const config = getDefaultConfig();
     config.custom.search = [{ name: 'Fine', text: 'x' }, { name: 'Broken', text: '(unclosed', match: 'regex' }];
     config.custom.extract = [{ name: 'Bad', selector: 'div[' }];
-    const messages = validateConfig(config).errors.map((e) => e.message);
+    // As `config validate` and `audit` print them: path, then message
+    const messages = validateConfig(config).errors.map((e) => `${e.path}: ${e.message}`);
     expect(messages.some((m) => m.startsWith('custom.search[1] ("Broken"): text is not a valid regular expression'))).toBe(true);
     expect(messages.some((m) => m.startsWith('custom.extract[0] ("Bad"): selector "div[" is not valid CSS'))).toBe(true);
     expect(customConfigProblems({ search: [{ name: '', where: 'selector' }] }).length).toBe(2);
@@ -82,5 +83,39 @@ describe('the score', () => {
     const custom = await new Auditor({ categories: ['core'], custom: { search: [{ name: 'Old brand', text: 'Shop', expect: 'absent', severity: 'fail' }] } }).audit('https://example.com/products/a');
     expect(custom.overallScore).toBe(plain.overallScore);
     expect(custom.extras?.custom?.searches[0]).toMatchObject({ checked: 1, failing: 1 });
+  });
+});
+
+describe('custom results in a stored audit and the reports', () => {
+  it('keep extracted values in their own table, and render in every format', async () => {
+    const { tempDatabase } = await import('../storage/audits-db/test-fixtures.js');
+    const { saveAuditToDatabase } = await import('../storage/save-audit.js');
+    const { getAuditDetail } = await import('../dashboard/queries.js');
+    const { renderMarkdownReport } = await import('../reporters/markdown-reporter.js');
+    const { renderLlmReport } = await import('../reporters/llm-reporter.js');
+    const { renderHtmlReport } = await import('../reporters/html-reporter.js');
+
+    const runner = new CustomRunner({
+      search: [{ name: 'Old brand', where: 'head', text: 'Acme Old', expect: 'absent', severity: 'fail' }],
+      extract: [{ name: 'SKU', selector: '.sku', multiple: true }],
+    });
+    runner.runPage(page());
+    const result = { url: 'https://example.com/', overallScore: 80, timestamp: '2026-11-17T00:00:00.000Z', crawledPages: 1, categoryResults: [], extras: { custom: runner.results() } };
+
+    const temp = tempDatabase();
+    try {
+      const saved = saveAuditToDatabase(result, { db: temp.db });
+      const row = temp.db.getDb().prepare('SELECT extras_json FROM audits WHERE audit_id = ?').get(saved.auditId) as { extras_json: string };
+      expect(JSON.parse(row.extras_json).custom.extractions).toEqual([{ name: 'SKU', pages: [], pageCount: 1 }]);
+      expect(getAuditDetail(temp.db, saved.auditId)!.result.extras?.custom).toEqual(result.extras.custom);
+    } finally {
+      temp.cleanup();
+    }
+
+    const md = renderMarkdownReport(result);
+    expect(md).toContain('## Custom checks');
+    expect(md).toContain('| SKU | https://example\\.com/products/a | B2 |');
+    expect(renderLlmReport(result)).toMatch(/<search name="Old brand" result="fail">1 of 1 pages fail/);
+    expect(renderHtmlReport(result)).toContain('Custom checks (not scored)');
   });
 });

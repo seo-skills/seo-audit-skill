@@ -59,7 +59,7 @@ export function customConfigProblems(custom: Partial<CustomConfig> | undefined):
 
   (custom?.search ?? []).forEach((raw, i) => {
     const at = label('search', i, raw?.name);
-    const add = (message: string) => problems.push({ path: at, message: `${at}: ${message}` });
+    const add = (message: string) => problems.push({ path: at, message });
     if (typeof raw?.name !== 'string' || !raw.name.trim()) add('needs a name');
     const search = normalise(raw ?? ({} as CustomSearchConfig));
     if (!['text', 'html', 'head', 'body', 'selector'].includes(search.where)) add(`where must be text, html, head, body or selector, not "${search.where}"`);
@@ -86,7 +86,7 @@ export function customConfigProblems(custom: Partial<CustomConfig> | undefined):
 
   (custom?.extract ?? []).forEach((extract, i) => {
     const at = label('extract', i, extract?.name);
-    const add = (message: string) => problems.push({ path: at, message: `${at}: ${message}` });
+    const add = (message: string) => problems.push({ path: at, message });
     if (typeof extract?.name !== 'string' || !extract.name.trim()) add('needs a name');
     if (!extract?.selector) add('needs a selector');
     else {

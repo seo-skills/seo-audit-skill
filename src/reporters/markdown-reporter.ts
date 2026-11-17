@@ -4,6 +4,7 @@ import { collectIgnoredFindings } from '../rules/overrides.js';
 import { coverageLine } from './coverage-line.js';
 import { brokenExternalSection } from './external-links-section.js';
 import type { LinkScoreSummary } from '../site/link-score.js';
+import { customResults, customSearchRows } from './custom-section.js';
 import { scoreToVerdict } from '../verdict.js';
 import { getCategoryById } from '../categories/index.js';
 
@@ -249,6 +250,29 @@ export function renderMarkdownReport(result: AuditResult): string {
     if (brokenExternal.moreTargets > 0) lines.push(`+${brokenExternal.moreTargets} more broken targets in the JSON report.`);
     if (brokenExternal.aside) lines.push(`Also: ${brokenExternal.aside}.`);
     lines.push('');
+  }
+
+  const custom = customResults(result);
+  if (custom) {
+    lines.push('## Custom checks', '', 'From `[[custom.search]]` and `[[custom.extract]]` in seomator.toml. Not scored.', '');
+    const rows = customSearchRows(custom);
+    if (rows.length > 0) {
+      lines.push('| Search | Result | Pages |', '|--------|--------|-------|');
+      for (const row of rows) lines.push(`| ${escapeMarkdown(row.name)} | ${row.outcome} | ${escapeMarkdown(row.summary)} |`);
+      lines.push('');
+      for (const row of rows.filter((r) => r.failingPages.length > 0)) {
+        lines.push(`**${escapeMarkdown(row.name)}** fails on:`, '');
+        for (const page of row.failingPages) lines.push(`- ${escapeMarkdown(page)}`);
+        lines.push('');
+      }
+    }
+    // One row per value, so the table pastes into a spreadsheet
+    const values = custom.extractions.flatMap((e) => e.pages.flatMap((p) => p.values.map((v) => [e.name, p.url, v])));
+    if (values.length > 0) {
+      lines.push('| Extraction | Page | Value |', '|------------|------|-------|');
+      for (const [name, url, value] of values) lines.push(`| ${escapeMarkdown(name)} | ${escapeMarkdown(url)} | ${escapeMarkdown(value)} |`);
+      lines.push('');
+    }
   }
 
   const linkSummary = result.extras?.linkScoreSummary as LinkScoreSummary | undefined;

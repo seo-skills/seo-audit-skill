@@ -197,6 +197,7 @@ export function saveAuditToDatabase(result: AuditResult, options: SaveAuditOptio
     db.insertCategories(audit.id, categoryInputs);
     db.insertResults(audit.id, resultInputs);
     if (result.extras?.linkScores) db.insertLinkScores(audit.id, result.extras.linkScores);
+    if (result.extras?.custom) db.insertCustomValues(audit.id, result.extras.custom.extractions);
 
     db.completeAudit(auditId, {
       overallScore: result.overallScore,
@@ -246,6 +247,14 @@ export function buildStoredExtras(result: AuditResult): Record<string, unknown> 
   for (const [key, value] of Object.entries(result.extras ?? {})) {
     // Link Scores have a table of their own; the summary stays here
     if (key === 'linkScores') continue;
+    // Extracted values have a table of their own; counts stay here
+    if (key === 'custom' && result.extras?.custom) {
+      sections['custom'] = {
+        searches: result.extras.custom.searches,
+        extractions: result.extras.custom.extractions.map((e) => ({ name: e.name, pages: [], pageCount: e.pages.length })),
+      };
+      continue;
+    }
     if (value !== undefined && !(key in sections)) sections[key] = value;
   }
 

@@ -16,6 +16,7 @@ import { getRuleById } from '../rules/registry.js';
 import { isNotMeasured } from '../rules/define-rule.js';
 import { brokenExternalSection } from './external-links-section.js';
 import type { LinkScoreSummary } from '../site/link-score.js';
+import { customResults, customSearchRows } from './custom-section.js';
 
 /**
  * Rule metadata cache structure
@@ -2152,6 +2153,27 @@ function renderPageSnapshot(page: PageSnapshot | undefined, url: string): string
       </div>`;
 }
 
+/** The team's own searches and extractions, not scored */
+function renderCustomChecks(result: AuditResult): string {
+  const custom = customResults(result);
+  if (!custom) return '';
+  const searches = customSearchRows(custom)
+    .map(
+      (row) => `<tr class="issue-row"><td>${escapeHtml(row.name)}</td><td>${row.outcome}</td><td>${escapeHtml(row.summary)}${
+        row.failingPages.length > 0 ? `<br>${row.failingPages.slice(0, 10).map((p) => `<span class="issue-row-url" title="${escapeHtml(p)}">${escapeHtml(getShortUrl(p))}</span>`).join('<br>')}` : ''
+      }</td></tr>`
+    )
+    .join('');
+  const values = custom.extractions
+    .flatMap((e) => e.pages.flatMap((p) => p.values.map((v) => `<tr class="issue-row"><td>${escapeHtml(e.name)}</td><td><span class="issue-row-url" title="${escapeHtml(p.url)}">${escapeHtml(getShortUrl(p.url))}</span></td><td>${escapeHtml(v)}</td></tr>`)))
+    .join('');
+  return `<section class="category-progress-section" id="custom-checks">
+        <div class="category-progress-title">Custom checks (not scored)</div>
+        ${searches ? `<table class="issues-table"><thead><tr><th>Search</th><th>Result</th><th>Pages</th></tr></thead><tbody>${searches}</tbody></table>` : ''}
+        ${values ? `<table class="issues-table"><thead><tr><th>Extraction</th><th>Page</th><th>Value</th></tr></thead><tbody>${values}</tbody></table>` : ''}
+      </section>`;
+}
+
 /** Internal Link Score: the best-linked pages and the weakest indexable ones */
 function renderLinkScores(result: AuditResult): string {
   const summary = result.extras?.linkScoreSummary as LinkScoreSummary | undefined;
@@ -2706,6 +2728,7 @@ export function renderHtmlReport(result: AuditResult): string {
 
       ${renderBrokenExternal(result)}
       ${renderLinkScores(result)}
+      ${renderCustomChecks(result)}
 
       <!-- Footer -->
       <footer class="footer">

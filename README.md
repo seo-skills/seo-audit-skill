@@ -5,7 +5,7 @@
 [![node](https://img.shields.io/node/v/@seomator/seo-audit.svg)](https://www.npmjs.com/package/@seomator/seo-audit)
 [![license: MIT](https://img.shields.io/npm/l/@seomator/seo-audit.svg)](./LICENSE)
 
-**SEOmator is a comprehensive SEO audit tool that scans any website against 388 rules across 20 categories** — technical SEO, Core Web Vitals, structured data, accessibility, security headers, and AI/GEO search readiness — and returns a prioritized, actionable report. It ships as a **command-line tool**, an **Electron desktop app**, and a **Claude Code skill**, so you can run an SEO audit from a terminal, a visual dashboard, or directly inside an AI coding agent.
+**SEOmator is a comprehensive SEO audit tool that scans any website against 398 rules across 20 categories** — technical SEO, Core Web Vitals, structured data, accessibility, security headers, and AI/GEO search readiness — and returns a prioritized, actionable report. It ships as a **command-line tool**, an **Electron desktop app**, and a **Claude Code skill**, so you can run an SEO audit from a terminal, a visual dashboard, or directly inside an AI coding agent.
 
 > **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
 
@@ -27,7 +27,7 @@
 
 ## Features
 
-- **388 SEO Audit Rules** across 20 categories
+- **398 SEO Audit Rules** across 20 categories
 - **Desktop App** - Visual audit dashboard with real-time progress, interactive results, score history, and light/dark theme
 - **CLI Tool** - Single page & crawl mode with 5 output formats
 - **Core Web Vitals** - LCP, CLS, FCP, TTFB, INP measurement via Playwright
@@ -341,7 +341,7 @@ A staging site is blocked on purpose: audit it with `--staging`. That waives the
 noindex and robots.txt caps, crawls past robots.txt, and lists what it waived as
 the launch checklist.
 
-## Categories & Rules (388 total)
+## Categories & Rules (398 total)
 
 ### Core (27 rules) - 11% weight
 
@@ -607,7 +607,7 @@ the launch checklist.
 | `js-failed-requests` | Scripts, stylesheets and other subresources load successfully |
 | `js-document-write` | Inline scripts should not use `document.write()` |
 
-### Accessibility (36 rules) - 7% weight
+### Accessibility (46 rules) - 7% weight
 
 | Rule | Description |
 |------|-------------|
@@ -623,6 +623,16 @@ the launch checklist.
 | `a11y-touch-targets` | Minimum 44x44px touch target sizing |
 | `a11y-video-captions` | Videos have captions or transcripts |
 | `a11y-zoom-disabled` | Viewport doesn't disable user zoom |
+| `a11y-axe-names` | Accessible Names problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-landmarks` | Landmarks problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-keyboard` | Keyboard and Focus problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-tables` | Tables problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-lists` | Lists problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-media` | Media and Motion problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-frames` | Frames problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-aria` | ARIA Validity problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-language` | Document Language problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-other` | Other Accessibility problems found by axe-core, needs `--cwv` (advisory) |
 | `a11y-iframe-title` | Iframes and frames have title attributes |
 | `a11y-object-alt` | `<object>` elements provide a text alternative |
 | `a11y-empty-heading` | No empty or inaccessible headings |
@@ -1009,7 +1019,7 @@ npx skills add seo-skills/seo-audit-skill
 
 ### What is SEOmator?
 
-SEOmator is an SEO audit tool that checks a website against 388 rules across 20 categories — covering technical SEO, Core Web Vitals, structured data, accessibility, security headers, content quality, and AI/GEO search readiness — and returns a scored, prioritized report of what to fix first. It's available as an open-source CLI, an Electron desktop app, and a Claude Code skill.
+SEOmator is an SEO audit tool that checks a website against 398 rules across 20 categories — covering technical SEO, Core Web Vitals, structured data, accessibility, security headers, content quality, and AI/GEO search readiness — and returns a scored, prioritized report of what to fix first. It's available as an open-source CLI, an Electron desktop app, and a Claude Code skill.
 
 ### How is SEOmator different from Lighthouse or PageSpeed Insights?
 

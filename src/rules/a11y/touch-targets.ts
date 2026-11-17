@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn } from '../define-rule.js';
+import { axeVerdict } from './axe-rules.js';
 
 interface SmallTarget {
   /** Element description */
@@ -30,6 +31,10 @@ export const touchTargetsRule = defineRule({
   category: 'a11y',
   weight: 6,
   run: (context: AuditContext) => {
+    // Rendered with axe: laid-out target sizes, not sizing hints in the source
+    const measured = axeVerdict(context, 'a11y-touch-targets', 'target-size', 'touch target size');
+    if (measured) return measured;
+
     const { $ } = context;
 
     const issues: SmallTarget[] = [];

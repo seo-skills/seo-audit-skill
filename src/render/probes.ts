@@ -9,6 +9,7 @@
  */
 
 import { IMAGE_SIZING_PROBE } from './image-sizing.js';
+import { AXE_PROBE } from './axe.js';
 
 /** What a fetcher can measure in the page; the web and desktop run pages show these */
 export type ProbeFamily = 'imageSizing' | 'accessibilityEngine';
@@ -16,13 +17,17 @@ export type ProbeFamily = 'imageSizing' | 'accessibilityEngine';
 export interface RenderProbe {
   id: string;
   family: ProbeFamily;
-  /** A JavaScript expression evaluated in the page; it may return a Promise */
-  script: string;
+  /**
+   * JavaScript evaluated in the page; its value (a Promise is awaited) is the
+   * result. A function supplies it lazily, for a script too large to build
+   * when no render runs.
+   */
+  script: string | (() => Promise<string>);
   timeoutMs: number;
 }
 
 /** Every probe a render runs, in order */
-export const RENDER_PROBES: RenderProbe[] = [IMAGE_SIZING_PROBE];
+export const RENDER_PROBES: RenderProbe[] = [IMAGE_SIZING_PROBE, AXE_PROBE];
 
 /** Results by probe id; a probe that threw or timed out is absent */
 export type ProbeResults = Record<string, unknown>;
@@ -39,8 +44,9 @@ export async function runProbes(
   for (const probe of probes) {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
+      const script = typeof probe.script === 'function' ? await probe.script() : probe.script;
       const value = await Promise.race([
-        evaluate(probe.script),
+        evaluate(script),
         new Promise((_, reject) => {
           timer = setTimeout(() => reject(new Error(`probe ${probe.id} timed out`)), probe.timeoutMs);
         }),

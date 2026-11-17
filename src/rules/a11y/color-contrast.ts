@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, notMeasured } from '../define-rule.js';
+import { axeVerdict } from './axe-rules.js';
 
 interface ContrastIssue {
   /** Element selector/description */
@@ -27,6 +28,10 @@ export const colorContrastRule = defineRule({
   category: 'a11y',
   weight: 8,
   run: (context: AuditContext) => {
+    // Rendered with axe: computed colours, not inline-style guesses
+    const measured = axeVerdict(context, 'a11y-color-contrast', 'color-contrast', 'colour contrast');
+    if (measured) return measured;
+
     const { $ } = context;
 
     const issues: ContrastIssue[] = [];

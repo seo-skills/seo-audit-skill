@@ -106,7 +106,8 @@ const EXPECTED_CATEGORIES: Record<string, [number, number, number, number, numbe
   security: [78, 15, 6, 3, 2],
   crawl: [99, 20, 1, 0, 18],
   schema: [92, 13, 2, 0, 4],
-  a11y: [98, 34, 1, 0, 1],
+  // Not measured 1 -> 11: the ten a11y-axe-* rules need a render. No score moves.
+  a11y: [98, 34, 1, 0, 11],
   content: [96, 20, 0, 1, 6],
   // 61 -> 63: social-og-image-size now compares declared with real dimensions,
   // and the fixture declares none, so its "missing dimensions" warning became

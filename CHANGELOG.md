@@ -129,6 +129,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Coverage is collected in the same page load: measured on a fixture, it
     does not change Core Web Vitals. The desktop app cannot collect it yet
     and reports these as not measured.
+  - **Accessibility with axe-core** (need `--cwv`): axe-core runs in the
+    rendered page, on the CLI, the web dashboard and the desktop app, with
+    every rule except experimental and deprecated ones, violations only. Ten
+    `a11y-axe-*` rules group the axe rules no SEOmator rule already covers by
+    area (names, landmarks, keyboard and focus, tables, lists, media, frames,
+    ARIA, language, other), each naming the axe rule, impact and WCAG tags.
+    `disable_axe_rules` in `[rule_options]` leaves out known exceptions.
 - The MCP `audit_url` tool takes `respectCrawlDelay` and `maxDurationS`, and
   refuses up front with `crawl-too-slow` when the site's `Crawl-delay` means
   the crawl cannot finish in time. Its summary carries `coverage` and
@@ -187,6 +194,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one start time, and `seomator analyze` judges a stored crawl's dates
   (sitemap `lastmod`, `unavailable_after`) against the time it was crawled,
   not the time it is replayed.
+- **`a11y-color-contrast` and `a11y-touch-targets` use axe-core's verdict when
+  the page was rendered** (`--cwv`): measured colours and laid-out target
+  sizes instead of guesses from the source, and a serious violation now
+  fails. Without a render they keep their heuristics. This moves the
+  accessibility score of `--cwv` runs.
+- New dependency: `axe-core` (MPL-2.0, used unmodified). It is loaded only
+  when a page is rendered.
 - **A crawl scores four pages at a time, and a category's rules run
   together.** Rules that make requests no longer wait on each other, and the
   run's request limits still apply. Results are merged in page order, so they

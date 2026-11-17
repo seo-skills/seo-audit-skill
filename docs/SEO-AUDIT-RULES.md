@@ -2,7 +2,7 @@
 
 > **Type:** Reference
 
-This is the catalog of every check SEOmator runs: **388 rules** across **20 categories**. For each rule it lists the ID, the name reports print, the rule's weight, the result it gives when it finds a problem, and what it checks. Rules that need more than one line also have a details entry below their category table. The rule IDs are the values that `[rules] enable` and `[rules] disable` in `seomator.toml` match.
+This is the catalog of every check SEOmator runs: **398 rules** across **20 categories**. For each rule it lists the ID, the name reports print, the rule's weight, the result it gives when it finds a problem, and what it checks. Rules that need more than one line also have a details entry below their category table. The rule IDs are the values that `[rules] enable` and `[rules] disable` in `seomator.toml` match.
 
 ## How to read this reference
 
@@ -1063,14 +1063,14 @@ Compares the served HTML with the DOM after JavaScript runs, and checks the rend
 
 <a id="a11y"></a>
 
-### Accessibility (36 rules)
+### Accessibility (46 rules)
 
 Checks for WCAG compliance, screen reader support, and keyboard navigation.
 
 | Rule ID | Name | Weight | Severity | Description |
 |---------|------|-------:|----------|-------------|
 | `a11y-aria-labels` | ARIA Labels | 10 | warn/fail | Interactive elements have accessible names |
-| `a11y-color-contrast` | Color Contrast | 8 | warn | Heuristic check of inline-style colours for likely low contrast; not measured when no element has an inline colour |
+| `a11y-color-contrast` | Color Contrast | 8 | warn/fail | With `--cwv`, axe-core's measured contrast (serious violations fail). Without, a heuristic check of inline-style colours that warns; not measured when no element has an inline colour |
 | `a11y-focus-visible` | Focus Visible | 8 | warn/fail | Checks for focus indicator styles |
 | `a11y-form-labels` | Form Labels | 10 | warn/fail | Form inputs have associated labels |
 | `a11y-heading-order` | Heading Order | 8 | warn/fail | Heading levels don't skip |
@@ -1078,9 +1078,19 @@ Checks for WCAG compliance, screen reader support, and keyboard navigation.
 | `a11y-link-text` | Link Text | 8 | warn/fail | Descriptive link text |
 | `a11y-skip-link` | Skip Link | 6 | warn | Skip-to-content link present |
 | `a11y-table-headers` | Table Headers | 6 | warn/fail | Data tables have proper headers |
-| `a11y-touch-targets` | Touch Targets | 6 | warn | Minimum 44x44px touch target size |
+| `a11y-touch-targets` | Touch Targets | 6 | warn/fail | With `--cwv`, axe-core's `target-size` on the laid-out page. Without, minimum 44x44px sizing hints in the source |
 | `a11y-video-captions` | Video Captions | 8 | warn/fail | Videos have captions or transcripts |
 | `a11y-zoom-disabled` | Zoom Disabled | 10 | fail | Viewport doesn't disable user zoom |
+| `a11y-axe-names` | Accessible Names (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for names and labels: area alt, role="img", summary, dialog, meter, progressbar, tooltip, treeitem and tab names. Serious or critical fails |
+| `a11y-axe-landmarks` | Landmarks (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for landmarks: content outside landmarks, banner/contentinfo/main nesting and duplicates. Serious or critical fails |
+| `a11y-axe-keyboard` | Keyboard and Focus (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for keyboard and focus: scrollable regions and frames reachable by keyboard, nested interactive controls. Serious or critical fails |
+| `a11y-axe-tables` | Tables (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for tables: empty headers, invalid scope, duplicate captions. Serious or critical fails |
+| `a11y-axe-lists` | Lists (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for definition lists. Serious or critical fails |
+| `a11y-axe-media` | Media and Motion (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for autoplaying audio, blink, marquee. Serious or critical fails |
+| `a11y-axe-frames` | Frames (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for frames: unique titles, testable content. Serious or critical fails |
+| `a11y-axe-aria` | ARIA Validity (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for ARIA attributes and roles each element allows, required attributes, valid values. Serious or critical fails |
+| `a11y-axe-language` | Document Language (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for a valid lang value on html. Serious or critical fails |
+| `a11y-axe-other` | Other Accessibility (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for every other axe rule no SEOmator rule covers, such as link-in-text-block. Serious or critical fails |
 | `a11y-aria-hidden-focusable` | aria-hidden Not Over Focusable Content | 4 | fail | aria-hidden not on body or wrapping focusable elements |
 | `a11y-aria-valid` | Valid ARIA Roles and Attributes | 5 | fail | ARIA roles exist and aria-* attributes are spelled correctly |
 | `a11y-accesskey-unique` | Unique Access Keys | 2 | warn | No accesskey assigned to more than one element |
@@ -1105,6 +1115,11 @@ Checks for WCAG compliance, screen reader support, and keyboard navigation.
 | `a11y-table-caption` | Table Captions | 3 | warn | Data tables use `<caption>` rather than a spanning cell |
 | `a11y-tabindex-positive` | No Positive Tabindex | 3 | warn | No element uses a tabindex greater than 0 |
 | `a11y-valid-lang-element` | Valid Element Language Tags | 2 | warn | Element lang attributes are well-formed BCP 47 |
+
+#### a11y-axe-* (ten rules)
+- **What they check:** With `--cwv`, axe-core (the accessibility engine browsers' dev tools use) runs in the rendered page with every rule except experimental and deprecated ones, and reports violations only; its "needs review" results are left out. An axe rule that an existing SEOmator rule already answers is reported there (`image-alt` under `images-alt-present`, `color-contrast` under `a11y-color-contrast`, and so on); the rest are grouped by area, each finding naming the axe rule, its impact, its WCAG tags and example elements. Serious or critical violations fail, others warn. Without a render they are not measured. Advisory
+- **Configure:** leave known exceptions out with `[rule_options."a11y-axe-landmarks"] disable_axe_rules = ["region"]`
+- **Fix:** Follow the help link in each finding
 
 #### a11y-aria-labels
 - **Fix:** Add `aria-label`, visible text content, or `title` to interactive elements (buttons, links, inputs).

@@ -397,9 +397,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       externalLinks: externalLinksOptions(config, options.refresh === true),
       custom: config.custom,
       onExternalLinks: (count) => {
-        if (outputFormat === 'console' || isVerbose) {
-          console.error(chalk.dim(`  checking ${count} external link${count === 1 ? '' : 's'}`));
-        }
+        if (outputFormat === 'console' || isVerbose) progress.onExternalLinks(count);
       },
       // Said before the first page, on stderr, and the run carries on: a
       // projection is information, not a question an unattended run can answer.

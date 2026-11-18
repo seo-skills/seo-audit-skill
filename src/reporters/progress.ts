@@ -230,6 +230,27 @@ export class ProgressReporter {
     this.crawlBar.start(totalPages, 0, { url: 'Starting...' });
   }
 
+  /**
+   * The external-link check is starting.
+   *
+   * While a bar or spinner owns the terminal line, the notice goes into it: a
+   * line written beside a live bar cuts it in two and leaves a broken copy
+   * of the bar on screen. With nothing live, it is a line of its own.
+   */
+  onExternalLinks(count: number): void {
+    const message = `checking ${count} external link${count === 1 ? '' : 's'}`;
+    const bar = this.progressBar ?? this.crawlBar;
+    if (bar) {
+      bar.update({ url: message });
+      return;
+    }
+    if (this.spinner) {
+      this.spinner.text = chalk.yellow(message);
+      return;
+    }
+    process.stderr.write(`${chalk.dim(`  ${message}`)}\n`);
+  }
+
   /** Build a page bar with the shared format */
   private makeBar(label: string): cliProgress.SingleBar {
     return new cliProgress.SingleBar(

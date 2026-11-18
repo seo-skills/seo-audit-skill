@@ -85,6 +85,10 @@ export class ProgressReporter {
     this.spinner = ora({
       text: chalk.yellow(`Auditing ${categoryName}...`),
       spinner: 'dots',
+      // ora counts the lines to erase as text width / terminal width. A terminal
+      // that reports 0 columns (some embedded and IDE terminals) made that
+      // Infinity, and every frame erased lines forever. Print plain lines there.
+      ...(process.stderr.columns === 0 && { isEnabled: false }),
     }).start();
   }
 

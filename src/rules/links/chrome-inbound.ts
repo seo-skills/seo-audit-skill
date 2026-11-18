@@ -18,7 +18,7 @@ export const chromeInboundRule = defineRule({
   run: (context: AuditContext) => {
     const edges = getInboundEdges(context);
     if (!edges) {
-      return notMeasured('links-chrome-inbound', NEEDS_SITE_GRAPH_MESSAGE);
+      return notMeasured('links-chrome-inbound', NEEDS_SITE_GRAPH_MESSAGE, undefined, 'needs-crawl');
     }
 
     if (edges.length === 0) {

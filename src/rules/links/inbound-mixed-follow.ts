@@ -26,7 +26,7 @@ export const inboundMixedFollowRule = defineRule({
     const edges = getInboundEdges(context);
 
     if (edges === null) {
-      return notMeasured('links-inbound-mixed-follow', NEEDS_SITE_GRAPH_MESSAGE);
+      return notMeasured('links-inbound-mixed-follow', NEEDS_SITE_GRAPH_MESSAGE, undefined, 'needs-crawl');
     }
 
     if (edges.length === 0) {

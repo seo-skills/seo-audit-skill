@@ -17,7 +17,7 @@ export const entityTypeDriftRule = defineRule({
   run: (context: AuditContext) => {
     const nodes = loadSchemaNodes(context);
     if (!nodes) {
-      return notMeasured('schema-entity-type-drift', NEEDS_ENTITY_CRAWL);
+      return notMeasured('schema-entity-type-drift', NEEDS_ENTITY_CRAWL, undefined, 'needs-crawl');
     }
     if (nodes.length === 0) {
       return notMeasured('schema-entity-type-drift', NO_SCHEMA_NODES);

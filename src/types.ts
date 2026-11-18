@@ -807,6 +807,7 @@ export type NotMeasuredReason =
   | 'not-applicable'
   | 'not-compared'
   | 'needs-render'
+  | 'needs-crawl'
   | 'could-not-verify'
   | 'probe-failed'
   | 'disabled'

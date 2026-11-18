@@ -32,7 +32,7 @@ export const titlePatternRule = defineRule({
     if (!pages || (context.site?.pageCount ?? 0) < MIN_TITLES) {
       return notMeasured(
         'content-title-pattern',
-        'A title template needs a crawl of at least four titled pages'
+        'A title template needs a crawl of at least four titled pages', undefined, 'needs-crawl'
       );
     }
 

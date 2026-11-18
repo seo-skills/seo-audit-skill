@@ -12,6 +12,7 @@ import { isNotMeasured } from '../../src/rules/define-rule.js';
 export const NOT_MEASURED_REASONS: Record<NotMeasuredReason, { label: string; action?: string }> = {
   'not-applicable': { label: 'did not apply' },
   'needs-render': { label: 'needs a browser render', action: 'Run again with "Render in a browser" on' },
+  'needs-crawl': { label: 'needs a crawl', action: 'Run again with "Crawl linked pages" on' },
   'could-not-verify': { label: 'could not verify', action: 'Run again later; the site or a third party did not answer' },
   'not-compared': { label: 'not compared', action: 'Only indexable, self-canonical pages are compared' },
   'probe-failed': { label: 'check failed to run', action: 'Run again with rendering; the page did not answer the check' },

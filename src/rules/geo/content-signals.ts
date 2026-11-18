@@ -96,7 +96,8 @@ export const contentSignalsRule = defineRule({
       return notMeasured(
         'geo-content-signals',
         'robots.txt was not fetched, so Content-Signal cannot be checked',
-        { reason: 'robotsTxtContent missing' }
+        { reason: 'robotsTxtContent missing' },
+        'could-not-verify'
       );
     }
 

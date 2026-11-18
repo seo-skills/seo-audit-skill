@@ -42,7 +42,7 @@ export const duplicateDescriptionRule = defineRule({
         'content-duplicate-description',
         'Description uniqueness needs other pages to compare against - run with --crawl',
         undefined,
-        'not-applicable'
+        'needs-crawl'
       );
     }
 

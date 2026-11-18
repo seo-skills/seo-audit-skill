@@ -58,7 +58,7 @@ export const duplicateNearRule = defineRule({
         'content-duplicate-near',
         'Near-duplicate detection needs other pages to compare against - run with --crawl',
         undefined,
-        'not-applicable'
+        'needs-crawl'
       );
     }
 

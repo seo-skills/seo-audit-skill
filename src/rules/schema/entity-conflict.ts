@@ -18,7 +18,7 @@ export const entityConflictRule = defineRule({
   run: (context: AuditContext) => {
     const nodes = loadSchemaNodes(context);
     if (!nodes) {
-      return notMeasured('schema-entity-conflict', NEEDS_ENTITY_CRAWL);
+      return notMeasured('schema-entity-conflict', NEEDS_ENTITY_CRAWL, undefined, 'needs-crawl');
     }
     if (nodes.length === 0) {
       return notMeasured('schema-entity-conflict', NO_SCHEMA_NODES);

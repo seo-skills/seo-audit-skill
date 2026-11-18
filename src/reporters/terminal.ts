@@ -526,14 +526,18 @@ export function renderTerminalReport(unsafeResult: AuditResult): void {
     console.log();
   }
 
-  // Checks that only a browser render can answer, counted once per rule
-  const needsRender = new Set(
-    result.categoryResults.flatMap((c) => c.results).filter((r) => r.reason === 'needs-render').map((r) => r.ruleId)
-  ).size;
+  // Checks that only a browser render, or a crawl, can answer, counted once per rule
+  const needing = (reason: string) =>
+    new Set(result.categoryResults.flatMap((c) => c.results).filter((r) => r.reason === reason).map((r) => r.ruleId)).size;
+  const needsRender = needing('needs-render');
+  const needsCrawl = needing('needs-crawl');
   if (needsRender > 0) {
     console.log(chalk.gray(`${needsRender} check${needsRender === 1 ? '' : 's'} need a browser render: rerun with --render`));
-    console.log();
   }
+  if (needsCrawl > 0) {
+    console.log(chalk.gray(`${needsCrawl} check${needsCrawl === 1 ? '' : 's'} need a crawl: rerun with --crawl`));
+  }
+  if (needsRender + needsCrawl > 0) console.log();
 
   // Summary footer. Carries the not-measured count too: without it the closing
   // line read "217 passed • 34 warnings • 24 failed" for a 332-rule audit, and

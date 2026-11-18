@@ -37,7 +37,9 @@ export const rslLicenseRule = defineRule({
     if (context.robotsTxtContent === undefined) {
       return notMeasured(
         'geo-rsl-license',
-        'robots.txt was not fetched, so a License directive cannot be checked'
+        'robots.txt was not fetched, so a License directive cannot be checked',
+        undefined,
+        'could-not-verify'
       );
     }
 

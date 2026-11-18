@@ -33,7 +33,7 @@ export const duplicateExactRule = defineRule({
         'content-duplicate-exact',
         'Duplicate content detection needs other pages to compare against - run with --crawl',
         undefined,
-        'not-applicable'
+        'needs-crawl'
       );
     }
 

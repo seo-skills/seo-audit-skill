@@ -57,7 +57,7 @@ export const sitemapOrphanUrlsRule = defineRule({
   run: async (context: AuditContext) => {
     // Without a crawl there are no crawled pages' links to compare against
     if (!context.site) {
-      return notMeasured('crawl-sitemap-orphan-urls', 'Orphan detection needs the links of crawled pages - run with --crawl to build them');
+      return notMeasured('crawl-sitemap-orphan-urls', 'Orphan detection needs the links of crawled pages - run with --crawl to build them', undefined, 'needs-crawl');
     }
 
     const sitemapUrls = context.sitemapUrls ?? [];

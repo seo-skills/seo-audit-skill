@@ -32,7 +32,7 @@ export const duplicateH1Rule = defineRule({
         'content-duplicate-h1',
         'Cross-page H1 comparison needs the crawl page inventory - run with --crawl to build it',
         undefined,
-        'not-applicable'
+        'needs-crawl'
       );
     }
 

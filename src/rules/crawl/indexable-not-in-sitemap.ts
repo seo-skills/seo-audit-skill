@@ -41,7 +41,7 @@ export const indexableNotInSitemapRule = defineRule({
   run: (context: AuditContext) => {
     const site = context.site;
     if (!site?.pages) {
-      return notMeasured(ID, 'Needs a crawl to compare pages with the sitemap - run with --crawl', undefined, 'not-applicable');
+      return notMeasured(ID, 'Needs a crawl to compare pages with the sitemap - run with --crawl', undefined, 'needs-crawl');
     }
     const sitemapUrls = context.sitemapUrls ?? [];
     if (sitemapUrls.length === 0) {

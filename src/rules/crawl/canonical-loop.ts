@@ -25,7 +25,7 @@ export const canonicalLoopRule = defineRule({
     if (!context.site?.pages) {
       return notMeasured(
         'crawl-canonical-loop',
-        'Following the canonical chain needs per-page crawl state - run with --crawl to build it'
+        'Following the canonical chain needs per-page crawl state - run with --crawl to build it', undefined, 'needs-crawl'
       );
     }
 

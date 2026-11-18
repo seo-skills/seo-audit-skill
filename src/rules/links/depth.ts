@@ -36,7 +36,7 @@ export const depthRule = defineRule({
     if (!site) {
       return notMeasured(
         'links-depth',
-        'Click depth needs the site-wide link graph - run with --crawl to measure it'
+        'Click depth needs the site-wide link graph - run with --crawl to measure it', undefined, 'needs-crawl'
       );
     }
 

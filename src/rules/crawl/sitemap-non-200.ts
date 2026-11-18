@@ -46,7 +46,7 @@ export const sitemapNon200Rule = defineRule({
     if (!site || !pages) {
       return notMeasured(
         'crawl-sitemap-non-200',
-        'Per-page crawl data needs a multi-page crawl - run with --crawl to build it'
+        'Per-page crawl data needs a multi-page crawl - run with --crawl to build it', undefined, 'needs-crawl'
       );
     }
 

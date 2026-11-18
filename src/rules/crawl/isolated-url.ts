@@ -46,7 +46,7 @@ export const crawlIsolatedUrlRule = defineRule({
     if (!site || !discovery) {
       return notMeasured(
         'crawl-isolated-url',
-        'Checking how the URL was discovered needs the crawl\'s per-URL discovery records - run with --crawl to build them'
+        'Checking how the URL was discovered needs the crawl\'s per-URL discovery records - run with --crawl to build them', undefined, 'needs-crawl'
       );
     }
 

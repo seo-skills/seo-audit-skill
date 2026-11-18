@@ -36,7 +36,7 @@ export const napConsistencyRule = defineRule({
   run: (context: AuditContext) => {
     const nodes = loadSchemaNodes(context);
     if (!nodes) {
-      return notMeasured('eeat-nap-consistency', NEEDS_ENTITY_CRAWL);
+      return notMeasured('eeat-nap-consistency', NEEDS_ENTITY_CRAWL, undefined, 'needs-crawl');
     }
     if (nodes.length === 0) {
       return notMeasured('eeat-nap-consistency', NO_SCHEMA_NODES);

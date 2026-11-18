@@ -276,10 +276,12 @@ describe('Core SEO Rules', () => {
       expect(variant.reason).toBe('not-compared');
     });
 
-    it('is not measured outside a crawl', async () => {
+    it('is not measured outside a crawl, and says it needs one', async () => {
       const result = await titleUniqueRule.run(createContext(titled('Alone')));
       expect(result.status).toBe('not-measured');
-      expect(result.reason).toBe('not-applicable');
+      // A missing crawl is "could not look", not "nothing to find": a fail_ci
+      // gate on this rule must not pass a single-page run (ISSUE-002)
+      expect(result.reason).toBe('needs-crawl');
     });
   });
 

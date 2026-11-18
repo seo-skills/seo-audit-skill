@@ -37,7 +37,7 @@ export const cspXssRule = defineRule({
     // Absence is already reported by security-csp; grading it again would
     // penalise the same gap twice.
     if (!header) {
-      return notMeasured('security-csp-xss', 'No Content-Security-Policy to grade', { url });
+      return notMeasured('security-csp-xss', 'No Content-Security-Policy to grade', { url }, 'not-applicable');
     }
 
     const directives = parseDirectives(header);

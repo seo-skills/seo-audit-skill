@@ -30,7 +30,9 @@ export const blockedImagesRule = defineRule({
     if (!context.robotsTxtContent) {
       return notMeasured(
         'crawl-blocked-images',
-        'robots.txt was not fetched, so disallow status of image URLs is unknown'
+        'robots.txt was not fetched, so disallow status of image URLs is unknown',
+        undefined,
+        'could-not-verify'
       );
     }
 
@@ -42,7 +44,9 @@ export const blockedImagesRule = defineRule({
     } catch {
       return notMeasured(
         'crawl-blocked-images',
-        'Page URL could not be parsed, so image URLs cannot be resolved against it'
+        'Page URL could not be parsed, so image URLs cannot be resolved against it',
+        undefined,
+        'could-not-verify'
       );
     }
 

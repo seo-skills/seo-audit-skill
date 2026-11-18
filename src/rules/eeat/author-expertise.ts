@@ -253,6 +253,6 @@ export const authorExpertiseRule = defineRule({
     return notMeasured('eeat-author-expertise', 'No author present - expertise check not applicable', {
       signals: [],
       note: 'This check requires author attribution. See eeat-author-byline rule.',
-    });
+    }, 'not-applicable');
   },
 });

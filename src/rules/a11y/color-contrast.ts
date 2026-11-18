@@ -43,7 +43,9 @@ export const colorContrastRule = defineRule({
     if (examined === 0) {
       return notMeasured(
         'a11y-color-contrast',
-        'No inline colours to check; contrast set in stylesheets needs a rendered check'
+        'No inline colours to check; contrast set in stylesheets needs a rendered check',
+        undefined,
+        'needs-render'
       );
     }
 

@@ -25,7 +25,8 @@ export const trustedTypesRule = defineRule({
       return notMeasured(
         'security-trusted-types',
         'No Content-Security-Policy, so Trusted Types cannot be enforced yet',
-        { url }
+        { url },
+        'not-applicable'
       );
     }
 

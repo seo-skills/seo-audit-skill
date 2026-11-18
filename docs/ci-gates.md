@@ -146,7 +146,13 @@ What counts:
   ```
 
   Add `--render` (and install the browser, see [the example job](#example-github-actions)),
-  or drop `fail_ci` for that rule.
+  or drop `fail_ci` for that rule. A check that compares pages (duplicates,
+  orphans, canonical chains, inbound links) needs `--crawl` the same way;
+  gated on a single-page run, it exits 1:
+
+  ```
+  Exit 1: fail_ci rule content-duplicate-exact was not measured (Duplicate content detection needs other pages to compare against - run with --crawl); fix what stopped it or drop fail_ci; score 88 passed fail-under 70
+  ```
 
 - A gated rule that the run would never execute is a config error, reported
   before the first request with exit 2. That covers a rule removed by
@@ -464,6 +470,7 @@ seo:
 |---|---|
 | Exit 1 while the score passed | Read the `Exit 1:` line, or `gate.reason` in JSON. It names the rule, custom search or coverage gate that failed. |
 | `fail_ci rule <id> was not measured (Needs a browser render: rerun with --render)` | Add `--render` and install Chromium on the runner, or drop `fail_ci` for that rule. |
+| `fail_ci rule <id> was not measured (... run with --crawl)` | The rule compares pages. Add `--crawl`, or drop `fail_ci` for that rule. |
 | Exit 2, `Invalid configuration ... so its gate can never run` | A `fail_ci` rule is removed by `[rules] enable`/`disable` or by `--categories`. Keep its category in the run, or drop the gate. |
 | Exit 2, `unknown rule id "..."` | The id in `[rules.override]` is not a rule. Use the id the "Did you mean" names, or `seomator explain --list`. |
 | `Exit 1: measured 4 of 5 pages; min-coverage 90` | The site rate-limited or dropped pages. Space requests out with the `crawler.per_host_delay_ms` value the warning suggests, lower `--concurrency`, or lower the gate. |

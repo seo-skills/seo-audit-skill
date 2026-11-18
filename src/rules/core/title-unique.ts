@@ -38,7 +38,7 @@ export const titleUniqueRule = defineRule({
         'core-title-unique',
         'Title uniqueness needs other pages to compare against - run with --crawl',
         undefined,
-        'not-applicable'
+        'needs-crawl'
       );
     }
 

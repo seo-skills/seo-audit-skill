@@ -35,7 +35,7 @@ export const hreflangIncomingConflictRule = defineRule({
     if (!site?.pages) {
       return notMeasured(
         'crawl-hreflang-incoming-conflict',
-        'Comparing incoming hreflang annotations needs per-page crawl state - run with --crawl to build it'
+        'Comparing incoming hreflang annotations needs per-page crawl state - run with --crawl to build it', undefined, 'needs-crawl'
       );
     }
 

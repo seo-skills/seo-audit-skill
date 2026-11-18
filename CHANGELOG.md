@@ -44,10 +44,12 @@ what can break a script or CI job, why scores move, and what to change.
   `advisory: true` and each category counts them in `advisoryCount`, outside
   pass/warn/fail.
 - **Why a check was not measured.** A `not-measured` result now carries
-  `reason`: `not-applicable`, `not-compared`, `needs-render`,
+  `reason`: `not-applicable`, `not-compared`, `needs-render`, `needs-crawl`,
   `could-not-verify`, `probe-failed`, `disabled`, `unsupported` or
   `rule-error`. A `fail_ci` gate reads it: "nothing to find on this page"
-  satisfies the gate, "could not look" on any page exits 1.
+  satisfies the gate, "could not look" on any page exits 1. A cross-page check
+  (duplicates, orphans, canonical chains) on a single-page run is "could not
+  look": it needs a crawl.
 - **`seomator mcp`, an MCP server for AI agents.** Registered as
   `seomator-audit`, it serves `audit_url`, `audit_status`, `cancel_run`,
   `list_audits`, `get_audit`, `get_findings`, `compare_audits`, `list_rules`
@@ -431,6 +433,19 @@ what can break a script or CI job, why scores move, and what to change.
   running page to finish, and stop only when the queue is empty and nothing
   is in flight. Crawls with `concurrency` above 1 are faster, and may reach
   pages in a different order.
+- **The CLI no longer hangs in a terminal that reports 0 columns.** Some
+  embedded terminals and CI shells report a width of 0. The category spinner
+  divided by it and tried to erase an endless number of lines, so `audit`
+  never finished. It now prints plain lines there.
+- **A crawl whose start page cannot be reached exits 2.** The crawler recorded
+  the failure as one more broken page, so a dead site, a typo in the host or a
+  refused connection did not stop the run: `audit --crawl` scored zero pages
+  and exited 1, and `seomator crawl` printed "Crawl complete!" and exited 0.
+  Both now stop with the same message and hint as a single-page audit.
+- **The LLM report counts every page a rule was measured on.** In a live
+  crawl, `pages="N" of="M"` counted M from the failing pages only, so it
+  always read "3 of 3" even when the rule passed on a fourth page. It now
+  counts every page with a reading, as stored audits already did.
 
 ## [7.0.0] - 2026-10-15
 

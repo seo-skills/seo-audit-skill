@@ -127,7 +127,7 @@ One row per rule per page. A single-page audit writes one row per rule that ran.
 | `details_json` | TEXT | | The result's `details` object as JSON, including the `pageUrl` the engine adds to every result. |
 | `executed_at` | TEXT | DEFAULT `datetime('now')` | When the row was inserted. |
 | `weight` | INTEGER | | The rule's weight for this result. `0` marks a result that took no reading. NULL on rows written before 3.4.0, which readers treat as weight 1. |
-| `reason` | TEXT | | Why a `not-measured` result took no reading: `not-applicable`, `not-compared`, `needs-render`, `could-not-verify`, `probe-failed`, `disabled`, `unsupported` or `rule-error`. NULL for measured results, for an unmeasured result whose rule gave no reason, and on rows written before 8.0. |
+| `reason` | TEXT | | Why a `not-measured` result took no reading: `not-applicable`, `not-compared`, `needs-render`, `needs-crawl`, `could-not-verify`, `probe-failed`, `disabled`, `unsupported` or `rule-error`. NULL for measured results, for an unmeasured result whose rule gave no reason, and on rows written before 8.0. |
 | `advisory` | INTEGER | | `1` when the result came from an advisory rule, which is reported and never counted in a score. NULL otherwise and on rows written before 8.0. |
 
 A row counts as unmeasured when `weight = 0 OR status = 'not-measured'` (`NOT_MEASURED_SQL` in `src/storage/audits-db/results.ts`). Three encodings exist in stored data:

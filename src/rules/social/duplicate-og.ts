@@ -22,7 +22,7 @@ export const duplicateOgRule = defineRule({
   run: (context: AuditContext, options?: RuleOptionValues) => {
     const site = context.site;
     if (!site?.pages) {
-      return notMeasured(ID, 'Needs other pages to compare against - run with --crawl', undefined, 'not-applicable');
+      return notMeasured(ID, 'Needs other pages to compare against - run with --crawl', undefined, 'needs-crawl');
     }
     const eligibility = eligibilityFrom(readRuleOptions(duplicateOgRule, options));
     const eligible = pageEligibility(site, context.url, eligibility);

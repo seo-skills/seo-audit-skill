@@ -58,6 +58,31 @@ describe('isBlockedAddress', () => {
 
 const STRICT: NetPolicy = { blockPrivate: true, allowHosts: new Set() };
 
+describe('isMetadataAddress', () => {
+  it.each([
+    '169.254.169.254',
+    '::ffff:169.254.169.254',
+    '::169.254.169.254',
+    '64:ff9b::a9fe:a9fe',
+    '::ffff:0:169.254.169.254',
+    '2002:a9fe:a9fe::1',
+    'fe80::1',
+    '[fe80::1]',
+    'fd00:ec2::254',
+  ])('is true for %s, a metadata or link-local address in any spelling', async (ip) => {
+    const { isMetadataAddress } = await import('./address.js');
+    expect(isMetadataAddress(ip)).toBe(true);
+  });
+
+  it.each(['10.0.0.1', '127.0.0.1', '::1', 'fd00::1', '::ffff:10.0.0.1', '93.184.215.14'])(
+    'is false for %s',
+    async (ip) => {
+      const { isMetadataAddress } = await import('./address.js');
+      expect(isMetadataAddress(ip)).toBe(false);
+    }
+  );
+});
+
 describe('netFetch under a blocking policy', () => {
   let server: http.Server;
   let port: number;

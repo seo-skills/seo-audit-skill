@@ -82,6 +82,23 @@ function embeddedV4(groups: number[]): string {
   return `${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`;
 }
 
+/**
+ * The IPv4 address an IPv6 address carries, in every form that embeds one:
+ * IPv4-mapped, the deprecated compatible form, NAT64 well-known, translated
+ * and 6to4. Null for an address that embeds none (and for :: and ::1, which
+ * the compatible form would otherwise read as 0.0.0.0 and 0.0.0.1).
+ */
+function embeddedV4Of(g: number[]): string | null {
+  const allZero = (from: number, to: number) => g.slice(from, to).every((v) => v === 0);
+  if (allZero(0, 7) && (g[7] === 0 || g[7] === 1)) return null; // :: and ::1
+  if (allZero(0, 5) && g[5] === 0xffff) return embeddedV4(g); // ::ffff:a.b.c.d
+  if (allZero(0, 6)) return embeddedV4(g); // ::a.b.c.d (deprecated compatible form)
+  if (g[0] === 0x64 && g[1] === 0xff9b && allZero(2, 6)) return embeddedV4(g); // NAT64 well-known
+  if (allZero(0, 4) && g[4] === 0xffff && g[5] === 0) return embeddedV4(g); // ::ffff:0:a.b.c.d translated
+  if (g[0] === 0x2002) return `${g[1] >> 8}.${g[1] & 0xff}.${g[2] >> 8}.${g[2] & 0xff}`; // 6to4
+  return null;
+}
+
 function isBlockedV6(ip: string): boolean {
   const g = ipv6Groups(ip);
   if (!g) return true;
@@ -90,27 +107,24 @@ function isBlockedV6(ip: string): boolean {
 
   if (allZero(0, 8)) return true; // ::
   if (allZero(0, 7) && g[7] === 1) return true; // ::1
-  if (allZero(0, 5) && g[5] === 0xffff) return isBlockedV4(embeddedV4(g)); // ::ffff:a.b.c.d
-  if (allZero(0, 6)) return isBlockedV4(embeddedV4(g)); // ::a.b.c.d (deprecated compatible form)
-  if (g[0] === 0x64 && g[1] === 0xff9b && allZero(2, 6)) return isBlockedV4(embeddedV4(g)); // NAT64 well-known
+  const v4 = embeddedV4Of(g);
+  if (v4 !== null) return isBlockedV4(v4);
   if (g[0] === 0x64 && g[1] === 0xff9b && g[2] === 0x0001) return true; // 64:ff9b:1::/48 local-use NAT64
-  if (allZero(0, 4) && g[4] === 0xffff && g[5] === 0) return isBlockedV4(embeddedV4(g)); // ::ffff:0:a.b.c.d translated
-  if (g[0] === 0x2002) {
-    // 6to4 carries an IPv4 address in its second and third groups
-    const v4 = `${g[1] >> 8}.${g[1] & 0xff}.${g[2] >> 8}.${g[2] & 0xff}`;
-    return isBlockedV4(v4);
-  }
   if ((g[0] & 0xfe00) === 0xfc00) return true; // fc00::/7 unique local
   if ((g[0] & 0xffc0) === 0xfe80) return true; // fe80::/10 link local
   if ((g[0] & 0xff00) === 0xff00) return true; // ff00::/8 multicast
   return false;
 }
 
+/** Cloud metadata endpoints outside the link-local ranges */
+const METADATA_V6 = ['fd00:ec2::254']; // AWS instance metadata over IPv6
+
 /**
- * True for a link-local address: 169.254.0.0/16 (where cloud metadata lives)
- * and fe80::/10, in any spelling that embeds them.
+ * True for an address a redirect must never be pinned to: link-local
+ * (169.254.0.0/16, where cloud metadata lives, and fe80::/10) or a known
+ * metadata endpoint, in every spelling that embeds an IPv4 address.
  */
-export function isLinkLocalAddress(ip: string): boolean {
+export function isMetadataAddress(ip: string): boolean {
   const bare = ip.replace(/^\[|\]$/g, '');
   const family = isIP(bare);
   if (family === 4) {
@@ -121,8 +135,9 @@ export function isLinkLocalAddress(ip: string): boolean {
   const g = ipv6Groups(bare);
   if (!g) return false;
   if ((g[0] & 0xffc0) === 0xfe80) return true;
-  const mapped = g.slice(0, 5).every((v) => v === 0) && g[5] === 0xffff;
-  return mapped && isLinkLocalAddress(embeddedV4(g));
+  if (METADATA_V6.some((endpoint) => ipv6Groups(endpoint)!.every((value, index) => value === g[index]))) return true;
+  const v4 = embeddedV4Of(g);
+  return v4 !== null && isMetadataAddress(v4);
 }
 
 /**

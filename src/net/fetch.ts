@@ -18,7 +18,7 @@
 import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
 import { isIP } from 'node:net';
 import { Agent, buildConnector } from 'undici';
-import { isBlockedAddress, isLinkLocalAddress } from './address.js';
+import { isBlockedAddress, isMetadataAddress } from './address.js';
 import { rethrowIfAborted, throwIfAborted } from '../errors.js';
 import { currentNetPolicy, pinKey, privateAddressesOf, runWithNetPolicy, type NetPolicy } from './policy.js';
 import { getUserAgent } from '../crawler/user-agent.js';
@@ -158,7 +158,7 @@ const MAX_ENTRY_HOPS = 5;
  * hop. Each hop that resolves only to private addresses is pinned the same
  * way, so the audit reaches the page it was asked for. Only the entry chain
  * is followed: a private address a page links to later is still refused, and
- * a link-local hop (cloud metadata) is never pinned.
+ * a metadata or link-local hop is never pinned.
  *
  * Each hop waits as long as the run's own page request would (`timeoutMs`),
  * and a cancelled run sends nothing and stops at once.
@@ -201,8 +201,8 @@ export async function pinEntryRedirects(
     const key = pinKey(next.hostname);
     if (!pins.has(key)) {
       const addresses = await privateAddressesOf(next.hostname);
-      // A public hop needs no pin; a link-local one never gets one
-      if (!addresses || addresses.some((address) => isLinkLocalAddress(address))) break;
+      // A public hop needs no pin; a metadata or link-local one never gets one
+      if (!addresses || addresses.some((address) => isMetadataAddress(address))) break;
       pins.set(key, addresses);
     }
     url = next.href;

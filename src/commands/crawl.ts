@@ -1,6 +1,10 @@
 import chalk from 'chalk';
 import { Crawler } from '../crawler/index.js';
+import type { CrawledPage, CrawlerOptions } from '../crawler/crawler.js';
 import { loadConfig } from '../config/index.js';
+import type { SeomatorConfig } from '../config/schema.js';
+import { policyForTarget, runWithNetPolicy } from '../net/policy.js';
+import { pinEntryRedirects } from '../net/fetch.js';
 import { setUserAgent } from '../crawler/user-agent.js';
 import { saveCrawl, createCrawl, type StoredPage } from '../storage/index.js';
 import { warnUnimplementedFlags } from './unimplemented-flags.js';
@@ -12,6 +16,45 @@ export interface CrawlOptions {
   resume: boolean;
   output?: string;
   verbose: boolean;
+}
+
+/**
+ * Crawler options from the `[crawler]` config: every key a crawl honours.
+ *
+ * One mapping for the command, so a new politeness key cannot be read by
+ * `audit` and silently dropped here.
+ */
+export function crawlerOptionsFor(config: SeomatorConfig, maxPages: number, now = Date.now()): CrawlerOptions {
+  const { crawler } = config;
+  return {
+    maxPages,
+    concurrency: crawler.concurrency,
+    timeout: crawler.timeout_ms,
+    respectRobots: crawler.respect_robots,
+    urlFilter: toUrlFilterOptions(crawler),
+    delayMs: crawler.delay_ms,
+    perHostDelayMs: crawler.per_host_delay_ms,
+    perHostConcurrency: crawler.per_host_concurrency,
+    respectCrawlDelay: crawler.respect_crawl_delay,
+    maxRetryAfterMs: crawler.max_retry_after_ms,
+    ...(crawler.max_duration_s > 0 && { deadline: now + crawler.max_duration_s * 1000 }),
+  };
+}
+
+/**
+ * Crawl `url` under the same network policy as `seomator audit`: private
+ * addresses are refused unless the target itself is local or intranet (then
+ * it, and the hosts its start page redirects to, are pinned).
+ */
+export async function crawlSite(
+  url: string,
+  config: SeomatorConfig,
+  maxPages: number,
+  onProgress?: CrawlerOptions['onProgress']
+): Promise<CrawledPage[]> {
+  const policy = await pinEntryRedirects(url, await policyForTarget(url, 'auto'), { timeoutMs: config.crawler.timeout_ms });
+  const crawler = new Crawler({ ...crawlerOptionsFor(config, maxPages), ...(onProgress && { onProgress }) });
+  return runWithNetPolicy(policy, () => crawler.crawl(url, maxPages, config.crawler.concurrency));
 }
 
 export async function runCrawl(url: string, options: CrawlOptions): Promise<void> {
@@ -36,27 +79,17 @@ export async function runCrawl(url: string, options: CrawlOptions): Promise<void
   const startTime = Date.now();
   let errorCount = 0;
 
-  // Create crawler
-  const crawler = new Crawler({
-    maxPages,
-    concurrency: config.crawler.concurrency,
-    timeout: config.crawler.timeout_ms,
-    respectRobots: config.crawler.respect_robots,
-    urlFilter: toUrlFilterOptions(config.crawler),
-    delayMs: config.crawler.delay_ms,
-    perHostDelayMs: config.crawler.per_host_delay_ms,
-    onProgress: (progress) => {
-      if (options.verbose) {
-        const truncatedUrl = progress.currentUrl.length > 50
-          ? progress.currentUrl.slice(0, 50) + '...'
-          : progress.currentUrl;
-        process.stderr.write(`\r  Crawled: ${progress.crawled}/${progress.total} | Current: ${truncatedUrl}`);
-      }
-    },
-  });
+  const onProgress: CrawlerOptions['onProgress'] = (progress) => {
+    if (options.verbose) {
+      const truncatedUrl = progress.currentUrl.length > 50
+        ? progress.currentUrl.slice(0, 50) + '...'
+        : progress.currentUrl;
+      process.stderr.write(`\r  Crawled: ${progress.crawled}/${progress.total} | Current: ${truncatedUrl}`);
+    }
+  };
 
   try {
-    const crawledPages = await crawler.crawl(url, maxPages, config.crawler.concurrency);
+    const crawledPages = await crawlSite(url, config, maxPages, onProgress);
 
     if (options.verbose) {
       process.stderr.write('\n');

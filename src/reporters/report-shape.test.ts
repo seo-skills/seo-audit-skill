@@ -86,12 +86,14 @@ describe('report ordering', () => {
     expect(rows[1]).toContain('+9.1');
   });
 
-  it('leads with the first fix as the headline, above the queue', () => {
+  it('features no fix above the queue: the agent introduces it and 01 is its first row', () => {
     const html = render([category('perf', [rule('perf-render-blocking', 'warn')])]);
-    const lead = html.slice(html.indexOf('<section class="fb-lead"'), html.indexOf('<div class="issues-summary"'));
-    expect(lead).toContain('class="fb-headline"');
-    expect(lead).toContain('Start here.');
-    expect(lead).toContain('data-jump-rule="perf-render-blocking"');
+    expect(html).not.toContain('class="fb-lead"');
+    expect(html).not.toContain('data-jump-rule');
+    const queue = html.slice(html.indexOf('<div class="issues-summary"'), html.indexOf('<!-- Filter Tabs -->'));
+    expect(queue).toContain('class="fb-say"');
+    expect(queue).toContain('One fix left');
+    expect(queue.split('<tr class="issue-row"').slice(1)[0]).toContain('data-rule-id="perf-render-blocking"');
   });
 });
 

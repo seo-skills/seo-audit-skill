@@ -346,10 +346,6 @@
   .status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
   .status svg { width: 10px; height: 10px; flex: none; }
 
-  /* The lead fix carries the one 2px orange flag on a screen. */
-  .lead-fix { position: relative; }
-  .lead-fix::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--color-agent); }
-
   /* A label that changes in place (Copy → Copied) arrives softly */
   .copy-swap {
     transition: opacity 200ms ease, filter 200ms ease;

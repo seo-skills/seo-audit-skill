@@ -97,7 +97,7 @@ describe('agentLine', () => {
     // The 2026-11-18 seomator.com audit: 0.57, 0.57, 0.43, 0.43, 0.38, then more
     const fixes = [0.57, 0.57, 0.43, 0.43, 0.38, 0.35, 0.34].map(fix);
     expect(agentLine(fixes, page)).toBe(
-      'Start here. The first five fixes return 2.4 of the 3.1 points this page is missing.'
+      'Work from the top. The first five return 2.4 of the 3.1 points this page is missing.'
     );
   });
 
@@ -108,13 +108,13 @@ describe('agentLine', () => {
 
   it('speaks to the whole site on a crawl', () => {
     expect(agentLine([0.5, 0.2].map(fix), { ...page, crawledPages: 40 })).toBe(
-      'Start here. These 2 fixes return all 0.7 points this site is missing.'
+      'These 2 fixes return all 0.7 points this site is missing.'
     );
   });
 
-  it('leads with the cap while one holds, and has nothing to say when nothing failed', () => {
+  it('puts the cap first while one holds, and has nothing to say when nothing failed', () => {
     const capped = { ...page, scoreCap: { uncappedScore: 88, caps: [{ id: 'noindex', ceiling: 20, reason: '' }] } };
-    expect(agentLine([fix(1)], capped)).toBe('Start here. Nothing else moves the score until this is fixed.');
+    expect(agentLine([fix(1)], capped)).toBe('Lift the score cap first. Nothing in this queue moves the score until it is gone.');
     expect(agentLine([], page)).toBe('Nothing to fix in what we measured.');
   });
 });

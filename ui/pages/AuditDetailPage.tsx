@@ -1,10 +1,12 @@
 /**
  * One stored audit, as the Fix Brief (DESIGN.md).
  *
- * The first fix is the headline and the score sits beside it; then the rest of
- * the fixes in the order that returns the most points, where those points
- * went, what could not be measured, and every check. The action bar keeps one
- * orange button, Run again; export and delete sit in menus.
+ * It opens on the score: the number, the meter, the next grade and what the
+ * score did not count, with what changed since the last run beside it. Then
+ * every fix from 01 in the order that returns the most points, with no fix
+ * singled out above the rest; where those points went, what could not be
+ * measured, and every check. The action bar keeps one orange button, Run
+ * again; export and delete sit in menus.
  */
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
@@ -18,7 +20,6 @@ import { FilterTabs, type FilterStatus } from '../components/FilterTabs.js';
 import { formatDate } from '../lib/format.js';
 import { SiteSection } from '../components/SiteSection.js';
 import { CustomChecksSection } from '../components/CustomChecksSection.js';
-import { LeadFix } from '../components/LeadFix.js';
 import { ScorePanel } from '../components/ScorePanel.js';
 import { FixQueue } from '../components/FixQueue.js';
 import { PointsStrip } from '../components/PointsStrip.js';
@@ -304,37 +305,30 @@ export function AuditDetailPage() {
         </p>
       </header>
 
-      <section aria-label="What to fix first" className="grid lg:grid-cols-[8fr_4fr] border-b border-[var(--color-border)]">
-        <div className="py-7 min-w-0 self-start">
-          <LeadFix fixes={fixes} result={result} notMeasured={notMeasuredRules} onShowEvidence={reveal} greet={greet} />
-        </div>
-        <div className="min-w-0 border-t lg:border-t-0 lg:border-l border-[var(--color-border)]">
-          <ScorePanel
-            result={result}
-            auditId={audit.auditId}
-            missing={missing}
-            scored={scoredRules}
-            notMeasured={notMeasuredRules}
-            advisory={advisory}
-            comparison={comparison.data ?? null}
-            completion={coverage ? `${completionLabel(result)} · ${coverage}` : completionLabel(result)}
-            hint={hint}
-            fixes={fixes}
-            arriving={fromRun}
-          />
-        </div>
-      </section>
+      <ScorePanel
+        result={result}
+        auditId={audit.auditId}
+        missing={missing}
+        scored={scoredRules}
+        notMeasured={notMeasuredRules}
+        advisory={advisory}
+        comparison={comparison.data ?? null}
+        completion={coverage ? `${completionLabel(result)} · ${coverage}` : completionLabel(result)}
+        hint={hint}
+        fixes={fixes}
+        arriving={fromRun}
+      />
 
-      {fixes.length > 1 || stripCategory ? (
-        <FixQueue
-          fixes={fixes}
-          crawl={crawl}
-          capped={Boolean(result.scoreCap)}
-          category={picked}
-          onClearCategory={() => setStripCategory(null)}
-          onReveal={reveal}
-        />
-      ) : null}
+      <FixQueue
+        fixes={fixes}
+        result={result}
+        crawl={crawl}
+        capped={Boolean(result.scoreCap)}
+        category={picked}
+        onClearCategory={() => setStripCategory(null)}
+        onReveal={reveal}
+        greet={greet}
+      />
 
       {detail.data.categoryWeights && (
         <PointsStrip
@@ -406,7 +400,7 @@ export function AuditDetailPage() {
 }
 
 /**
- * The report's shape while it loads: the lead, the score and the first rows,
+ * The report's shape while it loads: the score band and the first queue rows,
  * so the page does not jump when the audit arrives. Shown only after 200ms —
  * a local read is usually faster, and a skeleton that flashes is worse than
  * none.
@@ -428,11 +422,11 @@ function ReportSkeleton() {
         <span className={`${bar} w-48 h-6`} /><span className={`${bar} w-96 h-3`} />
       </div>
       <div className="grid lg:grid-cols-[8fr_4fr] border-b border-[var(--color-border)]">
-        <div className="py-7 pl-[26px] space-y-4">
-          <span className={`${bar} w-80 h-4`} /><span className={`${bar} w-[28rem] max-w-full h-10`} /><span className={`${bar} w-[32rem] max-w-full h-4`} />
+        <div className="py-7 lg:pr-12 space-y-4">
+          <span className={`${bar} w-16 h-3`} /><span className={`${bar} w-48 h-14`} /><span className={`${bar} w-[560px] max-w-full h-2`} /><span className={`${bar} w-80 max-w-full h-4`} />
         </div>
-        <div className="py-7 lg:pl-8 space-y-3">
-          <span className={`${bar} w-28 h-14`} /><span className={`${bar} w-full h-2`} />
+        <div className="py-7 lg:pl-8 space-y-2">
+          {[0, 1, 2, 3].map((i) => <span key={i} className={`${bar} w-full h-4`} />)}
         </div>
       </div>
       <div className="pt-10 space-y-2">

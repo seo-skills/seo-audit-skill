@@ -25,14 +25,14 @@ colors:
   fail: "#BE1212"               # 6.4:1; on the status shape and on scores under 70
   warn: "#92400E"               # 7.1:1; on the status shape and on scores 70-79
   improved: "#167A34"           # 5.4:1; ONLY for change since the last run (fixed, up)
-  agent: "#FE5000"              # the emblem, its progress line, the lead-fix flag, the one primary action
+  agent: "#FE5000"              # the emblem, its progress line, the one primary action
   agent-hover: "#E64800"
   agent-text: "#B83800"         # the agent speaking, 5.8:1 on surface
   on-agent: "#FFFFFF"           # text on an orange fill: white, as seomator.com; 3.3:1, AA large only (owner call)
   strip: "#E5E5E5"              # the kept part of a points-strip column
 
 typography:
-  lead-fix:                     # the first fix on a report; the live phase on the run screen
+  phase:                        # the live phase on the run screen, and its form heading
     fontFamily: Geist
     fontWeight: 600
     fontSize: 2.5rem            # 40px; 32px under 900px
@@ -44,7 +44,7 @@ typography:
     fontSize: 1.25rem
     lineHeight: 1.75rem
     letterSpacing: "-0.01em"
-  page-title:                   # the audited host; smaller than the lead fix on purpose
+  page-title:                   # the audited host; smaller than the score on purpose
     fontFamily: Geist
     fontWeight: 600
     fontSize: 1.25rem
@@ -82,12 +82,6 @@ typography:
     fontSize: 3.5rem
     lineHeight: 3.5rem
     letterSpacing: "-0.03em"
-    fontFeature: tnum
-  points:                       # the lead fix's "+0.6"
-    fontFamily: Geist Mono
-    fontWeight: 500
-    fontSize: 1.75rem
-    lineHeight: 2rem
     fontFeature: tnum
   agent-voice:
     fontFamily: Geist Mono
@@ -146,9 +140,6 @@ components:
     backgroundColor: "{colors.surface}"
     borderColor: "{colors.line}"
     rounded: "{rounded.panel}"
-  lead-flag:
-    backgroundColor: "{colors.agent}"
-    width: 2px
 ---
 
 # SEOmator audit
@@ -157,9 +148,10 @@ components:
 
 **Creative North Star:** *It told me exactly what to fix first.* A zero-chroma
 measurement console (the seomator.com v3 "clean console, living agent" system,
-applied to a working tool) where the first fix owns the headline, the queue is
-ranked by score points the engine can prove, and colour marks only what is
-wrong, what got better, and where the agent is pointing.
+applied to a working tool) that opens on a plain score and goes straight into
+one queue of fixes, ranked by score points the engine can prove, with no fix
+singled out above it; colour marks only what is wrong, what got better, and
+where the agent is pointing.
 
 **Product context:** `@seomator/seo-audit`, a local SEO audit engine (398 rules,
 20 weighted categories). Readers are SEO practitioners, technical marketers and
@@ -186,9 +178,9 @@ design there (mono deltas, states by shape, the agent docked with one sentence,
 a 2px flag on the row that matters, "where every number comes from").
 
 **Key characteristics (first five seconds):**
-- The biggest words on a report are a verb: "Reduce DOM size".
-- One orange stripe, one orange agent, one orange button. Nothing else is orange.
-- The score is a plain number in the corner, with what's missing written under it.
+- The report opens on the score: a plain number, a meter with its grade notches, and what the next grade takes.
+- One orange agent, one orange button. Nothing else is orange.
+- No fix is featured: the queue starts at 01, and its order is the advice.
 - Problems are red or amber shapes. Fine is quiet. Green means "better than last time".
 - A single table of fixes, already in order, each with what it is worth.
 
@@ -204,8 +196,7 @@ a code editor, so neither theme is a costume; light is canonical because the
 HTML report is emailed and printed.
 
 **Who may be orange (the whole budget):** the agent emblem; its 2px progress
-line while a run is live; the 2px flag on the lead fix, once per screen; the one
-primary action on a screen ("Run again", "Run audit"); the agent's sentence, as
+line while a run is live; the one primary action on a screen ("Run again", "Run audit"); the agent's sentence, as
 `agent-text`. Selection, focus, links, checkboxes and the active filter are ink.
 
 **Colour only where it's wrong:**
@@ -255,10 +246,10 @@ unconfirmed, and the HTML report could not carry it either way. One face on all
 three hosts beats the brand face on two. Degular stays in the wordmark, which
 ships as outlines. Geist is normally an overused display voice; it is justified
 here because this is an Operate/Read surface with no marketing moment, and the
-largest type on the page is a fix, not a slogan.
+largest type on the page is the score, not a slogan.
 
 **Scale:** 11 label · 13 small · 14 body · 16 reading · 20 section and page title ·
-28 points · 40 lead fix · 56 score. Levels differ by size, not just weight.
+40 run phase · 56 score. Levels differ by size, not just weight.
 Labels are the only uppercase. Every figure is tabular. Thousands take a
 separator (`19,403`).
 
@@ -271,22 +262,14 @@ is a table, a field or a menu, never a box around a section.
 **The report, top to bottom:**
 1. **Bar.** Left: "← {domain} history". Right: Compare (ghost), Export ▾ (HTML, Markdown, JSON, LLM text), ⋯ (copy link, open data folder, then Delete), Run again (the orange).
 2. **Identity.** The host as the page title (20px), then one mono meta line: URL · date and time · pages · rendered or not · engine version · checks.
-3. **Lead fix**, 8 columns, flagged by the 2px orange line on its left edge:
-   - the docked agent (`focused`, 28px) and its sentence;
-   - rank, status shape and word, category label;
-   - the fix as the headline: the fix text up to its first colon or semicolon;
-   - what we saw (the rule's message) and the rest of the fix text;
-   - one mono facts line from the rule's details;
-   - Show evidence, Copy for a developer, and the points on the right.
-4. **Score**, 4 columns, divided by a hairline:
-   - label, `91/100`, the grade word;
-   - Missing / scored / not measured / advisory, each with its number;
-   - "Since {time}": what was fixed (green), what regressed (red), and checks that are new since then.
-5. **Fix queue** (rank · status · fix + what we saw · category · pages on a crawl only · points), from 02, eight rows, then "Show N more". A row opens in place to evidence (what we saw, a sample table, why it matters, how to fix, the rule id, its weight and its points). Filter: All / Fails / Warnings.
-6. **Where the points went.** The points strip (below), and "Show as a table".
-7. **What we could not measure.** Reasons with counts: needs a crawl, needs a mobile render, does not apply, could not check; then advisory. Site findings sit here as one quiet line.
-8. **All checks.** Filters and search over every result, grouped by category, collapsed.
-9. **Where the numbers come from.** How the score, the points and caps are computed, and the engine and scoring versions.
+3. **Score**, the full width, split 8/4 by a hairline:
+   - left: label, `91/100` and the grade word, the meter with its grade notches, and the next grade in the queue's terms; while a cap holds, the cap instead ("Holds the score", the fix that lifts it, its reason, the ceiling and the uncapped score);
+   - right: Missing / scored / not measured / advisory, each with its number, then completion, then "Since {time}": what was fixed (green), what regressed (red), and checks that are new since then.
+4. **Fix queue** (rank · status · fix + what we saw · category · pages on a crawl only · points), from 01, with no fix singled out above it. The docked agent (`focused`, 28px) introduces it with its one sentence. Eight rows, then "Show N more". A row opens in place to evidence (what we saw, Every detail and page, Copy for a developer | why it matters, how to fix, the rule id and its points). Filter: All / Fails / Warnings.
+5. **Where the points went.** The points strip (below), and "Show as a table".
+6. **What we could not measure.** Reasons with counts: needs a crawl, needs a mobile render, does not apply, could not check; then advisory. Site findings sit here as one quiet line.
+7. **All checks.** Filters and search over every result, grouped by category, collapsed.
+8. **Where the numbers come from.** How the score, the points and caps are computed, and the engine and scoring versions.
 
 The report page has no category sidebar: the strip and the table replace it.
 
@@ -322,7 +305,7 @@ opens that site's trend. No row of site cards above the table (owner,
 2026-11-18: "i dont like the website list on top"), and no green or red count
 columns.
 
-**Under 900px:** lead fix, then score, then the queue as one block per fix (rank,
+**Under 900px:** the score, then its counts and since-last-run, then the queue as one block per fix (rank,
 status and points on the first line; fix and what we saw under it). Other
 tables scroll inside their own box. The strip keeps proportions and drops its
 labels. Grid children set `min-width: 0`, so long URLs and selectors wrap
@@ -351,8 +334,8 @@ not measured ⬚ dashed square · advisory ○ open circle.
 - **Field.** 40px, surface, `line-strong`; focus turns the border ink and adds a 3px `text`/12% halo. Labels sit above in the label style.
 - **Segmented control.** A `hover` track with the active segment on surface (dark: `line-strong`), for History/New audit and the queue filters.
 - **Export and ⋯ menus.** 6px panels, 4px items; Delete is last, after a divider, in `fail`, and confirms before it acts.
-- **Fix-queue row.** Hover is `hover`; an open row loses its line and shows evidence on `page` below it. Evidence is two columns (what we saw + sample table | why it matters, how to fix, rule id · weight · points).
-- **Empty, loading and error states.** History empty: the house illustration (`ui/assets/audit-history-empty-*.webp`) with the agent `idle`. Zero fixes: the lead block reads "Nothing to fix in what we measured." with the not-measured count and what would measure it. A failed load says what failed and offers a retry; a stale dashboard token asks for a reload.
+- **Fix-queue row.** Hover is `hover`; an open row loses its line and shows evidence on `page` below it. Evidence is two columns (what we saw, Every detail and page, Copy for a developer | why it matters, how to fix, rule id · category · points).
+- **Empty, loading and error states.** History empty: the house illustration (`ui/assets/audit-history-empty-*.webp`) with the agent `idle`. Zero fixes: the queue keeps its heading, the agent says "Nothing to fix in what we measured." and the table is left out; the not-measured count stays in the score band. A failed load says what failed and offers a retry; a stale dashboard token asks for a reload.
 
 ## The agent in the product
 
@@ -363,30 +346,30 @@ never enlarged. It has no mouth or limbs in the product. It is still by default.
 |---|---|---|
 | `idle` | header, empty states | none |
 | `crawling` | the run screen while a run is live | lean plus a 1.6s scan loop, the only loop, and only while the run runs |
-| `focused` | docked on the lead fix | a resting pose |
+| `focused` | docked over the fix queue | a resting pose |
 | `alert` | once, when a run ends with failures | 260ms, once |
 | `delighted` | once, when the score went up since the last run | 420ms hop, once |
 
 **What it says:** one sentence, in Geist Mono and `agent-text`, written from the
 data, never a slogan, never a claim the numbers don't support. Examples:
-- "Start here. The first five fixes return 2.4 of the 8.8 points this page is missing."
-- "Start here. Nothing else moves the score until this page can be indexed." (capped)
+- "Work from the top. The first five return 2.4 of the 8.8 points this page is missing."
+- "Lift the score cap first. Nothing in this queue moves the score until it is gone." (capped)
 - "Reading /pricing. 12 of 40 pages done." (run)
 
 `delighted` never means "published" or "done for you": the user fixes things.
 
-## The numbers (the contract behind R1 and R2)
+## The numbers (the contract behind R2)
 
 - **Points** for a fix = what the overall score gains if that check passes, from the weights that make the score: `(100 − result score) × rule weight ÷ Σ scored rule weights in its category × category weight ÷ 100`.
 - Points add up. The 47 fixes on the 2026-11-18 seomator.com audit sum to 8.77, and 91.24 + 8.77 = 100.01. Show one decimal, say "tied" when two match, and never present points as traffic.
 - **Ranking** is one queue by points, failures and warnings together, then rule weight, then rule id. A widespread heavy warning can outrank a narrow failure; the status shape still says which is which.
-- **Caps.** While a cap holds, the fix that lifts it leads and is worth the gap between the ceiling and the uncapped average (`score-caps.ts` records both). Every other fix shows "+N once the cap is lifted".
+- **Caps.** While a cap holds, the score band names it and the fix that lifts it, worth the gap between the ceiling and the uncapped average (`score-caps.ts` records both). Every other fix shows "+N once the cap is lifted".
 - **Not measured and advisory** count for nothing and say so. The exact score (91.24) is shown in "Where the numbers come from"; everywhere else the score is the integer.
 - **Crawls:** points use the same arithmetic on the aggregated result, and the Pages column ("214 / 300") appears before Points.
 
 ## Do's and Don'ts
 
-- **Do** make the first fix the largest type on any report, on every host.
+- **Do** open every report on the score, then the queue from 01, on every host. No fix is featured above the queue.
 - **Do** compute every number on a report from the stored result, and show where it came from.
 - **Do** pair every status colour with its shape and its word.
 - **Do** keep the orange to the budget above. Count it: one primary per screen.
@@ -394,7 +377,7 @@ data, never a slogan, never a claim the numbers don't support. Examples:
 - **Don't** add a score ring, gauge, donut or traffic-light grade.
 - **Don't** paint passes green, or use green for anything but improvement.
 - **Don't** add tiles: 20 equal category boxes is content of unequal weight in equal boxes. The strip and its table carry the categories.
-- **Don't** put a card in a card, a coloured edge on a card (the lead flag is the one 2px stripe, on a block, once per screen), pills, or a kicker label above a heading.
+- **Don't** put a card in a card, a coloured edge on a card or a block, pills, or a kicker label above a heading.
 - **Don't** fetch fonts or assets at runtime, and don't hand-write a hex in `ui/`.
 
 ## Motion
@@ -403,7 +386,7 @@ data, never a slogan, never a claim the numbers don't support. Examples:
 - **Easing:** enter `cubic-bezier(.23,1,.32,1)`; move `cubic-bezier(.77,0,.175,1)`; exit the enter curve.
 - **Duration:** micro 100–150ms (hover, press) · short 240–280ms (state entries, row open) · medium 420ms (the hop) · the scan loops at 1.6s while a run is live.
 - **Progress** animates `transform: scaleX`, never width. No spinners anywhere.
-- **The one authored moment:** a run ending. The progress line completes, the agent turns `alert` or `delighted` once, the phase headline is replaced by the lead fix, and the orange moves to "Run again".
+- **The one authored moment:** a run ending. The progress line completes, the agent turns `alert` or `delighted` once, the phase headline gives way to the report, which opens on its score, and the orange moves to "Run again".
 - **Reduced motion:** every state shows its resting pose; nothing loops.
 
 ## Implementation notes
@@ -415,7 +398,7 @@ data, never a slogan, never a claim the numbers don't support. Examples:
 
 **Open work**
 - The compare page and the trend chart follow the tokens and the radius cap but have not been redrawn to this layout.
-- The HTML report's sidebar badges and category cards keep their earlier styling; its header, score, lead fix and fix queue follow this file.
+- The HTML report's sidebar badges and category cards keep their earlier styling; its header, score and fix queue follow this file.
 - The desktop app was built (`npm run electron:build`), not launched: run `npm run rebuild:electron && npm run electron:dev` to see it, then `npm run rebuild:cli`.
 
 ## Decisions Log
@@ -423,7 +406,7 @@ data, never a slogan, never a claim the numbers don't support. Examples:
 | Date | Decision | Rationale |
 |------|----------|-----------|
 | 2026-11-18 | Initial design system created ("The Fix Brief") | /design-consultation. Memorable thing: "It told me exactly what to fix first." Research: Sitebulb, Ahrefs, Semrush, Vercel Geist (PageSpeed Insights refused the headless browser). Outside voices: Codex ("The Fix Brief") and a Claude subagent ("One-Bit Bench"), both completed |
-| 2026-11-18 | R1: the first fix owns the headline | Both outside voices and the memorable thing; all 398 rules already carry imperative fix text |
+| 2026-11-18 | ~~R1: the first fix owns the headline~~ → reversed: the report opens on the score, and the queue starts at 01 | Owner, on a real audit: "dont feature a fix on report beginning". One fix set at 40px read as the only thing to do, and it repeated row 01 of the queue under it. The queue's order still says what to fix first; the agent's sentence moved over the queue and speaks about it as a whole |
 | 2026-11-18 | R2: one queue ranked by score points, across fail/warn, with points shown | The score is linear with recorded caps, so points are exact (verified: gains sum to the missing 8.77). Codex argued against showing points; kept, labelled as score points, never traffic |
 | 2026-11-18 | R3: colour only where it's wrong, no gauge; green only for improvement; D-grade orange retired | Today 20 green bars and 279 green passes are the loudest thing on a report |
 | 2026-11-18 | R4: the weight-proportional points strip replaces the category tiles and the report sidebar | Subagent's idea, owner's pick; table fallback and aria labels required |
@@ -431,6 +414,6 @@ data, never a slogan, never a claim the numbers don't support. Examples:
 | 2026-11-18 | ~~Ink on orange (6.0:1)~~ → white on orange, as the website (3.3:1) | Owner, after seeing it: "the button text should be white color". AA for large text only; `BRAND_PAIRS` in tokens.ts holds it to a 3:1 floor |
 | 2026-11-18 | Not adopted: Departure Mono as the agent's voice; ranking live during a run | The website's agent speaks Geist Mono; rows re-sorting mid-run fight "told me exactly" |
 | 2026-11-18 | Implemented on `feat/fix-brief-design` | Owner: "okay i like it apply the design and ux changes into project" |
-| 2026-11-18 | Caps handled in the UI, not by mapping caps to rules | A cap is a condition (an empty page needs a title *and* content), so points stay on the uncapped average and the lead becomes "lift the cap" |
+| 2026-11-18 | Caps handled in the UI, not by mapping caps to rules | A cap is a condition (an empty page needs a title *and* content), so points stay on the uncapped average and the score band names the cap and what lifts it |
 | 2026-11-18 | History: the site cards above the table became a Site menu in its header | Owner: "i dont like the website list on top"; the cards pushed the audits down and gave every site equal weight |
 | 2026-11-18 | Advisory findings stay out of the fix queue | They score nothing yet, so they cannot be what to fix first; they are counted with the measurement gaps and remain in All checks |

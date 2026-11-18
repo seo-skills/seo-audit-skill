@@ -384,6 +384,7 @@ export function getRuleSummaries(db: Database.Database, auditId: number): Stored
       COUNT(*) AS total_pages,
       SUM(CASE WHEN ${NOT_MEASURED_SQL} THEN 0 ELSE 1 END) AS measured_pages,
       SUM(CASE WHEN NOT ${NOT_MEASURED_SQL} AND status <> 'pass' THEN 1 ELSE 0 END) AS affected_pages,
+      SUM(CASE WHEN NOT ${NOT_MEASURED_SQL} AND status = 'fail' THEN 1 ELSE 0 END) AS failed_pages,
       MAX(COALESCE(advisory, 0)) AS advisory,
       MAX(CASE WHEN ${NOT_MEASURED_SQL} THEN reason END) AS reason,
       MIN(id) AS first_id
@@ -400,6 +401,7 @@ export function getRuleSummaries(db: Database.Database, auditId: number): Stored
     total_pages: number;
     measured_pages: number;
     affected_pages: number;
+    failed_pages: number;
     advisory: number;
     reason: string | null;
   }>;
@@ -449,6 +451,7 @@ export function getRuleSummaries(db: Database.Database, auditId: number): Stored
       totalPages: row.total_pages,
       measuredPages: row.measured_pages,
       affectedPages: row.affected_pages,
+      failedPages: row.failed_pages,
       notMeasured,
       advisory: row.advisory === 1,
       reason: row.reason,

@@ -12,6 +12,9 @@ import type { OverridePriority } from '../types.js';
 import { toCss as tokensToCss } from '../design/tokens.js';
 import { getCategoryById } from '../categories/index.js';
 import { getFixSuggestion } from './fix-suggestions.js';
+import { pointsByRule } from '../rules/points.js';
+import { agentLine, capHeadline, formatPoints, nextGradeLine, splitFix, tied } from './fix-brief.js';
+import { REPORT_FONT_FACES } from '../design/fonts.js';
 import { getRuleById } from '../rules/registry.js';
 import { isNotMeasured } from '../rules/define-rule.js';
 import { brokenExternalSection } from './external-links-section.js';
@@ -116,6 +119,67 @@ interface AggregatedIssue {
   priority: number;
   /** `[rules.override]` priority, when the config set one */
   override?: OverridePriority;
+}
+
+/** A status as DESIGN.md draws it: a 10px shape, colour on the shape only, then its word */
+function statusHtml(status: DisplayStatus): string {
+  const shape =
+    status === 'fail'
+      ? '<rect x="0.5" y="0.5" width="9" height="9" fill="var(--color-fail)" stroke="var(--color-fail)"/>'
+      : status === 'warn'
+        ? '<rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="var(--color-warn)"/><rect x="0.5" y="5" width="9" height="4.5" fill="var(--color-warn)"/>'
+        : '<rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="var(--color-text-muted)"/>';
+  const word = status === 'fail' ? 'Fails' : status === 'warn' ? 'Warning' : status === 'pass' ? 'Passes' : 'Not measured';
+  return `<span class="fb-status"><svg viewBox="0 0 10 10" aria-hidden="true">${shape}</svg><span>${word}</span></span>`;
+}
+
+/** The emblem at rest, for the agent docked over the lead fix */
+const AGENT_EMBLEM = `<svg viewBox="0 0 150 150" role="img" aria-label="SEOmator agent">
+  <path fill="#FE5000" d="M75 5C27.1762 5 5 26.7323 5 75C5 123.268 27.1762 145 75 145C122.824 145 145 123.268 145 75C145 26.7323 122.832 5 75 5Z"/>
+  <path fill="#FFFFFF" d="M74.9825 53C4.58302 53.9094 -3.78745 135.394 74.9825 134.999C153.752 135.356 145.478 53.9543 74.9825 53Z"/>
+  <path fill="#FE5000" d="M68.2375 93.9149C69.5702 105.763 76.1406 114.734 82.913 113.953C89.6854 113.171 94.0951 102.933 92.7625 91.0851C91.4298 79.2371 84.8594 70.266 78.087 71.0474C71.3146 71.8289 66.9049 82.067 68.2375 93.9149Z"/>
+  <path fill="#FE5000" d="M100.114 91.3539C100.938 101.56 106.033 109.452 111.493 108.98C116.953 108.508 120.711 99.8523 119.886 89.6461C119.062 79.4399 113.967 71.5485 108.507 72.0201C103.047 72.4917 99.2888 81.1477 100.114 91.3539Z"/>
+</svg>`;
+
+/**
+ * The first fix as the report's headline (DESIGN.md, R1), with the agent's one
+ * sentence over it — the same wording the dashboard prints (`fix-brief.ts`).
+ * A capped score leads with lifting the cap; nothing to fix prints nothing.
+ */
+function leadFixHtml(
+  ranked: AggregatedIssue[],
+  pointsOf: (issue: AggregatedIssue) => number,
+  result: AuditResult
+): string {
+  // One entry per rule: a live crawl can list a rule as a failure and a warning
+  const seen = new Set<string>();
+  const fixes = ranked.filter((issue) => !seen.has(issue.ruleId) && seen.add(issue.ruleId)).map((issue) => ({ issue, points: pointsOf(issue) }));
+  const line = escapeHtml(agentLine(fixes, result));
+  const cap = result.scoreCap?.caps[0];
+  if (cap && result.scoreCap) {
+    const lift = Math.max(result.scoreCap.uncappedScore - result.overallScore, 0);
+    return `<section class="fb-lead" aria-label="What to fix first">
+      <div class="fb-dock">${AGENT_EMBLEM}<span class="fb-say">${line}</span></div>
+      <div class="fb-kick">${statusHtml('fail')}<span class="fb-label">Score cap</span></div>
+      <h2 class="fb-headline">${escapeHtml(capHeadline(cap.id))}</h2>
+      <p class="fb-saw">${escapeHtml(cap.reason)}</p>
+      <div class="fb-acts"><div class="fb-points"><div class="fb-points-n">+${lift}</div><div class="fb-label">lifts the cap</div></div></div>
+    </section>`;
+  }
+  const lead = fixes[0];
+  if (!lead) return '';
+  const { headline, rest } = splitFix(getFixSuggestion(lead.issue.ruleId));
+  const saw = `${lead.issue.message.replace(/\.$/, '')}.${rest ? ` ${rest}.` : ''}`;
+  return `<section class="fb-lead" aria-label="What to fix first">
+      <div class="fb-dock">${AGENT_EMBLEM}<span class="fb-say">${line}</span></div>
+      <div class="fb-kick"><span class="fb-rank">01</span>${statusHtml(lead.issue.status)}<span class="fb-label">${escapeHtml(lead.issue.categoryName)}</span></div>
+      <h2 class="fb-headline">${escapeHtml(headline)}</h2>
+      <p class="fb-saw">${escapeHtml(saw)}</p>
+      <div class="fb-acts">
+        <a class="fb-btn" href="#" data-jump-rule="${escapeHtml(lead.issue.ruleId)}">Show evidence</a>
+        <div class="fb-points"><div class="fb-points-n">${formatPoints(lead.points)}</div><div class="fb-label">score points${tied(lead, fixes[1]) ? ' · tied with 02' : ''}</div></div>
+      </div>
+    </section>`;
 }
 
 /**
@@ -316,6 +380,7 @@ function generateStyles(): string {
        background where the app painted zinc (#09090b), and the two disagreed
        on every raised surface. One source now: src/design/tokens.ts. */
 ${tokensToCss()}
+${REPORT_FONT_FACES}
 
     /* ========================================
        Base Styles
@@ -734,37 +799,10 @@ ${tokensToCss()}
       grid-column: 1 / -1;
     }
 
-    .score-circle {
-      position: relative;
-      width: 140px;
-      height: 140px;
-    }
 
-    .score-circle svg {
-      transform: rotate(-90deg);
-    }
 
-    .score-circle-bg {
-      fill: none;
-      stroke: var(--color-border);
-      stroke-width: 8;
-    }
 
-    .score-circle-progress {
-      fill: none;
-      stroke-width: 8;
-      stroke-linecap: round;
-      transition: stroke-dashoffset 0.5s ease;
-    }
 
-    .score-circle-text {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
 
     .score-value {
       font-size: 36px;
@@ -800,32 +838,10 @@ ${tokensToCss()}
       color: var(--color-fail);
     }
 
-    .score-stats {
-      display: flex;
-      gap: 24px;
-    }
 
-    .score-stat {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
 
-    .score-stat-value {
-      font-size: 24px;
-      font-weight: 700;
-      font-family: var(--font-mono);
-    }
 
-    .score-stat-value.fail { color: var(--color-fail); }
-    .score-stat-value.warn { color: var(--color-warn); }
-    .score-stat-value.not-measured { color: var(--color-neutral); }
-    .score-stat-value.pass { color: var(--color-pass); }
 
-    .score-stat-label {
-      font-size: 12px;
-      color: var(--color-text-muted);
-    }
 
     .score-cap {
       font-size: 13px;
@@ -1721,17 +1737,6 @@ ${tokensToCss()}
         grid-template-columns: 1fr;
         gap: 20px;
       }
-      .score-circle {
-        margin: 0 auto;
-      }
-      /* Five stats in a nowrap row are 11px wider than the card on a 375px
-         screen, so "332 Total" broke out past the card's right border. Same
-         remedy as .category-header below. */
-      .score-stats {
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 8px 16px;
-      }
       .main {
         padding: 16px;
       }
@@ -1776,6 +1781,46 @@ ${tokensToCss()}
     .rule-card.highlight {
       animation: highlight 1.5s ease;
     }
+
+    /* ========================================
+       The Fix Brief (DESIGN.md): the first fix is the headline, the score
+       is a plain number, status is a shape with its word, and colour only
+       marks what is wrong.
+       ======================================== */
+    .fb-label { font-family: var(--font-mono); font-size: 11px; font-weight: 500; line-height: 16px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-muted); }
+    .fb-lead { position: relative; padding: 4px 0 4px 26px; margin: 8px 0 32px; }
+    .fb-lead::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--color-agent); }
+    .fb-dock { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+    .fb-dock svg { width: 28px; height: 28px; flex: none; }
+    .fb-say { font-family: var(--font-mono); font-size: 13px; line-height: 18px; color: var(--color-agent-text); }
+    .fb-kick { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .fb-rank { font-family: var(--font-mono); color: var(--color-text-muted); }
+    .fb-headline { font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em; max-width: 22ch; overflow-wrap: anywhere; }
+    .fb-saw { margin-top: 14px; font-size: 16px; line-height: 24px; color: var(--color-text-secondary); max-width: 60ch; overflow-wrap: anywhere; }
+    .fb-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 22px; }
+    .fb-btn { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border: 1px solid var(--color-border-strong); border-radius: 4px; background: var(--color-bg-elevated); color: var(--color-text); font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; }
+    .fb-btn:hover { border-color: var(--color-text); }
+    .fb-points { margin-left: auto; text-align: right; }
+    .fb-points-n { font-family: var(--font-mono); font-size: 28px; line-height: 32px; font-weight: 500; }
+    .fb-status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
+    .fb-status svg { width: 10px; height: 10px; flex: none; }
+    .issues-table .fb-num { text-align: right; font-family: var(--font-mono); white-space: nowrap; }
+    .score-figure .score-value { font-family: var(--font-mono); font-size: 56px; line-height: 56px; font-weight: 500; letter-spacing: -0.03em; }
+    .score-figure .score-of { font-family: var(--font-mono); font-size: 18px; color: var(--color-text-muted); margin-left: 4px; }
+    .score-figure { min-width: 240px; }
+    .score-figure .score-verdict { margin-top: 8px; font-weight: 500; color: var(--color-text); }
+    .score-meter { margin-top: 16px; }
+    .score-meter-track { position: relative; height: 8px; overflow: hidden; background: repeating-linear-gradient(135deg, var(--color-border-strong) 0 1.5px, transparent 1.5px 5px), var(--color-strip); }
+    .score-meter-fill { position: absolute; inset: 0 auto 0 0; }
+    .score-meter-tick { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--color-bg-elevated); }
+    .score-meter-scale { position: relative; height: 16px; margin-top: 4px; font-family: var(--font-mono); font-size: 10px; line-height: 16px; color: var(--color-text-muted); }
+    .score-meter-scale span { position: absolute; }
+    .score-next { margin-top: 8px; font-size: 13px; line-height: 18px; color: var(--color-text-secondary); max-width: 32ch; }
+    .score-status, .score-status.pass, .score-status.fail { background: none; padding: 0; border-radius: 0; color: var(--color-text-secondary); }
+    .score-facts { display: grid; grid-template-columns: auto auto; gap: 6px 24px; margin-top: 16px; font-size: 13px; }
+    .score-facts dt { color: var(--color-text-secondary); }
+    .score-facts dd { margin: 0; text-align: right; font-family: var(--font-mono); }
+    @media (max-width: 768px) { .fb-headline { font-size: 32px; line-height: 36px; } .fb-points { margin-left: 0; width: 100%; text-align: left; order: -1; } }
 
     /* ========================================
        Print Styles
@@ -1973,6 +2018,15 @@ function generateScript(pages: string[]): string {
             targetCard.classList.add('highlight');
             setTimeout(() => targetCard.classList.remove('highlight'), 1500);
           }
+        });
+      });
+
+      // The lead fix's "Show evidence" takes the same path as its table row
+      document.querySelectorAll('[data-jump-rule]').forEach(link => {
+        link.addEventListener('click', (event) => {
+          event.preventDefault();
+          const row = Array.from(issueRows).find(r => r.dataset.ruleId === link.dataset.jumpRule);
+          if (row) row.click();
         });
       });
 
@@ -2266,17 +2320,27 @@ export function renderHtmlReport(result: AuditResult): string {
   // page is treated as the single-page report it is.
   const isMultiPageReport = uniqueUrls.length > 1;
 
-  // Calculate circumference for score circle
-  const radius = 58;
-  const circumference = 2 * Math.PI * radius;
-  const dashOffset = circumference - (result.overallScore / 100) * circumference;
+  // What each fix returns, in score points, from the same weights that make
+  // the score (`rules/points.ts`), for a live or a stored result alike.
+  const issuePoints = pointsByRule(result.categoryResults);
+  const pointsOf = (issue: AggregatedIssue) => issuePoints.get(issue.ruleId) ?? 0;
+  const missingPoints = [...issuePoints.values()].reduce((sum, value) => sum + value, 0);
+  // The score as the app draws it: the exact value on a meter, and what the
+  // next grade costs in the queue's own terms (`fix-brief.ts`).
+  const exactScore = result.scoreCap ? result.overallScore : 100 - missingPoints;
+  const queueForGrade = [...issuePoints.values()].filter((v) => v > 0).sort((a, b) => b - a).map((points) => ({ points }));
+  const scoreMeter = `<div class="score-meter" role="img" aria-label="Score ${result.overallScore} of 100">
+            <div class="score-meter-track"><span class="score-meter-fill" style="width: ${Math.max(0, Math.min(100, exactScore)).toFixed(2)}%; background: ${scoreColor}"></span>${[50, 70, 80, 90].map((t) => `<span class="score-meter-tick" style="left: ${t}%"></span>`).join('')}</div>
+            <div class="score-meter-scale" aria-hidden="true">${[50, 70, 80, 90].map((t) => `<span style="left: ${t}%; transform: translateX(-50%)">${t}</span>`).join('')}</div>
+          </div>
+          ${result.scoreCap ? '' : `<p class="score-next">${escapeHtml(nextGradeLine(exactScore, queueForGrade))}</p>`}`;
 
-  // Generate issues table rows (failures and warnings only) - now using
-  // aggregated data, ordered by what actually deserves attention first.
-  // Severity still leads, because a failure outranks a warning whatever its
-  // weight; within a severity the ranker decides, so a weight-25 finding no
-  // longer sits below a weight-1 one that happens to register earlier.
-  const byPriority = (a: AggregatedIssue, b: AggregatedIssue) =>
+  // One queue ranked by the score points each fix returns, failures and
+  // warnings together (DESIGN.md, R2): a heavy, widespread warning can come
+  // before a narrow failure, and the status shape still says which is which.
+  // Priority, page count and rule id break ties so the order is stable.
+  const byPoints = (a: AggregatedIssue, b: AggregatedIssue) =>
+    pointsOf(b) - pointsOf(a) ||
     b.priority - a.priority ||
     b.pageCount - a.pageCount ||
     a.ruleId.localeCompare(b.ruleId);
@@ -2284,7 +2348,7 @@ export function renderHtmlReport(result: AuditResult): string {
   // The table and the category sections below rendered the same 46 findings
   // twice — 3,191px of rows and 12,217px of cards, 90% of a 17,199px page. The
   // table is a ranked index now: what to fix first, linking down to the detail.
-  const rankedIssues = [...failures.sort(byPriority), ...warnings.sort(byPriority)];
+  const rankedIssues = [...failures, ...warnings].sort(byPoints);
   const TOP_ISSUES = 10;
   const issueTableRows = rankedIssues
     .slice(0, TOP_ISSUES)
@@ -2300,17 +2364,15 @@ export function renderHtmlReport(result: AuditResult): string {
       <tr class="issue-row" data-rule-id="${escapeHtml(issue.ruleId)}" data-status="${issue.status}" data-pages="${pageBits}">
         <td>
           <div class="issue-row-name">
-            <div class="issue-row-icon ${issue.status}">${STATUS_ICONS[issue.status]}</div>
             <div>
-              <div class="issue-row-text">${escapeHtml(issue.ruleName)}</div>
-              <div class="issue-row-category">${escapeHtml(issue.categoryName)}</div>
+              <div class="issue-row-text">${escapeHtml(splitFix(getFixSuggestion(issue.ruleId)).headline)}</div>
+              <div class="issue-row-category">${escapeHtml(issue.ruleName)} · ${escapeHtml(issue.categoryName)}</div>
             </div>
           </div>
         </td>
         ${isMultiPageReport ? `<td>${pageDisplay}</td>` : ''}
-        <td>
-          <span class="issue-row-severity ${issue.status}">${issue.status === 'fail' ? 'Critical' : 'Warning'}</span>
-        </td>
+        <td>${statusHtml(issue.status)}</td>
+        <td class="fb-num">${formatPoints(pointsOf(issue))}</td>
       </tr>
     `;
     }).join('');
@@ -2419,7 +2481,7 @@ export function renderHtmlReport(result: AuditResult): string {
       i.override === 'ignore' && i.status !== 'pass';
     const actionable = aggregatedIssues
       .filter(i => (i.status === 'fail' || i.status === 'warn') && !ignoredByConfig(i))
-      .sort(byPriority);
+      .sort(byPoints);
     const quiet = aggregatedIssues.filter(
       i => (i.status === 'pass' || i.status === 'notmeasured') && !ignoredByConfig(i)
     );
@@ -2590,18 +2652,11 @@ export function renderHtmlReport(result: AuditResult): string {
     <div class="content">
       <!-- Score Overview -->
       <div class="score-overview">
-        <div class="score-circle">
-          <svg width="140" height="140">
-            <circle class="score-circle-bg" cx="70" cy="70" r="${radius}"/>
-            <circle class="score-circle-progress" cx="70" cy="70" r="${radius}"
-                    stroke="${scoreColor}"
-                    stroke-dasharray="${circumference}"
-                    stroke-dashoffset="${dashOffset}"/>
-          </svg>
-          <div class="score-circle-text">
-            <span class="score-value" style="color: ${scoreColor}">${result.overallScore}</span>
-            <span class="score-label">${scoreLabel}</span>
-          </div>
+        <div class="score-figure">
+          <div class="fb-label">Score</div>
+          <div><span class="score-value" style="color: ${scoreColor}">${result.overallScore}</span><span class="score-of">/100</span></div>
+          <div class="score-verdict">${scoreLabel}</div>
+          ${scoreMeter}
         </div>
         <div class="score-details">
           <div class="score-status ${isPassing ? 'pass' : 'fail'}">
@@ -2615,36 +2670,21 @@ export function renderHtmlReport(result: AuditResult): string {
             Waived for staging, would cap the score in production:
             <ul>${result.waivedCaps.map((cap) => `<li>${escapeHtml(cap.reason)} (cap ${cap.ceiling})</li>`).join('')}</ul>
           </div>` : ''}
-          <div class="score-stats">
-            <div class="score-stat">
-              <span class="score-stat-value fail">${failures.length}</span>
-              <span class="score-stat-label">Failures</span>
-            </div>
-            <div class="score-stat">
-              <span class="score-stat-value warn">${warnings.length}</span>
-              <span class="score-stat-label">Warnings</span>
-            </div>
-            <div class="score-stat">
-              <span class="score-stat-value pass">${passes.length}</span>
-              <span class="score-stat-label">Passed</span>
-            </div>
-            ${notMeasured.length > 0 ? `
-            <div class="score-stat">
-              <span class="score-stat-value not-measured">${notMeasured.length}</span>
-              <span class="score-stat-label">Not measured</span>
-            </div>
-            ` : ''}
-            <div class="score-stat">
-              <span class="score-stat-value">${totalChecks}</span>
-              <span class="score-stat-label">Total</span>
-            </div>
-          </div>
-          </div>
+          <dl class="score-facts">
+            <dt>Missing</dt><dd>${missingPoints.toFixed(1)} pts</dd>
+            <dt>Failures</dt><dd>${failures.length}</dd>
+            <dt>Warnings</dt><dd>${warnings.length}</dd>
+            <dt>Passed</dt><dd>${passes.length}</dd>
+            ${notMeasured.length > 0 ? `<dt>Not measured</dt><dd>${notMeasured.length}</dd>` : ''}
+            <dt>Total</dt><dd>${totalChecks}</dd>
+          </dl>
         </div>
       </div>
 
       <!-- Page Snapshot -->
       ${renderPageSnapshot(result.page, result.url)}
+
+      ${leadFixHtml(rankedIssues, pointsOf, result)}
 
       ${failures.length + warnings.length > 0 ? `
       <!-- Issues Summary Table -->
@@ -2652,16 +2692,17 @@ export function renderHtmlReport(result: AuditResult): string {
         <div class="issues-summary-header">
           <span class="issues-summary-title">${
             rankedIssues.length > TOP_ISSUES
-              ? `Fix these first — top ${TOP_ISSUES} of ${rankedIssues.length}`
-              : `Issues to fix (${rankedIssues.length})`
+              ? `Fix queue: the first ${TOP_ISSUES} of ${rankedIssues.length}, by score points returned`
+              : `Fix queue (${rankedIssues.length}), by score points returned`
           }</span>
         </div>
         <table class="issues-table">
           <thead>
             <tr>
-              <th>Issue</th>
+              <th>Fix</th>
               ${isMultiPageReport ? '<th>Page</th>' : ''}
-              <th>Severity</th>
+              <th>Status</th>
+              <th class="fb-num">Points</th>
             </tr>
           </thead>
           <tbody>

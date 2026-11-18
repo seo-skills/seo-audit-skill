@@ -1,17 +1,18 @@
 /**
  * Home: what happened to my sites.
  *
- * The domain strip answers that at a glance; picking one narrows the trend and
- * the list below it. There is no separate "history" screen — history is the
- * home screen, because a dashboard with nothing to show is a dashboard nobody
- * opens twice.
+ * One ledger of audits, with a Site menu in its header: picking a site
+ * narrows the list and opens that site's trend. The menu replaced a wall of
+ * site cards above the table, which pushed the audits down and gave every site
+ * the same weight however often it was audited. There is no separate
+ * "history" screen — history is the home screen.
  */
 
 import { useCallback, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getReads } from '../lib/api-client.js';
 import { useAsync, useRefreshOnFocus } from '../lib/hooks.js';
-import { DomainStrip } from '../components/DomainStrip.js';
+import { Menu } from '../components/Menu.js';
 import { TrendChart } from '../components/TrendChart.js';
 import { AuditList } from '../components/AuditList.js';
 import { PageError } from '../components/PageError.js';
@@ -71,12 +72,10 @@ export function HomePage() {
   // another site reads as if the dashboard lost them.
   const filteredEmpty = Boolean(domain) && !audits.loading && (audits.data?.length ?? 0) === 0;
 
+  const sites = domains.data ?? [];
+
   return (
     <div className="max-w-[var(--content-max-width)] mx-auto p-6 space-y-6">
-      {domains.data && domains.data.length > 0 && (
-        <DomainStrip domains={domains.data} selected={domain} onSelect={selectDomain} />
-      )}
-
       {/* The chart owns the threshold. Duplicating it here hid the section
           entirely below three points, so the message explaining why there is
           no trend yet could never be seen. */}
@@ -94,14 +93,38 @@ export function HomePage() {
       )}
 
       <section aria-labelledby="audits-heading">
-        <div className="flex items-baseline justify-between mb-3">
-          <h1 id="audits-heading" className="text-xl font-semibold" style={{ color: 'var(--color-text)' }}>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3">
+          <h1 id="audits-heading" className="text-xl leading-7 font-semibold tracking-[-0.01em] mr-auto" style={{ color: 'var(--color-text)' }}>
             {domain ? `Audits of ${domain}` : 'Recent audits'}
           </h1>
           {audits.data && audits.data.length > 0 && (
-            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              {audits.data.length} shown
-            </span>
+            <span className="figure text-xs text-[var(--color-text-muted)]">{audits.data.length} shown</span>
+          )}
+          {sites.length > 1 && (
+            <Menu
+              label="Site"
+              button={
+                <>
+                  <span className="text-[var(--color-text-muted)]">Site</span>
+                  <span>{domain ?? 'All sites'}</span>
+                  <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
+                    <path d="M2 4l3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                  </svg>
+                </>
+              }
+              items={[
+                { label: 'All sites', hint: `${sites.length}`, checked: domain === null, onSelect: () => selectDomain(null) },
+                ...sites.map((site) => ({
+                  label: site.domain,
+                  // Latest score, and its movement when there is a previous audit
+                  hint: `${site.latest.overallScore}${
+                    site.scoreDelta ? ` ${site.scoreDelta > 0 ? '▲' : '▼'}${Math.abs(site.scoreDelta)}` : ''
+                  }`,
+                  checked: domain === site.domain,
+                  onSelect: () => selectDomain(site.domain),
+                })),
+              ]}
+            />
           )}
         </div>
 

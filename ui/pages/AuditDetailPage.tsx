@@ -1,40 +1,44 @@
 /**
- * One stored audit.
+ * One stored audit, as the Fix Brief (DESIGN.md).
  *
- * Score first, then what is wrong, then everything. The action bar carries
- * compare, export and delete because those are the things you want when
- * looking at a finished audit.
+ * The first fix is the headline and the score sits beside it; then the rest of
+ * the fixes in the order that returns the most points, where those points
+ * went, what could not be measured, and every check. The action bar keeps one
+ * orange button, Run again; export and delete sit in menus.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { getHost, getReads } from '../lib/api-client.js';
 import { getAPI } from '../lib/ipc-client.js';
 import { useAsync } from '../lib/hooks.js';
 import { PageError } from '../components/PageError.js';
-import { ScoreCircle } from '../components/ScoreCircle.js';
-import { ScoreStats } from '../components/ScoreStats.js';
-import { CategoryGrid } from '../components/CategoryGrid.js';
 import { CategorySection } from '../components/CategorySection.js';
 import { FilterTabs, type FilterStatus } from '../components/FilterTabs.js';
-import { IssuesTable } from '../components/IssuesTable.js';
-import { Sidebar } from '../components/Sidebar.js';
-import { CategoryRow } from '../components/CategoryRow.js';
 import { formatDate } from '../lib/format.js';
 import { SiteSection } from '../components/SiteSection.js';
 import { CustomChecksSection } from '../components/CustomChecksSection.js';
+import { LeadFix } from '../components/LeadFix.js';
+import { ScorePanel } from '../components/ScorePanel.js';
+import { FixQueue } from '../components/FixQueue.js';
+import { PointsStrip } from '../components/PointsStrip.js';
+import { MeasurementGaps, NumbersNote } from '../components/ReportNotes.js';
+import { Menu } from '../components/Menu.js';
+import { CATEGORY_NAMES, missingPoints, rankedFixes, type Fix } from '../lib/fixes.js';
 import { advisoryCount, completionLabel, coverageText, notMeasuredByReason, renderHint, rerunHref } from '../lib/audit-state.js';
 
 const EXPORT_FORMATS = [
-  { format: 'html', label: 'HTML report' },
-  { format: 'markdown', label: 'Markdown' },
-  { format: 'json', label: 'JSON' },
-  { format: 'llm', label: 'LLM text' },
+  { format: 'html', label: 'HTML report', hint: '.html' },
+  { format: 'markdown', label: 'Markdown', hint: '.md' },
+  { format: 'json', label: 'JSON', hint: '.json' },
+  { format: 'llm', label: 'LLM text', hint: '.txt' },
 ] as const;
 
 export function AuditDetailPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromRun = Boolean((location.state as { fromRun?: boolean } | null)?.fromRun);
   const reads = getReads();
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -45,10 +49,27 @@ export function AuditDetailPage() {
 
   const detail = useAsync(() => reads.getAuditDetail(id), [id]);
 
-  const handleCategoryClick = useCallback((categoryId: string) => {
-    setActiveCategory(categoryId);
-    document.getElementById(`category-${categoryId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
+  // The first audit of a site has nothing to compare with; that is not an error.
+  const comparison = useAsync(() => reads.compare(id).catch(() => null), [id]);
+  const [stripCategory, setStripCategory] = useState<string | null>(null);
+  // Expand all / Collapse all over every category in All checks
+  const [force, setForce] = useState<{ expanded: boolean; nonce: number }>({ expanded: false, nonce: 0 });
+  const fixes = useMemo(
+    () => (detail.data ? rankedFixes(detail.data.result, detail.data.ruleMetadata) : []),
+    [detail.data]
+  );
+
+  // History keeps `state` across a reload, so the arrival reaction would
+  // replay; drop the flag once the reaction has had time to play.
+  useEffect(() => {
+    // Wait for both reads: the reaction is chosen from them.
+    if (!fromRun || detail.loading || comparison.loading) return;
+    const timer = window.setTimeout(
+      () => navigate(`${location.pathname}${location.search}${location.hash}`, { replace: true, state: null }),
+      1200
+    );
+    return () => window.clearTimeout(timer);
+  }, [fromRun, detail.loading, comparison.loading, navigate, location.pathname, location.search, location.hash]);
 
   // Expanding the category and jumping to the rule are one action, but they
   // happen in two renders: the element does not exist until React has committed
@@ -154,13 +175,7 @@ export function AuditDetailPage() {
   if (detail.serverGone) return <PageError kind="server-gone" onRetry={detail.reload} />;
   if (detail.stale) return <PageError kind="stale-session" />;
   if (!detail.loading && !detail.data) return <PageError kind="not-found" />;
-  if (!detail.data) {
-    return (
-      <div className="max-w-[var(--content-max-width)] mx-auto p-6 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-        Loading audit…
-      </div>
-    );
-  }
+  if (!detail.data) return <ReportSkeleton />;
 
   const { audit, result, ruleMetadata } = detail.data;
   const totals = result.categoryResults.reduce(
@@ -180,232 +195,248 @@ export function AuditDetailPage() {
     pass: totals.pass,
     notmeasured: totals.notMeasured,
   };
-  const notApplicable = notMeasuredByReason(result).find((group) => group.reason === 'not-applicable')?.ruleIds.length ?? 0;
+
+  // Rule-level counts for the score panel: one per check, not one per page
+  const summaries = result.categoryResults.flatMap((category) => category.results);
+  const advisory = advisoryCount(result);
+  const notMeasuredRules = notMeasuredByReason(result).reduce((sum, group) => sum + group.ruleIds.length, 0);
+  const scoredRules = summaries.filter(
+    (rule) => !rule.advisory && (rule.status === 'pass' || rule.status === 'warn' || rule.status === 'fail')
+  ).length;
+  const missing = missingPoints(fixes);
+  const crawl = result.crawledPages > 1;
+  // A stored audit keeps its run options on the audit row, not on the result;
+  // reading only `result.run` lost them, so "Run again" dropped the render.
+  const measured = result.run ? result : { ...result, ...(audit.run && { run: audit.run }) };
+  const rendered = Boolean(measured.run?.measureCwv);
   const coverage = coverageText(result);
-  const completion = completionLabel(result);
-  // Both surfaces render; the hint links back to the run page with rendering on
-  const hint = renderHint(result, true);
-  const hasSiteSection = Boolean(result.extras?.['crawl'] || result.extras?.externalLinks || result.extras?.linkScoreSummary);
+  const hintText = renderHint(result, true);
+  const hint = hintText ? { text: hintText, href: rerunHref(audit.startUrl, measured, true) } : null;
+  const reveal = (fix: Fix) => handleIssueClick(fix.ruleId, fix.categoryId);
+  const picked = stripCategory ? { id: stripCategory, name: CATEGORY_NAMES[stripCategory] ?? stripCategory } : null;
+  // A run that just finished gets one reaction: delighted when the score went
+  // up, alert when it found failures. Decided once the comparison has loaded.
+  const greet = !fromRun || comparison.loading
+    ? undefined
+    : (comparison.data?.scoreDelta ?? 0) > 0
+      ? 'delighted'
+      : fixes.some((fix) => fix.status === 'fail')
+        ? 'alert'
+        : undefined;
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar
-        categories={result.categoryResults}
-        activeCategory={activeCategory}
-        onCategoryClick={handleCategoryClick}
-      />
+    <div className="max-w-[var(--content-max-width)] mx-auto px-4 md:px-6">
+      <div className="flex flex-wrap items-center gap-2 py-4">
+        <Link
+          to={`/?domain=${encodeURIComponent(audit.domain)}`}
+          className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] mr-auto"
+        >
+          ← {audit.domain} history
+        </Link>
+        <Link to={`/compare/${audit.auditId}`} className="btn btn-ghost">
+          Compare with previous
+        </Link>
+        <Menu
+          label="Export"
+          button={
+            <>
+              {busyFormat ? 'Preparing…' : 'Export'}
+              <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
+                <path d="M2 4l3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.4" />
+              </svg>
+            </>
+          }
+          items={EXPORT_FORMATS.map(({ format, label, hint: ext }) => ({
+            label,
+            hint: ext,
+            disabled: busyFormat !== null,
+            onSelect: () => void handleExport(format),
+          }))}
+        />
+        <Menu
+          label="More actions"
+          className="btn btn-icon"
+          button={<span aria-hidden="true">⋯</span>}
+          items={[
+            ...(getHost() === 'web'
+              ? [{ label: 'Copy link', onSelect: () => void navigator.clipboard?.writeText(window.location.href).catch(() => {}) }]
+              : []),
+            { label: 'Delete audit…', danger: true, onSelect: () => setConfirmingDelete(true) },
+          ]}
+        />
+        <Link to={rerunHref(audit.startUrl, measured)} className="btn btn-primary">
+          Run again
+        </Link>
+      </div>
 
-      {/* The rail only exists at lg and above, so the offset does too. */}
-      <div className="flex-1 min-w-0 lg:ml-[var(--sidebar-width)]">
-        <div className="max-w-[var(--content-max-width)] min-w-0 mx-auto p-6 space-y-6">
-          <nav className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            <Link to={`/?domain=${encodeURIComponent(audit.domain)}`} className="hover:underline">
-              ← {audit.domain}
-            </Link>
-          </nav>
-
-          <CategoryRow
-            categories={result.categoryResults}
-            activeCategory={activeCategory}
-            onCategoryClick={handleCategoryClick}
-          />
-
-          {/* Score first: the number is why anyone opened this page */}
-          <section
-            className="p-6 rounded-xl border flex flex-wrap items-center gap-8"
-            style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}
+      {confirmingDelete && (
+        <div role="alertdialog" aria-label="Delete this audit" className="tbl flex flex-wrap items-center gap-3 px-3 py-2 mb-3">
+          <span className="text-[13px] mr-auto">Delete this audit permanently? It cannot be undone.</span>
+          <button
+            type="button"
+            onClick={() => void handleDelete()}
+            disabled={busy}
+            autoFocus
+            className="btn"
+            style={{ backgroundColor: 'var(--color-fail)', borderColor: 'var(--color-fail)', color: 'var(--color-on-accent)' }}
           >
-            <ScoreCircle score={result.overallScore} size={140} />
-            <div className="space-y-3 min-w-0">
-              <div>
-                <h1 className="text-xl font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                  {audit.startUrl}
-                </h1>
-                <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                  {formatDate(audit.startedAt)} · {result.categoryResults.length} categories
-                  {result.crawledPages > 1 && ` · ${result.crawledPages} pages`}
-                  {audit.source && ` · ${audit.source}`}
-                  {' · engine '}
-                  {audit.engineVersion ?? 'unknown'}
-                </p>
-              </div>
-              <ScoreStats
-                passCount={totals.pass}
-                warnCount={totals.warn}
-                failCount={totals.fail}
-                notMeasuredCount={Math.max(0, totals.notMeasured - notApplicable)}
-                notApplicableCount={notApplicable}
-                advisoryCount={advisoryCount(result)}
-              />
-              <div className="space-y-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                {result.scoreCap && (
-                  <p>
-                    Capped from {result.scoreCap.uncappedScore}: {result.scoreCap.caps.map((cap) => cap.reason).join(' ')}
-                  </p>
-                )}
-                <p>
-                  {completion}
-                  {coverage && (
-                    <>
-                      {' · '}
-                      {hasSiteSection ? <a href="#site" className="hover:underline">{coverage}</a> : coverage}
-                    </>
-                  )}
-                </p>
-                {hint && (
-                  <p>
-                    <Link to={rerunHref(audit.startUrl, result, true)} className="hover:underline" style={{ color: 'var(--color-accent)' }}>
-                      {hint}
-                    </Link>
-                  </p>
-                )}
-              </div>
-            </div>
-          </section>
-
-          {/* Actions */}
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              to={rerunHref(audit.startUrl, result)}
-              className="px-3 py-1.5 text-sm rounded-md font-medium"
-              style={{ backgroundColor: 'var(--color-agent)', color: 'var(--color-on-agent)' }}
-            >
-              Run again
-            </Link>
-            <Link
-              to={`/compare/${audit.auditId}`}
-              className="px-3 py-1.5 text-sm rounded-md font-medium border"
-              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-            >
-              Compare with previous
-            </Link>
-            {EXPORT_FORMATS.map(({ format, label }) => (
-              <button
-                key={format}
-                type="button"
-                onClick={() => void handleExport(format)}
-                disabled={busyFormat !== null}
-                aria-busy={busyFormat === format}
-                className="px-3 py-1.5 text-sm rounded-md border disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]"
-                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
-              >
-                {busyFormat === format ? 'Preparing…' : label}
-              </button>
-            ))}
-            {confirmingDelete ? (
-              <span className="flex items-center gap-2 ml-auto">
-                <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                  Delete this audit permanently?
-                </span>
-                <button
-                  type="button"
-                  onClick={() => void handleDelete()}
-                  disabled={busy}
-                  autoFocus
-                  className="px-3 py-1.5 text-sm rounded-md font-medium disabled:opacity-50"
-                  style={{ backgroundColor: 'var(--color-fail)', color: 'var(--color-on-accent)' }}
-                >
-                  {busy ? 'Deleting…' : 'Delete'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmingDelete(false)}
-                  disabled={busy}
-                  className="px-3 py-1.5 text-sm rounded-md border disabled:opacity-50"
-                  style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                >
-                  Keep
-                </button>
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmingDelete(true)}
-                disabled={busy}
-                className="px-3 py-1.5 text-sm rounded-md border ml-auto disabled:opacity-50"
-                style={{ borderColor: 'var(--color-fail)', color: 'var(--color-fail)' }}
-              >
-                Delete
-              </button>
-            )}
-          </div>
-
-          {actionError && (
-            <div
-              role="alert"
-              className="px-3 py-2 rounded-md border text-sm"
-              style={{
-                borderColor: 'var(--color-fail)',
-                backgroundColor: 'var(--color-fail-bg)',
-                color: 'var(--color-fail)',
-              }}
-            >
-              {actionError}
-            </div>
-          )}
-
-          <section
-            className="p-5 rounded-xl border"
-            style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}
-          >
-            <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
-              Category scores
-            </h2>
-            <CategoryGrid
-              categories={result.categoryResults}
-              activeCategory={activeCategory}
-              onCategoryClick={handleCategoryClick}
-            />
-          </section>
-
-          {(totals.fail > 0 || totals.warn > 0) && (
-            <section
-              className="p-5 rounded-xl border"
-              style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}
-            >
-              <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
-                Issues to fix
-              </h2>
-              <IssuesTable result={result} ruleMetadata={ruleMetadata} onIssueClick={handleIssueClick} />
-            </section>
-          )}
-
-          <SiteSection result={result} />
-
-          <section
-            className="p-5 rounded-xl border"
-            style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold" style={{ color: 'var(--color-text)' }}>
-                Detailed results
-              </h2>
-              <FilterTabs active={filter} counts={counts} onChange={setFilter} />
-            </div>
-            {/* Every CategorySection returns null when nothing in it matches
-                the filter, which is right per category and left the page as a
-                heading and a row of tabs over empty space. */}
-            {counts[filter] === 0 ? (
-              <NoMatchingChecks filter={filter} onClear={() => setFilter('all')} />
-            ) : (
-              <div className="space-y-1">
-                {result.categoryResults.map((category) => (
-                  <CategorySection
-                    key={category.categoryId}
-                    category={category}
-                    filter={filter}
-                    ruleMetadata={ruleMetadata}
-                    defaultExpanded={
-                      activeCategory === category.categoryId || (filter === 'fail' && category.failCount > 0)
-                    }
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-
-          <CustomChecksSection result={result} />
+            {busy ? 'Deleting…' : 'Delete'}
+          </button>
+          <button type="button" onClick={() => setConfirmingDelete(false)} disabled={busy} className="btn btn-ghost">
+            Keep
+          </button>
         </div>
+      )}
+
+      {actionError && (
+        <div role="alert" className="tbl px-3 py-2 mb-3 text-[13px]" style={{ borderColor: 'var(--color-fail)', color: 'var(--color-fail)' }}>
+          {actionError}
+        </div>
+      )}
+
+      <header className="pt-1 pb-5 border-b border-[var(--color-border)]">
+        <h1 className="text-xl leading-7 font-semibold [overflow-wrap:anywhere]">{audit.domain}</h1>
+        <p className="mt-1 figure text-xs text-[var(--color-text-muted)] [overflow-wrap:anywhere]">
+          {audit.startUrl} · {formatDate(audit.startedAt)} · {result.crawledPages.toLocaleString()} page{result.crawledPages === 1 ? '' : 's'}
+          {' · '}
+          {rendered ? 'rendered in a browser' : 'not rendered'} · engine {audit.engineVersion ?? 'unknown'} ·{' '}
+          {(scoredRules + notMeasuredRules).toLocaleString()} checks
+        </p>
+      </header>
+
+      <section aria-label="What to fix first" className="grid lg:grid-cols-[8fr_4fr] border-b border-[var(--color-border)]">
+        <div className="py-7 min-w-0 self-start">
+          <LeadFix fixes={fixes} result={result} notMeasured={notMeasuredRules} onShowEvidence={reveal} greet={greet} />
+        </div>
+        <div className="min-w-0 border-t lg:border-t-0 lg:border-l border-[var(--color-border)]">
+          <ScorePanel
+            result={result}
+            auditId={audit.auditId}
+            missing={missing}
+            scored={scoredRules}
+            notMeasured={notMeasuredRules}
+            advisory={advisory}
+            comparison={comparison.data ?? null}
+            completion={coverage ? `${completionLabel(result)} · ${coverage}` : completionLabel(result)}
+            hint={hint}
+            fixes={fixes}
+            arriving={fromRun}
+          />
+        </div>
+      </section>
+
+      {fixes.length > 1 || stripCategory ? (
+        <FixQueue
+          fixes={fixes}
+          crawl={crawl}
+          capped={Boolean(result.scoreCap)}
+          category={picked}
+          onClearCategory={() => setStripCategory(null)}
+          onReveal={reveal}
+        />
+      ) : null}
+
+      {detail.data.categoryWeights && (
+        <PointsStrip
+          categories={result.categoryResults}
+          weights={detail.data.categoryWeights}
+          fixes={fixes}
+          active={stripCategory}
+          onPick={(categoryId) => {
+            setStripCategory(categoryId);
+            const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+            if (categoryId) document.getElementById('fix-queue')?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+          }}
+        />
+      )}
+
+      <MeasurementGaps result={result} advisory={advisory} />
+
+      <div className="pt-10 empty:hidden">
+        <SiteSection result={result} />
+      </div>
+
+      <section aria-labelledby="all-checks" className="pt-10">
+        {/* Pinned under the app bar while the reader is in the list: with a
+            category open, the filters used to scroll away with the heading. */}
+        <div className="sticky top-[var(--header-height)] z-10 -mx-4 md:-mx-6 px-4 md:px-6 py-3 mb-3 flex flex-wrap items-center gap-3 bg-[var(--color-bg)] border-b border-[var(--color-border)]">
+          <h3 id="all-checks" className="text-xl leading-7 font-semibold tracking-[-0.01em] mr-auto">All checks</h3>
+          <FilterTabs active={filter} counts={counts} onChange={setFilter} />
+          <button
+            type="button"
+            className="btn"
+            onClick={() => setForce((f) => ({ expanded: !f.expanded, nonce: f.nonce + 1 }))}
+          >
+            {force.expanded ? 'Collapse all' : 'Expand all'}
+          </button>
+        </div>
+        {/* Every CategorySection returns null when nothing in it matches
+            the filter, which is right per category and left the page as a
+            heading and a row of tabs over empty space. */}
+        {counts[filter] === 0 ? (
+          <NoMatchingChecks filter={filter} onClear={() => setFilter('all')} />
+        ) : (
+          <div className="space-y-1">
+            {result.categoryResults.map((category) => (
+              <CategorySection
+                key={category.categoryId}
+                category={category}
+                filter={filter}
+                ruleMetadata={ruleMetadata}
+                multiPage={crawl}
+                force={force}
+                // A filter opens the categories that have what it shows
+                defaultExpanded={
+                  activeCategory === category.categoryId ||
+                  (filter === 'fail' && category.failCount > 0) ||
+                  (filter === 'warn' && category.warnCount > 0) ||
+                  (filter === 'notmeasured' && (category.notMeasuredCount ?? 0) > 0)
+                }
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <CustomChecksSection result={result} />
+
+      <NumbersNote result={measured} missing={missing} fixCount={fixes.length} engineVersion={audit.engineVersion} />
+    </div>
+  );
+}
+
+/**
+ * The report's shape while it loads: the lead, the score and the first rows,
+ * so the page does not jump when the audit arrives. Shown only after 200ms —
+ * a local read is usually faster, and a skeleton that flashes is worse than
+ * none.
+ */
+function ReportSkeleton() {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setVisible(true), 200);
+    return () => window.clearTimeout(id);
+  }, []);
+  if (!visible) return <div className="min-h-[60vh]" aria-busy="true" />;
+  const bar = 'block bg-[var(--color-bg-hover)] rounded-[2px]';
+  return (
+    <div className="max-w-[var(--content-max-width)] mx-auto px-4 md:px-6" aria-busy="true" aria-label="Loading the audit">
+      <div className="py-4 flex justify-end gap-2">
+        <span className={`${bar} w-24 h-8`} /><span className={`${bar} w-24 h-8`} />
+      </div>
+      <div className="pb-5 border-b border-[var(--color-border)] space-y-2">
+        <span className={`${bar} w-48 h-6`} /><span className={`${bar} w-96 h-3`} />
+      </div>
+      <div className="grid lg:grid-cols-[8fr_4fr] border-b border-[var(--color-border)]">
+        <div className="py-7 pl-[26px] space-y-4">
+          <span className={`${bar} w-80 h-4`} /><span className={`${bar} w-[28rem] max-w-full h-10`} /><span className={`${bar} w-[32rem] max-w-full h-4`} />
+        </div>
+        <div className="py-7 lg:pl-8 space-y-3">
+          <span className={`${bar} w-28 h-14`} /><span className={`${bar} w-full h-2`} />
+        </div>
+      </div>
+      <div className="pt-10 space-y-2">
+        {[0, 1, 2, 3].map((i) => <span key={i} className={`${bar} w-full h-12`} />)}
       </div>
     </div>
   );
@@ -426,17 +457,8 @@ function NoMatchingChecks({
     filter === 'fail' ? 'failures' : filter === 'warn' ? 'warnings' : filter === 'notmeasured' ? 'unmeasured checks' : 'passing checks';
 
   return (
-    <div
-      className="rounded-xl border border-dashed p-10 text-center"
-      style={{
-        borderColor: good ? 'var(--color-pass)' : 'var(--color-border)',
-        backgroundColor: good ? 'var(--color-pass-bg)' : 'transparent',
-      }}
-    >
-      <p
-        className="text-base font-semibold mb-1"
-        style={{ color: good ? 'var(--color-pass)' : 'var(--color-text)' }}
-      >
+    <div className="tbl p-10 text-center">
+      <p className="text-base font-semibold mb-1">
         No {label}
       </p>
       <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>
@@ -447,8 +469,7 @@ function NoMatchingChecks({
       <button
         type="button"
         onClick={onClear}
-        className="px-3 py-1.5 text-sm rounded-md font-medium border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]"
-        style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+        className="btn"
       >
         Show all checks
       </button>

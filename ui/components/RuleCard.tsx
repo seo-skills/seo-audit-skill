@@ -1,20 +1,25 @@
 /**
  * Individual rule result card — mirrors the HTML report's rule-card design.
  *
- * Shows: status icon, rule name + ID, description, message, page URL badge,
+ * Shows: status shape, rule name + ID, description, message, page URL badge,
  * inline "How to Fix" (for warn/fail), and expandable affected-items details.
  */
 
 import { useState } from 'react';
 import type { RuleResult } from '../../src/types.js';
 import type { RuleMetadata } from '../../electron/shared/ipc-types.js';
-import { formatRuleIdAsName, getStatusIcon, getStatusColorClass, safeHref, statusTokens } from '../lib/format.js';
+import { formatRuleIdAsName, safeHref } from '../lib/format.js';
+import { StatusShape } from './Status.js';
+
+const STATUS_WORDS = { pass: 'Passes', warn: 'Warning', fail: 'Fails', 'not-measured': 'Not measured' } as const;
 import { getFixSuggestion } from '../lib/fix-suggestions.js';
 import { ADVISORY_CHIP, NOT_MEASURED_REASONS, reasonOf } from '../lib/audit-state.js';
 
 interface RuleCardProps {
   rule: RuleResult;
   metadata?: RuleMetadata;
+  /** Show the page badge: only on a multi-page audit, where it says which page */
+  showPage?: boolean;
 }
 
 /** Keys to skip when rendering details (already shown elsewhere or internal) */
@@ -66,7 +71,7 @@ function formatKey(key: string): string {
     .trim();
 }
 
-export function RuleCard({ rule, metadata }: RuleCardProps) {
+export function RuleCard({ rule, metadata, showPage = false }: RuleCardProps) {
   const [showDetails, setShowDetails] = useState(false);
   // A fix only makes sense for a finding; a check that took no reading gets
   // its reason and the one thing to do about it instead
@@ -76,8 +81,6 @@ export function RuleCard({ rule, metadata }: RuleCardProps) {
         // fix-suggestions map is the offline fallback only.
         (metadata?.fix ?? getFixSuggestion(rule.ruleId))
       : null;
-  const icon = getStatusIcon(rule.status);
-  const colorClass = getStatusColorClass(rule.status);
   const details = rule.details ?? {};
   const pageUrl = details.pageUrl as string | undefined;
   const suggestion = (details.suggestion ?? details.recommendation ?? details.note) as string | undefined;
@@ -111,7 +114,9 @@ export function RuleCard({ rule, metadata }: RuleCardProps) {
 
   return (
     <div
-      className="border border-[var(--color-border-subtle)] rounded-lg p-4 hover:bg-[var(--color-bg-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]"
+      // A row inside its category's surface, not a box of its own: the same
+      // white and the same hairlines as every other table on the report.
+      className="px-4 py-3 border-t border-[var(--color-border)] first:border-t-0 hover:bg-[var(--color-bg-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--color-accent)]"
       id={`rule-${rule.ruleId}`}
       // Not a tab stop, but focusable when the page jumps here from the issues
       // table. Without it the scroll moved the view and left focus behind in
@@ -120,16 +125,11 @@ export function RuleCard({ rule, metadata }: RuleCardProps) {
       tabIndex={-1}
     >
       <div className="flex items-start gap-3">
-        {/* Status icon */}
-        <div
-          className="w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5"
-          style={{
-            color: statusTokens(rule.status).color,
-            backgroundColor: statusTokens(rule.status).background,
-          }}
-        >
-          {icon}
-        </div>
+        {/* Status: the shape carries it, the word is for screen readers */}
+        <span className="status flex-shrink-0 mt-[5px]">
+          <StatusShape status={rule.advisory && rule.status !== 'not-measured' ? 'advisory' : rule.status} />
+          <span className="sr-only">{STATUS_WORDS[rule.status]}</span>
+        </span>
 
         <div className="flex-1 min-w-0">
           {/* Title row: Rule name + Rule ID */}
@@ -158,7 +158,7 @@ export function RuleCard({ rule, metadata }: RuleCardProps) {
 
           {/* Rule description (what this rule checks) */}
           {showDescription && (
-            <p className="text-xs mt-0.5 italic" style={{ color: 'var(--color-text-muted)' }}>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
               {ruleDescription}
             </p>
           )}
@@ -176,7 +176,7 @@ export function RuleCard({ rule, metadata }: RuleCardProps) {
           )}
 
           {/* Page URL badge */}
-          {pageUrl && (
+          {pageUrl && showPage && (
             <div className="mt-1.5">
               <a
                 href={safeHref(pageUrl)}
@@ -195,26 +195,16 @@ export function RuleCard({ rule, metadata }: RuleCardProps) {
 
           {/* Suggestion from details */}
           {suggestion && (
-            <p className="text-xs mt-1.5 italic" style={{ color: 'var(--color-text-muted)' }}>
+            <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-muted)' }}>
               {suggestion}
             </p>
           )}
 
-          {/* How to Fix — shown inline for warn/fail, matches HTML report style */}
+          {/* How to fix, for a warning or a failure: a label, not a coloured stripe */}
           {fixText && (
-            <div
-              className="mt-3 pl-3 py-2"
-              style={{ borderLeft: '3px solid var(--color-accent)' }}
-            >
-              <div className="flex items-center gap-1.5 mb-1">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13" style={{ color: 'var(--color-accent)' }}>
-                  <path d="M9 21h6M12 3a6 6 0 0 0-3 11.2V17h6v-2.8A6 6 0 0 0 12 3z"/>
-                </svg>
-                <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-accent)' }}>
-                  How to Fix
-                </span>
-              </div>
-              <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+            <div className="mt-2.5">
+              <div className="label">How to fix</div>
+              <p className="text-[13px] mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
                 {fixText}
               </p>
             </div>
@@ -223,12 +213,20 @@ export function RuleCard({ rule, metadata }: RuleCardProps) {
           {/* Expandable details for affected items */}
           {hasExtraDetails && (
             <div className="mt-2">
+              {/* A real control, so it reads as one: it opens what the check found */}
               <button
+                type="button"
                 onClick={() => setShowDetails(!showDetails)}
-                className="text-xs font-medium hover:underline"
-                style={{ color: 'var(--color-accent)' }}
+                aria-expanded={showDetails}
+                className="btn btn-ghost h-7 px-2 -ml-2 text-[13px]"
               >
-                {showDetails ? 'Hide details' : `View details (${listFields.reduce((n, f) => n + f.items.length, 0) + statFields.length} items)`}
+                <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" style={{ transform: showDetails ? 'rotate(90deg)' : undefined, transition: 'transform 160ms ease' }}>
+                  <path d="M3.5 2l3 3-3 3" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                </svg>
+                {showDetails ? 'Hide details' : (() => {
+                  const n = listFields.reduce((sum, f) => sum + f.items.length, 0) + statFields.length;
+                  return `Details · ${n} ${n === 1 ? 'item' : 'items'}`;
+                })()}
               </button>
 
               {showDetails && (

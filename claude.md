@@ -250,3 +250,9 @@ The desktop app wraps the existing audit engine without modifying `src/`:
 - **Zustand** for state management
 - **Recharts** for score trend charts
 - **electron-builder** for packaging
+
+## Design System
+Read DESIGN.md before visual or UI work: it defines the fonts, colors, spacing, and
+aesthetic direction. Ask the user before departing from it. When reviewing or QA-ing
+UI, flag code that doesn't match DESIGN.md. Colour values in code still come only
+from `src/design/tokens.ts`; DESIGN.md is the intent that module implements.

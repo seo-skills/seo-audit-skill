@@ -24,7 +24,7 @@ async function loadToCss() {
   const source = readFileSync(resolve(root, 'src/design/tokens.ts'), 'utf8');
   const js = source
     .replace(/^export interface[\s\S]*?^}/gm, '')
-    .replace(/: readonly TextPair\[\]/g, '')
+    .replace(/: readonly \w+\[\]/g, '')
     .replace(/ as const/g, '')
     .replace(/^function declarations\(tokens: Record<string, string>, indent = '  '\): string \{/m,
              'function declarations(tokens, indent = "  ") {')

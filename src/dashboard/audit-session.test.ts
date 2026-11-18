@@ -128,6 +128,43 @@ describe('normalizeRunArgs', () => {
   });
 });
 
+describe('normalizeRunArgs — the CLI options the run form now offers', () => {
+  it('carries staging, refresh, ignore-crawl-delay and a crawl time limit', () => {
+    const args = normalizeRunArgs(
+      { url: URL_UNDER_TEST, staging: true, refresh: true, ignoreCrawlDelay: true, maxDuration: 120 },
+      DEFAULT_CAPABILITIES
+    );
+    expect(args).toMatchObject({ staging: true, refresh: true, ignoreCrawlDelay: true, maxDuration: 120 });
+  });
+
+  it('leaves them off, and the session limit in charge, when they are not sent', () => {
+    expect(normalizeRunArgs({ url: URL_UNDER_TEST }, DEFAULT_CAPABILITIES)).toMatchObject({
+      staging: false,
+      refresh: false,
+      ignoreCrawlDelay: false,
+      maxDuration: null,
+    });
+  });
+
+  it('hands them to the auditor', () => {
+    const fake = makeFakeAuditor();
+    const session = new AuditSession({
+      source: 'dashboard',
+      capabilities: DEFAULT_CAPABILITIES,
+      createAuditor: fake.createAuditor,
+      auditorOptions: { externalLinks: { timeoutMs: 5000 } },
+    });
+    session.start({ url: URL_UNDER_TEST, staging: true, refresh: true, ignoreCrawlDelay: true, maxDuration: 90 });
+    const options = fake.callbacks();
+    expect(options.staging).toBe(true);
+    expect(options.respectCrawlDelay).toBe(false);
+    expect(options.maxDurationMs).toBe(90_000);
+    // The host's link settings are kept; only refresh is added
+    expect(options.externalLinks).toEqual({ timeoutMs: 5000, refresh: true });
+    session.cancel();
+  });
+});
+
 describe('AuditSession', () => {
   it('reserves the run slot synchronously', () => {
     const fake = makeFakeAuditor();

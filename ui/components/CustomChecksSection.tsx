@@ -6,7 +6,7 @@ import type { AuditResult } from '../../src/types.js';
 import { customResults, customSearchRows } from '../../src/reporters/custom-section.js';
 
 const OUTCOME_COLOR = {
-  pass: 'var(--color-pass)',
+  pass: 'var(--color-text-muted)',
   warn: 'var(--color-warn)',
   fail: 'var(--color-fail)',
   stopped: 'var(--color-warn)',
@@ -18,14 +18,10 @@ export function CustomChecksSection({ result }: { result: AuditResult }) {
   if (!custom) return null;
   const rows = customSearchRows(custom);
   return (
-    <section
-      id="custom-checks"
-      className="p-5 rounded-xl border"
-      style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}
-    >
-      <h2 className="text-base font-semibold" style={{ color: 'var(--color-text)' }}>
+    <section id="custom-checks" className="pt-10 scroll-mt-4">
+      <h3 className="text-xl leading-7 font-semibold tracking-[-0.01em]" style={{ color: 'var(--color-text)' }}>
         Custom checks
-      </h2>
+      </h3>
       <p className="text-xs mb-3" style={{ color: 'var(--color-text-muted)' }}>
         From seomator.toml. Not scored.
       </p>

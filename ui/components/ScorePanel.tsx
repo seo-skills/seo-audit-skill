@@ -1,0 +1,145 @@
+/**
+ * The score, in the corner it belongs in once the fix owns the headline.
+ *
+ * A plain number, no ring (DESIGN.md, R3): ink at 80 and above, amber below,
+ * red under 70, with the grade word always in ink. Under it, what the score is
+ * missing and what it did not count, then what changed since the last run —
+ * the only place green appears on the report, because green means "better".
+ */
+
+import { Link } from 'react-router-dom';
+import type { AuditResult } from '../../src/types.js';
+import type { StoredComparison } from '../../src/dashboard/contract.js';
+import { getScoreColor, getScoreLabel } from '../lib/format.js';
+import { ScoreMeter } from './ScoreMeter.js';
+import { nextGradeLine, type Fix } from '../lib/fixes.js';
+
+interface ScorePanelProps {
+  result: AuditResult;
+  auditId: string;
+  missing: number;
+  scored: number;
+  notMeasured: number;
+  advisory: number;
+  comparison: StoredComparison | null;
+  /** "Completed", plus coverage on a crawl */
+  completion: string;
+  /** A link back to the run form when checks need a render */
+  hint: { text: string; href: string } | null;
+  /** The fix queue, in order: the next grade is said in its terms */
+  fixes: Fix[];
+  /** Straight from a run: the meter fills once */
+  arriving?: boolean;
+}
+
+/** "14:41" on the same day, "Nov 17" otherwise */
+function when(iso: string, reference: string): string {
+  const date = new Date(iso);
+  const sameDay = new Date(reference).toDateString() === date.toDateString();
+  return sameDay
+    ? date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+    : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+export function ScorePanel(props: ScorePanelProps) {
+  const { result, auditId, missing, scored, notMeasured, advisory, comparison, completion, hint, fixes, arriving } = props;
+  const cap = result.scoreCap;
+  // The bar shows the exact score; under a cap it shows the score that holds
+  const exact = cap ? result.overallScore : 100 - missing;
+
+  return (
+    <aside aria-label="Score" className="px-6 lg:pl-8 lg:pr-0 py-7">
+      <div className="label">Score</div>
+      <div className="mt-2 flex items-baseline gap-1">
+        <span className="figure text-[56px] leading-[56px] font-medium tracking-[-0.03em]" style={{ color: getScoreColor(result.overallScore) }}>
+          {result.overallScore}
+        </span>
+        <span className="figure text-lg text-[var(--color-text-muted)]">/100</span>
+      </div>
+      <div className="mt-2 font-medium">{getScoreLabel(result.overallScore)}</div>
+      <div className="mt-4">
+        <ScoreMeter value={exact} score={result.overallScore} size="lg" animate={arriving} />
+      </div>
+      {!cap && <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">{nextGradeLine(exact, fixes)}</p>}
+      {cap && (
+        <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">
+          Capped at {cap.caps[0]?.ceiling}. <span className="figure">{cap.uncappedScore}</span> without the cap.
+        </p>
+      )}
+
+      <dl className="mt-5 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-[13px]">
+        <dt className="text-[var(--color-text-secondary)]">Missing</dt>
+        <dd className="figure text-right">{missing.toFixed(1)} pts</dd>
+        <dt className="text-[var(--color-text-secondary)]">Scored checks</dt>
+        <dd className="figure text-right">{scored.toLocaleString()}</dd>
+        <dt className="text-[var(--color-text-secondary)]">Not measured</dt>
+        <dd className="figure text-right">
+          <a href="#gaps" className="hover:underline">{notMeasured.toLocaleString()}</a>
+        </dd>
+        <dt className="text-[var(--color-text-secondary)]">Advisory, not scored</dt>
+        <dd className="figure text-right">{advisory.toLocaleString()}</dd>
+      </dl>
+      <p className="mt-3 text-xs text-[var(--color-text-muted)]">
+        {completion}
+        {hint && (
+          <>
+            {' · '}
+            <Link to={hint.href} className="underline underline-offset-[3px] hover:text-[var(--color-agent-text)]">
+              {hint.text}
+            </Link>
+          </>
+        )}
+      </p>
+
+      {comparison && <SinceLastRun comparison={comparison} auditId={auditId} />}
+    </aside>
+  );
+}
+
+function SinceLastRun({ comparison, auditId }: { comparison: StoredComparison; auditId: string }) {
+  const { improved, regressed, added } = comparison.rules;
+  const delta = comparison.scoreDelta;
+  const shown = 3;
+  return (
+    <div className="mt-5 pt-4 border-t border-[var(--color-border)]">
+      <div className="label">
+        Since {when(comparison.previous.startedAt, comparison.current.startedAt)} ·{' '}
+        {delta === 0 ? 'score unchanged' : (
+          <span style={{ color: delta > 0 ? 'var(--color-pass)' : 'var(--color-fail)' }}>
+            score {delta > 0 ? '▲' : '▼'}{Math.abs(delta)}
+          </span>
+        )}
+      </div>
+      <ul className="mt-2 space-y-1 text-[13px]">
+        {improved.slice(0, shown).map((rule) => (
+          <li key={`i-${rule.ruleId}`} className="flex justify-between gap-3">
+            <span className="truncate">{rule.ruleName}</span>
+            <span className="figure" style={{ color: 'var(--color-pass)' }}>fixed</span>
+          </li>
+        ))}
+        {regressed.slice(0, shown).map((rule) => (
+          <li key={`r-${rule.ruleId}`} className="flex justify-between gap-3">
+            <span className="truncate">{rule.ruleName}</span>
+            <span className="figure" style={{ color: 'var(--color-fail)' }}>
+              {rule.to === 'fail' ? 'now fails' : 'now warns'}
+            </span>
+          </li>
+        ))}
+        {added.length > 0 && (
+          <li className="flex justify-between gap-3 text-[var(--color-text-muted)]">
+            <span>Checks not in the previous run</span>
+            <span className="figure">{added.length}</span>
+          </li>
+        )}
+        {improved.length === 0 && regressed.length === 0 && added.length === 0 && (
+          <li className="text-[var(--color-text-muted)]">No check changed status</li>
+        )}
+      </ul>
+      {(improved.length > shown || regressed.length > shown) && (
+        <Link to={`/compare/${auditId}`} className="mt-2 inline-block text-[13px] underline underline-offset-[3px]">
+          Compare in full
+        </Link>
+      )}
+    </div>
+  );
+}

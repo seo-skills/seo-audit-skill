@@ -5,29 +5,25 @@
 import { useState } from 'react';
 import type { CategoryResult } from '../../src/types.js';
 import type { RuleMetadata } from '../../electron/shared/ipc-types.js';
-import { getScoreColor, verdictStyle } from '../lib/format.js';
+import { getScoreColor } from '../lib/format.js';
+import { CATEGORY_NAMES } from '../lib/fixes.js';
 import { RuleCard } from './RuleCard.js';
+import { Status } from './Status.js';
+import { ScoreMeter } from './ScoreMeter.js';
 import type { FilterStatus } from './FilterTabs.js';
-
-// Category names (same as CategoryGrid)
-const CATEGORY_NAMES: Record<string, string> = {
-  core: 'Core SEO', technical: 'Technical SEO', perf: 'Performance',
-  links: 'Links', images: 'Images', security: 'Security',
-  crawl: 'Crawlability', schema: 'Structured Data', a11y: 'Accessibility',
-  content: 'Content', social: 'Social', eeat: 'E-E-A-T',
-  url: 'URL Structure', mobile: 'Mobile', i18n: 'Internationalization',
-  legal: 'Legal', js: 'JS Rendering', redirect: 'Redirects',
-  htmlval: 'HTML Validation', geo: 'AI/GEO',
-};
 
 interface CategorySectionProps {
   category: CategoryResult;
   filter: FilterStatus;
   ruleMetadata?: Record<string, RuleMetadata>;
   defaultExpanded?: boolean;
+  /** Pages are named on each check only when the audit has more than one */
+  multiPage?: boolean;
+  /** "Expand all" / "Collapse all": applied once each time `nonce` changes */
+  force?: { expanded: boolean; nonce: number };
 }
 
-export function CategorySection({ category, filter, ruleMetadata, defaultExpanded = false }: CategorySectionProps) {
+export function CategorySection({ category, filter, ruleMetadata, defaultExpanded = false, multiPage = false, force }: CategorySectionProps) {
   // Expansion is derived, not copied.
   //
   // This was `useState(defaultExpanded)`, and `useState` reads its argument on
@@ -49,6 +45,13 @@ export function CategorySection({ category, filter, ruleMetadata, defaultExpande
   if (defaultExpanded !== lastRequested) {
     setLastRequested(defaultExpanded);
     if (defaultExpanded) setOverride(null);
+  }
+  // Expand all / Collapse all is an explicit request, so it sets the reader's
+  // own choice for every section at once.
+  const [lastForce, setLastForce] = useState(force?.nonce ?? 0);
+  if (force && force.nonce !== lastForce) {
+    setLastForce(force.nonce);
+    setOverride(force.expanded);
   }
   const expanded = override ?? defaultExpanded;
   const setExpanded = (next: boolean): void => setOverride(next);
@@ -76,40 +79,37 @@ export function CategorySection({ category, filter, ruleMetadata, defaultExpande
   if (uniqueRules.length === 0) return null;
 
   return (
-    <section id={`category-${category.categoryId}`} className="mb-4">
+    <section id={`category-${category.categoryId}`} className="mb-2 border border-[var(--color-border)] bg-[var(--color-bg-elevated)] scroll-mt-[calc(var(--header-height)+64px)]">
       <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors"
+        aria-expanded={expanded}
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--color-bg-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--color-accent)]"
       >
-        <div className="flex items-center gap-3">
-          <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            {expanded ? '\u25BC' : '\u25B6'}
-          </span>
-          <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+        <span className="flex items-center gap-3 min-w-0">
+          <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" className="shrink-0" style={{ transform: expanded ? 'rotate(90deg)' : undefined, transition: 'transform 160ms ease', color: 'var(--color-text-secondary)' }}>
+            <path d="M3.5 2l3 3-3 3" fill="none" stroke="currentColor" strokeWidth="1.4" />
+          </svg>
+          <span className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>
             {name}
           </span>
-          <span
-            className="text-xs px-2 py-0.5 rounded-full font-bold"
-            style={verdictStyle(category.score)}
-          >
+          <span className="figure text-[13px] w-6 text-right" style={{ color }}>
             {Math.round(category.score)}
           </span>
-        </div>
-        <div className="flex gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-          {category.failCount > 0 && (
-            <span style={{ color: 'var(--color-fail)' }}>{category.failCount} fail</span>
-          )}
-          {category.warnCount > 0 && (
-            <span style={{ color: 'var(--color-warn)' }}>{category.warnCount} warn</span>
-          )}
-          <span style={{ color: 'var(--color-pass)' }}>{category.passCount} pass</span>
-        </div>
+          <ScoreMeter value={category.score} score={Math.round(category.score)} label={`${name} score ${Math.round(category.score)}`} />
+        </span>
+        <span className="flex items-center gap-4 text-[13px] shrink-0">
+          {category.failCount > 0 && <Status status="fail" word={`${category.failCount} fail`} />}
+          {category.warnCount > 0 && <Status status="warn" word={`${category.warnCount} warn`} />}
+          {/* Passing is not news: it stays quiet, so the eye goes to what is wrong */}
+          <Status status="pass" word={`${category.passCount} pass`} />
+        </span>
       </button>
 
       {expanded && (
-        <div className="ml-6 mt-1 space-y-2">
+        <div className="border-t border-[var(--color-border)]">
           {uniqueRules.map((rule) => (
-            <RuleCard key={rule.ruleId} rule={rule} metadata={ruleMetadata?.[rule.ruleId]} />
+            <RuleCard key={rule.ruleId} rule={rule} metadata={ruleMetadata?.[rule.ruleId]} showPage={multiPage} />
           ))}
         </div>
       )}

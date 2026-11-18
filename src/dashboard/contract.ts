@@ -73,9 +73,18 @@ export interface RuleSummary extends RuleResult {
    * weights behind it exist only once the whole rule registry has loaded.
    */
   priority: number;
+  /**
+   * Score points the audit would gain if this rule passed everywhere it was
+   * measured (`rules/points.ts`). The report ranks fixes by it; every
+   * finding's points add up to what the score is missing. Absent on payloads
+   * from builds before 8.1.
+   */
+  points?: number;
   totalPages: number;
   measuredPages: number;
   affectedPages: number;
+  /** Measured pages where the rule failed, as opposed to warned */
+  failedPages?: number;
   notMeasured: boolean;
   samplePages: Array<{ pageUrl: string; status: RuleResultStatus; message: string }>;
 }
@@ -86,6 +95,12 @@ export interface AuditDetail {
   /** `categoryResults[].results` entries are `RuleSummary` objects */
   result: AuditResult;
   ruleMetadata: Record<string, RuleMetadata>;
+  /**
+   * Category weights (summing to 100), so the report can draw each category
+   * as wide as it counts without importing the engine. Absent from builds
+   * before 8.1.
+   */
+  categoryWeights?: Record<string, number>;
 }
 
 /** One row of the domain overview */

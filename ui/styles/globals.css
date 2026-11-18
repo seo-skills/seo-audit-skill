@@ -49,12 +49,16 @@
    The macOS view switcher: one recessed track, the selected item raised on
    its own surface. A filled accent pill is a web pattern and was the loudest
    non-native element in the toolbar. */
+/* DESIGN.md: selection is ink. The track is a real surface with a hairline,
+   so the control reads as a control on the grey page; the active segment is
+   filled ink, not a faint raised chip. */
 .segmented {
   display: flex;
   gap: 2px;
   padding: 2px;
-  border-radius: 7px;
-  background: var(--segment-track);
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
 }
 
 /*
@@ -95,22 +99,35 @@
   align-items: center;
   min-height: 32px;
   padding: 4px 12px;
-  border-radius: 6px;
+  /* The track's 4px minus its 2px padding (DESIGN.md: nested radius) */
+  border-radius: 2px;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.5;
-  color: var(--color-text-secondary);
-  transition: background 120ms ease, color 120ms ease;
+  color: var(--color-text);
+  white-space: nowrap;
+  transition: background-color 120ms ease, color 120ms ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.segment:hover:not(.segment-active) {
-  color: var(--color-text);
+@media (hover: hover) and (pointer: fine) {
+  .segment:hover:not(.segment-active) {
+    color: var(--color-text);
+    background: var(--color-bg-hover);
+  }
+}
+
+.segment:active {
+  transform: scale(0.97);
+}
+
+.segment:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .segment-active {
-  background: var(--segment-active);
-  color: var(--color-text);
-  box-shadow: var(--segment-shadow);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
 }
 
 /* ─── Toolbar icon button ──────────────────────────────────────────────── */
@@ -121,14 +138,20 @@
   /* 28px was under the 32px minimum; the icon inside stays the same size. */
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: 4px;
   color: var(--color-text-secondary);
-  transition: background 120ms ease, color 120ms ease;
+  transition: background-color 120ms ease, color 120ms ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.toolbar-button:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text);
+.toolbar-button:active {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .toolbar-button:hover {
+    background: var(--color-bg-hover);
+    color: var(--color-text);
+  }
 }
 
 .toolbar-button:active {
@@ -216,6 +239,183 @@
     display: block;
   }
 }
+
+/* ─── The Fix Brief (DESIGN.md) ─────────────────────────────────────────────
+   Layered as components so a utility class can still adjust any of them. */
+@layer components {
+  /* Labels are the only uppercase: column headers, category tags, meta. */
+  .label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 16px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+  .figure {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Buttons: 32px, 4px corners. A hover deepens the control's own colour and
+     never switches hue; focus is a 2px ink ring. One primary per screen. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 4px;
+    border: 1px solid var(--color-border-strong);
+    background: var(--color-bg-elevated);
+    color: var(--color-text);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    /* Named properties, never `all`; transform carries the press */
+    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  /* A press the interface answers: subtle, and back in 160ms */
+  .btn:active:not(:disabled) { transform: scale(0.97); }
+  /* Hover only where there is a pointer that hovers: a tap would stick it */
+  @media (hover: hover) and (pointer: fine) {
+    .btn:hover { border-color: var(--color-text); }
+    .btn-primary:hover { background: var(--color-agent-hover); border-color: var(--color-agent-hover); }
+    .btn-ghost:hover { background: var(--color-bg-hover); border-color: transparent; color: var(--color-text); }
+    .menu-item:hover { background: var(--color-bg-hover); }
+    .points-col:hover .points-bar { background: var(--color-border-strong); }
+  }
+  .btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-md { height: 40px; padding: 0 16px; font-size: 14px; }
+  .btn-icon { width: 32px; padding: 0; justify-content: center; }
+  .btn-primary { background: var(--color-agent); border-color: var(--color-agent); color: var(--color-on-agent); }
+  .btn-ghost { background: transparent; border-color: transparent; color: var(--color-text-secondary); }
+
+  /* Menus and dialogs: the only floating surfaces, 6px is the cap. */
+  .menu {
+    min-width: 200px;
+    padding: 4px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-bg-elevated);
+    box-shadow: var(--shadow-lg);
+    /* Anchored to its trigger at the top right, so it grows from there */
+    transform-origin: top right;
+    transition: opacity 150ms cubic-bezier(0.23, 1, 0.32, 1), transform 150ms cubic-bezier(0.23, 1, 0.32, 1);
+    @starting-style {
+      opacity: 0;
+      transform: scale(0.97) translateY(-4px);
+    }
+  }
+  .menu-item {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    text-align: left;
+    color: var(--color-text);
+  }
+  .menu-item:focus-visible { background: var(--color-bg-hover); outline: none; }
+
+  /* Tables: 0 corners, hairlines, mono uppercase headers. */
+  .tbl { width: 100%; border-collapse: collapse; background: var(--color-bg-elevated); border: 1px solid var(--color-border); }
+  .tbl th {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--color-border);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+  .tbl td { padding: 10px 12px; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+  .tbl tr:last-child > td { border-bottom: 0; }
+  .tbl .num { text-align: right; white-space: nowrap; }
+  .tbl th .status { font-size: inherit; color: inherit; }
+
+  /* The status shape sits beside its word; colour lives only on the shape. */
+  .status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
+  .status svg { width: 10px; height: 10px; flex: none; }
+
+  /* The lead fix carries the one 2px orange flag on a screen. */
+  .lead-fix { position: relative; }
+  .lead-fix::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--color-agent); }
+
+  /* A label that changes in place (Copy → Copied) arrives softly */
+  .copy-swap {
+    transition: opacity 200ms ease, filter 200ms ease;
+    @starting-style { opacity: 0; filter: blur(2px); }
+  }
+
+  /* The agent speaking */
+  .agent-say { font-family: var(--font-mono); font-size: 13px; line-height: 18px; color: var(--color-agent-text); overflow-wrap: anywhere; }
+
+  /* Where the points went: each column as wide as its category weight. */
+  .points-strip { display: flex; gap: 2px; height: 188px; padding-top: 20px; }
+  .points-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex-grow: 0; flex-shrink: 1; cursor: pointer; background: none; border: 0; padding: 0; }
+  .points-col:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .points-bar { position: relative; flex: 1; background: var(--color-strip); }
+  .points-col[aria-pressed='true'] .points-bar { background: var(--color-border-strong); }
+  .points-hole { position: absolute; top: 0; left: 0; right: 0; border-bottom: 1px solid var(--color-text); background: var(--color-bg); }
+  .points-hole.is-fail { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-fail) 55%, transparent) 0 1.5px, transparent 1.5px 5px), var(--color-bg); }
+  .points-hole.is-warn { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-warn) 55%, transparent) 0 1.5px, transparent 1.5px 5px), var(--color-bg); }
+  .points-hole.is-none { border-bottom-color: transparent; }
+  .points-lost { position: absolute; left: 0; right: 0; top: -18px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--color-text); }
+  .points-name { height: 12px; overflow: hidden; white-space: nowrap; text-align: center; font-family: var(--font-mono); font-size: 10px; line-height: 12px; color: var(--color-text-muted); }
+
+  /* Score meter: the filled part is the score, the hatched rest is missing */
+  .meter-track { background: var(--color-strip); }
+  .meter-track.is-hatched {
+    background: repeating-linear-gradient(135deg, var(--color-border-strong) 0 1.5px, transparent 1.5px 5px), var(--color-strip);
+  }
+
+  /* The strip's tooltip: grows from the column it points at, then holds
+     still while the reader moves along the strip */
+  .strip-tip {
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-bg-elevated);
+    box-shadow: var(--shadow-md);
+    transform-origin: top center;
+    transition: opacity 125ms cubic-bezier(0.23, 1, 0.32, 1), scale 125ms cubic-bezier(0.23, 1, 0.32, 1);
+    @starting-style { opacity: 0; scale: 0.97; }
+  }
+
+  /* Progress: a 2px orange line that grows by scaleX, never width. */
+  .track { height: 2px; overflow: hidden; background: var(--color-border); }
+  .track > span { display: block; height: 100%; background: var(--color-agent); transform-origin: left; transition: transform 450ms cubic-bezier(0.77, 0, 0.175, 1); }
+
+  /* The agent (seomator-agent-style): still by default, one loop, only while
+     a run is live. States change data-state on the <svg class="agent">. */
+  .agent { overflow: visible; }
+  .agent .agent-body, .agent .agent-eyes, .agent .agent-eye, .agent .agent-arcs {
+    transform-box: fill-box;
+    transition: transform 240ms cubic-bezier(0.23, 1, 0.32, 1), opacity 160ms ease;
+  }
+  .agent .agent-body { transform-origin: 50% 100%; }
+  .agent .agent-eye { transform-origin: center; }
+  .agent .agent-arcs { opacity: 0; }
+  .agent[data-state='crawling'] .agent-body { transform: skewX(-7deg); }
+  .agent[data-state='crawling'] .agent-eyes { animation: agent-scan 1.6s cubic-bezier(0.77, 0, 0.175, 1) infinite; }
+  .agent[data-state='focused'] .agent-eye { transform: translate(-4px, -4px) scale(1.05, 0.3); }
+  .agent[data-state='alert'] .agent-cut { clip-path: var(--agent-brow); }
+  .agent[data-state='alert'] .agent-body { transform: scale(1.03, 0.97); animation: agent-huff 260ms cubic-bezier(0.23, 1, 0.32, 1) 1; }
+  .agent[data-state='delighted'] .agent-eye { opacity: 0; transform: scale(0.6); }
+  .agent[data-state='delighted'] .agent-arcs { opacity: 1; }
+  .agent[data-state='delighted'] .agent-body { animation: agent-hop 420ms cubic-bezier(0.23, 1, 0.32, 1) 1; }
+}
+@keyframes agent-scan { 0%, 100% { transform: translateX(-3px); } 50% { transform: translateX(9px); } }
+@keyframes agent-huff { 0% { transform: none; } 45% { transform: scale(1.06, 0.93); } 100% { transform: scale(1.03, 0.97); } }
+@keyframes agent-hop { 0% { transform: none; } 35% { transform: translateY(-10px) scale(0.98, 1.03); } 100% { transform: none; } }
 
 /*
  * Anything that animates does so only for people who want it to.

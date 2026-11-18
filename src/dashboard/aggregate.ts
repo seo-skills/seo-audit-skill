@@ -12,6 +12,7 @@ import type { AuditResult, CategoryResult, RuleResult } from '../types.js';
 import { categories as categoryDefinitions } from '../categories/index.js';
 import { isNotMeasured } from '../rules/define-rule.js';
 import { rulePriority } from '../rules/priority.js';
+import { attachPoints } from '../rules/points.js';
 import { buildRuleMetadata } from './queries.js';
 import type { AuditDetail, AuditMetaDto, RuleSummary } from './contract.js';
 import { RULE_SUMMARY_SAMPLE_PAGES } from '../storage/audits-db/results.js';
@@ -48,6 +49,7 @@ export function aggregateCategory(category: CategoryResult, auditUrl: string): R
         totalPages: 0,
         measuredPages: 0,
         affectedPages: 0,
+        failedPages: 0,
         notMeasured: true,
         samplePages: [],
       };
@@ -62,6 +64,7 @@ export function aggregateCategory(category: CategoryResult, auditUrl: string): R
     summary.measuredPages++;
     summary.notMeasured = false;
     if (result.status !== 'pass') summary.affectedPages++;
+    if (result.status === 'fail') summary.failedPages = (summary.failedPages ?? 0) + 1;
 
     const currentWorst = worst.get(result.ruleId);
     if (!currentWorst || RANK[result.status] > RANK[currentWorst.status]) {
@@ -150,6 +153,8 @@ export function aggregateResult(result: AuditResult, meta: AuditMetaDto): AuditD
       results: aggregateCategory(category, result.url),
     }));
 
+  attachPoints(categoryResults);
+
   const summaries = categoryResults.flatMap((category) =>
     (category.results as RuleSummary[]).map((rule) => ({ ruleId: rule.ruleId, ruleName: rule.ruleName }))
   );
@@ -158,5 +163,6 @@ export function aggregateResult(result: AuditResult, meta: AuditMetaDto): AuditD
     audit: meta,
     result: { ...result, categoryResults },
     ruleMetadata: buildRuleMetadata(summaries),
+    categoryWeights: Object.fromEntries(categoryDefinitions.map((c) => [c.id, c.weight])),
   };
 }

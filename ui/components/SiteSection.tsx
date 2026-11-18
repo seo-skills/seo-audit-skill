@@ -38,9 +38,9 @@ function UrlLink({ url }: { url: string }) {
 
 function Subheading({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-sm font-semibold mt-4 mb-2" style={{ color: 'var(--color-text)' }}>
+    <h4 className="text-sm font-semibold mt-4 mb-2" style={{ color: 'var(--color-text)' }}>
       {children}
-    </h3>
+    </h4>
   );
 }
 
@@ -59,14 +59,10 @@ export function SiteSection({ result }: { result: AuditResult }) {
   ].filter(Boolean) as string[];
 
   return (
-    <section
-      id="site"
-      className="p-5 rounded-xl border"
-      style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-elevated)' }}
-    >
-      <h2 className="text-base font-semibold" style={{ color: 'var(--color-text)' }}>
+    <section id="site" className="scroll-mt-4">
+      <h3 className="text-xl leading-7 font-semibold tracking-[-0.01em]" style={{ color: 'var(--color-text)' }}>
         Site
-      </h2>
+      </h3>
 
       {crawlNotes.length > 0 && (
         <ul className="mt-2 space-y-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>

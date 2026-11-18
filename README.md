@@ -25,7 +25,9 @@ SEOmator is an SEO audit you can automate and trust the answer of.
 - **Local and open source.** It runs on your machine, keeps audit history in a
   local SQLite database, and comes with a web dashboard and a desktop app over
   the same engine. Auditing a public site never lets that site point it at
-  your private network.
+  your private network. Browser renders (`--render`, and "Render in a browser"
+  in the dashboard and desktop app) are the exception for now: the browser
+  loads a page's own resources without that check.
 
 What it is not: a tool for exploring every URL of a very large site in a
 spreadsheet view, or a source of search-traffic data. A crawl here is sized
@@ -173,10 +175,11 @@ Run SEO audit on a URL.
 | `--max-pages <n>` | `-m` | Maximum pages to crawl | 10 |
 | `--concurrency <n>` | - | Concurrent requests | 3 |
 | `--timeout <ms>` | - | Request timeout in milliseconds | 30000 |
-| `--cwv` | - | Render the page in a browser for Core Web Vitals, JavaScript rendering and rendered-asset checks (slower). `--no-cwv` is still accepted | false |
+| `--render` | `--cwv` | Render each page in a browser for Core Web Vitals, JavaScript rendering, rendered-asset, accessibility (axe-core), unused code and image sizing checks (slower). `--no-cwv` is still accepted | false |
 | `--mobile` | - | Second render at a mobile viewport + mobile-first parity checks (single-page). Implies `--cwv` | false |
 | `--simulate-interaction` | - | Scroll and click the page so INP can be measured (reported as synthetic, unscored). Implies `--cwv` | false |
 | `--staging` | - | Audit a staging site: waive the noindex and robots.txt caps, and crawl past robots.txt | false |
+| `--fail-under <n>` | - | Exit 1 when the score is below n (overrides `[ci] fail_under`) | 70 |
 | `--min-coverage <pct>` | - | With `--crawl`: exit 1 when fewer than pct% of the attempted pages were measured | 0 |
 | `--max-duration <s>` | - | With `--crawl`: stop requesting pages after s seconds and score what was fetched | no limit |
 | `--ignore-crawl-delay` | - | With `--crawl`: do not honour the site's robots.txt `Crawl-delay` | false |
@@ -202,7 +205,7 @@ seomator serve --no-open         # do not open a browser
 ```
 
 It reads the same `~/.seomator/audits.db` the CLI writes, binds to loopback
-only, and makes no outbound requests. Every `/api` request needs the per-launch
+only, and makes no outbound requests apart from the audits you start. Every `/api` request needs the per-launch
 token, which is printed once and written to `~/.seomator/serve.json` for agents:
 
 ```bash
@@ -886,7 +889,7 @@ drop_query_prefixes = ["utm_", "gclid", "fbclid"]
 
 [rules]
 enable = ["*"]
-disable = ["perf-inp"]  # Supports wildcards: "core-*"
+disable = ["cwv-inp"]  # Supports wildcards: "core-*"
 
 [output]
 format = "console"  # console, json, html, markdown, llm
@@ -894,10 +897,13 @@ format = "console"  # console, json, html, markdown, llm
 
 Config priority (highest to lowest):
 1. CLI arguments
-2. Local `./seomator.toml`
-3. Parent directory configs
-4. Global `~/.seomator/config.toml`
+2. Local settings, `.seomator/settings.json` (written by `seomator config <key> <value>`)
+3. The first `seomator.toml` found walking up from the current directory (only one is read)
+4. Global settings, `~/.seomator/settings.json`
 5. Built-in defaults
+
+Every key, which command reads it, and the CI, override, rule-option and
+custom-check sections: [docs/configuration.md](docs/configuration.md).
 
 ## Link Score
 

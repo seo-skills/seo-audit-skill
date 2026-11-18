@@ -32,6 +32,7 @@ to run your first audit and compare two of them.
 | Find out what a rule checks and how to fix it | [SEO audit rules](./SEO-AUDIT-RULES.md) |
 | Work on the desktop app | [Run and package the desktop app](./ELECTRON-APP.md) |
 | Understand where audits are stored and how `compare` reads them | [Storage](./STORAGE-ARCHITECTURE.md) |
+| Upgrade from 7.x, and see what can break a script or CI job | [Upgrading to 8.0](./upgrading-to-8.md) |
 
 Some pages hold two types in clearly separated parts: the dashboard guide ends
 with an API reference, the desktop app guide with a design explanation, and the

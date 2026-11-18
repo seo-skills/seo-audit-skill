@@ -43,7 +43,11 @@ fail on that pair. Expect movement from:
   is no longer requested. Auditing `localhost` or an intranet host still
   works, including redirects its start page makes to another private host:
   each is held to the addresses it resolved to when the run started. Links
-  from its pages to *other* private hosts read "could not verify".
+  from its pages to *other* private hosts read "could not verify". This
+  covers every request the engine makes, from `audit`, `crawl`, `analyze`, the
+  dashboard, the desktop app and MCP. Browser renders are not covered yet: the
+  browser loads a page's own resources without the check, which is why MCP
+  refuses a render unless the server runs with `--allow-private`.
 - **Crawls are polite.** A 429 or 503 is retried with backoff, `Crawl-delay`
   is honoured (capped at 10 s), `crawler.per_host_concurrency` (default 2)
   now applies, and a host that keeps failing is given up on. A default crawl

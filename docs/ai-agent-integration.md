@@ -103,14 +103,14 @@ All 7 checks passed. Ready to audit!
    ```
 
    - `--format llm` writes one XML document to stdout and nothing else. Notices go to stderr.
-   - Without `--cwv`, the audit skips the browser render. The run is faster, but Core Web Vitals and most JavaScript rendering checks report unmeasured: 76 unmeasured checks on example.com, against 54 with the render. Add `--cwv` to measure them.
+   - Without `--cwv`, the audit skips the browser render. The run is faster, but Core Web Vitals and most JavaScript rendering checks report unmeasured. Add `--cwv` (or `--render`, the same flag) to measure them.
    - `--no-save` keeps a one-off run out of the audit history. Leave it off when you want to [compare](#check-what-a-deploy-changed) later.
    - To audit more than one page, add `--crawl -m 20` (up to 20 pages; the default is 10).
    - To write the report to a file instead, add `-o reports/audit.xml`. Then stdout stays empty and stderr says `LLM report saved to: reports/audit.xml`.
 
-2. Read the exit code. `0` means the run passed its gates (by default a score of 70 or higher), `1` means a gate failed (a score below `--fail-under`, or a `fail_ci` rule), and both print the full report. Any other code, or `1` with nothing on stdout, means the audit did not run. See [Handle a failed run](#handle-a-failed-run).
+2. Read the exit code. `0` means the run passed its gates (by default a score of 70 or higher), `1` means a gate failed (a score below `--fail-under`, or a `fail_ci` rule), and both print the full report. Any other code means the audit did not run. See [Handle a failed run](#handle-a-failed-run).
 
-3. Read the report from the top. This is the run above, trimmed, with line breaks added. The CLI prints it on one line.
+3. Read the report from the top. This is the run above as SEOmator 7.0.0 printed it, trimmed, with line breaks added; 8.0 writes `schema="4"`, counts more rules, and adds `<coverage>`, `<custom-checks>`, `<broken-external-links>`, `<link-score>` and `<ignored-by-config>` when a run has them. The CLI prints it on one line.
 
    ```xml
    <seo-audit schema="2" url="https://example.com" score="87" grade="B" pages="1" date="2026-10-15" nonce="8f27ec0b3c133d62f79881bdb08557de">
@@ -180,13 +180,13 @@ All 7 checks passed. Ready to audit!
 ### Verification
 
 - stdout starts with `<seo-audit`, and the root element has a `score` attribute. A run that failed has `ok="false"` instead.
-- The four `<summary>` counts add up to the number of rules that ran: 373 for a single-page audit of every category.
+- The four `<summary>` counts add up to the number of rules that ran.
 
 ### Troubleshooting
 
 - **`cwv-*` and `js-rendered-*` checks are in `<not-measured>` although you passed `--cwv`.** No browser could start, and the audit carried on without one. Run `seomator self doctor`.
-- **Checks you need are in `<not-measured>`.** They need a flag. `--crawl` measures the link graph and cross-page checks, such as `links-depth`, `links-orphan-pages`, `core-title-unique`, `content-duplicate-exact` and `crawl-sitemap-orphan-urls`. `--cwv --mobile` measures `mobile-parity-*`. `--cwv` measures `cwv-*`, `js-console-errors` and `js-failed-requests`. `cwv-inp` is always unmeasured, because INP needs a real user's interaction.
-- **A crawl stops at 10 pages although `seomator.toml` sets `max_pages`.** `seomator audit` applies its own flag defaults over `[crawler] max_pages`, `concurrency` and `timeout_ms`. Pass `-m`, `--concurrency` and `--timeout` on the command line.
+- **Checks you need are in `<not-measured>`.** They need a flag. `--crawl` measures the link graph and cross-page checks, such as `links-depth`, `links-orphan-pages`, `core-title-unique`, `content-duplicate-exact` and `crawl-sitemap-orphan-urls`. `--cwv --mobile` measures `mobile-parity-*`. `--cwv` measures `cwv-*`, `js-console-errors`, `js-failed-requests`, and the probes that run in the rendered page: `a11y-axe-*`, `perf-unused-js`, `perf-unused-css` and `images-oversized-delivery`. `cwv-inp` is always unmeasured, because INP needs a real user's interaction.
+- **A crawl stops at 10 pages although `seomator.toml` sets `max_pages`.** The file you edited may not be the one in use: `seomator config path` names it. A typed `-m` also wins over the file.
 - **`<issues>` has an `omitted` attribute.** The report kept the 150 highest-impact issues. Fix those and audit again, or use `--format json`, which carries every result.
 - **The score is 20 on a site you expect to rank.** The page, or a crawl's start page, is noindex or blocked by robots.txt, and `<score-cap>` says which. On a staging site, add `--staging`.
 
@@ -210,12 +210,12 @@ All 7 checks passed. Ready to audit!
    | Exit | Meaning | stdout |
    |------|---------|--------|
    | `0` | Success | The report |
-   | `1` | The run worked and a gate failed: `audit` scored under `--fail-under` (default 70), a `fail_ci` rule failed or could not be measured, or `compare --fail-on-regression` found a regression. Read `gate` in the JSON for which | The report or the diff |
-   | `1` | The command line was rejected before anything ran: a URL without a scheme, an unknown flag, a bad `--format` value | Empty. The reason is on stderr, starting `error:` |
+   | `1` | The run worked and a gate failed: `audit` scored under `--fail-under` or `[ci] fail_under` (default 70), a `fail_ci` rule failed or could not be measured, a crawl measured fewer pages than `--min-coverage`, or `compare --fail-on-regression` found a regression. Read `gate` in the JSON for which | The report or the diff |
    | `2` | The command failed | An error document |
+   | `2` | The command line was rejected before anything ran: a URL without a scheme, an unknown flag, a bad `--format` value | Empty. The reason is on stderr, starting `error:` |
    | `130` | Cancelled | An `aborted` error document, or nothing |
 
-   Exit `1` has two meanings. When stdout is empty, it is a usage error, not a low score.
+   Exit `1` always means a gate failed. Exit `2` with empty stdout and an `error:` line on stderr is a usage error, not a failed site.
 
 3. On exit `2`, read the error. Under `--format json`:
 
@@ -261,7 +261,7 @@ All 7 checks passed. Ready to audit!
    | `http-error` | The page answered with a 4xx or 5xx status, after any redirects | Audit a URL that returns 200 |
    | `non-html` | The response is not an HTML page, but a file, an API or a feed | Point the audit at an HTML page |
    | `no-pages` | A crawl found nothing to audit | Check robots.txt, the include and exclude patterns, and that the start URL links to other pages |
-   | `config` | The `--config` file does not exist | Fix the path, or drop the flag so SEOmator searches for `seomator.toml` |
+   | `config` | The `--config` file does not exist, or `seomator.toml` has an error | Run `seomator config validate`, which names every problem. For a missing file, fix the path, or drop the flag so SEOmator searches for `seomator.toml` |
    | `playwright-missing` | The browser could not start | Run `npx playwright install chromium`, or audit without `--cwv`. `audit` usually carries on without the browser instead, so this code is rare |
    | `aborted` | The run was cancelled (exit `130`) | Nothing, unless you did not cancel it |
    | `unknown` | Anything else | Read `message` |
@@ -282,7 +282,7 @@ stdout holds a JSON object with `"code": "dns"`, followed by `exit=2`.
 
 ### Troubleshooting
 
-- **Exit `1` and nothing on stdout.** The arguments were rejected. stderr says why:
+- **Exit `2`, nothing on stdout, and stderr starts `error:`.** The arguments were rejected. stderr says why:
 
   ```
   error: command-argument value 'example.com' is invalid for argument 'url'. Invalid URL "example.com". Did you mean https://example.com?
@@ -367,7 +367,7 @@ stdout holds a JSON object with `"code": "dns"`, followed by `exit=2`.
 
    With `--json`, the same pair has `"comparable": false`, and `runDifferences` holds `{ "option": "Core Web Vitals", "previous": "false", "current": "true", "material": true }`.
 
-   These differences make a pair not like-for-like: Core Web Vitals on or off, `--mobile`, `--simulate-interaction`, the `-c` categories, the `[rules]` enable and disable filters, the scoring model, and `--staging`. A different crawl mode or page limit is reported too, but on its own does not stop the check. An audit stored by an older SEOmator can show `scoring model: not recorded`; such a pair is not like-for-like either, so audit again for a new baseline. Likewise, a baseline stored by 7.0.0 or earlier without `--no-cwv` was rendered, so the first audit after upgrading shows `Core Web Vitals: true → false` unless you pass `--cwv`.
+   These differences make a pair not like-for-like: Core Web Vitals on or off, `--mobile`, `--simulate-interaction`, the `-c` categories, the `[rules]` enable and disable filters, `[rule_options]` values, the scoring model, and `--staging`. A different crawl mode or page limit is reported too, but on its own does not stop the check. An audit stored by an older SEOmator can show `scoring model: not recorded`; such a pair is not like-for-like either, so audit again for a new baseline. Likewise, a baseline stored by 7.0.0 or earlier without `--no-cwv` was rendered, so the first audit after upgrading shows `Core Web Vitals: true → false` unless you pass `--cwv`.
 
 7. Optional: pin the baseline. `compare` takes the two most recent audits of the host, so any audit in between, from the dashboard, the desktop app or another agent, moves the baseline. Record the baseline's ID right after step 1:
 
@@ -418,6 +418,13 @@ rather call tools than parse CLI output.
    `npm install -g @seomator/seo-audit` once and register `seomator mcp`
    instead of the `npx` line for a faster start. `--allow-host <host:port>`
    allows one private address without allowing them all.
+
+   At the start of every run the server reads `seomator.toml`, found from its
+   working directory, or the file `--config <path>` names. It takes the rule,
+   custom-check and most `[crawler]` settings from it, but not `max_pages`,
+   `concurrency` or `max_duration_s`: pass `maxPages` and `maxDurationS` to
+   `audit_url` instead. See
+   [Which commands read it](./configuration.md#which-commands-read-it).
 2. Start an audit with `audit_url`. It returns a `runId` at once; pass
    `waitS` (up to 25) to also get the summary when the run is short.
 3. Poll `audit_status` with the `runId` until `state` is `completed`, then

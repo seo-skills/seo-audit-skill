@@ -218,8 +218,9 @@ Under `--format llm` the same error is XML:
 `<seo-audit ok="false"><error code="http-error"><message>…</message><hint>…</hint></error></seo-audit>`.
 
 A command line the parser rejects (an unknown flag, an invalid URL or option
-value) exits `1` with the reason on stderr and nothing on stdout. Treat a `1`
-with empty stdout as a usage error, not as a low score.
+value) exits `2` with the reason on stderr, starting `error:`, and nothing on
+stdout. Treat that as a usage error to fix, not as a failed site; `1` always
+means a gate failed.
 
 `code` is one of `dns`, `unreachable` (nothing answered: refused, reset or no
 route), `tls` (certificate rejected), `timeout`, `http-error`, `non-html`,
@@ -235,13 +236,14 @@ route), `tls` (certificate rejected), `timeout`, `http-error`, `non-html`,
 | `--max-pages <n>` | `-m` | Maximum pages to crawl | 10 |
 | `--crawl` | | Enable multi-page crawl | false |
 | `--categories <list>` | `-c` | Comma-separated categories to audit | All |
-| `--cwv` | | Render in a browser: Core Web Vitals + JS rendering | false |
+| `--cwv` | `--render` | Render in a browser: Core Web Vitals, JS rendering, axe-core accessibility, unused JS/CSS and image sizing | false |
 | `--mobile` | | Render mobile viewport + mobile-first parity (single-page); implies `--cwv` | false |
 | `--verbose` | `-v` | Show progress | false |
 | `--output <path>` | `-o` | Output file path | |
 | `--config <path>` | | Config file path | |
 | `--no-save` | | Do not store this audit in ~/.seomator | |
 | `--staging` | | Audit a staging site: waive the noindex and robots.txt caps and crawl past robots.txt; the waived caps are listed | false |
+| `--fail-under <n>` | | Exit 1 when the score is below n (overrides `[ci] fail_under`) | 70 |
 | `--min-coverage <pct>` | | With `--crawl`: exit 1 when fewer than pct% of the attempted pages were measured | 0 |
 | `--max-duration <s>` | | With `--crawl`: stop requesting pages after s seconds and score what was fetched | no limit |
 | `--ignore-crawl-delay` | | With `--crawl`: do not honour the site's robots.txt `Crawl-delay` | false |
@@ -266,7 +268,7 @@ audit is stored unless it ran with `--no-save`.
 | `--against <auditId>` | Compare against a specific audit instead of the previous run | latest-but-one |
 | `--trend` | Show score history for the domain instead of a two-run diff | false |
 | `--json` / `-j` | Machine-readable diff | false |
-| `--fail-on-regression` | Exit 1 when the score dropped or any rule's status got worse. Two audits measured differently (Core Web Vitals, scoring model, rule filters, staging) are reported as not like-for-like and never fail | false |
+| `--fail-on-regression` | Exit 1 when the score dropped or any rule's status got worse. Two audits measured differently (Core Web Vitals, scoring model, rule filters, rule options, staging) are reported as not like-for-like and never fail | false |
 
 Rules are diffed by ID, so a rule that broke and a different one that was fixed
 are reported separately rather than cancelling out in a count.
@@ -319,8 +321,9 @@ seomator audit https://example.com --crawl -m 100 --format llm
 
 ```bash
 # User asks: "Re-audit the site, ignore cached results"
-# Every run fetches every page fresh — there is no cache to bypass.
-seomator audit https://example.com --format llm
+# Pages are always fetched fresh. External link answers are kept in a link
+# cache for 7 days by default; --refresh checks every external link again.
+seomator audit https://example.com --format llm --refresh
 ```
 
 ### Example 4: Generate Shareable Report
@@ -414,7 +417,9 @@ Fix issues in this order for maximum impact:
 A category score is the average of its rule results — `pass` 100, `warn` 50,
 `fail` 0 — weighted by each rule's declared weight, so a heavy rule such as
 `security-https` moves the category far more than a minor one. The overall score
-is the weighted average of category scores using the weights above.
+is the weighted average of category scores using the weights above. Advisory
+rules (new checks, marked "Advisory" in every report) are listed but never count
+toward a score.
 
 **A page-level condition can cap the overall score.** An average cannot say
 "nothing else matters", so while one of these holds, the overall score stays at

@@ -26,15 +26,16 @@ source overrides an earlier one.
   with one below it.
 - `seomator audit --config <path>` reads the named file instead of searching.
   Global and local settings still apply. A path that does not exist stops the
-  audit with exit code 2 and error code `config`. No other command accepts
-  `--config`.
+  audit with exit code 2 and error code `config`. `analyze`, `mcp` and
+  `config validate` accept `--config` too; no other command does.
 - Tables merge key by key. Any other value, a list included, replaces the
   earlier one whole: an `exclude` list in local settings replaces the list in
   `seomator.toml`.
 - `.seomator/settings.json` and `[output] path` are relative to the current
   directory, not to the directory that holds `seomator.toml`.
-- Only `seomator config validate` checks types and ranges. `audit`, `crawl` and
-  `analyze` use whatever they read.
+- `seomator config validate`, `audit`, `analyze` and `mcp` check types and
+  ranges, and an error stops a run before its first request. `crawl` uses
+  whatever it reads.
 - Unknown keys are kept and ignored. `config validate` does not report them.
   `seomator config show` prints them, so a misspelt key appears next to the
   real one.
@@ -47,9 +48,10 @@ source overrides an earlier one.
 
 | Command | Reads |
 |---|---|
-| `seomator audit` | `[project] name`, `[crawler]`, `[rules]`, `[ci]`, `[output]`. A single-page audit uses only `user_agent` from `[crawler]`; the other `[crawler]` keys apply with `--crawl`. `-m`, `--concurrency` and `--timeout` override `max_pages`, `concurrency` and `timeout_ms` only when typed: see [Flags and [crawler]](#flags-and-crawler). |
-| `seomator crawl` | `[project] name` and every implemented `[crawler]` key. `-m` replaces `max_pages` only when you pass it. |
-| `seomator analyze` | `[rules]`, `[ci]` and `[output] save`, from `--config <path>` or the `seomator.toml` the search finds. It takes the project name from the stored crawl, ignores `[output] format` and `path` (use `--json`), and fetches nothing, so `[crawler]` has no effect. |
+| `seomator audit` | `[project] name`, `[crawler]`, `[rules]` (with `[rules.override]`), `[rule_options]`, `[external_links]`, `[custom]`, `[ci]`, `[output]`. A single-page audit uses `user_agent`, `timeout_ms`, `max_retry_after_ms` and `per_host_concurrency` from `[crawler]`; the other `[crawler]` keys apply with `--crawl`. `-m`, `--concurrency` and `--timeout` override `max_pages`, `concurrency` and `timeout_ms` only when typed: see [Flags and [crawler]](#flags-and-crawler). |
+| `seomator crawl` | `[project] name`, and from `[crawler]`: `max_pages`, `concurrency`, `timeout_ms`, `delay_ms`, `per_host_delay_ms`, `per_host_concurrency`, `respect_crawl_delay`, `max_retry_after_ms`, `max_duration_s`, `respect_robots`, `user_agent`, `include`, `exclude`, `drop_query_prefixes` and `allow_query_params`. `-m` replaces `max_pages` only when you pass it. |
+| `seomator analyze` | `[rules]` (with `[rules.override]`), `[rule_options]`, `[external_links]`, `[custom]`, `[ci] fail_under` and `[output] save`, from `--config <path>` or the `seomator.toml` the search finds. It takes the project name from the stored crawl and ignores `[output] format` and `path` (use `--json`). It fetches no pages, so `[crawler]` has no effect; external links are still checked. |
+| `seomator mcp` | At the start of every run, from `--config <path>` or the `seomator.toml` the search finds from the server's working directory: `[rules]` (with `[rules.override]`, whose `priority` is applied to stored audits; `fail_ci` does nothing, as MCP has no exit code), `[rule_options]`, `[external_links]`, `[custom]`, `[output] save`, and from `[crawler]` every implemented key except `max_pages`, `concurrency` and `max_duration_s`. Those three come from the `audit_url` arguments instead: `maxPages` (default 10), a fixed concurrency of 3, and `maxDurationS` (default 3600). It does not read `[ci]` or `[output] format` and `path`. |
 | `seomator config` | All sources. |
 | `seomator serve` and the desktop app | Nothing. Their audits take settings from the run form (10 pages and concurrency 3 by default) and run every rule. |
 | `seomator report`, `compare`, `db`, `self doctor` | Nothing. `self doctor` reports only whether `seomator.toml` exists in the current directory. |
@@ -81,13 +83,16 @@ leave out.
 
 ### [crawler]
 
-Except for `user_agent`, these keys apply to crawls only: `seomator crawl` and
-`seomator audit --crawl`.
+Except for `user_agent`, `timeout_ms`, `max_retry_after_ms` and
+`per_host_concurrency`, which every audit uses, these keys apply to crawls
+only: `seomator crawl`, `seomator audit --crawl` and a `seomator mcp` crawl.
+`crawl` and `mcp` each skip some of them; see
+[Which commands read it](#which-commands-read-it).
 
 | Key | Type | Default | Valid values | Effect |
 |---|---|---|---|---|
 | `max_pages` | integer | `10` | 1 to 10000. Warning above 5000. | Most pages one crawl fetches. A typed `-m` overrides it. |
-| `concurrency` | integer | `3` | 1 to 20. Warning above 10. | Pages a crawl fetches at the same time. `audit` replaces it with `--concurrency`. |
+| `concurrency` | integer | `3` | 1 to 20. Warning above 10. | Pages a crawl fetches at the same time. A typed `--concurrency` overrides it. |
 | `timeout_ms` | integer | `30000` | 1000 to 300000 | Timeout in milliseconds for each page request and browser render, and for the crawl's robots.txt request. A typed `--timeout` overrides it. |
 | `delay_ms` | integer | `100` | 0 to 60000 | Minimum gap in milliseconds between the starts of any two page requests. |
 | `per_host_delay_ms` | integer | `200` | 0 to 60000 | Minimum gap in milliseconds between the starts of two page requests to one host. A crawl stays on one host, so the larger of the two delays sets the pace: 200 ms by default. |
@@ -136,7 +141,7 @@ fetch instead of scoring it.
 
 ### [rules]
 
-Read by `audit` and `analyze`.
+Read by `audit`, `analyze` and `seomator mcp`.
 
 | Key | Type | Default | Valid values | Effect |
 |---|---|---|---|---|
@@ -162,9 +167,10 @@ Pattern syntax is under [Rule patterns](#rule-patterns).
 
 ### [rules.override]
 
-Read by `audit` and `analyze`. Re-ranks findings and gates CI on them. **It
-never changes the score**: the score describes the site, not a team's
-preferences about it.
+Read by `audit`, `analyze` and `seomator mcp`. Re-ranks findings and gates CI
+on them. **It never changes the score**: the score describes the site, not a
+team's preferences about it. `seomator mcp` applies `priority` to the audits
+it stores; it has no exit code, so `fail_ci` has no effect there.
 
 ```toml
 [rules.override]
@@ -180,8 +186,8 @@ preferences about it.
 
 - Every id must be a registered rule (`seomator explain --list`). An unknown
   id, an unknown key or a bad value stops `audit` and `analyze` with exit 2 and
-  error code `config`, with a "Did you mean" suggestion. A typo must never
-  turn a CI gate off.
+  error code `config`, with a "Did you mean" suggestion; an MCP run fails with
+  the same code. A typo must never turn a CI gate off.
 - A `fail_ci` rule that `[rules] enable/disable` or `--categories` leaves out
   is the same error: its gate could never run.
 - A `fail_ci` rule that ran but took no reading on any page (for example a
@@ -201,7 +207,7 @@ Read by `audit` and `analyze`.
 
 ### [output]
 
-Read by `audit`. `analyze` reads `save` only.
+Read by `audit`. `analyze` and `seomator mcp` read `save` only.
 
 | Key | Type | Default | Valid values | Effect |
 |---|---|---|---|---|
@@ -644,12 +650,12 @@ Local settings:
 | `-j, --json` | `audit` | `output.format` | Deprecated form of `--format json`. Also cancels `output.path`. |
 | `-o, --output <path>` | `audit` | `output.path` | |
 | `--no-save` | `audit`, `analyze` | `output.save` | |
-| `--config <path>` | `audit` | Which `seomator.toml` is read | |
+| `--config <path>` | `audit`, `analyze`, `mcp`, `config validate` | Which `seomator.toml` is read | |
 | `--staging` | `audit` | `crawler.respect_robots` | A crawl ignores robots.txt. Also waives the noindex and robots.txt score caps. No config key sets it. |
 | `-m, --max-pages <n>` | `crawl` | `crawler.max_pages` | Applied only when given. Range 1 to 1000. |
 
 These exist only as flags, with no config key: `--crawl`, `-c, --categories`,
-`--cwv`, `--mobile`, `--simulate-interaction`, `--json-report` and
+`--render` (or `--cwv`), `--mobile`, `--simulate-interaction`, `--json-report` and
 `-v, --verbose` on `audit`. The `--output <path>` flag of `crawl` names the
 directory the crawl is stored under. It is not `[output] path`.
 
@@ -737,8 +743,8 @@ Write a `seomator.toml` for your project from one of the four presets.
    seomator init --preset ecommerce --name shop -y
    ```
 
-3. Edit `seomator.toml` to suit the site. Leave out `max_pages` if you only run
-   `seomator audit`: it uses `-m` instead.
+3. Edit `seomator.toml` to suit the site. A typed `-m` on `seomator audit`
+   overrides `max_pages`.
 4. Check the file:
 
    ```bash
@@ -869,8 +875,9 @@ Make every `seomator audit` in a pipeline write its report to
    seomator audit https://example.com
    ```
 
-   For a crawl, set the limits with flags, because `audit` ignores
-   `max_pages`, `concurrency` and `timeout_ms` in the file:
+   For a crawl, add `--crawl`. `audit` takes `max_pages`, `concurrency` and
+   `timeout_ms` from the file (the `ci` preset sets `max_pages = 100`), and a
+   typed `-m`, `--concurrency` or `--timeout` overrides them:
    `seomator audit https://example.com --crawl -m 50 --concurrency 5`.
 3. Let the exit code decide the job: `0` when every gate passed, `1` when one
    failed (a score below `[ci] fail_under` or `--fail-under`, default 70, or a
@@ -902,9 +909,9 @@ $ jq '{url, overallScore}' reports/audit.json
 |---|---|
 | Exit code 2, no file, JSON on stdout | The audit failed. Stdout carries `{ "error": true, "code", "message", "hint" }`, for example `"code": "dns"` for a host that does not resolve. Follow the `hint`. |
 | The report went to stdout instead of the file | `--format` or `--json` on the command line cancels `[output] path`. Add `-o reports/audit.json`, or drop the flag. |
-| A crawl stops at 10 pages | Pass `-m`. `audit` does not read `max_pages`. |
+| A crawl stops at 10 pages | The `seomator.toml` in use sets no `max_pages` (check `seomator config path`), or a typed `-m` lowered it. |
 | Exit code 2 with `"code": "playwright-missing"` | Run `npx playwright install chromium` on the runner, or audit without `--cwv`. |
-| Exit code 2 with `"code": "config"` | The path given to `--config` does not exist. |
+| Exit code 2 with `"code": "config"` | The path given to `--config` does not exist, or `seomator.toml` has an error. `seomator config validate` names every problem. |
 | A staging site scores 20 | The site is kept out of search on purpose (noindex, or robots.txt blocks Googlebot). Audit it with `--staging`. |
 
 ## Related

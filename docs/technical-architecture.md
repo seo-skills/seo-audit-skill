@@ -42,13 +42,13 @@ The sections below follow an audit from the command line to the database and sho
                     $SEOMATOR_HOME/audits.db
 ```
 
-All three surfaces run the same `Auditor` and write through the same `saveAuditToDatabase()`. The CLI builds an `Auditor` itself. `seomator serve` and the desktop app go through `AuditSession`, which owns one run at a time, its cancellation, a bounded progress state and saving. Reading history goes through one module too: `src/dashboard/queries.ts` serves the dashboard's HTTP API, the desktop app's `electron/main/db-bridge.ts` and `seomator report`.
+All three surfaces run the same `Auditor` and write through the same `saveAuditToDatabase()`. The CLI builds an `Auditor` itself. `seomator serve`, the desktop app and `seomator mcp` (`src/mcp/server.ts`, over stdio) go through `AuditSession`, which owns one run at a time, its cancellation, a bounded progress state and saving. Reading history goes through one module too: `src/dashboard/queries.ts` serves the dashboard's HTTP API, the desktop app's `electron/main/db-bridge.ts`, `seomator report` and the MCP server's read tools.
 
 The React app in `ui/` is the same code in the browser and in Electron. `ui/lib/api-client.ts` picks the transport at run time: the IPC bridge when the preload script has put `electronAPI` on the window, the HTTP adapter (`ui/lib/http-api.ts`) otherwise. A change in `ui/` ships to both.
 
 The desktop app renders pages in an Electron `BrowserWindow` (`electron/main/electron-fetcher.ts`), passed to the engine as its `browserFetcher` option, instead of Playwright. That window gives Core Web Vitals and a rendered DOM, but no mobile emulation and no synthetic interaction, so the desktop build reports those two as unavailable.
 
-**Trade-off.** One engine means one score for one site, whichever surface ran it, and a fix to a rule lands everywhere at once. What it does not remove is the difference in capabilities. Core Web Vitals are off by default everywhere: the CLI measures them with `--cwv`, the run form in `ui/` when its Core Web Vitals option is on. Only the CLI applies `[rules]` filters and offers `--staging`. A browser run and a no-browser run of the same site score differently for reasons that have nothing to do with the site, so every stored audit records how it was measured, and `seomator compare` will not call a measurement difference a regression. [Storage Architecture](./STORAGE-ARCHITECTURE.md#the-run-profile-run_json) lists the recorded fields.
+**Trade-off.** One engine means one score for one site, whichever surface ran it, and a fix to a rule lands everywhere at once. What it does not remove is the difference in capabilities. Core Web Vitals are off by default everywhere: the CLI measures them with `--cwv`, the run form in `ui/` when its Core Web Vitals option is on. Only the CLI and `seomator mcp` apply `[rules]` filters, and only the CLI offers `--staging`. A browser run and a no-browser run of the same site score differently for reasons that have nothing to do with the site, so every stored audit records how it was measured, and `seomator compare` will not call a measurement difference a regression. [Storage Architecture](./STORAGE-ARCHITECTURE.md#the-run-profile-run_json) lists the recorded fields.
 
 ## How a single-page audit runs
 
@@ -171,7 +171,7 @@ The problem is in the arithmetic. `core`, where the title and the indexing direc
 | `thin-content` | 49 | Fewer than 20 words of main content |
 | `no-title` | 69 | No `<title>` |
 
-The first two are **indexability** caps: the page is kept out of search. The other three are **content** caps, and at most one of them applies, the most specific. Every ceiling is below 70, so a capped audit fails a CI run.
+The first two are **indexability** caps: the page is kept out of search. The other three are **content** caps, and at most one of them applies, the most specific. Every ceiling is below 70, so a capped audit fails a CI run at the default pass line.
 
 How `src/score-caps.ts` applies them:
 
@@ -207,7 +207,7 @@ With `--staging` the same crawl scored 86 and listed the cap under `waivedCaps`,
 - *Cap a crawl on any noindex page.* Rejected: it would mark down every site that has a login page.
 - *A soft-404 cap.* Rejected: the soft-404 heuristic fires on the word "error" in a title.
 
-**Trade-off.** A cap overrides arithmetic people can otherwise check by hand. The `scoreCap` record keeps the uncapped average next to the capped score so that no surface shows a capped score without its reason. One gap remains: the audits database stores only the capped number, so a stored audit viewed later has lost the reason.
+**Trade-off.** A cap overrides arithmetic people can otherwise check by hand. The `scoreCap` record keeps the uncapped average next to the capped score so that no surface shows a capped score without its reason. The audits database keeps that record too, in `audits.extras_json`, so a stored audit viewed later still has it.
 
 ## Crawl mode
 
@@ -261,7 +261,7 @@ A category's score in a crawl is the weighted average over every rule result fro
 
 When the audit is done, the result goes to the reporters (`src/reporters/`: console, JSON, HTML, Markdown and LLM) and, unless `--no-save` or `[output] save = false`, to `saveAuditToDatabase()`. One transaction writes the audit row, its categories, one row per rule per page, and a comparison with the previous audit of the same domain. If storing fails, the CLI prints why and still prints the report.
 
-The stored row carries a run profile: crawl mode, page limit, concurrency, Core Web Vitals, mobile parity, simulated interaction, categories, scoring version, rule filters, staging and timeout. The engine records its own part of the profile on the result, and `saveAuditToDatabase()` merges it beneath what the calling surface knows, so the scoring version and rule filters reach the database from every surface. `seomator compare` reads both profiles and reports any difference that can move a score on its own as "not a like-for-like comparison"; in that case `--fail-on-regression` does not fail. [Storage Architecture](./STORAGE-ARCHITECTURE.md) has the tables, the profile fields and the comparison rules.
+The stored row carries a run profile: crawl mode, page limit, concurrency, Core Web Vitals, mobile parity, simulated interaction, categories, scoring version, rule filters, rule options, staging and timeout. The engine records its own part of the profile on the result, and `saveAuditToDatabase()` merges it beneath what the calling surface knows, so the scoring version and rule filters reach the database from every surface. `seomator compare` reads both profiles and reports any difference that can move a score on its own as "not a like-for-like comparison"; in that case `--fail-on-regression` does not fail. [Storage Architecture](./STORAGE-ARCHITECTURE.md) has the tables, the profile fields and the comparison rules.
 
 ## Related
 

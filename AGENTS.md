@@ -5,7 +5,7 @@ ground in more depth — read it for anything not spelled out here.
 
 ## Project Overview
 
-SEOmator (`@seomator/seo-audit`) is an SEO audit engine: **373 rules across 20
+SEOmator (`@seomator/seo-audit`) is an SEO audit engine: **398 rules across 20
 weighted categories**, shipped as (a) an npm CLI, (b) an Electron desktop app,
 (c) a Claude Code skill. It fetches pages, parses HTML with Cheerio, optionally
 renders with Playwright (Core Web Vitals + rendered DOM), and produces weighted
@@ -74,8 +74,8 @@ This is the checklist for the hint-coverage-expansion rules:
    (`src/rules/pattern-matcher.ts`), so **a new rule is live in every audit
    immediately**.
 2. **Never throw.** The Auditor catches rule exceptions and records them as
-   `fail` with score 0 (`src/auditor.ts` ~L499) — a crashy rule silently
-   tanks every user's score. Guard every optional context field; if the data
+   not measured with reason `rule-error` (`runRule()` in `src/auditor.ts`) — a
+   crashy rule silently loses its reading on every page. Guard every optional context field; if the data
    a rule needs wasn't collected, return `notMeasured()`, never `fail()`.
 3. **Cross-page state**: if the rule accumulates module-level state (duplicate
    detection etc.), register a reset via `registerResettable()` or consecutive
@@ -89,7 +89,7 @@ This is the checklist for the hint-coverage-expansion rules:
 6. **Score impact is expected but must be visible**: each new rule dilutes its
    category average, so existing sites' scores will shift. Note this in
    `CHANGELOG.md`. Do not "compensate" by changing category weights.
-7. **Update the hardcoded rule count** (currently "373 rules"; was 287 before the
+7. **Update the hardcoded rule count** (currently "398 rules"; was 287 before the
    hint-coverage expansion) everywhere when rules
    ship: `README.md`, `SKILL.md`, `skill/SKILL.md`, `skill/references/rules.md`,
    `references/rules.md`, `docs/introduction.md`, `docs/SEO-AUDIT-RULES.md`

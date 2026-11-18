@@ -328,7 +328,8 @@ what can break a script or CI job, why scores move, and what to change.
   made this machine request it.
 
 - **A public site can no longer point an audit at your network.** Every
-  request the engine makes now goes through one network module. When the site
+  request the engine makes, from `audit`, `crawl`, `analyze`, the dashboard,
+  the desktop app and MCP, now goes through one network module. When the site
   you audit is public, a link, image, redirect or sitemap entry on it that
   resolves to a loopback, private, link-local (cloud metadata), shared or
   unique-local address is refused instead of requested. The address is checked
@@ -340,6 +341,9 @@ what can break a script or CI job, why scores move, and what to change.
   to when the run started, so a DNS answer that changes mid-run cannot open
   the guard. Other private hosts its pages link to are refused, and read
   "could not verify". A refused request reports error code `private-address`.
+  Browser renders are not covered yet: the browser loads a page's own
+  resources without the check, so MCP refuses a render unless the server runs
+  with `--allow-private`.
 - Response bodies are read with a cap: 10 MB for a page or robots.txt, and
   50 MB for a sitemap, decompressed. A huge or endless response, or a small
   gzip that expands without limit, can no longer exhaust memory.

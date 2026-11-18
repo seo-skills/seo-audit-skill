@@ -276,10 +276,9 @@ curl -s -X DELETE -H "X-SEOmator-Token: $TOKEN" "$API/runs/current"
 ### A low score with no explanation
 
 A score cap holds the overall score down when, for example, the page is
-`noindex`. A stored audit keeps the capped score but not the cap, so the audit
-page, `GET /api/audits/<auditId>` and its exports never say which cap applied.
-For 15 minutes after a run, `GET /api/runs/<runId>/result` and
-`/api/runs/<runId>/export` still include it. After that, run
+`noindex`. The audit page, `GET /api/audits/<auditId>` and its exports say which
+cap applied and what the uncapped score was. An audit stored before 8.0 kept
+the capped score but not the cap; for one of those, run
 `seomator audit <url> --no-save`, which prints the cap.
 
 ---
@@ -534,7 +533,7 @@ Failures: `400 invalid-option` with `details: { option, allowed, received }`;
 `id`, `auditId`, `domain`, `projectName`, `startUrl`, `overallScore`,
 `pagesAudited`, `passedCount`, `warningCount`, `failedCount`, `startedAt`,
 `completedAt`, `status`, `source` and `engineVersion`. `source` is `cli`,
-`dashboard`, `desktop` or `api`. `source` and `engineVersion` are null for
+`dashboard`, `desktop`, `mcp` or `api`. `source` and `engineVersion` are null for
 audits stored before 3.4.0.
 
 ### Audit detail
@@ -544,14 +543,16 @@ audits stored before 3.4.0.
 - `audit`: the audit summary plus `totalRules` and `run`, the options the audit
   ran with (null for audits stored before 3.4.0).
 - `result`: `url`, `overallScore`, `categoryResults`, `timestamp`,
-  `crawledPages` and `coverage: { pages, detail }`. Each category holds one
+  `crawledPages` and `coverage: { pages, detail }`, plus `scoreCap`,
+  `waivedCaps` and `extras` when the audit stored them. Each category holds one
   entry per rule, not per page: the rule's worst result plus `ruleName`,
   `priority`, `totalPages`, `measuredPages`, `affectedPages`, `notMeasured` and
-  up to 5 `samplePages`. `weight` is `0` for a rule that was not measured.
+  up to 5 `samplePages`, and `reason`, `advisory` and `overridden` when set.
+  `weight` is `0` for a rule that was not measured.
 - `ruleMetadata`: `{ "<ruleId>": { name, description, fix } }`.
 
-A stored audit's `overallScore` is the capped score, and its `result` has no
-`scoreCap`.
+A stored audit's `overallScore` is the capped score; `scoreCap` holds the
+uncapped score and the reason. Audits stored before 8.0 have no `scoreCap`.
 
 ### Domain summary
 

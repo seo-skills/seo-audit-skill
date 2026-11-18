@@ -169,6 +169,7 @@ Defined in `src/types.ts`. Every rule receives the same context object containin
 - **Rule level**: `pass`=100, `warn`=50, `fail`=0 (`src/scoring.ts`)
 - **Category score**: Weighted average of rule scores within the category
 - **Overall score**: Weighted average of category scores using category weights
+- **Advisory and not-measured results count for nothing**: a rule defined with `advisory: true` is reported but never moves a score, and neither does a `notMeasured()` result. `countsTowardScore()` in `src/rules/define-rule.ts` is the one test every total uses
 - **Category weights must sum to exactly 100** (validated by `validateCategoryWeights()` in `src/categories/index.ts`)
 
 ### 20 Categories & Weights
@@ -187,7 +188,7 @@ core(11%), perf(10%), links(8%), images(8%), security(8%), a11y(7%), technical(7
 
 ### Key Directories
 
-- `src/rules/` - 373 audit rules in 20 category subdirectories
+- `src/rules/` - 398 audit rules in 20 category subdirectories
 - `src/categories/` - Category definitions with weights
 - `src/commands/` - CLI command handlers (audit, crawl, init, config, db, etc.)
 - `src/crawler/` - HTTP fetcher, queue-based crawler, URL normalization
@@ -196,6 +197,11 @@ core(11%), perf(10%), links(8%), images(8%), security(8%), a11y(7%), technical(7
 - `src/config/` - TOML config loading, validation, presets
 - `src/dashboard/` - `seomator serve`: HTTP server, routes, SSE, run session, read queries
 - `src/design/` - `tokens.ts`, the single source for every colour on every surface
+- `src/mcp/` - `seomator mcp`: the audit engine as MCP tools over stdio
+- `src/net/` - `netFetch`, the one way the engine makes a request, and the private-address policy each run carries
+- `src/render/` - Probes that run in the rendered page: axe-core, unused JS/CSS coverage, image sizing
+- `src/site/` - Whole-crawl analysis: Link Score, near-duplicates, external link checks
+- `src/custom/` - `[[custom.search]]` and `[[custom.extract]]` checks from `seomator.toml`
 - `ui/` - **Top level, not under `electron/`.** The React app rendered by *both*
   the desktop app and the web dashboard: pages, components, hooks, stores.
   Anything changed here ships to both surfaces.

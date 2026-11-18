@@ -17,7 +17,7 @@ Every rule returns one result for each audited page.
 | `fail` | 0 | Counts at the rule's weight |
 | `not-measured` | none | Weight 0: left out of every average |
 
-A rule reports `not-measured` when its input is missing: the audit skipped the browser render (it runs only with `--cwv`), the check compares pages and the audit was not a crawl, or the page has nothing for the rule to grade. In JSON output such a result still carries `"score": 50`, next to `"weight": 0`, and the weight keeps it out of the score. A rule that throws an error is recorded as `fail`.
+A rule reports `not-measured` when its input is missing: the audit skipped the browser render (it runs only with `--cwv`), the check compares pages and the audit was not a crawl, or the page has nothing for the rule to grade. In JSON output such a result still carries `"score": 50`, next to `"weight": 0`, and the weight keeps it out of the score. A rule that throws an error is recorded as `not-measured`, with reason `rule-error`.
 
 To read individual results, filter the JSON report by rule ID:
 
@@ -1125,7 +1125,7 @@ Checks for WCAG compliance, screen reader support, and keyboard navigation.
 - **Fix:** Add `aria-label`, visible text content, or `title` to interactive elements (buttons, links, inputs).
 
 #### a11y-color-contrast
-- **What it checks:** Inline `style` colours only, by heuristic: text and background colour names from a known low-contrast list (such as yellow on white), light grey text, and text over a `background-image` with no `background-color`. It computes no contrast ratio. Not measured when no element has an inline colour or background image.
+- **What it checks:** With `--cwv`, axe-core's `color-contrast` result on the rendered page, from computed colours: no violation passes, a serious or critical one fails, any other warns. Without a render, inline `style` colours only, by heuristic: text and background colour names from a known low-contrast list (such as yellow on white), light grey text, and text over a `background-image` with no `background-color`. The heuristic computes no contrast ratio, and is not measured when no element has an inline colour or background image.
 - **Fix:** Ensure minimum 4.5:1 contrast ratio for normal text, 3:1 for large text.
 
 #### a11y-focus-visible
@@ -1151,7 +1151,7 @@ Checks for WCAG compliance, screen reader support, and keyboard navigation.
 - **Fix:** Use `<th scope="col">` for column headers, `<th scope="row">` for row headers.
 
 #### a11y-touch-targets
-- **What it checks:** A heuristic, not a rendered measurement: inline `width` or `height` on links, buttons and other focusable controls; `<style>` rules that size `a`, `button`, `.btn` or `role=button` under 44px; images inside links or buttons with `width` or `height` under 44; and icon-only controls with inline padding under 10px.
+- **What it checks:** With `--cwv`, axe-core's `target-size` result on the laid-out page, judged as for `a11y-color-contrast`. Without a render, a heuristic, not a rendered measurement: inline `width` or `height` on links, buttons and other focusable controls; `<style>` rules that size `a`, `button`, `.btn` or `role=button` under 44px; images inside links or buttons with `width` or `height` under 44; and icon-only controls with inline padding under 10px.
 - **Fix:** Ensure interactive elements are at least 44x44 CSS pixels (WCAG 2.5.5 Target Size, Level AAA). The Level AA minimum in WCAG 2.5.8 is 24x24.
 
 #### a11y-video-captions
@@ -1768,7 +1768,7 @@ seomator audit https://example.com -c core,perf,links
 ## Score Calculation
 
 1. Each rule returns a score: **0** (fail), **50** (warn), or **100** (pass)
-2. Category score = weighted average of rule scores within that category
+2. Category score = weighted average of rule scores within that category. Not-measured results and advisory rules are left out
 3. Overall score = weighted sum of category scores (using category weights)
 4. In a single-page audit, a page-level condition caps the overall score while
    it holds: `noindex` for Google or a robots.txt disallow (20), no `<title>` and

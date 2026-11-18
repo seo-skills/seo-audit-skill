@@ -85,7 +85,8 @@ structure, HTML validity, readiness for AI search, and legal compliance.
 4. **Rules.** Every rule reads what it needs from what was collected: the
    served HTML, the rendered page, headers, the redirect chain, robots.txt, the
    sitemap. Each returns pass, warn, fail or not measured. A rule that crashes
-   counts as a failure, so a bug cannot pass silently.
+   is reported as not measured, with the error, so a bug in SEOmator neither
+   passes silently nor marks the site down.
 5. **Score.** The results become category scores and an overall score, and the
    overall score may be capped. The next sections explain how.
 
@@ -110,9 +111,13 @@ The score is three layers of weighted averages:
   Core down to 1% for Legal Compliance, and the weights add up to 100. The
   overall score is the weighted average of the category scores.
   [SEO Audit Rules](./SEO-AUDIT-RULES.md) lists the weights.
+- **Advisory rules.** New rules start as advisory: they are reported, marked
+  "Advisory", and carry no weight until their verdicts have been checked on
+  real sites.
 - **Grade.** A is 90 or more, B 80 or more, C 70 or more, D 50 or more, and F
-  below 50. Every surface uses the same bands. 70 is also the pass line:
-  `seomator audit` exits with `1` below it, so a CI job fails.
+  below 50. Every surface uses the same bands. 70 is also the default pass
+  line: `seomator audit` exits with `1` below it, so a CI job fails.
+  `--fail-under` or `[ci] fail_under` moves the line.
 
 ## Score caps
 
@@ -139,7 +144,8 @@ outweigh, the overall score is held at or below a ceiling. There are two kinds:
   main content, and 30 for both.
 
 Only the lowest applicable ceiling counts, and only when it is below the
-average. Every ceiling is under 70, so a capped audit always fails a CI run.
+average. Every ceiling is under 70, so a capped audit fails a CI run at the
+default pass line.
 Category scores are never capped: they still describe what was measured. The
 report prints the uncapped average and the reason under the score; JSON output
 carries them as `scoreCap`, and `--format llm` as `<score-cap>`.
@@ -231,7 +237,8 @@ gate.
 
 Two scores are only comparable if they were measured the same way. Each stored
 audit records how it ran: Core Web Vitals on or off, mobile parity, simulated
-interaction, category and rule filters, staging, and the scoring model. When
+interaction, category and rule filters, rule options, staging, and the scoring
+model. When
 one of these differs, `compare` says the diff is not like-for-like, and
 `--fail-on-regression` does not fail. A different page limit is reported but
 does not count: it changes how much was covered, not whether a check could run.
@@ -276,10 +283,9 @@ on 3 of 50 pages lowers the category in proportion instead of deciding it. Only
 the start page can cap the score. A crawl is slower: with Core Web Vitals on,
 every page is rendered.
 
-A known gap: `seomator audit` ignores `max_pages`, `concurrency` and
-`timeout_ms` in the `[crawler]` section of `seomator.toml`, because the
-command's own flag defaults override them. Set them with `-m`, `--concurrency`
-and `--timeout` instead. See [Configuration](./configuration.md).
+`seomator audit` reads `max_pages`, `concurrency` and `timeout_ms` from the
+`[crawler]` section of `seomator.toml`, and a typed `-m`, `--concurrency` or
+`--timeout` overrides them. See [Configuration](./configuration.md).
 
 You can also split the work. `seomator crawl` stores the pages without scoring
 them, and `seomator analyze` runs the rules on a stored crawl later. robots.txt
@@ -307,14 +313,17 @@ categories or rule filters as not like-for-like.
 - **Terminal and CI.** `seomator audit` prints the report from the
   [Quickstart](./quickstart.md). `--format json`, `html`, `markdown` and `llm`
   write the same result for programs, browsers, documents and AI assistants.
-  The exit code carries the verdict: `seomator audit` exits with `0` at 70 or
-  more, `1` below 70, `2` when the audit could not run, and `130` when you
-  cancel it. `compare --fail-on-regression` exits with `1` on a regression.
+  The exit code carries the verdict: `seomator audit` exits with `0` when its
+  gates pass (by default a score of 70 or more), `1` when one fails (a score
+  under the pass line, a `fail_ci` rule, or a crawl below `--min-coverage`),
+  `2` when the audit could not run, and `130` when you cancel it.
+  `compare --fail-on-regression` exits with `1` on a regression.
 - **Local dashboard.** `seomator serve` shows your stored audits in a browser
   at `127.0.0.1:7360`. See [Web dashboard](./WEB-DASHBOARD.md).
 - **AI agents.** `--format llm` is a compact report written for language
   models, and the SEOmator skill teaches an agent to run audits and act on the
-  results. See [AI Agent Integration](./ai-agent-integration.md).
+  results. `seomator mcp` serves the same engine as MCP tools. See
+  [AI Agent Integration](./ai-agent-integration.md).
 - **Your own code.** The package exports the same `Auditor` the CLI uses.
 - **Desktop app.** An Electron app built from the same repository wraps the
   same engine and the same interface as the dashboard. It is not part of the

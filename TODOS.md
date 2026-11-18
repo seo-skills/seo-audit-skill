@@ -634,6 +634,15 @@ Five PRD items were not built in 8.0.0 and were deferred when it shipped:
 The desktop parity check for axe-core (below) was dropped from 8.0.0 at ship:
 the code is in place but was never run in the desktop app.
 
+### P1: browser renders under the network guard
+
+Every engine request goes through `netFetch` and the run's private-address
+policy, but a browser render (Playwright for `--render`, the desktop app's
+window) loads a page's own resources without it. Route each render request
+through the same check (a `context.route` guard that resolves the host and
+applies `isBlockedAddress` and the pins, or host-resolver rules mapping a
+pinned host to its addresses), then let MCP render without `--allow-private`.
+
 ### P2: memory in long-lived processes
 
 - The MCP server keeps every finished run's full result and session until

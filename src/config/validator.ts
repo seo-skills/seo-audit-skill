@@ -1,6 +1,7 @@
 import {
   OVERRIDE_PRIORITIES,
   RULE_OVERRIDE_KEYS,
+  CI_KEYS,
   type PartialSeomatorConfig,
   type SeomatorConfig,
 } from './schema.js';
@@ -390,6 +391,18 @@ export function validateConfig(
   }
 
   validateRuleOverrides(getNestedValue(configObj, 'rules.override'), context.ruleIds, errors);
+
+  // Every [ci] key is a gate: a misspelled one would never fire
+  const ci = getNestedValue(configObj, 'ci');
+  if (ci && typeof ci === 'object' && !Array.isArray(ci)) {
+    for (const key of Object.keys(ci)) {
+      if ((CI_KEYS as readonly string[]).includes(key)) continue;
+      errors.push({
+        path: `ci.${key}`,
+        message: `unknown key "${key}".${didYouMean(key, CI_KEYS)} Valid keys: ${CI_KEYS.join(', ')}`,
+      });
+    }
+  }
 
   if (context.ruleOptionSpecs && ruleOptions && typeof ruleOptions === 'object' && !Array.isArray(ruleOptions)) {
     validateRuleOptions(

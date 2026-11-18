@@ -9,7 +9,8 @@
 import * as vm from 'node:vm';
 import * as cheerio from 'cheerio';
 import type { AuditContext } from '../types.js';
-import type { CustomConfig, CustomExtractConfig, CustomSearchConfig } from '../config/schema.js';
+import { CUSTOM_EXTRACT_KEYS, CUSTOM_SEARCH_KEYS, type CustomConfig, type CustomExtractConfig, type CustomSearchConfig } from '../config/schema.js';
+import { didYouMean } from '../config/suggest.js';
 
 /** A regular expression gets this long on one page before it is stopped */
 export const REGEX_TIME_LIMIT_MS = 50;
@@ -57,9 +58,19 @@ export function customConfigProblems(custom: Partial<CustomConfig> | undefined):
     }
   };
 
+  // A misspelled key is ignored silently otherwise, and for fail_ci that is a
+  // CI gate that never fires
+  const unknownKeys = (entry: unknown, known: readonly string[], add: (message: string) => void) => {
+    if (!entry || typeof entry !== 'object') return;
+    for (const key of Object.keys(entry)) {
+      if (!known.includes(key)) add(`unknown key "${key}".${didYouMean(key, known)} Valid keys: ${known.join(', ')}`);
+    }
+  };
+
   (custom?.search ?? []).forEach((raw, i) => {
     const at = label('search', i, raw?.name);
     const add = (message: string) => problems.push({ path: at, message });
+    unknownKeys(raw, CUSTOM_SEARCH_KEYS, add);
     if (typeof raw?.name !== 'string' || !raw.name.trim()) add('needs a name');
     const search = normalise(raw ?? ({} as CustomSearchConfig));
     if (!['text', 'html', 'head', 'body', 'selector'].includes(search.where)) add(`where must be text, html, head, body or selector, not "${search.where}"`);
@@ -87,6 +98,7 @@ export function customConfigProblems(custom: Partial<CustomConfig> | undefined):
   (custom?.extract ?? []).forEach((extract, i) => {
     const at = label('extract', i, extract?.name);
     const add = (message: string) => problems.push({ path: at, message });
+    unknownKeys(extract, CUSTOM_EXTRACT_KEYS, add);
     if (typeof extract?.name !== 'string' || !extract.name.trim()) add('needs a name');
     if (!extract?.selector) add('needs a selector');
     else {

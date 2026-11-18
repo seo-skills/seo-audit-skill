@@ -68,6 +68,9 @@ export interface RulesConfig {
 /**
  * CI gate configuration section
  */
+/** The keys `[ci]` may set: each is a gate, so a misspelled one is refused */
+export const CI_KEYS = ['fail_under', 'min_coverage'] as const;
+
 export interface CiConfig {
   /** Exit 1 when the overall score is below this. `--fail-under` wins. */
   fail_under: number;
@@ -119,6 +122,12 @@ export interface CustomSearchConfig {
 }
 
 /** A `[[custom.extract]]` entry: a value pulled from every page */
+/** The keys a `[[custom.search]]` entry may set; `fail_ci` makes it a gate */
+export const CUSTOM_SEARCH_KEYS = ['name', 'where', 'selector', 'text', 'match', 'expect', 'severity', 'fail_ci', 'scope'] as const;
+
+/** The keys a `[[custom.extract]]` entry may set */
+export const CUSTOM_EXTRACT_KEYS = ['name', 'selector', 'attribute', 'multiple'] as const;
+
 export interface CustomExtractConfig {
   name: string;
   selector: string;

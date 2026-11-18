@@ -7,6 +7,100 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The report opens on what to fix first.** In the dashboard, the desktop app
+  and the HTML report, the largest thing on an audit is now the first fix,
+  written as an instruction ("Reduce DOM size") with what the check saw, the
+  score points it returns, and a brief to copy for a developer. The SEOmator
+  agent sits over it with one sentence the numbers support ("The first five
+  fixes return 2.4 of the 8.8 points this page is missing").
+- **Score points per fix.** Every failing or warning check carries `points`:
+  what the score gains if it passes, from the same weights that make the score
+  (`src/rules/points.ts`). All of an audit's points add up to what its score is
+  missing, on a single page or a crawl; a crawl counts the pages that failed
+  and the pages that warned separately (`failedPages`). The dashboard API and
+  the desktop app send them on every rule summary, with `categoryWeights` on
+  the audit detail.
+- **Where the points went:** a strip with one column per category, as wide as
+  its weight, whose empty top is what the category costs the score. Pick a
+  column to filter the fix queue; the same numbers are one click away as a
+  table.
+- **The agent in the product.** The emblem appears as a character: crawling
+  while a run is live (the only animation that loops), focused on the lead
+  fix, and reacting once when a run hands over to its report. Reduced motion
+  shows still poses.
+- `DESIGN.md`: the design system ("The Fix Brief") the three surfaces follow.
+
+### Changed
+
+- **One fix queue, ranked by points across failures and warnings.** A heavy,
+  widespread warning can now come before a narrow failure; the status shape
+  still says which is which. The HTML report ranks the same way, and its
+  category sections follow the same order.
+- **Colour only where it is wrong.** Scores of 80 and above are drawn in ink,
+  70 to 79 in amber and under 70 in red; nothing in the grade ladder is orange
+  any more (the D grade was `#c2410c`, next to the brand orange). Passing
+  checks are quiet; green now means "better than the last run". The terminal
+  keeps its own green-for-good palette.
+- Status is a shape beside its word everywhere: a filled square fails, a
+  half-filled one warns, an open one passes, a dashed one was not measured and
+  a circle is advisory.
+- The audit page has no category sidebar or score ring: the score is a plain
+  number beside the lead fix, with what it is missing, what it did not count,
+  and what changed since the last run. Export formats sit in one menu and
+  Delete in the ⋯ menu.
+- **All checks reads like the rest of the report.** Each category is one white
+  surface with hairline rows (it was faint grey boxes on the grey page), the
+  filters stay pinned under the app bar while you scroll the list, the active
+  filter is ink with each status's shape beside it, Expand all / Collapse all
+  sits next to them, and choosing Warnings or Not measured opens the
+  categories that have them. "Details · 3 items" is a real control, and a
+  single-page audit no longer prints a "/" page chip on every check.
+- **The score is a measured bar.** Under the number, a meter shows the exact
+  score with the missing part hatched and a notch where each grade starts, and
+  one line says what the next grade costs in the queue's own terms ("3.5 points
+  to Good: the first 3 fixes get you there"). Grades read the rounded score,
+  so the gap is to half a point under the threshold. The same meter sits beside
+  every category score and in the history table, and the HTML report has it too.
+- Interaction details: buttons answer a press (scale 0.97), hover styles only
+  apply where there is a hovering pointer, menus grow from their trigger and
+  take arrow keys, Home and End, the strip's tooltip appears after a moment and
+  then follows the pointer instantly, fix-queue rows show a chevron and open
+  on a click anywhere, "Show evidence" opens under the lead fix instead of
+  jumping to the end of the page, and the report shows its own shape while it
+  loads.
+- **The run form offers every option a run takes.** Core Web Vitals with its
+  mobile render and interaction run, crawl with pages, pages at once, a time
+  limit and ignoring the site's crawl-delay, staging, the categories to run
+  (with each one's weight), the page timeout, checking external links again,
+  and saving to history. An option that needs another first, or that this app
+  cannot do, stays on the page with the reason instead of disappearing. A
+  summary beside the form says what the run will do and gives the same run as
+  a `seomator audit` command to copy.
+- The dashboard and desktop run API take `staging`, `refresh`,
+  `ignoreCrawlDelay` and `maxDuration` (seconds), as the CLI's `--staging`,
+  `--refresh`, `--ignore-crawl-delay` and `--max-duration` do.
+- The primary button's label is white, as on seomator.com (3.3:1, the brand's
+  own call; a test holds it above 3:1).
+- The run screen shows the phase as its headline, a 2px progress line, the
+  latest results and the run's scope, with Stop beside it.
+- History is a ledger: thousands separators, no green or red count columns.
+  The row of site cards above it is now a Site menu in the table's header,
+  with each site's latest score and change.
+- Corners stop at 6px (4px on controls); status colours follow seomator.com
+  (fails `#be1212`, improved `#167a34`).
+- The HTML report carries Geist and Geist Mono inline (about 70 KB), so it
+  reads in brand type offline, including when exported from the desktop app.
+
+### Fixed
+
+- The web dashboard never loaded its build facts: it asked only the desktop
+  app's bridge, so it had no rule count, no capabilities and no category list.
+  It reads them from `/api/info` now.
+- "Run again" on a stored audit dropped the audit's crawl and render options.
+  A stored audit keeps them on the audit row, which the page now reads.
+
 ## [8.0.0] - 2026-11-17
 
 Upgrading from 7.x: see [docs/upgrading-to-8.md](docs/upgrading-to-8.md) for

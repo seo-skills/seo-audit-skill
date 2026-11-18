@@ -49,6 +49,7 @@ export function registerDbHandlers(): void {
     (): AppInfoIpc => ({
       ruleCount: getRuleCount(),
       categoryCount: categories.length,
+      categories: categories.map((c) => ({ id: c.id, name: c.name, weight: c.weight })),
       version: getVersion(),
       capabilities: DESKTOP_CAPABILITIES,
       dataDirectory: getAuditsDbPath(),

@@ -1,7 +1,11 @@
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'path';
+// @ts-expect-error -- plain .mjs plugin, no types needed
+import { inlineAssets } from './scripts/vite-plugin-inline-assets.mjs';
 
 export default defineConfig({
+  // The HTML report inlines its fonts; tests must see what the builds ship.
+  plugins: [inlineAssets()],
   // `ui/` imports shared code through @core, the same alias vite.web.config.ts
   // and electron-vite.config.ts define. Without it here, any test that reaches
   // a ui/ module fails to resolve — which is the seam the cross-surface

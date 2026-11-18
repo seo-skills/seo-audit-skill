@@ -72,6 +72,8 @@ export interface AppInfoIpc {
   ruleCount: number;
   /** Categories those rules are grouped into */
   categoryCount: number;
+  /** Each category with its weight, for the run form's category picker */
+  categories?: Array<{ id: string; name: string; weight: number }>;
   /** Package version */
   version: string;
   /**

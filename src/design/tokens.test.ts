@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
-import { LIGHT, DARK, METRICS, TEXT_PAIRS, toCss } from './tokens.js';
+import { LIGHT, DARK, METRICS, TEXT_PAIRS, BRAND_PAIRS, toCss } from './tokens.js';
 
 /** WCAG relative luminance */
 function luminance(rgb: [number, number, number]): number {
@@ -67,6 +67,13 @@ describe('token contrast', () => {
         }
       }
       expect(failures).toEqual([]);
+    });
+
+    it(`keeps the brand's deliberate low-contrast pairs above their floor in the ${themeName} theme`, () => {
+      for (const { fg, bg, floor } of BRAND_PAIRS) {
+        const ratio = contrast(theme[fg as keyof typeof theme], theme[bg as keyof typeof theme], backdrop as [number, number, number]);
+        expect(ratio, `${fg} on ${bg}`).toBeGreaterThanOrEqual(floor);
+      }
     });
   }
 });

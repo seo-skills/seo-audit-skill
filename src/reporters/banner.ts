@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { scoreToVerdict, type VerdictToken } from '../verdict.js';
+import { scoreToVerdict, type Verdict } from '../verdict.js';
 import { getVersion } from '../version.js';
 
 /**
@@ -52,16 +52,23 @@ export interface LetterGradeResult {
  */
 export function getLetterGrade(score: number | null): LetterGradeResult {
   const verdict = scoreToVerdict(score);
-  return { grade: verdict.grade, color: TOKEN_COLORS[verdict.colorToken] };
+  return { grade: verdict.grade, color: GRADE_COLORS[verdict.grade] };
 }
 
-/** The one place a verdict token becomes a terminal colour */
-const TOKEN_COLORS: Record<VerdictToken, (text: string) => string> = {
-  pass: chalk.green,
-  warn: chalk.yellow,
-  orange: chalk.hex('#FFA500'),
-  fail: chalk.red,
-  neutral: chalk.gray,
+/**
+ * The one place a verdict becomes a terminal colour.
+ *
+ * Keyed on the shared grade, not on the visual token: the visual surfaces draw
+ * a good score in ink (DESIGN.md), but a terminal has no ink to contrast with,
+ * and green-for-good is what a terminal reader expects.
+ */
+const GRADE_COLORS: Record<Verdict['grade'], (text: string) => string> = {
+  A: chalk.green,
+  B: chalk.green,
+  C: chalk.yellow,
+  D: chalk.hex('#FFA500'),
+  F: chalk.red,
+  '—': chalk.gray,
 };
 
 /**
@@ -137,7 +144,7 @@ export function renderCompactBar(percentage: number): string {
 export function getScoreColor(score: number | null): (text: string) => string {
   // Derived from the same buckets as the grade, so a score cannot be green
   // here and amber in the report — colour used to be a fourth grade scale.
-  return TOKEN_COLORS[scoreToVerdict(score).colorToken];
+  return GRADE_COLORS[scoreToVerdict(score).grade];
 }
 
 /**

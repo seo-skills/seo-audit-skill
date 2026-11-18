@@ -136,3 +136,65 @@ export function LogoMark({ size = 28, className }: { size?: number; className?: 
     </svg>
   );
 }
+
+/** The six states of the agent in product UI (seomator-agent-style) */
+export type AgentState = 'idle' | 'crawling' | 'focused' | 'alert' | 'shocked' | 'delighted';
+
+/**
+ * The emblem as a character: the same paths, grouped the way the website's
+ * agent rig groups them, so `globals.css` can move the body and the eyes for
+ * each state. Still by default; `crawling` is the only loop and belongs only
+ * to a run that is actually going.
+ *
+ * The eyes are the logo's own and are never enlarged. `delighted` swaps them
+ * for arcs and `alert` cuts a brow across them, both from the website's rig.
+ */
+export function Agent({
+  state = 'idle',
+  size = 28,
+  label = 'SEOmator agent',
+  className,
+}: {
+  state?: AgentState;
+  size?: number;
+  label?: string;
+  className?: string;
+}) {
+  const brow = `${useId()}-brow`;
+  return (
+    <svg
+      viewBox="-10 -14 170 170"
+      width={size}
+      height={size}
+      role="img"
+      aria-label={label}
+      className={['agent', className].filter(Boolean).join(' ')}
+      data-state={state}
+      style={{ display: 'block', ['--agent-brow' as string]: `url(#${brow})` }}
+    >
+      <defs>
+        <clipPath id={brow}>
+          <polygon points="0,150 0,80 64,74 96,90 99,88 124,72 150,72 150,150" />
+        </clipPath>
+      </defs>
+      <g className="agent-body">
+        <path d={EMBLEM_BODY} fill={EMBLEM_ORANGE} />
+        <path className="agent-visor" d={EMBLEM_VISOR} fill="white" />
+        <g className="agent-eyes">
+          <g className="agent-cut">
+            <path className="agent-eye agent-eye-l" d={EMBLEM_EYE_LEFT} fill={EMBLEM_ORANGE} />
+            <path className="agent-eye agent-eye-r" d={EMBLEM_EYE_RIGHT} fill={EMBLEM_ORANGE} />
+          </g>
+        </g>
+        <path
+          className="agent-arcs"
+          d="M69 99 Q80.5 78 92 99 M101 97 Q110.5 79 120 97"
+          fill="none"
+          stroke={EMBLEM_ORANGE}
+          strokeWidth={8}
+          strokeLinecap="round"
+        />
+      </g>
+    </svg>
+  );
+}

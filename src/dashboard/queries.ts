@@ -12,6 +12,7 @@ import { diffRules } from '../storage/audits-db/rule-diff.js';
 import { categories as categoryDefinitions } from '../categories/index.js';
 import { getRuleById } from '../rules/registry.js';
 import { rulePriority } from '../rules/priority.js';
+import { attachPoints } from '../rules/points.js';
 import { getFixSuggestion } from '../reporters/fix-suggestions.js';
 import type { AuditCoverage, AuditResult, CategoryResult, CompletionState } from '../types.js';
 import {
@@ -122,6 +123,7 @@ export function getAuditDetail(db: AuditsDatabase, auditId: string): AuditDetail
       totalPages: s.totalPages,
       measuredPages: s.measuredPages,
       affectedPages: s.affectedPages,
+      failedPages: s.failedPages,
       notMeasured: s.notMeasured,
       samplePages: s.samplePages,
       ...(s.advisory && { advisory: true }),
@@ -193,6 +195,7 @@ export function getAuditDetail(db: AuditsDatabase, auditId: string): AuditDetail
       }
     }
   }
+  attachPoints(categoryResults);
   // A crawl's gaps come back too, so it never reads as complete when it was not
   const completion = storedCompletion(extras?.['completion']);
 
@@ -213,6 +216,7 @@ export function getAuditDetail(db: AuditsDatabase, auditId: string): AuditDetail
     audit: toMeta(audit),
     result,
     ruleMetadata: buildRuleMetadata(summaries),
+    categoryWeights: Object.fromEntries(categoryDefinitions.map((c) => [c.id, c.weight])),
   };
 }
 

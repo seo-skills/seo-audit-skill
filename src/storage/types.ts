@@ -465,6 +465,8 @@ export interface StoredRuleSummary {
   measuredPages: number;
   /** Measured pages that did not pass */
   affectedPages: number;
+  /** Measured pages that failed; the rest of `affectedPages` warned */
+  failedPages: number;
   /** True when every page row has weight 0 */
   notMeasured: boolean;
   /** Up to five pages, worst first */

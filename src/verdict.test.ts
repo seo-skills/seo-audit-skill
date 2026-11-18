@@ -36,13 +36,15 @@ describe('scoreToVerdict', () => {
   });
 
   it('carries the colour as a token, so colour cannot become a fourth grade scale', () => {
-    expect(scoreToVerdict(95).colorToken).toBe('pass');
-    expect(scoreToVerdict(85).colorToken).toBe('pass');
+    // A good score is ink, not green: colour only where it's wrong (DESIGN.md).
+    expect(scoreToVerdict(95).colorToken).toBe('ink');
+    expect(scoreToVerdict(85).colorToken).toBe('ink');
     expect(scoreToVerdict(75).colorToken).toBe('warn');
-    expect(scoreToVerdict(55).colorToken).toBe('orange');
+    // Nothing in the ladder is orange: that colour belongs to the agent.
+    expect(scoreToVerdict(55).colorToken).toBe('fail');
     expect(scoreToVerdict(30).colorToken).toBe('fail');
     expect(scoreToVerdict(null).colorToken).toBe('neutral');
-    expect(verdictCssVar('pass')).toBe('var(--color-pass)');
+    expect(verdictCssVar('ink')).toBe('var(--color-ink)');
   });
 
   it('never returns a bare hex literal', () => {

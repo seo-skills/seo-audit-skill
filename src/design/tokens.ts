@@ -41,24 +41,32 @@ export const LIGHT = {
   'color-bg-active': '#e5e5e5',
   'color-border': '#e5e5e5',
   'color-border-subtle': '#f4f4f4',
+  // Control borders: buttons, fields. A step darker than a table line.
+  'color-border-strong': '#d4d4d4',
 
   'color-text': '#171717',
   'color-text-secondary': '#525252',
   // Slate's #94a3b8 was 2.56:1 on white — below AA for normal text, and it
   // carries every timestamp, category label and secondary line in the product.
-  'color-text-muted': '#6b6b6b',
+  'color-text-muted': '#5e5e5e',
 
   // The status colours are used as text on white AND as text on their own
   // tint, so each is chosen to clear 4.5:1 in both. The previous values were
   // picked to look right as a bar or a dot and then reused as type.
-  'color-pass': '#047857',
-  'color-pass-bg': '#d1fae5',
+  //
+  // DESIGN.md "colour only where it's wrong": fail and warn mark problems;
+  // pass (green) means *improved since the last run*, never "this is fine".
+  // A passing check is an open square in the muted colour. There is no orange
+  // status: the D grade used to be #c2410c, next to the brand orange.
+  'color-pass': '#167a34',
+  'color-pass-bg': '#dcfce7',
   'color-warn': '#92400e',
   'color-warn-bg': '#fef3c7',
-  'color-orange': '#c2410c',
-  'color-orange-bg': '#ffedd5',
-  'color-fail': '#b91c1c',
+  'color-fail': '#be1212',
   'color-fail-bg': '#fee2e2',
+  // A score of 80 or more is drawn in ink, not green (the verdict's 'ink' token).
+  'color-ink': '#171717',
+  'color-ink-bg': '#f4f4f4',
   'color-info': '#1d4ed8',
   'color-info-bg': '#dbeafe',
   'color-neutral': '#525252',
@@ -75,9 +83,14 @@ export const LIGHT = {
   // The agent orange: the agent at work (progress) and the one primary action.
   'color-agent': '#fe5000',
   'color-agent-hover': '#e64800',
-  // Ink, not white: white on #fe5000 is 3.3:1, below AA for a 14px label.
-  // Ink is the brand's own pairing for text on orange (6.0:1).
-  'color-on-agent': '#0a0a0a',
+  // White, as seomator.com's primary button (`agent-foreground`). The owner's
+  // call on the website (2026-10-07) and here (2026-11-18): 3.3:1, which is
+  // AA for large text only. Checked against a 3:1 floor in BRAND_PAIRS below.
+  'color-on-agent': '#ffffff',
+  // The agent speaking: its one sentence on the report and the run screen.
+  'color-agent-text': '#b83800',
+  // The kept part of a "Where the points went" column.
+  'color-strip': '#e5e5e5',
 
   'shadow-sm': '0 1px 2px rgba(0, 0, 0, 0.05)',
   'shadow-md': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
@@ -105,6 +118,7 @@ export const DARK = {
   'color-bg-active': '#404040',
   'color-border': '#262626',
   'color-border-subtle': '#1f1f1f',
+  'color-border-strong': '#404040',
 
   'color-text': '#ededed',
   'color-text-secondary': '#a1a1a1',
@@ -115,10 +129,10 @@ export const DARK = {
   'color-pass-bg': 'rgba(16, 185, 129, 0.12)',
   'color-warn': '#fbbf24',
   'color-warn-bg': 'rgba(245, 158, 11, 0.12)',
-  'color-orange': '#fb923c',
-  'color-orange-bg': 'rgba(249, 115, 22, 0.12)',
   'color-fail': '#f87171',
   'color-fail-bg': 'rgba(239, 68, 68, 0.12)',
+  'color-ink': '#ededed',
+  'color-ink-bg': 'rgba(237, 237, 237, 0.10)',
   'color-info': '#60a5fa',
   'color-info-bg': 'rgba(59, 130, 246, 0.12)',
   'color-neutral': '#a1a1a1',
@@ -132,7 +146,9 @@ export const DARK = {
   // The same orange in both themes: it is the emblem's, not a theme colour.
   'color-agent': '#fe5000',
   'color-agent-hover': '#e64800',
-  'color-on-agent': '#0a0a0a',
+  'color-on-agent': '#ffffff',
+  'color-agent-text': '#fe5000',
+  'color-strip': '#262626',
 
   'shadow-sm': '0 1px 3px rgba(0, 0, 0, 0.5)',
   'shadow-md': '0 4px 8px rgba(0, 0, 0, 0.6)',
@@ -152,8 +168,9 @@ export const METRICS = {
   'content-max-width': '1200px',
   'traffic-light-width': '92px',
   'radius-sm': '4px',
-  'radius-md': '8px',
-  'radius-lg': '12px',
+  // DESIGN.md: 0 for tables and rows, 4px controls, 6px is the cap.
+  'radius-md': '4px',
+  'radius-lg': '6px',
   // The brand pairs Geist for text with Geist Mono for readouts, URLs and
   // numbers. No webfont is fetched: the dashboard and the desktop app bundle
   // both faces (ui/main.tsx), and the single-file HTML report falls back to
@@ -179,8 +196,10 @@ export const TEXT_PAIRS: readonly TextPair[] = [
   { fg: 'color-pass', bg: 'color-pass-bg' },
   { fg: 'color-warn', bg: 'color-bg-elevated' },
   { fg: 'color-warn', bg: 'color-warn-bg' },
-  { fg: 'color-orange', bg: 'color-bg-elevated' },
-  { fg: 'color-orange', bg: 'color-orange-bg' },
+  { fg: 'color-ink', bg: 'color-bg-elevated' },
+  { fg: 'color-ink', bg: 'color-ink-bg' },
+  { fg: 'color-agent-text', bg: 'color-bg-elevated' },
+  { fg: 'color-agent-text', bg: 'color-bg' },
   { fg: 'color-fail', bg: 'color-bg-elevated' },
   { fg: 'color-fail', bg: 'color-fail-bg' },
   { fg: 'color-info', bg: 'color-bg-elevated' },
@@ -189,13 +208,29 @@ export const TEXT_PAIRS: readonly TextPair[] = [
   { fg: 'color-neutral', bg: 'color-neutral-bg' },
   { fg: 'color-accent', bg: 'color-bg-elevated' },
   { fg: 'color-on-accent', bg: 'color-accent' },
-  { fg: 'color-on-agent', bg: 'color-agent' },
-  { fg: 'color-on-agent', bg: 'color-agent-hover' },
   // Solid warn and fail buttons. These carried a hardcoded `#fff`, which is
   // right over the light theme's dark amber and red and close to invisible over
   // the dark theme's bright ones.
   { fg: 'color-on-accent', bg: 'color-warn' },
   { fg: 'color-on-accent', bg: 'color-fail' },
+];
+
+/** A pair held below AA on purpose: the ratio it must keep, and why */
+export interface BrandPair extends TextPair {
+  floor: number;
+  why: string;
+}
+
+/**
+ * Text pairs the brand holds below AA on purpose, with the floor they must keep.
+ *
+ * White on the agent orange is seomator.com's primary button: the owner chose
+ * it over ink knowing it is 3.3:1 (AA for large text only). It stays tested,
+ * against 3:1, so the exception cannot drift lower unnoticed.
+ */
+export const BRAND_PAIRS: readonly BrandPair[] = [
+  { fg: 'color-on-agent', bg: 'color-agent', floor: 3, why: 'primary button label, owner call 2026-11-18' },
+  { fg: 'color-on-agent', bg: 'color-agent-hover', floor: 3, why: 'hovered primary button label' },
 ];
 
 /** Custom-property declarations for one theme, without the wrapping selector */

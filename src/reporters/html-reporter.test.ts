@@ -146,6 +146,14 @@ describe('renderHtmlReport — branding', () => {
     expect(out).not.toMatch(/<img[^>]+src="https?:/);
   });
 
+  it('carries Geist and Geist Mono inline, so the report reads in brand type offline', () => {
+    // A path here would point at a file next to whatever built the report;
+    // an emailed report has no such file (DESIGN.md, Typography).
+    const out = renderHtmlReport(buildResult());
+    const faces = out.match(/@font-face \{ font-family: '(Geist(?: Mono)? Variable)'; src: url\(data:font\/woff2;base64,/g) ?? [];
+    expect(faces).toHaveLength(2);
+  });
+
   it('lets the wordmark lettering follow the theme', () => {
     const out = renderHtmlReport(buildResult());
     // Unfilled paths default to black, which disappears against the dark theme.

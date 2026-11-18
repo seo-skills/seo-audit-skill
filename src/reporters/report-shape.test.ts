@@ -47,11 +47,11 @@ function render(categoryResults: CategoryResult[]): string {
   return renderHtmlReport(result);
 }
 
-/** The order rule names appear in the summary table. */
+/** The order rules appear in the summary table, by rule id. */
 function tableOrder(html: string): string[] {
   const table = html.split('<tr class="issue-row"').slice(1);
   return table
-    .map((row) => row.match(/issue-row-text">([^<]*)</)?.[1] ?? '')
+    .map((row) => row.match(/data-rule-id="([^"]*)"/)?.[1] ?? '')
     .filter(Boolean);
 }
 
@@ -65,23 +65,33 @@ describe('report ordering', () => {
       category('perf', [rule('perf-render-blocking', 'warn')]),
     ]);
     const order = tableOrder(html);
-    const blocking = order.findIndex((n) => /Render-Blocking/i.test(n));
-    const cookie = order.findIndex((n) => /Cookie/i.test(n));
+    const blocking = order.indexOf('perf-render-blocking');
+    const cookie = order.indexOf('legal-cookie-consent');
     expect(blocking).toBeGreaterThanOrEqual(0);
     expect(cookie).toBeGreaterThanOrEqual(0);
     expect(blocking).toBeLessThan(cookie);
   });
 
-  it('still puts every failure above every warning', () => {
+  it('ranks by score points across failures and warnings, not failures first', () => {
+    // DESIGN.md R2. With only these two categories in the run, the perf warning
+    // costs 50 × 10/11 ≈ 45 points and the legal failure 100 × 1/11 ≈ 9, so the
+    // warning is the bigger fix and comes first; its shape still says warning.
     const html = render([
-      category('perf', [rule('perf-lcp', 'warn')]),
+      category('perf', [rule('perf-render-blocking', 'warn')]),
       category('legal', [rule('legal-cookie-consent', 'fail')]),
     ]);
-    const statuses = html
-      .split('<tr class="issue-row"')
-      .slice(1)
-      .map((r) => r.match(/data-status="(\w+)"/)?.[1]);
-    expect(statuses).toEqual([...statuses].sort((a, b) => (a === 'fail' ? -1 : b === 'fail' ? 1 : 0)));
+    const rows = html.split('<tr class="issue-row"').slice(1);
+    expect(rows.map((r) => r.match(/data-status="(\w+)"/)?.[1])).toEqual(['warn', 'fail']);
+    expect(rows[0]).toContain('+45.5');
+    expect(rows[1]).toContain('+9.1');
+  });
+
+  it('leads with the first fix as the headline, above the queue', () => {
+    const html = render([category('perf', [rule('perf-render-blocking', 'warn')])]);
+    const lead = html.slice(html.indexOf('<section class="fb-lead"'), html.indexOf('<div class="issues-summary"'));
+    expect(lead).toContain('class="fb-headline"');
+    expect(lead).toContain('Start here.');
+    expect(lead).toContain('data-jump-rule="perf-render-blocking"');
   });
 });
 

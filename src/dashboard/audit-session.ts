@@ -44,6 +44,8 @@ export const RUN_LIMITS = {
   maxPages: { min: 1, max: 1000, fallback: 10 },
   concurrency: { min: 1, max: 20, fallback: 3 },
   timeout: { min: 1000, max: 120_000, fallback: 30_000 },
+  /** A crawl's time limit in seconds, inside the session's own hour */
+  maxDuration: { min: 10, max: 3600, fallback: 0 },
 } as const;
 
 /** What a client asks for when starting a run */
@@ -59,12 +61,25 @@ export interface AuditRunArgs {
   timeout?: number;
   /** Store the result. Defaults to true, like the CLI. */
   save?: boolean;
+  /** `--staging`: waive the noindex and robots.txt caps, crawl past robots.txt */
+  staging?: boolean;
+  /** `--refresh`: check every external link again instead of using the cache */
+  refresh?: boolean;
+  /** `--ignore-crawl-delay`: do not wait out the site's robots.txt Crawl-delay */
+  ignoreCrawlDelay?: boolean;
+  /** `--max-duration`: stop requesting pages after this many seconds */
+  maxDuration?: number;
 }
 
 /** The same request after validation, safe to hand to the engine */
 export interface NormalizedRunArgs extends AuditRunOptions {
   url: string;
   save: boolean;
+  staging: boolean;
+  refresh: boolean;
+  ignoreCrawlDelay: boolean;
+  /** Seconds; null means the session's own limit */
+  maxDuration: number | null;
 }
 
 export type RunStatus = 'idle' | 'running' | 'complete' | 'error' | 'cancelled';
@@ -260,6 +275,10 @@ export function normalizeRunArgs(args: AuditRunArgs, capabilities: Capabilities)
     simulateInteraction: render.simulateInteraction && measureCwv,
     categories: requested,
     save: (args.save ?? true) && capabilities.persistence,
+    staging: args.staging === true,
+    refresh: args.refresh === true,
+    ignoreCrawlDelay: args.ignoreCrawlDelay === true,
+    maxDuration: args.maxDuration === undefined ? null : clamp(args.maxDuration, RUN_LIMITS.maxDuration) || null,
   };
 }
 
@@ -515,6 +534,11 @@ export class AuditSession {
       // the run slot for hours. An hour, unless the caller says otherwise.
       maxDurationMs: SESSION_MAX_DURATION_MS,
       ...this.options.auditorOptions,
+      // The run form's own choices win over the host's defaults
+      staging: args.staging,
+      ...(args.maxDuration !== null && { maxDurationMs: Math.min(args.maxDuration * 1000, SESSION_MAX_DURATION_MS) }),
+      ...(args.ignoreCrawlDelay && { respectCrawlDelay: false }),
+      ...(args.refresh && { externalLinks: { ...this.options.auditorOptions?.externalLinks, refresh: true } }),
       categories: args.categories,
       timeout: args.timeout,
       measureCwv: args.measureCwv,

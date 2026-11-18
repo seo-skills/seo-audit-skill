@@ -13,7 +13,7 @@
  */
 
 /** The colour a verdict is drawn in, as a design-token name */
-export type VerdictToken = 'pass' | 'warn' | 'orange' | 'fail' | 'neutral';
+export type VerdictToken = 'ink' | 'warn' | 'fail' | 'neutral';
 
 export interface Verdict {
   /** Letter grade, printed by the terminal and the machine reporters */
@@ -32,11 +32,17 @@ export interface Verdict {
  * used to read "Good". That is a visible change to every dashboard card in that
  * band, and it is deliberate.
  */
+/**
+ * Colour only where it's wrong (DESIGN.md): a good score is ink, not green,
+ * so the eye lands on what needs work. Green is kept for improvement since the
+ * last run. Nothing in the ladder is orange — that colour is the agent's.
+ * The terminal keeps its own palette, keyed on the grade (`banner.ts`).
+ */
 const BUCKETS: ReadonlyArray<{ min: number } & Verdict> = [
-  { min: 90, grade: 'A', label: 'Excellent', colorToken: 'pass' },
-  { min: 80, grade: 'B', label: 'Good', colorToken: 'pass' },
+  { min: 90, grade: 'A', label: 'Excellent', colorToken: 'ink' },
+  { min: 80, grade: 'B', label: 'Good', colorToken: 'ink' },
   { min: 70, grade: 'C', label: 'Fair', colorToken: 'warn' },
-  { min: 50, grade: 'D', label: 'Needs Work', colorToken: 'orange' },
+  { min: 50, grade: 'D', label: 'Needs Work', colorToken: 'fail' },
   { min: -Infinity, grade: 'F', label: 'Poor', colorToken: 'fail' },
 ];
 

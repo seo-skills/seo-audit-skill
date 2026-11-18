@@ -32,15 +32,20 @@ const ALLOWED_OPTIONS = new Set([
   'categories',
   'timeout',
   'save',
+  'staging',
+  'refresh',
+  'ignoreCrawlDelay',
+  'maxDuration',
 ]);
 
 const NUMERIC_OPTIONS = {
   maxPages: RUN_LIMITS.maxPages,
   concurrency: RUN_LIMITS.concurrency,
   timeout: RUN_LIMITS.timeout,
+  maxDuration: RUN_LIMITS.maxDuration,
 } as const;
 
-const BOOLEAN_OPTIONS = ['crawl', 'measureCwv', 'mobile', 'simulateInteraction', 'save'] as const;
+const BOOLEAN_OPTIONS = ['crawl', 'measureCwv', 'mobile', 'simulateInteraction', 'save', 'staging', 'refresh', 'ignoreCrawlDelay'] as const;
 
 function invalidOption(option: string, allowed: unknown, received: unknown): ApiError {
   return new ApiError(400, 'invalid-option', `"${option}" is not valid.`, {

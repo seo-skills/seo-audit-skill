@@ -119,6 +119,8 @@ interface AggregatedIssue {
   priority: number;
   /** `[rules.override]` priority, when the config set one */
   override?: OverridePriority;
+  /** From an advisory rule: reported, worth nothing to the score, never a fix to rank */
+  advisory?: boolean;
 }
 
 /** A status as DESIGN.md draws it: a 10px shape, colour on the shape only, then its word */
@@ -228,6 +230,7 @@ function aggregateIssuesByRule(
           pageCount: 0,
           priority: 0,
           ...(r.overridden?.priority && { override: r.overridden.priority }),
+          ...(r.advisory && { advisory: true }),
         });
       }
 
@@ -269,6 +272,35 @@ function aggregateIssuesByRule(
   }
 
   return aggregatedByCategory;
+}
+
+/**
+ * The fix queue: one entry per scored rule, as the dashboard counts it.
+ *
+ * Findings are grouped by rule and status, and a crawl can find one rule
+ * failing on some pages and warning on others. Queued as two rows, each
+ * printed the whole rule's points, so the queue counted that rule twice (115
+ * fixes where the dashboard said 105 for the same audit). The entry takes the
+ * worst status and every page the rule was found on. Advisory findings score
+ * nothing yet, so they are not fixes to rank; the category sections list them.
+ */
+function fixQueue(issues: AggregatedIssue[]): AggregatedIssue[] {
+  const byRule = new Map<string, AggregatedIssue>();
+  for (const issue of issues) {
+    if (issue.advisory) continue;
+    const queued = byRule.get(issue.ruleId);
+    if (!queued) {
+      byRule.set(issue.ruleId, issue);
+      continue;
+    }
+    const [worst, other] = queued.status === 'fail' ? [queued, issue] : [issue, queued];
+    byRule.set(issue.ruleId, {
+      ...worst,
+      pages: [...worst.pages, ...other.pages],
+      pageCount: worst.pageCount + other.pageCount,
+    });
+  }
+  return [...byRule.values()];
 }
 
 /**
@@ -2303,7 +2335,7 @@ export function renderHtmlReport(result: AuditResult): string {
   // The table and the category sections below rendered the same 46 findings
   // twice — 3,191px of rows and 12,217px of cards, 90% of a 17,199px page. The
   // table is a ranked index now: what to fix first, linking down to the detail.
-  const rankedIssues = [...failures, ...warnings].sort(byPoints);
+  const rankedIssues = fixQueue([...failures, ...warnings]).sort(byPoints);
   const TOP_ISSUES = 10;
   const issueTableRows = rankedIssues
     .slice(0, TOP_ISSUES)

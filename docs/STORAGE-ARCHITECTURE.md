@@ -90,7 +90,7 @@ One row per stored audit.
 | `source` | TEXT | | The surface that saved the audit: `cli`, `dashboard`, `desktop`, `mcp` or `api`. `saveAuditToDatabase()` writes `cli` when the caller passes no source. No SEOmator surface writes `api`. NULL on rows written before 3.4.0 and on migrated rows. |
 | `engine_version` | TEXT | | SEOmator version that wrote the row, read from `package.json`. NULL on rows written before 3.4.0 and on migrated rows. |
 | `run_json` | TEXT | | The run profile. See [The run profile](#the-run-profile-run_json). NULL on rows written before 3.4.0 and on migrated rows. |
-| `extras_json` | TEXT | | JSON object of the result's extra sections: `scoreCap`, `waivedCaps`, `overrides` (the `[rules.override]` applied, by rule id), and every `extras` section except `linkScores`. `custom` keeps only counts; the extracted values are rows of `audit_custom_values`, and Link Scores rows of `audit_link_scores`. A section larger than 1 MB is stored as `{ truncated, bytes }` and left out when read. NULL when there is no section, and on rows written before 8.0. |
+| `extras_json` | TEXT | | JSON object of the result's extra sections: `scoreCap`, `waivedCaps`, `overrides` (the `[rules.override]` applied, by rule id), `completion` (how a crawl ended and the counts behind its coverage line: `{ state, attempted, measured, rateLimited, failed, notFetched }`), and every `extras` section except `linkScores`. `custom` keeps only counts; the extracted values are rows of `audit_custom_values`, and Link Scores rows of `audit_link_scores`. A section larger than 1 MB is stored as `{ truncated, bytes }` and left out when read. NULL when there is no section, and on rows written before 8.0. |
 
 ### Table `audit_categories`
 

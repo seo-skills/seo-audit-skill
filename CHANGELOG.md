@@ -383,7 +383,9 @@ what can break a script or CI job, why scores move, and what to change.
   added to prevent. The cap, the caps a staging audit waived, and the
   `[rules.override]` marks are now stored in a new `extras_json` column and
   come back with the audit. Each result also keeps its not-measured `reason`
-  and `advisory` flag. A stored value that cannot be read loads as empty, with
+  and `advisory` flag, and a crawl keeps its completion state and the counts
+  of pages it could not measure, so a stored crawl with gaps still reads
+  "Completed with gaps" and prints its "Measured 2 of 3 pages" line. A stored value that cannot be read loads as empty, with
   a line on stderr naming the audit, and the rest of the audit is intact.
 - **`audit` reads `[crawler] max_pages`, `concurrency` and `timeout_ms` from
   `seomator.toml`.** It passed the defaults of `-m`, `--concurrency` and

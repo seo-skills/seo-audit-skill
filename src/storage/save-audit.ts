@@ -235,6 +235,12 @@ export function buildStoredExtras(result: AuditResult): Record<string, unknown> 
   const sections: Record<string, unknown> = {};
   if (result.scoreCap) sections['scoreCap'] = result.scoreCap;
   if (result.waivedCaps) sections['waivedCaps'] = result.waivedCaps;
+  // How a crawl ended and what it could not measure. Stored results are one
+  // row per rule, so these counts are the only record of the gaps.
+  if (result.completionState) {
+    const { attempted, measured, rateLimited, failed, notFetched } = result.coverage ?? {};
+    sections['completion'] = { state: result.completionState, attempted, measured, rateLimited, failed, notFetched };
+  }
 
   const overrides: Record<string, unknown> = {};
   for (const category of result.categoryResults) {

@@ -13,7 +13,7 @@ import { categories as categoryDefinitions } from '../categories/index.js';
 import { getRuleById } from '../rules/registry.js';
 import { rulePriority } from '../rules/priority.js';
 import { getFixSuggestion } from '../reporters/fix-suggestions.js';
-import type { AuditResult, CategoryResult } from '../types.js';
+import type { AuditCoverage, AuditResult, CategoryResult, CompletionState } from '../types.js';
 import {
   toAuditSummaryDto,
   type AuditDetail,
@@ -193,6 +193,8 @@ export function getAuditDetail(db: AuditsDatabase, auditId: string): AuditDetail
       }
     }
   }
+  // A crawl's gaps come back too, so it never reads as complete when it was not
+  const completion = storedCompletion(extras?.['completion']);
 
   const result: AuditResult = {
     url: audit.startUrl,
@@ -200,7 +202,8 @@ export function getAuditDetail(db: AuditsDatabase, auditId: string): AuditDetail
     categoryResults,
     timestamp: audit.startedAt.toISOString(),
     crawledPages: audit.pagesAudited,
-    coverage: { pages, detail: 'aggregated' },
+    coverage: { pages, detail: 'aggregated', ...completion?.counts },
+    ...(completion && { completionState: completion.state }),
     ...(isCap(extras?.['scoreCap']) && { scoreCap: extras!['scoreCap'] as AuditResult['scoreCap'] }),
     ...(Array.isArray(extras?.['waivedCaps']) && { waivedCaps: extras!['waivedCaps'] as AuditResult['waivedCaps'] }),
     ...(extras && { extras }),
@@ -372,6 +375,25 @@ export function compareStored(
 }
 
 /** A stored score cap that has the shape the reporters render */
+const COVERAGE_COUNTS = ['attempted', 'measured', 'rateLimited', 'failed', 'notFetched'] as const;
+
+/**
+ * A crawl's stored completion: its state and the counts behind "Measured 2 of
+ * 3 pages". Null for a single-page audit, a row saved before it was kept, or a
+ * value that is not one.
+ */
+function storedCompletion(value: unknown): { state: CompletionState; counts: Partial<AuditCoverage> } | null {
+  if (!value || typeof value !== 'object') return null;
+  const stored = value as Record<string, unknown>;
+  if (stored['state'] !== 'completed' && stored['state'] !== 'completed-with-gaps') return null;
+  const counts: Partial<AuditCoverage> = {};
+  for (const key of COVERAGE_COUNTS) {
+    const count = stored[key];
+    if (typeof count === 'number') counts[key] = count;
+  }
+  return { state: stored['state'], counts };
+}
+
 function isCap(value: unknown): boolean {
   return (
     !!value &&

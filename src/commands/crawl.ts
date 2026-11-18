@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { Crawler } from '../crawler/index.js';
 import type { CrawledPage, CrawlerOptions, CrawlReport } from '../crawler/crawler.js';
 import { assertRunnableConfig } from './run-config.js';
+import { classifyError } from '../errors.js';
 import { loadConfig } from '../config/index.js';
 import type { SeomatorConfig } from '../config/schema.js';
 import { policyForTarget, runWithNetPolicy } from '../net/policy.js';
@@ -164,7 +165,10 @@ export async function runCrawl(url: string, options: CrawlOptions): Promise<void
     console.log(`  seomator analyze ${crawlId}`);
     console.log();
   } catch (error) {
-    console.error(chalk.red('Crawl failed:'), error instanceof Error ? error.message : 'Unknown error');
+    // The same words as `audit` uses for the same failure, with its hint
+    const audited = classifyError(error);
+    console.error(chalk.red('Crawl failed:'), audited.message);
+    if (audited.hint) console.error(chalk.dim(`  ${audited.hint}`));
     process.exit(2);
   }
 }

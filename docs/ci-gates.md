@@ -20,7 +20,7 @@ trimmed and file paths shortened; nothing else is changed.
 |---|---|---|
 | `0` | Every gate passed. | Pass. |
 | `1` | A gate failed: the score is below `fail_under`, a `fail_ci` rule failed or could not be measured, a `fail_ci` custom search failed or could not run, or a crawl measured too few pages. | A finding about the site. |
-| `2` | The run could not happen: a bad flag, an invalid config, a site that does not answer (a crawl behaves differently, see [Troubleshooting](#troubleshooting)), a start page that stays rate-limited. | A broken job. |
+| `2` | The run could not happen: a bad flag, an invalid config, a site that does not answer (single page or crawl alike), a start page that stays rate-limited. | A broken job. |
 | `130` | The run was cancelled (Ctrl-C, or SIGTERM from the runner). | Cancelled. |
 
 On exit 1 the last line on stderr starts with `Exit 1:` and names every
@@ -467,7 +467,6 @@ seo:
 | Exit 2, `Invalid configuration ... so its gate can never run` | A `fail_ci` rule is removed by `[rules] enable`/`disable` or by `--categories`. Keep its category in the run, or drop the gate. |
 | Exit 2, `unknown rule id "..."` | The id in `[rules.override]` is not a rule. Use the id the "Did you mean" names, or `seomator explain --list`. |
 | `Exit 1: measured 4 of 5 pages; min-coverage 90` | The site rate-limited or dropped pages. Space requests out with the `crawler.per_host_delay_ms` value the warning suggests, lower `--concurrency`, or lower the gate. |
-| A crawl whose start page does not answer ends `Exit 1: score 0 is below fail-under 70` | In 8.0.0, `audit --crawl` scores an unreachable start page 0 and exits 1, while a single-page audit exits 2 with code `unreachable`. With a coverage gate the line also says `measured 0 of 1 pages`. Check that the runner can reach `SITE_URL`. |
 | A staging site scores 20 | It is kept out of search on purpose (noindex, or robots.txt blocks Googlebot). Audit it with `--staging`. |
 | The job says nothing about why it failed | The reason is on stderr. If your CI hides stderr, read `gate.reason` from the JSON report. |
 

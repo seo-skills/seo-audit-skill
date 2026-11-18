@@ -661,6 +661,10 @@ export class Crawler {
       } catch (error) {
         // A page that failed to load is a finding; a cancelled run is not.
         rethrowIfAborted(error, this.options.signal);
+        // A start page that cannot be loaded means the run could not happen,
+        // as it does for a single page: scoring the failure read as a site
+        // that got worse, not a job that is broken
+        if (url === this.entryUrl) throw error;
         this.results.push({
           url,
           context: this.createEmptyContext(url),

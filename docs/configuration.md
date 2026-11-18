@@ -54,7 +54,7 @@ source overrides an earlier one.
 | `seomator mcp` | At the start of every run, from `--config <path>` or the `seomator.toml` the search finds from the server's working directory: `[rules]` (with `[rules.override]`, whose `priority` is applied to stored audits; `fail_ci` does nothing, as MCP has no exit code), `[rule_options]`, `[external_links]`, `[custom]`, `[output] save`, and from `[crawler]` every implemented key except `max_pages`, `concurrency` and `max_duration_s`. Those three come from the `audit_url` arguments instead: `maxPages` (default 10), a fixed concurrency of 3, and `maxDurationS` (default 3600). It does not read `[ci]` or `[output] format` and `path`. |
 | `seomator config` | All sources. |
 | `seomator serve` and the desktop app | Nothing. Their audits take settings from the run form (10 pages and concurrency 3 by default) and run every rule. |
-| `seomator report`, `compare`, `db`, `self doctor` | Nothing. `self doctor` reports only whether `seomator.toml` exists in the current directory. |
+| `seomator report`, `compare`, `db`, `explain`, `self doctor` | Nothing. `self doctor` reports only whether `seomator.toml` exists in the current directory. |
 
 ### Flags and [crawler]
 
@@ -86,8 +86,8 @@ leave out.
 Except for `user_agent`, `timeout_ms`, `max_retry_after_ms` and
 `per_host_concurrency`, which every audit uses, these keys apply to crawls
 only: `seomator crawl`, `seomator audit --crawl` and a `seomator mcp` crawl.
-`crawl` and `mcp` each skip some of them; see
-[Which commands read it](#which-commands-read-it).
+`mcp` takes `max_pages`, `concurrency` and `max_duration_s` from its own
+arguments instead; see [Which commands read it](#which-commands-read-it).
 
 | Key | Type | Default | Valid values | Effect |
 |---|---|---|---|---|

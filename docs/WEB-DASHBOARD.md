@@ -510,7 +510,7 @@ Failures: `400 invalid-option` with `details: { option, allowed, received }`;
 | `categories` | `[{ categoryId, categoryName, score, passCount, warnCount, failCount, notMeasuredCount, pages }]` | One row per category, however many pages it was scored on |
 | `recentRules` | `[{ ruleId, ruleName, status, message }]` | The last 50 rule results |
 | `auditId` | string or null | Set once the result is stored |
-| `error` | `{ code, message, hint? }` or null | `code` is one of `dns`, `unreachable`, `tls`, `timeout`, `http-error`, `non-html`, `playwright-missing`, `no-pages`, `config`, `aborted`, `unknown` |
+| `error` | `{ code, message, hint? }` or null | `code` is one of `dns`, `unreachable`, `tls`, `timeout`, `http-error`, `non-html`, `rate-limited`, `private-address`, `playwright-missing`, `no-pages`, `config`, `aborted`, `unknown` |
 
 ### Event stream
 

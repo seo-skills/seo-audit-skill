@@ -260,13 +260,15 @@ All 7 checks passed. Ready to audit!
    | `timeout` | No response within `--timeout` (default 30000 ms) | Try again, raise `--timeout` (up to 120000), or audit without `--crawl` |
    | `http-error` | The page answered with a 4xx or 5xx status, after any redirects | Audit a URL that returns 200 |
    | `non-html` | The response is not an HTML page, but a file, an API or a feed | Point the audit at an HTML page |
+   | `rate-limited` | The start page kept answering 429 or 503 after 3 retries | Wait and run again, lower `--concurrency` to 1, or set `crawler.per_host_delay_ms` (for example 2000) |
+   | `private-address` | A request resolved to a loopback, private or link-local address and was refused | Audit the local or intranet site by its own URL: it, and the private hosts its start page redirects to, are allowed. Other private hosts its pages point to stay refused |
    | `no-pages` | A crawl found nothing to audit | Check robots.txt, the include and exclude patterns, and that the start URL links to other pages |
    | `config` | The `--config` file does not exist, or `seomator.toml` has an error | Run `seomator config validate`, which names every problem. For a missing file, fix the path, or drop the flag so SEOmator searches for `seomator.toml` |
    | `playwright-missing` | The browser could not start | Run `npx playwright install chromium`, or audit without `--cwv`. `audit` usually carries on without the browser instead, so this code is rare |
    | `aborted` | The run was cancelled (exit `130`) | Nothing, unless you did not cancel it |
    | `unknown` | Anything else | Read `message` |
 
-   Only `timeout`, `unreachable`, `dns` and an `http-error` with a 5xx status are worth retrying unchanged. The others need a change first.
+   Only `timeout`, `unreachable`, `dns`, `rate-limited` (after a wait) and an `http-error` with a 5xx status are worth retrying unchanged. The others need a change first.
 
 5. Expect the same shape from other commands. `compare --json`, `analyze --json` and `report --format json` print `{ "error": true, "code", "message", "hint", "timestamp" }` on failure and exit `2`, with codes of their own: `no-target`, `no-audits`, `audit-not-found` and `nothing-to-compare` from `compare`; `audit-not-found` from `report`; `no-crawls`, `crawl-not-found` and `empty-crawl` from `analyze`.
 

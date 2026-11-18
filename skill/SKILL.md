@@ -195,8 +195,9 @@ See `docs/ai-agent-integration.md` for the full contract.
 ## Exit codes
 
 An agent must be able to tell "the audit failed" from "the site scored badly".
-`audit` and `compare` use these codes (other commands, such as `config` and
-`self doctor`, exit `1` on an error of their own):
+`audit`, `analyze` and `compare` use these codes (other commands, such as
+`self doctor`, or `config <key>` for a key that does not exist, exit `1` on an
+error of their own):
 
 | Code | Meaning |
 |------|---------|
@@ -224,7 +225,9 @@ means a gate failed.
 
 `code` is one of `dns`, `unreachable` (nothing answered: refused, reset or no
 route), `tls` (certificate rejected), `timeout`, `http-error`, `non-html`,
-`playwright-missing`, `no-pages`, `config`, `aborted` or `unknown`.
+`rate-limited` (the start page kept answering 429 or 503), `private-address`
+(a request resolved to a loopback, private or link-local address and was
+refused), `playwright-missing`, `no-pages`, `config`, `aborted` or `unknown`.
 
 ## Command Reference
 
@@ -377,9 +380,9 @@ tag is present and well-formed, and only a real fetch reveals nothing came back.
 |-------|-------|---------|
 | 90-100 | A | Excellent - Minor optimizations only |
 | 80-89 | B | Good - Address warnings |
-| 70-79 | C | Needs Work - Priority fixes required |
-| 50-69 | D | Poor - Multiple critical issues |
-| 0-49 | F | Critical - Major problems to resolve |
+| 70-79 | C | Fair - Several issues to fix |
+| 50-69 | D | Needs Work - Priority fixes required |
+| 0-49 | F | Poor - Critical issues to resolve |
 
 ### Priority Order (by category weight)
 

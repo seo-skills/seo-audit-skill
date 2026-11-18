@@ -56,7 +56,8 @@ format includes the rule message and a fix suggestion alongside each failing rul
 ## Listing Rules at Runtime
 
 The authoritative rule list lives in the installed package. To enumerate rules for a
-category, read the category's `index.ts` in the SEOmator source
+category, run `seomator explain --list <category>` (`seomator explain <rule-id>`
+says what one rule checks), read the category's `index.ts` in the SEOmator source
 (`src/rules/<category>/index.ts`) or run an audit and inspect per-rule results in
 `--format json` output.
 

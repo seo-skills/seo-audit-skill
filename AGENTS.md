@@ -77,9 +77,11 @@ This is the checklist for the hint-coverage-expansion rules:
    not measured with reason `rule-error` (`runRule()` in `src/auditor.ts`) — a
    crashy rule silently loses its reading on every page. Guard every optional context field; if the data
    a rule needs wasn't collected, return `notMeasured()`, never `fail()`.
-3. **Cross-page state**: if the rule accumulates module-level state (duplicate
-   detection etc.), register a reset via `registerResettable()` or consecutive
-   audits contaminate each other.
+3. **No state between pages.** Rules keep no module-level state. A cross-page
+   check reads the finished crawl from `context.site` (absent without
+   `--crawl`), and a rule that needs another URL asks
+   `urlServiceFor(context)` (`src/net/url-service.ts`), which makes each
+   request once per run.
 4. **No new dependencies without checking.** Use what `src/` already imports
    (cheerio, etc.). New runtime deps land on every npm user.
 5. **Tests**: extend `src/rules/<category>/<category>.test.ts`. Build a

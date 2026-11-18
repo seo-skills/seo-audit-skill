@@ -100,6 +100,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   It reads them from `/api/info` now.
 - "Run again" on a stored audit dropped the audit's crawl and render options.
   A stored audit keeps them on the audit row, which the page now reads.
+- The HTML report's fix queue listed a rule twice when a crawl found it
+  failing on some pages and warning on others, and each row printed the
+  rule's whole points: a 40-page crawl showed "Add async/defer to scripts" at
+  03 and 04, +0.5 each, and counted 115 fixes where the dashboard counted 105.
+  The queue holds one entry per scored rule now, at its worst status and with
+  every page it was found on, and advisory findings, which score nothing yet,
+  are no longer counted as fixes.
 
 ## [8.0.0] - 2026-11-17
 

@@ -99,6 +99,13 @@ export function collectFindings(result: AuditResult): Finding[] {
   for (const category of result.categoryResults) {
     const definition = getCategoryById(category.categoryId);
     const categoryName = definition?.name ?? category.categoryId;
+    // Pages each rule took a reading on, passes included: "3 of 4 pages" needs
+    // the 4. Counted the way stored audits count it (dashboard/aggregate.ts).
+    const measuredByRule = new Map<string, number>();
+    for (const result of category.results) {
+      if (statusOf(result) === 'not-measured') continue;
+      measuredByRule.set(result.ruleId, (measuredByRule.get(result.ruleId) ?? 0) + 1);
+    }
 
     for (const ruleResult of category.results) {
       const status = statusOf(ruleResult);
@@ -125,7 +132,7 @@ export function collectFindings(result: AuditResult): Finding[] {
           // A stored row already knows how many pages it affected across the
           // whole crawl; a live row speaks only for its own page.
           pageCount: summary.affectedPages ?? 0,
-          measuredPages: summary.measuredPages ?? 0,
+          measuredPages: summary.measuredPages ?? measuredByRule.get(ruleResult.ruleId) ?? 0,
           priority: 0,
           ...(ruleResult.overridden?.priority && { override: ruleResult.overridden.priority }),
         };
@@ -139,7 +146,6 @@ export function collectFindings(result: AuditResult): Finding[] {
         finding.pages.push(page);
       }
       if (summary.affectedPages === undefined) finding.pageCount++;
-      if (summary.measuredPages === undefined) finding.measuredPages++;
     }
   }
 

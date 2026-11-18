@@ -49,7 +49,7 @@ export function tied(a: PointedFix | undefined, b: PointedFix | undefined): bool
   return Boolean(a && b && formatPoints(a.points) === formatPoints(b.points));
 }
 
-/** The fix that lifts a page-level cap, as the lead headline */
+/** The fix that lifts a page-level cap, said where the score names the cap */
 const CAP_HEADLINES: Record<string, string> = {
   noindex: 'Remove the noindex directive',
   'robots-disallowed': 'Let Googlebot fetch this page',
@@ -63,29 +63,30 @@ export function capHeadline(capId: string): string {
 }
 
 /**
- * The agent's one sentence over the lead fix.
+ * The agent's one sentence over the fix queue.
  *
- * It may only say what the numbers support: "more than the next four
- * together" is printed when it is true and never as a slogan.
+ * It speaks about the queue as a whole, never as a pitch for one fix, and may
+ * only say what the numbers support: "more than the next four together" is
+ * printed when it is true and never as a slogan.
  */
 export function agentLine(fixes: readonly PointedFix[], result: FixBriefAudit): string {
   const where = result.crawledPages > 1 ? 'this site' : 'this page';
-  if (result.scoreCap) return 'Start here. Nothing else moves the score until this is fixed.';
+  if (result.scoreCap) return 'Lift the score cap first. Nothing in this queue moves the score until it is gone.';
   if (fixes.length === 0) return 'Nothing to fix in what we measured.';
 
   const missing = missingPoints(fixes).toFixed(1);
   const [lead, ...rest] = fixes;
   const nextFour = rest.slice(0, 4).reduce((sum, fix) => sum + fix.points, 0);
   if (rest.length >= 4 && lead!.points > nextFour) {
-    return `Start here. This one returns more than the next four together, of the ${missing} points ${where} is missing.`;
+    return `Work from the top. 01 alone returns more than the next four together, of the ${missing} points ${where} is missing.`;
   }
   if (fixes.length <= 5) {
     return fixes.length === 1
-      ? `Start here. This is the one fix left, worth all ${missing} missing points.`
-      : `Start here. These ${fixes.length} fixes return all ${missing} points ${where} is missing.`;
+      ? `One fix left, worth all ${missing} missing points.`
+      : `These ${fixes.length} fixes return all ${missing} points ${where} is missing.`;
   }
   const topFive = fixes.slice(0, 5).reduce((sum, fix) => sum + fix.points, 0).toFixed(1);
-  return `Start here. The first five fixes return ${topFive} of the ${missing} points ${where} is missing.`;
+  return `Work from the top. The first five return ${topFive} of the ${missing} points ${where} is missing.`;
 }
 
 /** Where a grade starts; the verdict reads the rounded score (`verdict.ts`) */

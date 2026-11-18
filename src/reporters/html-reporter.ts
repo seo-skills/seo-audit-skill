@@ -13,7 +13,7 @@ import { toCss as tokensToCss } from '../design/tokens.js';
 import { getCategoryById } from '../categories/index.js';
 import { getFixSuggestion } from './fix-suggestions.js';
 import { pointsByRule } from '../rules/points.js';
-import { agentLine, capHeadline, formatPoints, nextGradeLine, splitFix, tied } from './fix-brief.js';
+import { agentLine, formatPoints, nextGradeLine, splitFix } from './fix-brief.js';
 import { REPORT_FONT_FACES } from '../design/fonts.js';
 import { getRuleById } from '../rules/registry.js';
 import { isNotMeasured } from '../rules/define-rule.js';
@@ -142,11 +142,11 @@ const AGENT_EMBLEM = `<svg viewBox="0 0 150 150" role="img" aria-label="SEOmator
 </svg>`;
 
 /**
- * The first fix as the report's headline (DESIGN.md, R1), with the agent's one
- * sentence over it — the same wording the dashboard prints (`fix-brief.ts`).
- * A capped score leads with lifting the cap; nothing to fix prints nothing.
+ * The agent's one sentence over the fix queue, in the same wording the
+ * dashboard prints (`fix-brief.ts`). The queue starts at 01 with no fix
+ * featured above it; the score leads the report.
  */
-function leadFixHtml(
+function queueIntroHtml(
   ranked: AggregatedIssue[],
   pointsOf: (issue: AggregatedIssue) => number,
   result: AuditResult
@@ -154,32 +154,7 @@ function leadFixHtml(
   // One entry per rule: a live crawl can list a rule as a failure and a warning
   const seen = new Set<string>();
   const fixes = ranked.filter((issue) => !seen.has(issue.ruleId) && seen.add(issue.ruleId)).map((issue) => ({ issue, points: pointsOf(issue) }));
-  const line = escapeHtml(agentLine(fixes, result));
-  const cap = result.scoreCap?.caps[0];
-  if (cap && result.scoreCap) {
-    const lift = Math.max(result.scoreCap.uncappedScore - result.overallScore, 0);
-    return `<section class="fb-lead" aria-label="What to fix first">
-      <div class="fb-dock">${AGENT_EMBLEM}<span class="fb-say">${line}</span></div>
-      <div class="fb-kick">${statusHtml('fail')}<span class="fb-label">Score cap</span></div>
-      <h2 class="fb-headline">${escapeHtml(capHeadline(cap.id))}</h2>
-      <p class="fb-saw">${escapeHtml(cap.reason)}</p>
-      <div class="fb-acts"><div class="fb-points"><div class="fb-points-n">+${lift}</div><div class="fb-label">lifts the cap</div></div></div>
-    </section>`;
-  }
-  const lead = fixes[0];
-  if (!lead) return '';
-  const { headline, rest } = splitFix(getFixSuggestion(lead.issue.ruleId));
-  const saw = `${lead.issue.message.replace(/\.$/, '')}.${rest ? ` ${rest}.` : ''}`;
-  return `<section class="fb-lead" aria-label="What to fix first">
-      <div class="fb-dock">${AGENT_EMBLEM}<span class="fb-say">${line}</span></div>
-      <div class="fb-kick"><span class="fb-rank">01</span>${statusHtml(lead.issue.status)}<span class="fb-label">${escapeHtml(lead.issue.categoryName)}</span></div>
-      <h2 class="fb-headline">${escapeHtml(headline)}</h2>
-      <p class="fb-saw">${escapeHtml(saw)}</p>
-      <div class="fb-acts">
-        <a class="fb-btn" href="#" data-jump-rule="${escapeHtml(lead.issue.ruleId)}">Show evidence</a>
-        <div class="fb-points"><div class="fb-points-n">${formatPoints(lead.points)}</div><div class="fb-label">score points${tied(lead, fixes[1]) ? ' · tied with 02' : ''}</div></div>
-      </div>
-    </section>`;
+  return `<div class="fb-dock">${AGENT_EMBLEM}<span class="fb-say">${escapeHtml(agentLine(fixes, result))}</span></div>`;
 }
 
 /**
@@ -1783,25 +1758,15 @@ ${REPORT_FONT_FACES}
     }
 
     /* ========================================
-       The Fix Brief (DESIGN.md): the first fix is the headline, the score
-       is a plain number, status is a shape with its word, and colour only
-       marks what is wrong.
+       The Fix Brief (DESIGN.md): the score is a plain number and leads,
+       the fixes follow in points order from 01, status is a shape with its
+       word, and colour only marks what is wrong.
        ======================================== */
     .fb-label { font-family: var(--font-mono); font-size: 11px; font-weight: 500; line-height: 16px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-muted); }
-    .fb-lead { position: relative; padding: 4px 0 4px 26px; margin: 8px 0 32px; }
-    .fb-lead::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--color-agent); }
-    .fb-dock { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+    .issues-summary-header { flex-wrap: wrap; }
+    .fb-dock { display: flex; align-items: center; gap: 10px; flex-basis: 100%; margin-top: 10px; }
     .fb-dock svg { width: 28px; height: 28px; flex: none; }
     .fb-say { font-family: var(--font-mono); font-size: 13px; line-height: 18px; color: var(--color-agent-text); }
-    .fb-kick { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 10px; }
-    .fb-rank { font-family: var(--font-mono); color: var(--color-text-muted); }
-    .fb-headline { font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em; max-width: 22ch; overflow-wrap: anywhere; }
-    .fb-saw { margin-top: 14px; font-size: 16px; line-height: 24px; color: var(--color-text-secondary); max-width: 60ch; overflow-wrap: anywhere; }
-    .fb-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 22px; }
-    .fb-btn { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border: 1px solid var(--color-border-strong); border-radius: 4px; background: var(--color-bg-elevated); color: var(--color-text); font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; }
-    .fb-btn:hover { border-color: var(--color-text); }
-    .fb-points { margin-left: auto; text-align: right; }
-    .fb-points-n { font-family: var(--font-mono); font-size: 28px; line-height: 32px; font-weight: 500; }
     .fb-status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
     .fb-status svg { width: 10px; height: 10px; flex: none; }
     .issues-table .fb-num { text-align: right; font-family: var(--font-mono); white-space: nowrap; }
@@ -1820,7 +1785,6 @@ ${REPORT_FONT_FACES}
     .score-facts { display: grid; grid-template-columns: auto auto; gap: 6px 24px; margin-top: 16px; font-size: 13px; }
     .score-facts dt { color: var(--color-text-secondary); }
     .score-facts dd { margin: 0; text-align: right; font-family: var(--font-mono); }
-    @media (max-width: 768px) { .fb-headline { font-size: 32px; line-height: 36px; } .fb-points { margin-left: 0; width: 100%; text-align: left; order: -1; } }
 
     /* ========================================
        Print Styles
@@ -2018,15 +1982,6 @@ function generateScript(pages: string[]): string {
             targetCard.classList.add('highlight');
             setTimeout(() => targetCard.classList.remove('highlight'), 1500);
           }
-        });
-      });
-
-      // The lead fix's "Show evidence" takes the same path as its table row
-      document.querySelectorAll('[data-jump-rule]').forEach(link => {
-        link.addEventListener('click', (event) => {
-          event.preventDefault();
-          const row = Array.from(issueRows).find(r => r.dataset.ruleId === link.dataset.jumpRule);
-          if (row) row.click();
         });
       });
 
@@ -2684,8 +2639,6 @@ export function renderHtmlReport(result: AuditResult): string {
       <!-- Page Snapshot -->
       ${renderPageSnapshot(result.page, result.url)}
 
-      ${leadFixHtml(rankedIssues, pointsOf, result)}
-
       ${failures.length + warnings.length > 0 ? `
       <!-- Issues Summary Table -->
       <div class="issues-summary">
@@ -2695,6 +2648,7 @@ export function renderHtmlReport(result: AuditResult): string {
               ? `Fix queue: the first ${TOP_ISSUES} of ${rankedIssues.length}, by score points returned`
               : `Fix queue (${rankedIssues.length}), by score points returned`
           }</span>
+          ${queueIntroHtml(rankedIssues, pointsOf, result)}
         </div>
         <table class="issues-table">
           <thead>

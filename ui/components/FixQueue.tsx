@@ -1,16 +1,20 @@
 /**
- * Every fix after the first, already in order (DESIGN.md, R2).
+ * Every fix, already in order (DESIGN.md, R2).
  *
  * One queue ranked by the score points each fix returns, failures and
- * warnings together; the status shape still says which is which. A row opens
- * in place to its evidence. Pages appear only on a crawl — a single-page audit
- * printed "/" in that column on every row.
+ * warnings together; the status shape still says which is which. It starts at
+ * 01 with no fix singled out, and the agent's one sentence introduces it. A
+ * row opens in place to its evidence, with a brief to copy for a developer.
+ * Pages appear only on a crawl — a single-page audit printed "/" in that
+ * column on every row.
  */
 
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
+import type { AuditResult } from '../../src/types.js';
+import { Agent } from './Logo.js';
 import { Status } from './Status.js';
 import { FixText } from './FixText.js';
-import { formatPoints, type Fix } from '../lib/fixes.js';
+import { agentLine, formatPoints, type Fix } from '../lib/fixes.js';
 
 /** Rows shown before "Show N more" */
 const VISIBLE = 8;
@@ -19,6 +23,8 @@ type StatusFilter = 'all' | 'fail' | 'warn';
 
 interface FixQueueProps {
   fixes: Fix[];
+  /** For the agent's sentence, and the page a copied brief names */
+  result: AuditResult;
   crawl: boolean;
   /** Points only count once a binding cap is lifted */
   capped: boolean;
@@ -27,18 +33,18 @@ interface FixQueueProps {
   onClearCategory: () => void;
   /** Jump to the rule's full result in "All checks" */
   onReveal: (fix: Fix) => void;
+  /** Straight from a run: the agent reacts once, then settles */
+  greet?: 'alert' | 'delighted';
 }
 
-export function FixQueue({ fixes, crawl, capped, category, onClearCategory, onReveal }: FixQueueProps) {
+export function FixQueue({ fixes, result, crawl, capped, category, onClearCategory, onReveal, greet }: FixQueueProps) {
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [open, setOpen] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
 
   const ranked = fixes.map((fix, index) => ({ fix, rank: index + 1 }));
-  const filtered = filter !== 'all' || category !== null;
   const rows = ranked.filter(
-    ({ fix, rank }) =>
-      (filtered || rank > 1) &&
+    ({ fix }) =>
       (filter === 'all' || fix.status === filter) &&
       (category === null || fix.categoryId === category.id)
   );
@@ -55,24 +61,32 @@ export function FixQueue({ fixes, crawl, capped, category, onClearCategory, onRe
           {fixes.length} fix{fixes.length === 1 ? '' : 'es'} · ranked by score points returned, fails and warnings together
           {capped && ' · points count once the cap is lifted'}
         </span>
-        <div className="segmented ml-auto" role="group" aria-label="Filter fixes">
-          {([
-            ['all', `All ${fixes.length}`],
-            ['fail', `Fails ${fails}`],
-            ['warn', `Warnings ${warns}`],
-          ] as const).map(([key, text]) => (
-            <button
-              key={key}
-              type="button"
-              aria-pressed={filter === key}
-              className={`segment ${filter === key ? 'segment-active' : ''}`}
-              onClick={() => setFilter(key)}
-            >
-              {text}
-            </button>
-          ))}
-        </div>
+        {fixes.length > 0 && (
+          <div className="segmented ml-auto" role="group" aria-label="Filter fixes">
+            {([
+              ['all', `All ${fixes.length}`],
+              ['fail', `Fails ${fails}`],
+              ['warn', `Warnings ${warns}`],
+            ] as const).map(([key, text]) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={filter === key}
+                className={`segment ${filter === key ? 'segment-active' : ''}`}
+                onClick={() => setFilter(key)}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+
+      <Dock
+        state={result.scoreCap ? 'alert' : fixes.length === 0 ? 'idle' : 'focused'}
+        greet={greet}
+        line={agentLine(fixes, result)}
+      />
 
       {category && (
         <p className="mb-3 text-[13px] text-[var(--color-text-secondary)]">
@@ -83,10 +97,8 @@ export function FixQueue({ fixes, crawl, capped, category, onClearCategory, onRe
         </p>
       )}
 
-      {rows.length === 0 ? (
-        <p className="tbl p-4 text-[13px] text-[var(--color-text-secondary)]">
-          {fixes.length <= 1 && !filtered ? 'The fix above is the only one.' : 'No fixes match this filter.'}
-        </p>
+      {fixes.length === 0 ? null : rows.length === 0 ? (
+        <p className="tbl p-4 text-[13px] text-[var(--color-text-secondary)]">No fixes match this filter.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="tbl">
@@ -141,7 +153,7 @@ export function FixQueue({ fixes, crawl, capped, category, onClearCategory, onRe
                     {isOpen && (
                       <tr>
                         <td colSpan={columns} className="bg-[var(--color-bg)]">
-                          <Evidence fix={fix} onReveal={onReveal} />
+                          <Evidence fix={fix} url={result.url} onReveal={onReveal} />
                         </td>
                       </tr>
                     )}
@@ -163,8 +175,26 @@ export function FixQueue({ fixes, crawl, capped, category, onClearCategory, onRe
   );
 }
 
+function Dock({ state, line, greet }: { state: 'focused' | 'idle' | 'alert'; line: string; greet?: 'alert' | 'delighted' }) {
+  // One reaction when a run hands over to its report, then the resting state:
+  // the agent moves when something real happens, and only once.
+  const [shown, setShown] = useState<typeof state | 'delighted'>(greet ?? state);
+  useEffect(() => {
+    if (!greet) return setShown(state);
+    setShown(greet);
+    const id = window.setTimeout(() => setShown(state), 900);
+    return () => window.clearTimeout(id);
+  }, [greet, state]);
+  return (
+    <div className="flex items-center gap-2.5 mb-4">
+      <Agent state={shown} size={28} label={`SEOmator agent, ${state}`} />
+      <span className="agent-say">{line}</span>
+    </div>
+  );
+}
+
 /** A chevron that points right when closed and down when open */
-export function Chevron({ open }: { open: boolean }) {
+function Chevron({ open }: { open: boolean }) {
   return (
     <svg
       viewBox="0 0 10 10"
@@ -179,16 +209,30 @@ export function Chevron({ open }: { open: boolean }) {
   );
 }
 
+/** A plain-text brief a developer can act on without opening the report */
+function brief(fix: Fix, url: string): string {
+  return [
+    fix.headline,
+    `What we saw: ${fix.message}`,
+    `How to fix: ${fix.headline}${fix.rest ? `. ${fix.rest}` : ''}.`,
+    `Check: ${fix.ruleId} (${fix.categoryName}) · ${formatPoints(fix.points)} score points`,
+    `Page: ${url}`,
+  ].join('\n');
+}
+
 /** What a fix rests on: what the check saw, why it matters, how to fix it */
-export function Evidence({ fix, onReveal, indent = true }: { fix: Fix; onReveal: (fix: Fix) => void; indent?: boolean }) {
+function Evidence({ fix, url, onReveal }: { fix: Fix; url: string; onReveal: (fix: Fix) => void }) {
   return (
-    <div className={`grid gap-x-8 gap-y-3 md:grid-cols-2 py-2 ${indent ? 'md:pl-[162px]' : ''}`}>
+    <div className="grid gap-x-8 gap-y-3 md:grid-cols-2 py-2 md:pl-[162px]">
       <div className="min-w-0">
         <div className="label">What we saw</div>
         <p className="mt-1 [overflow-wrap:anywhere]">{fix.message}</p>
-        <button type="button" className="btn btn-ghost mt-2 -ml-3" onClick={() => onReveal(fix)}>
-          Every detail and page
-        </button>
+        <div className="mt-2 -ml-3 flex flex-wrap gap-1">
+          <button type="button" className="btn btn-ghost" onClick={() => onReveal(fix)}>
+            Every detail and page
+          </button>
+          <CopyButton text={brief(fix, url)} />
+        </div>
       </div>
       <div className="min-w-0">
         {fix.description && (
@@ -207,5 +251,35 @@ export function Evidence({ fix, onReveal, indent = true }: { fix: Fix; onReveal:
         </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * Copy, with its result said in place: the label swaps to "Copied" and a
+ * check, softened by a short blur so the two words read as one change.
+ */
+function CopyButton({ text }: { text: string }) {
+  const [state, setState] = useState<'idle' | 'done' | 'failed'>('idle');
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setState('done');
+    } catch {
+      setState('failed');
+    }
+    window.setTimeout(() => setState('idle'), 1500);
+  };
+  const label = state === 'done' ? 'Copied' : state === 'failed' ? 'Copy failed' : 'Copy for a developer';
+  return (
+    <button type="button" className="btn btn-ghost" onClick={() => void copy()} aria-live="polite">
+      <span key={state} className="inline-flex items-center gap-1.5 copy-swap">
+        {state === 'done' && (
+          <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+            <path d="M2.5 6.5l2.2 2.2L9.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+        {label}
+      </span>
+    </button>
   );
 }

@@ -9,12 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **The report opens on what to fix first.** In the dashboard, the desktop app
-  and the HTML report, the largest thing on an audit is now the first fix,
+- **The report opens on its score, then goes straight to what to fix.** In
+  the dashboard, the desktop app and the HTML report, the score leads and one
+  fix queue follows from 01, with no fix featured above the rest. Each fix is
   written as an instruction ("Reduce DOM size") with what the check saw, the
   score points it returns, and a brief to copy for a developer. The SEOmator
-  agent sits over it with one sentence the numbers support ("The first five
-  fixes return 2.4 of the 8.8 points this page is missing").
+  agent introduces the queue with one sentence the numbers support ("The
+  first five return 2.4 of the 8.8 points this page is missing"); while a
+  score cap holds, the score names it and the fix that lifts it.
 - **Score points per fix.** Every failing or warning check carries `points`:
   what the score gains if it passes, from the same weights that make the score
   (`src/rules/points.ts`). All of an audit's points add up to what its score is
@@ -27,8 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   column to filter the fix queue; the same numbers are one click away as a
   table.
 - **The agent in the product.** The emblem appears as a character: crawling
-  while a run is live (the only animation that loops), focused on the lead
-  fix, and reacting once when a run hands over to its report. Reduced motion
+  while a run is live (the only animation that loops), focused over the fix
+  queue, and reacting once when a run hands over to its report. Reduced motion
   shows still poses.
 - `DESIGN.md`: the design system ("The Fix Brief") the three surfaces follow.
 
@@ -47,8 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   half-filled one warns, an open one passes, a dashed one was not measured and
   a circle is advisory.
 - The audit page has no category sidebar or score ring: the score is a plain
-  number beside the lead fix, with what it is missing, what it did not count,
-  and what changed since the last run. Export formats sit in one menu and
+  number at the top, with what it is missing, what it did not count, and what
+  changed since the last run beside it. Export formats sit in one menu and
   Delete in the ⋯ menu.
 - **All checks reads like the rest of the report.** Each category is one white
   surface with hairline rows (it was faint grey boxes on the grey page), the
@@ -67,9 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   apply where there is a hovering pointer, menus grow from their trigger and
   take arrow keys, Home and End, the strip's tooltip appears after a moment and
   then follows the pointer instantly, fix-queue rows show a chevron and open
-  on a click anywhere, "Show evidence" opens under the lead fix instead of
-  jumping to the end of the page, and the report shows its own shape while it
-  loads.
+  on a click anywhere, and the report shows its own shape while it loads.
 - **The run form offers every option a run takes.** Core Web Vitals with its
   mobile render and interaction run, crawl with pages, pages at once, a time
   limit and ignoring the site's crawl-delay, staging, the categories to run

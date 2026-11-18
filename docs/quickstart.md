@@ -54,7 +54,7 @@ Checking system setup...
 
   ✓ Node.js: Node.js v24.21.0 installed
   ✓ npm: npm v11.19.0 installed
-  ✓ Chrome/Chromium: Browser found (Google Chrome 155.0.8059.79)
+  ✓ Chrome/Chromium: Browser found (Google Chrome 158.0.8127.36)
   ...
 
 All 7 checks passed. Ready to audit!
@@ -71,11 +71,14 @@ Run an audit of example.com:
 seomator audit https://example.com --cwv
 ```
 
-`--cwv` also loads the page in a browser to measure Core Web Vitals. Leave it
-out for a faster audit that reports those checks as not measured.
+`--cwv` (the same flag as `--render`) also loads the page in a browser. The
+render measures Core Web Vitals and runs the other checks that need the
+rendered page, such as accessibility with axe-core. Leave it out for a faster
+audit: those checks are then reported as not measured, and the report says
+how many of them a render would add.
 
 SEOmator prints a banner, then one line per category as each finishes. The
-audit takes about ten seconds. You will see output like this (trimmed):
+audit takes five to ten seconds. You will see output like this (trimmed):
 
 ```
  ███████╗███████╗ ██████╗ ███╗   ███╗ █████╗ ████████╗ ██████╗ ██████╗
@@ -90,25 +93,26 @@ audit takes about ten seconds. You will see output like this (trimmed):
 Config: (none, using defaults)
 Auditing: example.com
 
-  ✗ Core                  75 16 passed, 3 warnings, 4 failed, 1 not measured
-  ✗ Technical SEO         93 12 passed, 2 warnings, 4 failed
-  ⚠ Performance           99 25 passed, 1 warnings, 2 not measured
-  ✓ Images               100 14 passed
+
+  ✗ Core                  75 16 passed, 3 warnings, 4 failed, 4 not measured
+  ✗ Technical SEO         93 12 passed, 2 warnings, 4 failed, 1 not measured
+  ⚠ Performance           99 25 passed, 1 warnings, 3 not measured
+  ⚠ Links                 98 17 passed, 2 warnings, 8 not measured
   ...
   ✗ AI/GEO Readiness      45 5 passed, 4 warnings, 2 failed, 2 not measured
 
-✓ Audited 1 page in 9.8s
-  Saved as 2026-10-15-431da7 — compare with: seomator compare example.com
+✓ Audited 1 page in 5.2s
+  Saved as 2026-11-18-140ca2 — compare with: seomator compare example.com
 
 ──────────────────────────────────────────────────
 SEOMATOR REPORT
-example.com • 1 page • 86/100 (B)
+example.com • 1 page • 87/100 (B)
 ──────────────────────────────────────────────────
 
-Health Score: 86/100 (B)
+Health Score: 87/100 (B)
 ```
 
-That is your first result: example.com scores 86 out of 100, a B. Your numbers
+That is your first result: example.com scores 87 out of 100, a B. Your numbers
 may differ, because some checks time the page on every run and the page itself
 can change.
 
@@ -134,13 +138,14 @@ echo $?
 An audit that scores below 70 exits with `1`, and one that could not run at all
 exits with `2`.
 
-**The category breakdown.** Each category gets its own score, worst first:
+**The category breakdown.** Each category gets its own score, worst first
+(trimmed):
 
 ```
 Category Breakdown:
 --------------------------------------------------
-Social               ██░░░░░░░░ 17%
-  Passed: 0 | Warnings: 3 | Failed: 6
+Social               ██░░░░░░░░ 19%
+  Passed: 0 | Warnings: 3 | Failed: 5 | Not measured: 5
 AI/GEO Readiness     █████░░░░░ 45%
   Passed: 5 | Warnings: 4 | Failed: 2 | Not measured: 2
 Security             ███████░░░ 71%
@@ -149,24 +154,25 @@ Security             ███████░░░ 71%
 HTML Validation      ██████████ 100%
   Passed: 11
 
-Total: 260 passed, 30 warnings, 29 errors, 54 not measured
+Total: 261 passed, 30 warnings, 28 errors, 67 not measured
 ```
 
 Social scores lowest because example.com has no Open Graph or Twitter Card
 tags.
 
 **The issues.** Below the breakdown, every check that did not pass is listed,
-grouped by category. The categories with the most failures come first:
+grouped by category. The categories with the most failures come first
+(trimmed):
 
 ```
 ISSUES
 
-Social (6 errors, 3 warnings)
-  social-og-description Open Graph Description (error)
-    ✗ social-og-description: No <meta property="og:description"> tag found in the document
+Security (5 errors, 5 warnings, 2 not measured)
+  security-https-redirect HTTP to HTTPS Redirect (error)
+    ✗ security-https-redirect: HTTP version is accessible without redirecting to HTTPS
       → /
 ...
-Core (4 errors, 3 warnings, 1 not measured)
+Core (4 errors, 3 warnings, 4 not measured)
   core-description-present Meta Description Present (error)
     ✗ core-description-present: No <meta name="description"> tag found in the document
       → /
@@ -176,15 +182,20 @@ Core (4 errors, 3 warnings, 1 not measured)
       → /
 ```
 
-Each issue shows the rule ID (`social-og-description`), the rule name, and its
-result: `error` for a failed check, `warning` for one that needs attention, or
-`not measured`. The next line says what was found, and the `→` line names the
-page.
+Each issue shows the rule ID (`security-https-redirect`), the rule name, and
+its result: `error` for a failed check, `warning` for one that needs attention,
+or `not measured`. The next line says what was found, and the `→` line names
+the page.
+
+Some issues come from advisory rules: new checks that are reported but not
+counted in the score yet. `seomator explain <rule-id>` says whether a rule is
+one.
 
 **Checks marked "not measured".** Lines that start with `–` are checks that
-could not take a reading on this run. They do not count toward the score. The
-message says what the check needs. `core-title-unique` compares titles across
-pages, so it needs a multi-page audit (`--crawl`).
+took no reading on this run. They do not count toward the score. The message
+says why: either the check needs more than this run collected, or the page had
+nothing for it to check. `core-title-unique` compares titles across pages, so
+it needs a multi-page audit (`--crawl`).
 
 ## 4. Audit again and compare
 
@@ -201,26 +212,21 @@ seomator compare example.com
 
 ```
 Comparing example.com
-  previous  2026-10-15-431da7  2026-10-15 14:32  score 86
-  current   2026-10-15-6553b1  2026-10-15 14:34  score 86
+  previous  2026-11-18-140ca2  2026-11-18 10:26  score 87
+  current   2026-11-18-c56324  2026-11-18 10:28  score 87
 
-  Overall  86 → 86  = 0
+  Overall  87 → 87  = 0
 
-┌────────────────────────┬─────────┬─────────┬──────────┐
-│ Category               │ Before  │ After   │ Change   │
-├────────────────────────┼─────────┼─────────┼──────────┤
-│ Performance            │ 99      │ 96      │ -3       │
-└────────────────────────┴─────────┴─────────┴──────────┘
+  No category scores changed.
 
-  Regressed (1)
-    ✗ cwv-ttfb pass → warn
-      TTFB is 978ms (needs improvement, should be under 800ms)
+  No rules changed status.
 ```
 
-The page did not change between the two runs, yet one check moved. `cwv-ttfb`
-times the server's first response on every run, and the second request was
-slower. Your comparison may show a different small change, or
-`No category scores changed.`
+Nothing changed between these two runs. Yours may show a small change even
+though the page is the same, because some checks time the page on every run.
+`cwv-ttfb` times the server's first response: if it was under 800 ms on the
+first run and between 800 and 1800 ms on the second, the rule is listed under
+`Regressed` as `pass → warn`.
 
 If `compare` says there is only one stored audit, run the audit command again.
 Audits are stored by default, so no extra flag is needed.
@@ -237,6 +243,11 @@ and compared two stored audits. From here:
   checks: [Introduction](./introduction.md).
 - Audit a whole site instead of one page with `--crawl`. Run
   `seomator audit --help` for every option.
+- Add `--render` (the same as `--cwv`) when you want Core Web Vitals and the
+  other checks that need a browser. Without it the report says how many checks
+  a render would add.
+- Ask what any rule checks and how to fix it with `seomator explain <rule-id>`,
+  for example `seomator explain security-https-redirect`.
 - Give the report to an AI assistant with `--format llm`:
   [AI Agent Integration](./ai-agent-integration.md).
 - Keep project settings in a `seomator.toml` file:

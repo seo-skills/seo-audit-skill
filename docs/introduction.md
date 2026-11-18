@@ -49,7 +49,7 @@ structure, HTML validity, readiness for AI search, and legal compliance.
                ▼
   ┌─────────────────────────┐
   │ 2. Render (optional)    │  Headless browser: Core Web Vitals,
-  │                         │  rendered DOM, loaded assets. On with --cwv.
+  │                         │  rendered DOM, loaded assets. On with --render.
   └────────────┬────────────┘
                ▼
   ┌─────────────────────────┐
@@ -74,11 +74,14 @@ structure, HTML validity, readiness for AI search, and legal compliance.
    page (a PDF, a JSON API, a feed), or its status is 400 or higher, the audit
    stops with an error instead of a score. [Refusing to score](#refusing-to-score)
    explains why.
-2. **Render.** With `--cwv`, SEOmator opens the page in a headless
-   browser. It tries the Chrome, Chromium or Edge installed on your machine
-   first, then Playwright's own Chromium. The render measures Core Web Vitals,
-   captures the page after JavaScript has run, and records every asset the page
-   loaded. If no browser can start, the audit carries on without the render.
+2. **Render.** With `--render` (or its older name `--cwv`), SEOmator opens the
+   page in a headless browser. It tries the Chrome, Chromium or Edge installed
+   on your machine first, then Playwright's own Chromium. The render measures
+   Core Web Vitals, captures the page after JavaScript has run, and records
+   every asset the page loaded. It also runs checks inside the page: axe-core
+   accessibility, unused JavaScript and CSS, and images delivered far larger
+   than they are shown. If no browser can start, the audit carries on without
+   the render, and those checks report that they need one.
 3. **Site files.** SEOmator reads `robots.txt`, then every sitemap it lists, or
    `/sitemap.xml` when it lists none. Sitemap indexes and gzipped sitemaps are
    followed.
@@ -111,9 +114,11 @@ The score is three layers of weighted averages:
   Core down to 1% for Legal Compliance, and the weights add up to 100. The
   overall score is the weighted average of the category scores.
   [SEO Audit Rules](./SEO-AUDIT-RULES.md) lists the weights.
-- **Advisory rules.** New rules start as advisory: they are reported, marked
-  "Advisory", and carry no weight until their verdicts have been checked on
-  real sites.
+- **Advisory rules.** New rules start as advisory: they are reported and carry
+  no weight until their verdicts have been checked on real sites. Category
+  pass, warning and failure counts leave them out. The dashboard and the
+  desktop app mark them "Advisory", JSON output sets `advisory: true`, and
+  `seomator explain <rule-id>` says whether a rule is one.
 - **Grade.** A is 90 or more, B 80 or more, C 70 or more, D 50 or more, and F
   below 50. Every surface uses the same bands. 70 is also the default pass
   line: `seomator audit` exits with `1` below it, so a CI job fails.
@@ -204,8 +209,10 @@ measured**, and says what it needs. It carries weight 0, so it moves neither
 side of the average: you cannot score what you did not measure. The usual
 reasons:
 
-- **No render** (no `--cwv`, or no browser found): Core Web Vitals and most
-  JavaScript-rendering checks.
+- **No render** (no `--cwv`, or no browser found): Core Web Vitals, most
+  JavaScript-rendering checks, accessibility with axe-core, unused JavaScript
+  and CSS, and image sizing. Without `--cwv`, the console report says how many
+  checks a render would add.
 - **A single page**: checks that compare pages or need the link graph, such as
   title uniqueness, duplicate content, click depth, inbound links and sitemap
   orphans. They need `--crawl`.
@@ -218,9 +225,10 @@ reasons:
 
 The trade-off: an audit that measured less can score higher, because the checks
 it skipped can no longer fail. A single-page audit of example.com with `--cwv`
-reported 54 checks as not measured and scored 86. The same audit without it
-reported 76 and scored 87. That is why SEOmator records how each audit was
-measured.
+reported 67 checks as not measured and scored 87. The same audit without it
+reported 101 and scored 88: the JavaScript Rendering checks that failed on the
+rendered page were not measured, so that category rose from 79 to 100. That is
+why SEOmator records how each audit was measured.
 
 ## Comparing audits over time
 
@@ -264,8 +272,8 @@ report, or your own real-user monitoring) shows what they experience.
 
 Lab numbers are good at showing what changed between two runs under the same
 conditions. They still move from run to run: two audits of an unchanged
-example.com, two minutes apart, timed the server's first byte as a pass and
-then as a warning at 978 ms.
+example.com, about a minute apart, timed the server's first byte at 133 ms and
+then 219 ms, and the Largest Contentful Paint at 0.23 s and then 0.32 s.
 
 SEOmator has no field data and no data from search engines: no rankings, no
 backlinks, no search demand. A high score means the page follows the rules it

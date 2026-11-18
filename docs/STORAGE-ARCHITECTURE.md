@@ -32,7 +32,7 @@ These paths are relative to the current working directory.
 
 ### Identifiers
 
-Audit, crawl and report ids have the form `YYYY-MM-DD-xxxxxx`: the UTC date, then six hex characters from three random bytes (`generateId()` in `src/storage/utils/hash.ts`). Example: `2026-10-15-d182f9`.
+Audit, crawl and report ids have the form `YYYY-MM-DD-xxxxxx`: the UTC date, then six hex characters from three random bytes (`generateId()` in `src/storage/utils/hash.ts`). Example: `2026-11-18-262601`.
 
 ### Timestamps
 
@@ -72,14 +72,14 @@ One row per stored audit.
 | Column | Type | Constraint, default | Contents |
 |---|---|---|---|
 | `id` | INTEGER | PRIMARY KEY | Row id. The other tables reference this, not `audit_id`. |
-| `audit_id` | TEXT | NOT NULL, UNIQUE | Public id, such as `2026-10-15-d182f9`. `report <id>`, `compare --against` and the dashboard take this value. |
+| `audit_id` | TEXT | NOT NULL, UNIQUE | Public id, such as `2026-11-18-262601`. `report <id>`, `compare --against` and the dashboard take this value. |
 | `domain` | TEXT | NOT NULL | Hostname of the audited URL as given, with `www.` kept (`domainOf()`). `compare`, score trends and the domain list group by this value, so `www.example.com` and `example.com` are separate histories. Rows created by `db migrate` have a leading `www.` removed. |
 | `project_name` | TEXT | | `[project] name`, or `default` when it is empty, for `audit`. The crawl's project for `analyze`, with the same fallback. NULL for the dashboard and the desktop app. |
 | `crawl_id` | TEXT | | The legacy report's crawl id on rows created by `db migrate`. NULL otherwise. |
 | `start_url` | TEXT | NOT NULL | The audited URL, with any `user:password@` removed. |
 | `overall_score` | INTEGER | NOT NULL | Overall score after any score cap. The cap and the uncapped score are in `extras_json`. |
 | `total_rules` | INTEGER | DEFAULT 0 | Number of `audit_results` rows written for this audit: one per rule per page, unmeasured results included. On migrated rows, the legacy report's own total. |
-| `passed_count` | INTEGER | DEFAULT 0 | Passing results, summed over categories. Unmeasured results are not counted here. |
+| `passed_count` | INTEGER | DEFAULT 0 | Passing results, summed over categories. Unmeasured and advisory results are not counted here. |
 | `warning_count` | INTEGER | DEFAULT 0 | Warnings, counted the same way. |
 | `failed_count` | INTEGER | DEFAULT 0 | Failures, counted the same way. |
 | `pages_audited` | INTEGER | DEFAULT 1 | Pages the audit covered. |
@@ -104,7 +104,7 @@ One row per category that ran. A category left out with `-c`, or whose rules wer
 | `category_name` | TEXT | NOT NULL | Category display name, such as `Core`. On migrated rows, the category id. |
 | `score` | INTEGER | NOT NULL | Category score, 0 to 100. |
 | `weight` | INTEGER | NOT NULL | The category's weight in the overall score. On migrated rows, 100 divided by the number of categories in the legacy report. |
-| `pass_count` | INTEGER | DEFAULT 0 | Passing results in this category. Unmeasured results are not counted. |
+| `pass_count` | INTEGER | DEFAULT 0 | Passing results in this category. Unmeasured and advisory results are not counted. |
 | `warn_count` | INTEGER | DEFAULT 0 | Warnings, counted the same way. |
 | `fail_count` | INTEGER | DEFAULT 0 | Failures, counted the same way. |
 
@@ -127,7 +127,7 @@ One row per rule per page. A single-page audit writes one row per rule that ran.
 | `details_json` | TEXT | | The result's `details` object as JSON, including the `pageUrl` the engine adds to every result. |
 | `executed_at` | TEXT | DEFAULT `datetime('now')` | When the row was inserted. |
 | `weight` | INTEGER | | The rule's weight for this result. `0` marks a result that took no reading. NULL on rows written before 3.4.0, which readers treat as weight 1. |
-| `reason` | TEXT | | Why a `not-measured` result took no reading: `not-applicable`, `not-compared`, `needs-render`, `could-not-verify`, `probe-failed`, `disabled`, `unsupported` or `rule-error`. NULL for measured results and on rows written before 8.0. |
+| `reason` | TEXT | | Why a `not-measured` result took no reading: `not-applicable`, `not-compared`, `needs-render`, `could-not-verify`, `probe-failed`, `disabled`, `unsupported` or `rule-error`. NULL for measured results, for an unmeasured result whose rule gave no reason, and on rows written before 8.0. |
 | `advisory` | INTEGER | | `1` when the result came from an advisory rule, which is reported and never counted in a score. NULL otherwise and on rows written before 8.0. |
 
 A row counts as unmeasured when `weight = 0 OR status = 'not-measured'` (`NOT_MEASURED_SQL` in `src/storage/audits-db/results.ts`). Three encodings exist in stored data:
@@ -281,13 +281,17 @@ Example: a production audit, then the same site with `--staging`:
 $ seomator compare example.com --fail-on-regression
 
 Comparing example.com
-  previous  2026-10-15-d182f9  2026-10-15 14:41  score 88
-  current   2026-10-15-1022d7  2026-10-15 14:41  score 87
+  previous  2026-11-18-262601  2026-11-18 10:33  score 88
+  current   2026-11-18-c76490  2026-11-18 10:34  score 88
 
-  Overall  88 → 87  ▼ -1
+  Overall  88 → 88  = 0
   These audits were not measured the same way, so this diff is not a like-for-like comparison:
     staging mode: false → true
-...
+
+  No category scores changed.
+
+  No rules changed status.
+
   Not failing on regression: the two audits were measured differently, so any difference is not attributable to the site.
 ```
 
@@ -424,14 +428,14 @@ Project Databases:
   No project databases found
 
 Audits Database:
-  Size: 356.0 KB
+  Size: 388.0 KB
   Audits: 2
-  Results: 746
+  Results: 796
   Issues: 0
   Comparisons: 1
 
 Link Cache:
-  Not created yet
+  Size: 16.0 KB
 ```
 
 ### `seomator db restore`
@@ -463,6 +467,7 @@ export SEOMATOR_HOME=$(mktemp -d)
 seomator audit https://example.com
 ls "$SEOMATOR_HOME"
 # audits.db
+# link-cache.db
 ```
 
 Read the scoring model and staging flag of stored audits:
@@ -471,8 +476,8 @@ Read the scoring model and staging flag of stored audits:
 $ sqlite3 -header -column "$SEOMATOR_HOME/audits.db" "SELECT audit_id, source, overall_score, json_extract(run_json, '$.scoringVersion') AS scoring, json_extract(run_json, '$.staging') AS staging FROM audits ORDER BY id;"
     audit_id       source  overall_score  scoring  staging
 -----------------  ------  -------------  -------  -------
-2026-10-15-d182f9  cli                88        4
-2026-10-15-1022d7  cli                87        4        1
+2026-11-18-262601  cli                88        5
+2026-11-18-c76490  cli                88        5        1
 ```
 
 Run an audit without storing it:
@@ -485,7 +490,7 @@ seomator audit https://example.com --no-save
 
 ### Why stored runs carry a profile
 
-A score only means something next to another score produced the same way. Every surface that writes to `audits.db` starts with Core Web Vitals off, and each can turn them on for a run: `--cwv` on the CLI, the Core Web Vitals option in the run form shared by the dashboard and the desktop app. A run without a browser render leaves dozens of checks unmeasured, and the score moves for reasons that have nothing to do with the site. Rule filters, staging mode and scoring-model changes do the same. Through 7.0.0 the CLI rendered by default while the run form did not, so before `run_json` was read, `compare --fail-on-regression` could fail a CI build whose only change was which surface produced the baseline. Storing the profile lets `compare` say why two scores differ, and refuse to call a measurement change a regression.
+A score only means something next to another score produced the same way. Every surface that writes to `audits.db` starts with Core Web Vitals off, and each can turn them on for a run: `--render` on the CLI (`--cwv` is its older name), "Render in a browser" in the run form shared by the dashboard and the desktop app. A run without a browser render leaves dozens of checks unmeasured, and the score moves for reasons that have nothing to do with the site. Rule filters, staging mode and scoring-model changes do the same. Through 7.0.0 the CLI rendered by default while the run form did not, so before `run_json` was read, `compare --fail-on-regression` could fail a CI build whose only change was which surface produced the baseline. Storing the profile lets `compare` say why two scores differ, and refuse to call a measurement change a regression.
 
 ### Why unmeasured results are stored at score 50 with weight 0
 

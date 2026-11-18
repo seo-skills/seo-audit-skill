@@ -2,11 +2,14 @@
  * `seomator crawl` runs under the same network policy as `audit`, and honours
  * the [crawler] keys that shape a polite crawl.
  */
-import { describe, it, expect, afterAll } from 'vitest';
+import { describe, it, expect, afterAll, vi } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { getDefaultConfig } from '../config/defaults.js';
-import { crawlerOptionsFor, crawlSite } from './crawl.js';
+import { crawlerOptionsFor, crawlSite, crawlWarnings, runCrawl } from './crawl.js';
 
 const servers: http.Server[] = [];
 afterAll(() => servers.forEach((server) => server.close()));
@@ -66,8 +69,61 @@ describe('crawlSite', () => {
 
     const config = getDefaultConfig();
     config.crawler.timeout_ms = 5000;
-    const pages = await crawlSite(`http://127.0.0.1:${sitePort}/`, config, 5);
+    const { pages } = await crawlSite(`http://127.0.0.1:${sitePort}/`, config, 5);
     expect(pages.find((page) => page.url.endsWith('/hop'))?.error).toBeTruthy();
     expect(reachedPrivate).toBe(0);
   }, 20000);
+});
+
+describe('a crawl cut short', () => {
+  it('reports the time limit, and the pages it left', async () => {
+    const port = await listen(async (req, res) => {
+      if (req.url === '/robots.txt') return void res.writeHead(404).end();
+      await new Promise((r) => setTimeout(r, 300));
+      const links = Array.from({ length: 20 }, (_, i) => `<a href="/p${i}">p${i}</a>`).join('');
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end(`<html><head><title>t</title></head><body>${req.url === '/' ? links : 'leaf'}</body></html>`);
+    }, '127.0.0.1');
+    const config = getDefaultConfig();
+    config.crawler.max_duration_s = 1;
+    config.crawler.concurrency = 1;
+    const { pages, report } = await crawlSite(`http://127.0.0.1:${port}/`, config, 20);
+    expect(report.stoppedByDeadline).toBe(true);
+    const warnings = crawlWarnings(report, pages.length);
+    expect(warnings.join('\n')).toMatch(/time limit/);
+    expect(warnings.join('\n')).toContain(`${report.notFetched.length}`);
+  }, 20000);
+
+  it('says nothing for a crawl that finished', () => {
+    expect(crawlWarnings({ rateLimitedPages: [], rateLimitedHosts: [], notFetched: [], abandonedHosts: [], crawlDelay: null, stoppedByDeadline: false }, 5)).toEqual([]);
+  });
+});
+
+describe('runCrawl', () => {
+  it('refuses an invalid config before requesting anything, as audit does', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'seomator-crawl-config-'));
+    writeFileSync(join(dir, 'seomator.toml'), '[crawler]\nper_host_concurrency = 0\n');
+    let requests = 0;
+    const port = await listen((_req, res) => {
+      requests++;
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end('<html><head><title>t</title></head><body>x</body></html>');
+    }, '127.0.0.1');
+    vi.spyOn(process, 'cwd').mockReturnValue(dir);
+    const exit = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('process.exit');
+    }) as never);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const errors: string[] = [];
+    vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => void errors.push(args.join(' ')));
+    try {
+      await expect(runCrawl(`http://127.0.0.1:${port}/`, { refresh: false, resume: false, verbose: false, output: dir })).rejects.toThrow('process.exit');
+      expect(exit).toHaveBeenCalledWith(2);
+      expect(errors.join('\n')).toMatch(/per_host_concurrency/);
+      expect(requests).toBe(0);
+    } finally {
+      vi.restoreAllMocks();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

@@ -69,6 +69,10 @@ describe('isMetadataAddress', () => {
     'fe80::1',
     '[fe80::1]',
     'fd00:ec2::254',
+    '100.100.100.200',
+    '::ffff:100.100.100.200',
+    '192.0.0.192',
+    '64:ff9b:1::a9fe:a9fe',
   ])('is true for %s, a metadata or link-local address in any spelling', async (ip) => {
     const { isMetadataAddress } = await import('./address.js');
     expect(isMetadataAddress(ip)).toBe(true);

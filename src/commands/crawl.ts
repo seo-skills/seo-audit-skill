@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { Crawler } from '../crawler/index.js';
-import type { CrawledPage, CrawlerOptions } from '../crawler/crawler.js';
+import type { CrawledPage, CrawlerOptions, CrawlReport } from '../crawler/crawler.js';
+import { assertRunnableConfig } from './run-config.js';
 import { loadConfig } from '../config/index.js';
 import type { SeomatorConfig } from '../config/schema.js';
 import { policyForTarget, runWithNetPolicy } from '../net/policy.js';
@@ -51,17 +52,43 @@ export async function crawlSite(
   config: SeomatorConfig,
   maxPages: number,
   onProgress?: CrawlerOptions['onProgress']
-): Promise<CrawledPage[]> {
+): Promise<{ pages: CrawledPage[]; report: CrawlReport }> {
   const policy = await pinEntryRedirects(url, await policyForTarget(url, 'auto'), { timeoutMs: config.crawler.timeout_ms });
   const crawler = new Crawler({ ...crawlerOptionsFor(config, maxPages), ...(onProgress && { onProgress }) });
-  return runWithNetPolicy(policy, () => crawler.crawl(url, maxPages, config.crawler.concurrency));
+  const pages = await runWithNetPolicy(policy, () => crawler.crawl(url, maxPages, config.crawler.concurrency));
+  return { pages, report: crawler.getReport() };
+}
+
+/** What a crawl could not do, one line each; empty for a crawl that finished */
+export function crawlWarnings(report: CrawlReport, fetched: number): string[] {
+  const warnings: string[] = [];
+  const left = report.notFetched.length;
+  const pages = (n: number) => `${n} page${n === 1 ? '' : 's'}`;
+  if (report.stoppedByDeadline) {
+    warnings.push(`The crawl reached its time limit (crawler.max_duration_s) after ${pages(fetched)}; ${pages(left)} still queued were not fetched.`);
+  } else if (report.abandonedHosts.length > 0) {
+    warnings.push(`Gave up on ${report.abandonedHosts.join(', ')} after repeated failures; ${pages(left)} still queued were not fetched.`);
+  }
+  if (report.rateLimitedPages.length > 0) {
+    warnings.push(`${pages(report.rateLimitedPages.length)} stayed rate-limited after their retries.`);
+  }
+  return warnings;
 }
 
 export async function runCrawl(url: string, options: CrawlOptions): Promise<void> {
   warnUnimplementedFlags(options as unknown as Record<string, unknown>, 'crawl');
 
-  // Load config
-  const { config } = loadConfig(process.cwd());
+  // Load config, refusing one that does not mean what it says, as audit does
+  const loaded = loadConfig(process.cwd());
+  const { config } = loaded;
+  try {
+    for (const warning of assertRunnableConfig(config, loaded.configPath, { categories: [] })) {
+      console.error(chalk.yellow(warning));
+    }
+  } catch (error) {
+    console.error(chalk.red('Crawl failed:'), error instanceof Error ? error.message : 'Unknown error');
+    process.exit(2);
+  }
 
   setUserAgent(config.crawler.user_agent);
 
@@ -89,7 +116,7 @@ export async function runCrawl(url: string, options: CrawlOptions): Promise<void
   };
 
   try {
-    const crawledPages = await crawlSite(url, config, maxPages, onProgress);
+    const { pages: crawledPages, report } = await crawlSite(url, config, maxPages, onProgress);
 
     if (options.verbose) {
       process.stderr.write('\n');
@@ -131,6 +158,7 @@ export async function runCrawl(url: string, options: CrawlOptions): Promise<void
     console.log(`  Errors: ${errorCount}`);
     console.log(`  Duration: ${(crawl.stats.duration / 1000).toFixed(1)}s`);
     console.log(`  Crawl ID: ${crawlId}`);
+    for (const warning of crawlWarnings(report, crawl.pages.length)) console.error(chalk.yellow(`  ${warning}`));
     console.log();
     console.log('Run analysis with:');
     console.log(`  seomator analyze ${crawlId}`);

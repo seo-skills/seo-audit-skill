@@ -117,6 +117,10 @@ function isBlockedV6(ip: string): boolean {
 }
 
 /** Cloud metadata endpoints outside the link-local ranges */
+const METADATA_V4 = [
+  '100.100.100.200', // Alibaba Cloud
+  '192.0.0.192', // Oracle Cloud (legacy)
+];
 const METADATA_V6 = ['fd00:ec2::254']; // AWS instance metadata over IPv6
 
 /**
@@ -129,12 +133,16 @@ export function isMetadataAddress(ip: string): boolean {
   const family = isIP(bare);
   if (family === 4) {
     const value = ipv4ToInt(bare);
-    return value !== null && inV4Range(value, '169.254.0.0', 16);
+    if (value === null) return false;
+    return inV4Range(value, '169.254.0.0', 16) || METADATA_V4.some((endpoint) => ipv4ToInt(endpoint) === value);
   }
   if (family !== 6) return false;
   const g = ipv6Groups(bare);
   if (!g) return false;
   if ((g[0] & 0xffc0) === 0xfe80) return true;
+  // Local-use NAT64 (64:ff9b:1::/48) can place an IPv4 address anywhere in the
+  // suffix, so no embedded address can be read out of it: never pin one
+  if (g[0] === 0x64 && g[1] === 0xff9b && g[2] === 0x0001) return true;
   if (METADATA_V6.some((endpoint) => ipv6Groups(endpoint)!.every((value, index) => value === g[index]))) return true;
   const v4 = embeddedV4Of(g);
   return v4 !== null && isMetadataAddress(v4);

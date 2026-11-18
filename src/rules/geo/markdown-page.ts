@@ -44,14 +44,14 @@ export const markdownPageRule = defineRule({
       });
     }
 
-    const negotiated = await probeOnce(context.url, { Accept: 'text/markdown' }, context.signal);
+    const negotiated = await probeOnce(context, context.url, { Accept: 'text/markdown' });
     if (isMarkdown(negotiated)) {
       return pass('geo-markdown-page', 'This URL responds with Markdown', { via: 'accept' });
     }
 
     const sibling = siblingMarkdown(context.url);
     if (sibling) {
-      const variant = await probeOnce(sibling, {}, context.signal);
+      const variant = await probeOnce(context, sibling, {});
       if (isMarkdown(variant)) {
         return pass('geo-markdown-page', `${sibling} is available`, { via: 'sibling' });
       }

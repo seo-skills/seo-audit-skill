@@ -69,6 +69,28 @@ export function initializeAuditsSchema(db: Database.Database): void {
     )
   `).run();
 
+  // Internal Link Score per page of a crawl: too many rows for extras_json
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS audit_link_scores (
+      audit_id INTEGER NOT NULL REFERENCES audits(id) ON DELETE CASCADE,
+      url TEXT NOT NULL,
+      score REAL NOT NULL
+    )
+  `).run();
+  db.prepare('CREATE INDEX IF NOT EXISTS idx_audit_link_scores_audit ON audit_link_scores(audit_id)').run();
+
+  // Values a [[custom.extract]] pulled from each page, in page order
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS audit_custom_values (
+      audit_id INTEGER NOT NULL REFERENCES audits(id) ON DELETE CASCADE,
+      extraction TEXT NOT NULL,
+      url TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      value TEXT NOT NULL
+    )
+  `).run();
+  db.prepare('CREATE INDEX IF NOT EXISTS idx_audit_custom_values_audit ON audit_custom_values(audit_id)').run();
+
   // Aggregated issues table
   db.prepare(`
     CREATE TABLE IF NOT EXISTS issues (
@@ -129,6 +151,9 @@ export function initializeAuditsSchema(db: Database.Database): void {
   ensureColumn(db, 'audits', 'source', 'TEXT');
   ensureColumn(db, 'audits', 'engine_version', 'TEXT');
   ensureColumn(db, 'audits', 'run_json', 'TEXT');
+  ensureColumn(db, 'audits', 'extras_json', 'TEXT');
+  ensureColumn(db, 'audit_results', 'reason', 'TEXT');
+  ensureColumn(db, 'audit_results', 'advisory', 'INTEGER');
 }
 
 /**

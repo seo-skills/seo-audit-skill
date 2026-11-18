@@ -1,4 +1,4 @@
-import type { AuditRule, RuleResult } from '../types.js';
+import type { AuditRule, NotMeasuredReason, RuleOptionSpec, RuleOptionValues, RuleResult } from '../types.js';
 
 /**
  * Validates that an audit rule has all required fields
@@ -29,6 +29,11 @@ function validateRule(rule: Partial<AuditRule>): asserts rule is AuditRule {
 
   if (typeof rule.run !== 'function') {
     errors.push('Rule must have a "run" function');
+  }
+
+  for (const [key, spec] of Object.entries(rule.options ?? {})) {
+    const problem = checkRuleOptionValue(spec, spec.default);
+    if (problem) errors.push(`Option "${key}" has an invalid default: ${problem}`);
   }
 
   if (errors.length > 0) {
@@ -107,12 +112,14 @@ export function warn(
 export function notMeasured(
   ruleId: string,
   message: string,
-  details?: Record<string, unknown>
+  details?: Record<string, unknown>,
+  reason?: NotMeasuredReason
 ): RuleResult {
   return {
     ruleId,
     status: 'not-measured',
     message,
+    ...(reason && { reason }),
     // Kept at 50 deliberately. `audit_results.score` is INTEGER NOT NULL, and
     // the GUI defaults Core Web Vitals off, so every desktop audit carries
     // unmeasured rows — a null here would fail the insert on every save. The
@@ -169,4 +176,78 @@ export function fail(
     score: 0,
     ...(details && { details }),
   };
+}
+
+/**
+ * Whether a result moves the score.
+ *
+ * The one place that decides it: a result counts when it took a reading and
+ * its rule is not advisory. Every surface that totals or averages results
+ * asks this rather than re-deriving it, so "advisory" cannot be counted in one
+ * place and skipped in another.
+ */
+export function countsTowardScore(result: Pick<RuleResult, 'status' | 'weight' | 'advisory'>): boolean {
+  return !isNotMeasured(result) && result.advisory !== true;
+}
+
+/** Not-measured reasons that mean "nothing to find here", as opposed to "could not look" */
+const NOTHING_TO_FIND: ReadonlySet<NotMeasuredReason> = new Set(['not-applicable', 'not-compared']);
+
+/** True when a not-measured result means the check could not look, not that there was nothing to look at */
+export function couldNotLook(result: Pick<RuleResult, 'reason'>): boolean {
+  return result.reason !== undefined && !NOTHING_TO_FIND.has(result.reason);
+}
+
+/**
+ * Why `value` is not a valid setting for `spec`, or null when it is.
+ */
+export function checkRuleOptionValue(spec: RuleOptionSpec, value: unknown): string | null {
+  switch (spec.type) {
+    case 'number':
+      if (typeof value !== 'number' || !Number.isFinite(value)) return 'must be a number';
+      if (spec.min !== undefined && value < spec.min) return `must be at least ${spec.min}`;
+      if (spec.max !== undefined && value > spec.max) return `must be at most ${spec.max}`;
+      return null;
+    case 'string':
+      return typeof value === 'string' ? null : 'must be a string';
+    case 'boolean':
+      return typeof value === 'boolean' ? null : 'must be true or false';
+    case 'string[]':
+      return Array.isArray(value) && value.every((v) => typeof v === 'string') ? null : 'must be a list of strings';
+  }
+}
+
+/** A rule's declared defaults */
+export function defaultRuleOptions(rule: Pick<AuditRule, 'options'>): RuleOptionValues {
+  const values: Record<string, RuleOptionValues[string]> = {};
+  for (const [key, spec] of Object.entries(rule.options ?? {})) values[key] = spec.default;
+  return values;
+}
+
+/**
+ * A rule's effective options: its declared defaults, with any configured
+ * value for a declared key laid over them. Undeclared keys are dropped; the
+ * config validator has already rejected them.
+ */
+export function resolveRuleOptions(
+  rule: Pick<AuditRule, 'options'>,
+  configured: Record<string, unknown> | undefined
+): RuleOptionValues {
+  const values: Record<string, RuleOptionValues[string]> = { ...defaultRuleOptions(rule) };
+  if (configured) {
+    for (const key of Object.keys(rule.options ?? {})) {
+      if (key in configured) values[key] = configured[key] as RuleOptionValues[string];
+    }
+  }
+  return values;
+}
+
+/**
+ * The options a rule's `run` received, or its defaults when called directly.
+ *
+ * The Auditor always passes options; a test calling `rule.run(context)`
+ * does not, and gets the defaults.
+ */
+export function readRuleOptions(rule: Pick<AuditRule, 'options'>, options: RuleOptionValues | undefined): RuleOptionValues {
+  return options ?? defaultRuleOptions(rule);
 }

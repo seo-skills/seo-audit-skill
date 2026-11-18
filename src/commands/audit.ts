@@ -19,10 +19,14 @@ import { toUrlFilterOptions } from '../config/url-filter-options.js';
 import { selectsRuleSubset, RULE_FILTER_NOTICE } from '../config/validator.js';
 import { warnUnimplementedFlags } from './unimplemented-flags.js';
 import type { OutputConfig } from '../config/schema.js';
+import type { AuditResult } from '../types.js';
 import { AuditAbortedError, classifyError } from '../errors.js';
 import { setUserAgent } from '../crawler/user-agent.js';
 import { saveReport, createReport, saveAuditToDatabase, getAuditsDbPath } from '../storage/index.js';
 import { resolvePersistence, SAVE_DEPRECATION_NOTICE } from './persistence.js';
+import { assertRunnableConfig, externalLinksOptions } from './run-config.js';
+import { applyRuleOverrides } from '../rules/overrides.js';
+import { evaluateGate } from '../gate.js';
 
 /**
  * Output formats the audit command can render.
@@ -59,6 +63,20 @@ export interface AuditOptions {
   jsonReport?: boolean;
   format?: OutputFormat;
   output?: string;
+  /** Exit 1 below this score; overrides `[ci] fail_under` */
+  failUnder?: number;
+  /**
+   * Which of `maxPages`, `concurrency` and `timeout` the user typed. Only those
+   * override `[crawler]` in seomator.toml. Absent (a programmatic caller)
+   * means all three are explicit, as they always were.
+   */
+  explicitFlags?: { maxPages?: boolean; concurrency?: boolean; timeout?: boolean };
+  /** Exit 1 when a crawl measured less than this percent; overrides `[ci] min_coverage` */
+  minCoverage?: number;
+  /** Stop a crawl after this many seconds; overrides `crawler.max_duration_s` */
+  maxDuration?: number;
+  /** Do not honour robots.txt Crawl-delay */
+  ignoreCrawlDelay?: boolean;
 }
 
 /**
@@ -170,6 +188,52 @@ export function writeReport(outputPath: string, contents: string, label: string)
   console.error(chalk.green(`${label} saved to: ${outputPath}`));
 }
 
+/** "17 min", "45 s", "2 h 5 min" */
+export function formatDuration(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) return `${seconds} s`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
+/**
+ * What a crawl could not measure, said once after the run, on stderr.
+ *
+ * Each host that rate-limited the crawl is named with a setting that would
+ * have spaced the requests out; a crawl that measured under 90% of its pages
+ * says so even when no coverage gate is set.
+ */
+export function crawlWarnings(result: AuditResult, minCoverage: number): string[] {
+  const warnings: string[] = [];
+  const crawl = result.extras?.['crawl'] as
+    | { rateLimitedHosts?: Array<{ host: string; pages: number; lastRetryAfterS: number | null }>; abandonedHosts?: string[]; stoppedByDeadline?: boolean }
+    | undefined;
+  for (const host of crawl?.rateLimitedHosts ?? []) {
+    const suggested = Math.max(1000, (host.lastRetryAfterS ?? 2) * 1000);
+    warnings.push(
+      `${host.host} rate-limited ${host.pages} ${host.pages === 1 ? 'page' : 'pages'}. ` +
+        `Space requests out with crawler.per_host_delay_ms = ${suggested}, or lower --concurrency.`
+    );
+  }
+  for (const host of crawl?.abandonedHosts ?? []) {
+    warnings.push(`${host} kept failing, so the crawl stopped requesting it; its remaining pages were not fetched.`);
+  }
+  if (crawl?.stoppedByDeadline) {
+    warnings.push('The crawl reached its time limit; pages still queued were not fetched.');
+  }
+  const coverage = result.coverage;
+  if (!minCoverage && coverage?.attempted && coverage.measured !== undefined) {
+    const percent = Math.floor((coverage.measured / coverage.attempted) * 100);
+    if (percent < 90) {
+      warnings.push(
+        `Measured ${coverage.measured} of ${coverage.attempted} pages (${percent}%). Set --min-coverage to make CI fail on this.`
+      );
+    }
+  }
+  return warnings;
+}
+
 export function isDocumentFormat(outputFormat: string): boolean {
   return (
     outputFormat === 'json' ||
@@ -208,25 +272,37 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
   const cliFormat: OutputFormat = options.format ?? (options.json ? 'json' : 'console');
 
   let loaded;
+  let configWarnings: string[] = [];
   try {
+    const explicit = options.explicitFlags ?? { maxPages: true, concurrency: true, timeout: true };
     loaded = loadConfig(
       process.cwd(),
       {
         crawler: {
-          max_pages: maxPages,
-          concurrency,
-          timeout_ms: options.timeout,
+          ...(explicit.maxPages && { max_pages: maxPages }),
+          ...(explicit.concurrency && { concurrency }),
+          ...(explicit.timeout && { timeout_ms: options.timeout }),
         },
       },
       options.config
     );
+    // A config that does not mean what it says stops here, before any
+    // request: a typo'd `fail_ci` rule id would otherwise be a gate that
+    // never fires.
+    configWarnings = assertRunnableConfig(loaded.config, loaded.configPath, { categories: selectedCategories });
   } catch (error) {
     reportAuditError(error, url, isDocumentFormat(cliFormat), cliFormat === 'json');
     return;
   }
   const { config, configPath } = loaded;
+  const failUnder = options.failUnder ?? config.ci.fail_under;
+  const minCoverage = options.minCoverage ?? config.ci.min_coverage;
+  const maxDurationS = options.maxDuration ?? config.crawler.max_duration_s;
+  for (const warning of configWarnings) {
+    console.error(chalk.yellow(`Config warning: ${warning}`));
+  }
 
-  warnUnimplementedFlags(options as unknown as Record<string, unknown>);
+  warnUnimplementedFlags(options as unknown as Record<string, unknown>, 'audit');
 
   // A filtered run scores differently from a full one. Say so on the run it
   // affects, on stderr so a redirected document is still only the document.
@@ -287,7 +363,7 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
     if (outputFormat === 'console') {
       renderBanner({
         url,
-        configPath: options.config,
+        configPath: configPath ?? undefined,
         maxPages: config.crawler.max_pages,
         crawlMode: isCrawlMode,
       });
@@ -311,8 +387,35 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
       urlFilter: toUrlFilterOptions(config.crawler),
       enableRules: config.rules.enable,
       disableRules: config.rules.disable,
+      ruleOptions: config.rule_options,
       delayMs: config.crawler.delay_ms,
       perHostDelayMs: config.crawler.per_host_delay_ms,
+      perHostConcurrency: config.crawler.per_host_concurrency,
+      respectCrawlDelay: !options.ignoreCrawlDelay && config.crawler.respect_crawl_delay,
+      maxRetryAfterMs: config.crawler.max_retry_after_ms,
+      ...(maxDurationS > 0 && { maxDurationMs: maxDurationS * 1000 }),
+      externalLinks: externalLinksOptions(config, options.refresh === true),
+      custom: config.custom,
+      onExternalLinks: (count) => {
+        if (outputFormat === 'console' || isVerbose) progress.onExternalLinks(count);
+      },
+      // Said before the first page, on stderr, and the run carries on: a
+      // projection is information, not a question an unattended run can answer.
+      onCrawlDelay: (notice) => {
+        const capped = notice.capped ? ` (capped from ${Math.round(notice.requestedMs / 1000)} s)` : '';
+        console.error(
+          chalk.yellow(
+            `${notice.host} asks for ${notice.delayMs / 1000} s between requests${capped}. ` +
+              `This crawl may take up to ${formatDuration(notice.projectedMs)}. Pass --ignore-crawl-delay to skip the delay.`
+          )
+        );
+      },
+      onWaiting: (waiting) => {
+        // A sub-second pause is not worth a line; a long one should not look like a hang
+        if ((outputFormat === 'console' || isVerbose) && waiting.waitMs >= 1000) {
+          console.error(chalk.dim(`  waiting on ${waiting.host} (rate limited, ${Math.ceil(waiting.waitMs / 1000)} s)`));
+        }
+      },
       onCategoryStart: (categoryId, categoryName) => {
         progress.onCategoryStart(categoryId, categoryName);
       },
@@ -342,6 +445,14 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
 
     // Stop any progress indicators
     progress.stop();
+
+    // Overrides re-rank findings and mark gated rules; they never touch the
+    // score. The gate is decided here so every format carries it.
+    applyRuleOverrides(result, config.rules.override);
+    result.gate = evaluateGate(result, { failUnder, overrides: config.rules.override, minCoverage });
+    const runWarnings = [...configWarnings, ...crawlWarnings(result, minCoverage)];
+    for (const warning of runWarnings.slice(configWarnings.length)) console.error(chalk.yellow(warning));
+    if (runWarnings.length > 0) result.warnings = [...(result.warnings ?? []), ...runWarnings];
 
     // Calculate elapsed time
     const elapsedMs = Date.now() - startTime;
@@ -457,7 +568,12 @@ export async function runAudit(url: string, options: AuditOptions): Promise<void
     // everything past the 64KB pipe buffer while the same command redirected
     // to a file was complete. The process exits on its own once the event loop
     // drains, by which point stdout has been flushed.
-    process.exitCode = result.overallScore >= 70 ? 0 : 1;
+    process.exitCode = result.gate.exitCode;
+    // The last line says why a run failed, on stderr so stdout stays the
+    // document. Without it a CI log shows exit 1 next to a passing score.
+    if (result.gate.reason) {
+      console.error(chalk.red(`Exit 1: ${result.gate.reason}`));
+    }
   } catch (error) {
     progress.stop();
 

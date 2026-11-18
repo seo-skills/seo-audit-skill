@@ -21,6 +21,7 @@ export const resourceLoopRedirectRule = defineRule({
   description: 'Checks that page resources are not caught in redirect loops',
   category: 'redirect',
   weight: 12,
+  requiresRender: true,
   run: (context: AuditContext) => {
     const assets = context.assets;
 

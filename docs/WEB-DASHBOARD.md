@@ -11,7 +11,7 @@ This page has two parts: four tasks, then the [Reference](#reference) for every
 
 ## Prerequisites
 
-- SEOmator 7.0.0 on Node.js 20.3 or later: `npm install -g @seomator/seo-audit`.
+- SEOmator 8.0.0 on Node.js 20.18.1 or later: `npm install -g @seomator/seo-audit`.
   In a source checkout, run `node dist/cli.js serve` instead of `seomator serve`.
 - Stored audits to look at. `seomator audit <url>` stores each audit by default
   (`--no-save` skips it), and the dashboard can run audits itself.
@@ -54,14 +54,16 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:7360/
 1. Click **New audit** in the toolbar, or open `http://127.0.0.1:7360/run`.
 2. Type the URL. The form adds `https://` when you leave out the scheme.
 3. Pick the options. The form remembers them for the next audit.
-   - **Core Web Vitals** opens the page in a real browser to measure speed. It is
-     off by default in this form, as it is in `seomator audit`, and adds about a
-     minute.
-   - **Crawl the whole site** audits linked pages as well. **Crawl settings**
-     then sets "Pages to audit, at most" (2 to 100) and "Pages fetched at once"
-     (1 to 10).
-   - **Mobile parity** and **Simulate interaction** appear only while Core Web
-     Vitals is on.
+   - **Render in a browser** opens each page in a real browser for Core Web
+     Vitals, accessibility (axe-core), unused code and image sizing. It is off
+     by default in this form, as it is in `seomator audit`, and adds 5 to 15
+     seconds a page. Without it, the audit page says how many checks a render
+     would add and links to a rerun with rendering on.
+   - **Crawl linked pages** audits pages linked from the start URL as well, up
+     to the page cap. **Crawl settings** then sets "Pages to audit, at most"
+     (2 to 100) and "Pages fetched at once" (1 to 10).
+   - **Mobile parity** and **Simulate interaction** appear only while
+     rendering is on.
 4. Click **Run audit**. A crawl shows pages being discovered, then each page as
    it is scored. **Cancel** stops the run.
 5. When the run finishes, the dashboard opens the stored audit.
@@ -133,7 +135,7 @@ machine.
    ```json
    [{"id":2,"auditId":"2026-10-15-be6048","domain":"example.com","projectName":null,
      "startUrl":"https://example.com/","overallScore":87,"pagesAudited":1, ...
-     "status":"completed","source":"cli","engineVersion":"7.0.0"}]
+     "status":"completed","source":"cli","engineVersion":"8.0.0"}]
    ```
 
 4. Start an audit and keep its run id:
@@ -274,10 +276,9 @@ curl -s -X DELETE -H "X-SEOmator-Token: $TOKEN" "$API/runs/current"
 ### A low score with no explanation
 
 A score cap holds the overall score down when, for example, the page is
-`noindex`. A stored audit keeps the capped score but not the cap, so the audit
-page, `GET /api/audits/<auditId>` and its exports never say which cap applied.
-For 15 minutes after a run, `GET /api/runs/<runId>/result` and
-`/api/runs/<runId>/export` still include it. After that, run
+`noindex`. The audit page, `GET /api/audits/<auditId>` and its exports say which
+cap applied and what the uncapped score was. An audit stored before 8.0 kept
+the capped score but not the cap; for one of those, run
 `seomator audit <url> --no-save`, which prints the cap.
 
 ---
@@ -509,7 +510,7 @@ Failures: `400 invalid-option` with `details: { option, allowed, received }`;
 | `categories` | `[{ categoryId, categoryName, score, passCount, warnCount, failCount, notMeasuredCount, pages }]` | One row per category, however many pages it was scored on |
 | `recentRules` | `[{ ruleId, ruleName, status, message }]` | The last 50 rule results |
 | `auditId` | string or null | Set once the result is stored |
-| `error` | `{ code, message, hint? }` or null | `code` is one of `dns`, `unreachable`, `tls`, `timeout`, `http-error`, `non-html`, `playwright-missing`, `no-pages`, `config`, `aborted`, `unknown` |
+| `error` | `{ code, message, hint? }` or null | `code` is one of `dns`, `unreachable`, `tls`, `timeout`, `http-error`, `non-html`, `rate-limited`, `private-address`, `playwright-missing`, `no-pages`, `config`, `aborted`, `unknown` |
 
 ### Event stream
 
@@ -532,7 +533,7 @@ Failures: `400 invalid-option` with `details: { option, allowed, received }`;
 `id`, `auditId`, `domain`, `projectName`, `startUrl`, `overallScore`,
 `pagesAudited`, `passedCount`, `warningCount`, `failedCount`, `startedAt`,
 `completedAt`, `status`, `source` and `engineVersion`. `source` is `cli`,
-`dashboard`, `desktop` or `api`. `source` and `engineVersion` are null for
+`dashboard`, `desktop`, `mcp` or `api`. `source` and `engineVersion` are null for
 audits stored before 3.4.0.
 
 ### Audit detail
@@ -542,14 +543,16 @@ audits stored before 3.4.0.
 - `audit`: the audit summary plus `totalRules` and `run`, the options the audit
   ran with (null for audits stored before 3.4.0).
 - `result`: `url`, `overallScore`, `categoryResults`, `timestamp`,
-  `crawledPages` and `coverage: { pages, detail }`. Each category holds one
+  `crawledPages` and `coverage: { pages, detail }`, plus `scoreCap`,
+  `waivedCaps` and `extras` when the audit stored them. Each category holds one
   entry per rule, not per page: the rule's worst result plus `ruleName`,
   `priority`, `totalPages`, `measuredPages`, `affectedPages`, `notMeasured` and
-  up to 5 `samplePages`. `weight` is `0` for a rule that was not measured.
+  up to 5 `samplePages`, and `reason`, `advisory` and `overridden` when set.
+  `weight` is `0` for a rule that was not measured.
 - `ruleMetadata`: `{ "<ruleId>": { name, description, fix } }`.
 
-A stored audit's `overallScore` is the capped score, and its `result` has no
-`scoreCap`.
+A stored audit's `overallScore` is the capped score; `scoreCap` holds the
+uncapped score and the reason. Audits stored before 8.0 have no `scoreCap`.
 
 ### Domain summary
 

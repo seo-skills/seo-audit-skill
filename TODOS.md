@@ -62,14 +62,14 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
   2 for errors and 1 for "score under 70", so an agent can distinguish them there and
   not here. Aligning the three is a contract change; small, but it needs a version note.
 
-- **Nine config keys are parsed, validated, and not acted on.** Found by sweeping all
+- **Three config keys are parsed, validated, and not acted on.** Found by sweeping all
   30 leaf keys in `schema.ts` for a consumer. Unlike the keys fixed on 2026-09-04,
   each of these has a default matching real behaviour, so only changing one is
   misleading — `seomator config validate` now warns, the docs mark them, and
-  `src/config/validator.ts` holds the list as data so it cannot drift.
+  `src/config/validator.ts` holds the list as data so it cannot drift. (8.0.0
+  implemented the other six: `crawler.per_host_concurrency`, the four
+  `external_links.*` keys with `--refresh`, and `rule_options`.)
 
-  - `crawler.per_host_concurrency` — concurrency is global. Needs a per-host in-flight
-    count in the crawler's worker loop, next to the politeness scheduling already there.
   - `crawler.breadth_first` — the queue is `push`/`shift`, always breadth-first.
     Depth-first is `pop()`, but the frontier ordering should be one decision with
     `max_prefix_budget`.
@@ -78,10 +78,6 @@ passes; nothing here is lost scope, it is scope that was consciously not taken.
     and deciding what `redirect-*` rules report then.
   - `crawler.max_prefix_budget` — no prefix budget exists. It is the guard against a
     crawl spending all 100 pages inside `/blog/`.
-  - `external_links.*` (4 keys) and `--refresh` — one missing feature, external link
-    checking. See the entry above.
-  - `rule_options` — per-rule options never reach a rule. `AuditContext` would need to
-    carry them, and `defineRule()` a way to declare what a rule accepts.
 
 - ~~**`crawler.delay_ms` and `crawler.per_host_delay_ms` are declared and unread**~~
   **Fixed by /qa on main, 2026-09-04** (`ISSUE-009`). Both were defaulted,
@@ -201,7 +197,11 @@ and `qa-report-developer-mozilla-org-2026-10-15.md`.
 
 ### P1 — speed
 
-- **Link checks are sequential and uncached.** One page sends about 489 HEAD/GET
+- **Done (8.0.0).** Every request that is not a page now goes through one
+  service per run that asks each distinct question once, with per-host limits
+  and 429/503 backoff; external link answers persist in the link cache; a
+  crawl scores four pages at a time. Kept below for the record.
+- ~~**Link checks are sequential and uncached.**~~ One page sends about 489 HEAD/GET
   requests for 374 distinct URLs; the audited URL itself is requested 23 times.
   Categories, rules and each rule's loop run one request at a time
   (`auditor.ts`), and `LinkCache` (`src/storage/link-cache.ts`) exists but no
@@ -382,7 +382,9 @@ These were left out.
 
 ### P1 — a capped score shown without its reason
 
-- **Stored audits drop `scoreCap` and `waivedCaps`.** The `audits` table keeps
+- **Done (8.0.0).** Caps, waivers, overrides and reasons are stored in
+  `extras_json`, returned by `getAuditDetail` and shown on the score card.
+- ~~**Stored audits drop `scoreCap` and `waivedCaps`.**~~ The `audits` table keeps
   `run_json`, not the result, so history, `report`, and the score card in `ui/`
   (dashboard and desktop app) show a capped score with no reason, the confusion
   the cap was added to prevent. Persist both beside `run_json`, return them from
@@ -577,7 +579,11 @@ dashboard PRD, removed from `docs/` on 2026-10-15. Read it with
 **Priority:** P3
 **Depends on:** None
 
-### Engine SSRF hardening for redirects and link checks
+### ~~Engine SSRF hardening for redirects and link checks~~ (done in 8.0.0)
+
+Every request goes through `src/net/`: each DNS answer is checked at connect
+time, a public target blocks private and cloud-metadata addresses, and
+`seomator analyze` runs under the same policy. Kept below for the record.
 
 **What:** When the start URL is public, refuse redirect hops and link/image checks that resolve to loopback, RFC1918, link-local, or cloud-metadata addresses unless `--allow-private` is passed; validate each DNS resolution, not just the first URL.
 
@@ -602,3 +608,157 @@ dashboard PRD, removed from `docs/` on 2026-10-15. Read it with
 **Depends on:** 3.4.0 persistence default
 
 ## Completed
+
+## From the agent-ready audit engine (8.0.0, 2026-11-17)
+
+Scope consciously left for later. The PRD and its review live outside the
+repository, under `~/.gstack/projects/`.
+
+### P1: deferred from the 8.0 PRD at ship
+
+Five PRD items were not built in 8.0.0 and were deferred when it shipped:
+
+- **Memory at 10,000 pages.** The crawler keeps every page's parsed DOM until
+  the run ends. Keep only what the cross-page checks read (`SitePageInfo`),
+  drop the DOM after a page is scored, and add a heap benchmark at 10,000
+  pages that fails on a regression.
+- **Group findings** (`extras.groups`) and the shared **`details.table`**
+  contract. See "Dashboard and desktop items not taken in 8.0.0" below.
+- **Scoring model on the compare page and trend chart.** Same section below.
+- **A preparation state before a crawl with a Crawl-delay.** Same section below.
+
+The desktop parity check for axe-core (below) was dropped from 8.0.0 at ship:
+the code is in place but was never run in the desktop app.
+
+### P1: browser renders under the network guard
+
+Every engine request goes through `netFetch` and the run's private-address
+policy, but a browser render (Playwright for `--render`, the desktop app's
+window) loads a page's own resources without it. Route each render request
+through the same check (a `context.route` guard that resolves the host and
+applies `isBlockedAddress` and the pins, or host-resolver rules mapping a
+pinned host to its addresses), then let MCP render without `--allow-private`.
+
+### P2: memory in long-lived processes
+
+- The MCP server keeps every finished run's full result and session until
+  it exits. Keep the summary and the auditId once a run ends, or evict
+  finished runs after a retention window as `AuditSession` does.
+- The per-run URL memo keeps whole response bodies for `needBytes: 'all'`
+  requests, such as the AMP or mobile alternate of every crawled page. Keep the
+  parsed result instead, or drop the bytes once read, and bound the memo by
+  total size.
+
+Measure both with the 10,000-page benchmark above.
+
+### Release P: promote the advisory rules
+
+The 25 rules added in 8.0.0 are advisory: reported, not scored. Promote them
+once their verdicts have been checked on a precision corpus of real sites,
+replayed offline (stored HTML, headers, redirect chains, recorded responses
+and the crawl clock). Also decide whether the static accessibility rules with
+an axe-core equivalent should take axe's verdict when rendered, as
+`a11y-color-contrast` and `a11y-touch-targets` already do, and whether a past
+`unavailable_after` on the start page should cap the score like noindex (run
+the strategic reasoner first).
+
+### Dashboard and desktop items not taken in 8.0.0
+
+- Group findings (`extras.groups`) rendered as expandable groups in the rule
+  card; a shared `details.table` contract rendered the same in every surface.
+- Compare page: say when two audits use different scoring models, mute the
+  deltas, and break the trend line at the change.
+- A preparation state before a crawl with a Crawl-delay, with "Keep going" and
+  "Restart without the delay"; rate-limit copy with a countdown and Try again.
+- Section states for Site and Custom checks (not run, nothing found,
+  truncated, unreadable), a one-time "new scoring model" note, output caps of
+  50 rows with a pointer to JSON, stacked tables below 640 px, a full
+  paginated Link Score list with a URL filter, sidebar anchors for Site and
+  Custom checks, and a keyboard-only walkthrough of the new sections.
+- Rerun: say when the audit used seomator.toml settings the dashboard does not
+  apply (rule options, custom checks, overrides).
+
+### `serve --config` and project settings in the dashboard and desktop app
+
+Web and desktop runs use defaults: no `[external_links]` cache, no
+`[rule_options]`, no `[[custom.*]]`. Read a project's seomator.toml there too.
+
+### Desktop parity check for axe-core
+
+The desktop app runs axe-core through `executeJavaScript` in a window set to
+Playwright's viewport. Add a smoke test comparing a fixed allowlist of axe ids
+between the two renderers (they ship different Chromium versions).
+
+### Smaller follow-ups
+
+- `[external_links] broken_statuses`: let a team count a status as broken.
+- A page carbon estimate from transfer sizes.
+- A remediation loop: re-audit only the pages whose findings were fixed.
+- Two-phase execution: fetch everything first, then score, so a crash during
+  scoring never repeats requests.
+- `seomator self doctor` checks the MCP setup; MCP saves still use the
+  blocking busy retry.
+
+### Left after the QA pass on 8.0.0 (/qa, 2026-11-18)
+
+The QA pass fixed six defects before release: a hang in a terminal that reports
+0 columns, misspelled gate keys accepted, a dead start page scored as a crawl,
+the LLM report's page counts, cross-page checks with no reason for not being
+measured, and a stored crawl losing its gaps. It also fixed two gaps the PR
+listed as known: a `fail_ci` gate on a cross-page rule passing a single-page
+run, and a misspelled `[ci]` or custom-search key being ignored. What is left:
+
+**P2: PRD items not built**
+
+- **Secrets in output (EN28).** A report can carry a token or key that appears
+  in a page's HTML, a URL or a header. Redact known secret shapes before any
+  format is written.
+- **Cold first-run timing (DX15).** The repo has no CI. Add a job that installs
+  the package fresh and times the first audit.
+
+**P2: PRD items built in part**
+
+- **Advisory and override marks on every surface (DS1, DS12, F17).** JSON marks
+  advisory results and overrides. The terminal, HTML and markdown reports show
+  no advisory chip, and the dashboard has no "Ignored by config" row or
+  override chip.
+- **Group not-measured checks by reason in the reports (DS2).** The dashboard
+  groups them; the console counts only the render and crawl groups; HTML and
+  markdown list them flat.
+- **Crawl summary in the HTML report (F3).** It has no "Measured N of M pages"
+  line. Web and desktop runs ignore `respect_crawl_delay`, and `crawl` has no
+  `--ignore-crawl-delay`.
+- **The desktop fetcher ignores its timeout and abort (EN12).**
+  `electron/main/electron-fetcher.ts`.
+- **Extraction caps are silent (F16).** Values are cut at 1 KB and 50 per page
+  with no note in the output.
+- **Probe errors are swallowed (S3)**; run counters (S2) and the annotation
+  shape (EN7) are partial.
+- Docs and flags: `docs/errors.md` and `retryAfterS` (DX6), `analyze
+  --min-coverage` (DX3), `--cwv` in `--help` (DX9), hard-coded thresholds
+  (DX13), the `rule_options` table in sync-docs (DX14), report section order
+  (DS6), the axe HTML snippet (DS14).
+
+**P2: network guard, from the pre-landing review**
+
+- **A local target's addresses are allowed on any port.** A page on
+  `localhost:3000` can make the audit request another local service. Pinning
+  by port alone would break the http-to-https redirects pinning exists for, so
+  allow the ports the entry redirect chain used.
+- **The link cache is read before the network policy is checked.** A strict
+  MCP run can learn a private URL's earlier status that way. Check the policy
+  first.
+- **`--allow-host` cannot express an IPv6 target** (`[::1]:port`): a bracket
+  mismatch in the connector.
+
+**P3: found by QA, not fixed**
+
+- **"1 page stayed rate-limited after their retries."** `crawlWarnings()` in
+  `src/commands/crawl.ts` needs "its" for one page. Repro: crawl a site with
+  one page that always answers 429.
+- **`analyze` says "Crawling and auditing up to N pages..."** while it reads a
+  stored crawl (`src/reporters/progress.ts`). Repro: `seomator crawl <url>`,
+  then `seomator analyze --latest`.
+- **`/verify` cannot map this branch's files to tests.** The repo has no
+  `.gstack/pregate.json`, so the checker reports `tests=UNMAPPED` even when
+  every test passes. Add a policy, or accept the full suite as the gate.

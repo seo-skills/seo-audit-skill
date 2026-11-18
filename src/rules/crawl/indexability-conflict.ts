@@ -1,6 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
-import { fetchPage } from '../../crawler/fetcher.js';
+import { getText } from '../../net/url-service.js';
 import { RobotsMatcher } from '../../crawler/robots.js';
 
 /**
@@ -88,7 +88,7 @@ export const indexabilityConflictRule = defineRule({
       robotsTxtStatus = 'accessible';
     } else {
       try {
-        const result = await fetchPage(robotsTxtUrl);
+        const result = await getText(context, robotsTxtUrl);
         if (result.statusCode === 200) {
           robotsTxtStatus = 'accessible';
           robotsTxt = result.html;

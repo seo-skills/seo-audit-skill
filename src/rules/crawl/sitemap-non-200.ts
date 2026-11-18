@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail, notMeasured } from '../define-rule.js';
+import { pageStatus } from '../../site/groups.js';
 
 // Reference hint: xml-sitemaps/error-5xx-url-in-xml-sitemaps
 // Reference hint: xml-sitemaps/not-found-4xx-url-in-xml-sitemaps
@@ -45,7 +46,7 @@ export const sitemapNon200Rule = defineRule({
     if (!site || !pages) {
       return notMeasured(
         'crawl-sitemap-non-200',
-        'Per-page crawl data needs a multi-page crawl - run with --crawl to build it'
+        'Per-page crawl data needs a multi-page crawl - run with --crawl to build it', undefined, 'needs-crawl'
       );
     }
 
@@ -71,8 +72,9 @@ export const sitemapNon200Rule = defineRule({
       }
       checked++;
 
-      const status = info.statusCode;
-      if (status === 0) {
+      // Unknown when the fetch timed out or the site kept rate-limiting it
+      const status = pageStatus(info);
+      if (status === null) {
         timedOut.push(url);
       } else if (status >= 500) {
         serverErrors.push({ url, statusCode: status });
@@ -116,7 +118,7 @@ export const sitemapNon200Rule = defineRule({
     if (redirects.length > 0 || timedOut.length > 0) {
       return warn(
         'crawl-sitemap-non-200',
-        `${redirects.length} sitemap URL(s) redirect (3xx) and ${timedOut.length} timed out during the crawl`,
+        `${redirects.length} sitemap URL(s) redirect (3xx) and ${timedOut.length} could not be fetched during the crawl (timed out or rate-limited)`,
         {
           ...details,
           impact:

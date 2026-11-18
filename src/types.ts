@@ -1,4 +1,9 @@
 import type { CheerioAPI } from 'cheerio';
+import type { UrlService } from './net/url-service.js';
+import type { ExternalLinkCheck, ExternalLinksExtras } from './site/external-links.js';
+import type { CodeCoverage } from './render/coverage.js';
+import type { LinkScoreSummary } from './site/link-score.js';
+import type { CustomResults } from './custom/custom-checks.js';
 
 /**
  * Rule execution status.
@@ -232,7 +237,26 @@ export interface SitemapFetchResult {
    * sitemaps" is detected. Omitted when nothing was fetched.
    */
   urlSources?: Map<string, string[]>;
+  /**
+   * Whether every sitemap the site declares was read in full. A rule that
+   * needs the whole inventory ("no sitemap URL is an orphan") must not pass
+   * on a partial one.
+   */
+  complete: boolean;
+  /** Why the inventory is partial; empty when complete */
+  gaps: SitemapGap[];
 }
+
+/** One reason a sitemap inventory is partial */
+export type SitemapGap =
+  /** A sitemap could not be fetched; `status` when the server answered */
+  | { kind: 'fetch-failed'; url: string; status?: number }
+  /** Fetched, but neither a urlset nor a sitemap index */
+  | { kind: 'invalid'; url: string }
+  /** More than 50,000 URLs: the rest were dropped */
+  | { kind: 'truncated'; limit: number }
+  /** Declared but never read, because a limit was reached first */
+  | { kind: 'unread'; url: string };
 
 /**
  * A cookie set by the server via a `Set-Cookie` response header.
@@ -420,6 +444,8 @@ export interface SiteContext {
    * self-links); a page linking twice to the same target yields two edges.
    */
   inboundEdgesByUrl?: Map<string, InboundEdge[]>;
+  /** Crawled URL to the URL its redirects ended at, both normalised; only for URLs that redirect */
+  redirectTargetByUrl?: Map<string, string>;
 }
 
 /**
@@ -434,14 +460,14 @@ export interface SitePageInfo {
   /** Final HTTP status of the page fetch; 0 when it failed or timed out */
   statusCode: number;
   /**
-   * Resolved absolute target of `link[rel=canonical]`. Null when the tag was
-   * declared but its href could not be resolved against the page URL;
-   * undefined when the page declares no canonical.
+   * Resolved absolute canonical: `link[rel=canonical]`, else the HTTP `Link`
+   * header. Null when declared but unresolvable; undefined when the page
+   * declares no canonical.
    */
   canonical?: string | null;
-  /** `noindex` (or `none`) in the meta robots tag or X-Robots-Tag header */
+  /** Google is told not to index: `noindex` or `none` in robots/googlebot meta or a Google-scoped X-Robots-Tag */
   noindex: boolean;
-  /** `nofollow` (or `none`) in the meta robots tag or X-Robots-Tag header */
+  /** Google is told not to follow links, read the same way as `noindex` */
   nofollow: boolean;
   /**
    * Whether robots.txt disallows this URL. Best-effort: the crawler only
@@ -464,6 +490,28 @@ export interface SitePageInfo {
    * Omitted when the page has no parseable typed nodes.
    */
   schemaNodes?: SchemaNodeSummary[];
+  /** `<meta name="description">` content, trimmed; undefined when absent or empty */
+  description?: string;
+  /** `og:title` content, trimmed */
+  ogTitle?: string;
+  /** `og:description` content, trimmed */
+  ogDescription?: string;
+  /** Hash of the visible body text, for exact-duplicate detection; undefined below 50 characters */
+  contentHash?: string;
+  /**
+   * Sorted hashed word trigrams of the first 500 words of main content, for
+   * near-duplicate detection. Undefined when the page has under 100
+   * characters of main content.
+   */
+  shingles?: Uint32Array;
+  /** A later page of a series: `rel="prev"`, `/page/N`, `?page=N` and similar */
+  isPaginated?: boolean;
+  /**
+   * The site was still rate-limiting this page after its retries. Its
+   * `statusCode` is the last one seen (429 or 503); cross-page checks read
+   * it as unknown, never as broken or missing.
+   */
+  rateLimited?: boolean;
 }
 
 /**
@@ -549,6 +597,9 @@ export interface AuditContext {
   sitemapDocuments?: SitemapDocument[];
   /** Child sitemaps an index listed that were not fetched, because a limit was reached */
   sitemapSkippedCount?: number;
+  /** `false` when the sitemap inventory is partial; see `SitemapFetchResult.gaps` */
+  sitemapComplete?: boolean;
+  sitemapGaps?: SitemapGap[];
   /** Redirect chain followed to reach this page */
   redirectChain?: RedirectChainEntry[];
 
@@ -590,6 +641,31 @@ export interface AuditContext {
    * finishing in the background.
    */
   signal?: AbortSignal;
+
+  /**
+   * The run's requests for URLs other than its pages, made once each.
+   * Absent when a rule is called on its own; see `urlServiceFor()`.
+   */
+  urls?: UrlService;
+
+  /** Every external link of the run, checked once each before rules run */
+  externalLinks?: ExternalLinkCheck;
+
+  /**
+   * Results of the render probes, by probe id (see `render/probes.ts`).
+   * Absent without a render; a probe that failed is absent from the record.
+   */
+  probes?: Record<string, unknown>;
+
+  /** Script and stylesheet usage during the render; absent without one or on the desktop app */
+  coverage?: CodeCoverage;
+
+  /**
+   * The run's clock, in ms since the epoch: when the audit or crawl started.
+   * Every date comparison reads it, so a stored crawl replays against the
+   * time it was taken. Absent when a rule is called on its own.
+   */
+  now?: number;
 }
 
 /**
@@ -612,6 +688,49 @@ export interface RuleResult {
    * results built by hand fall back to weight 1.
    */
   weight?: number;
+  /**
+   * Set when `[rules.override]` named this rule. Changes ranking, report
+   * placement and CI gating; never `status`, `score` or `weight`.
+   */
+  overridden?: RuleOverrideMark;
+  /** Why a `not-measured` result took no reading; see {@link NotMeasuredReason} */
+  reason?: NotMeasuredReason;
+  /** From an advisory rule: reported, not counted in the score */
+  advisory?: boolean;
+}
+
+/** Where an overridden finding ranks; `ignore` hides it from reports but not from JSON */
+export type OverridePriority = 'high' | 'normal' | 'low' | 'ignore';
+
+/** What `[rules.override]` changed about one rule's results */
+export interface RuleOverrideMark {
+  priority?: OverridePriority;
+  /** A `fail` from this rule exits 1 whatever the score */
+  failCi?: boolean;
+}
+
+/**
+ * Why a run exits the way it does.
+ *
+ * Exit 1 means a gate failed: the score, a `fail_ci` rule, or a gated rule
+ * that could not be evaluated. Exit 2 (usage, config or runtime) never gets
+ * this far, so it has no gate.
+ */
+export interface AuditGate {
+  /** The threshold the score was held to */
+  failUnder: number;
+  score: number;
+  /** `fail_ci` rules that failed, with the pages they failed on */
+  failedCiRules: Array<{ ruleId: string; pages: string[] }>;
+  /** `fail_ci` rules that never produced a reading, so their gate could not pass */
+  unevaluated: Array<{ ruleId: string; reason: string }>;
+  /** The coverage gate, when one is set: percent of attempted pages measured */
+  coverage?: { minCoverage: number; measured: number; attempted: number; percent: number; passed: boolean };
+  /** `fail_ci` custom searches that failed, checked nothing, or were stopped by the regex time limit */
+  failedCustomSearches?: Array<{ name: string; failing: number; checked: number; stopped: number }>;
+  exitCode: 0 | 1;
+  /** One line explaining a non-zero exit; absent when the run passes */
+  reason?: string;
 }
 
 /**
@@ -628,9 +747,72 @@ export interface AuditRule {
   category: string;
   /** Weight within the category (0-100) */
   weight: number;
-  /** Function that executes the rule and returns a result */
-  run: (context: AuditContext) => RuleResult | Promise<RuleResult>;
+  /**
+   * Options this rule reads, set per project under `rule_options."<id>"`.
+   * Declared here so the config can be checked against them and `explain`
+   * can list them; a key the rule does not declare is a config error.
+   */
+  options?: Record<string, RuleOptionSpec>;
+  /**
+   * Shown in every report, with an "Advisory" chip, but not counted in the
+   * score yet. New rules start advisory and are promoted once their
+   * verdicts have been checked on real sites.
+   */
+  advisory?: boolean;
+  /**
+   * Needs a browser render (`--cwv`). Without one the auditor reports the
+   * rule not measured, reason `needs-render`, without running it, and the
+   * console says how many checks a render would add.
+   */
+  requiresRender?: boolean;
+  /**
+   * Function that executes the rule and returns a result. The Auditor
+   * always passes `options`: the rule's declared options, defaults merged
+   * with the project's `rule_options`. A direct call (a test) may leave it
+   * out, so a rule reads it through `readRuleOptions`.
+   */
+  run: (context: AuditContext, options?: RuleOptionValues) => RuleResult | Promise<RuleResult>;
 }
+
+/** One option a rule declares */
+export interface RuleOptionSpec {
+  type: 'number' | 'string' | 'boolean' | 'string[]';
+  default: number | string | boolean | string[];
+  /** Inclusive bounds, for numbers */
+  min?: number;
+  max?: number;
+  description: string;
+}
+
+/** A rule's effective options: declared defaults merged with `rule_options` */
+export type RuleOptionValues = Readonly<Record<string, number | string | boolean | readonly string[]>>;
+
+/**
+ * Why a check took no reading.
+ *
+ * - `not-applicable`: nothing to check on this page (the pattern is absent).
+ * - `not-compared`: a cross-page check skipped this page on purpose
+ *   (noindex, canonicalised elsewhere, paginated).
+ * - `needs-render`: needs a browser render that this run did not do.
+ * - `could-not-verify`: an outside resource could not be fetched reliably.
+ * - `probe-failed`: the in-page script that measures it failed.
+ * - `disabled`: turned off in the config.
+ * - `unsupported`: the engine running this audit cannot do it.
+ * - `rule-error`: the check itself crashed.
+ *
+ * Only `not-applicable` and `not-compared` mean "nothing was wrong to find";
+ * the rest mean "could not look", which a CI gate must not read as a pass.
+ */
+export type NotMeasuredReason =
+  | 'not-applicable'
+  | 'not-compared'
+  | 'needs-render'
+  | 'needs-crawl'
+  | 'could-not-verify'
+  | 'probe-failed'
+  | 'disabled'
+  | 'unsupported'
+  | 'rule-error';
 
 /**
  * Aggregated results for a category
@@ -652,6 +834,11 @@ export interface CategoryResult {
    * audits stored before this field existed do not carry it.
    */
   notMeasuredCount?: number;
+  /**
+   * Results from advisory rules that took a reading. Counted here and not in
+   * pass/warn/fail, because they do not count toward the score yet.
+   */
+  advisoryCount?: number;
   /** Individual rule results */
   results: RuleResult[];
 }
@@ -708,8 +895,14 @@ export interface PageSnapshot {
  *
  * Bump on any change a consumer could notice. 1 is the shape shipped through
  * 3.5.0, so a payload with no `schemaVersion` should be read as 1.
+ *
+ * 3 added `gate` (why the run exits as it does), `warnings` and
+ * `RuleResult.overridden`.
+ * 4 added `RuleResult.reason` and `RuleResult.advisory`, and
+ * `CategoryResult.advisoryCount`. A rule that crashes is now `not-measured`
+ * with reason `rule-error`, not a `fail`.
  */
-export const AUDIT_SCHEMA_VERSION = 2;
+export const AUDIT_SCHEMA_VERSION = 4;
 
 /**
  * The options an audit actually ran with.
@@ -739,6 +932,12 @@ export interface AuditRunOptions {
    * before the option existed reads as a production audit.
    */
   staging?: boolean;
+  /**
+   * `rule_options` values that differ from the rules' defaults, by rule id.
+   * Recorded because a threshold change moves verdicts without the site
+   * changing. Absent when every rule ran on its defaults.
+   */
+  ruleOptions?: Record<string, Record<string, unknown>>;
   timeout: number;
 }
 
@@ -760,7 +959,25 @@ export interface AuditCoverage {
    * `aggregated` when it holds one result per rule with page counts.
    */
   detail: 'per-page' | 'aggregated';
+  /**
+   * What a crawl could not measure. Set on crawls only; absent fields are 0.
+   * `measured` of `attempted` is the "measured 4 of 5 pages" line.
+   */
+  attempted?: number;
+  measured?: number;
+  /** Pages the site was still rate-limiting after their retries */
+  rateLimited?: number;
+  /** Pages that could not be fetched for another reason */
+  failed?: number;
+  /** Queued pages never requested: a host was given up, or the time limit hit */
+  notFetched?: number;
 }
+
+/**
+ * How a run ended. `completed-with-gaps` means it finished, but some pages
+ * were rate-limited, failed or never fetched; the score covers the rest.
+ */
+export type CompletionState = 'completed' | 'completed-with-gaps';
 
 /**
  * A page-level condition that holds the overall score at or below a ceiling,
@@ -833,6 +1050,44 @@ export interface AuditResult {
    * and a stored audit predating this field has none.
    */
   page?: PageSnapshot;
+  /** How the run ended; see {@link CompletionState} */
+  completionState?: CompletionState;
+  /**
+   * The CI verdict for this run: the score threshold, every `fail_ci` rule
+   * that failed or could not be evaluated, and the exit code. Set by the
+   * commands that exit on it (`audit`, `analyze`).
+   */
+  gate?: AuditGate;
+  /**
+   * Things the run did that a caller should know about but that are not
+   * findings, such as a clamped argument. Also printed to stderr.
+   */
+  warnings?: string[];
+  /**
+   * Run-level data beyond the per-rule results, kept with a stored audit:
+   * the `[rules.override]` marks, and the crawl-wide sections later steps
+   * add. Null on an audit whose stored extras could not be read.
+   */
+  extras?: AuditExtras | null;
+}
+
+/**
+ * Run-level data stored with an audit. Each section is optional; an audit
+ * stored before a section existed simply lacks it.
+ */
+export interface AuditExtras {
+  /** `[rules.override]` marks by rule id, so a stored audit shows them */
+  overrides?: Record<string, RuleOverrideMark>;
+  /** Broken external link targets with the pages that link to each */
+  externalLinks?: ExternalLinksExtras;
+  /** Internal Link Score, 0 to 100, by normalised page URL (crawls only) */
+  linkScores?: Record<string, number>;
+  /** The ten best-linked pages and the ten weakest indexable ones */
+  linkScoreSummary?: LinkScoreSummary;
+  /** Results of `[[custom.search]]` and `[[custom.extract]]` */
+  custom?: CustomResults;
+  /** A section that exceeded its size cap, replaced by this marker */
+  [section: string]: unknown;
 }
 
 /**

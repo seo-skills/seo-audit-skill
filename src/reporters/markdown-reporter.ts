@@ -1,5 +1,10 @@
 import type { AuditResult, RuleResult } from '../types.js';
 import { collectFindings, type Finding } from './findings.js';
+import { collectIgnoredFindings } from '../rules/overrides.js';
+import { coverageLine } from './coverage-line.js';
+import { brokenExternalSection } from './external-links-section.js';
+import type { LinkScoreSummary } from '../site/link-score.js';
+import { customResults, customSearchRows } from './custom-section.js';
 import { scoreToVerdict } from '../verdict.js';
 import { getCategoryById } from '../categories/index.js';
 
@@ -34,11 +39,22 @@ function getStatusIcon(status: string): string {
 }
 
 /**
- * Escape markdown special characters in text
+ * Escape text from a page for a markdown report.
+ *
+ * Markdown punctuation is escaped, and so is HTML: most markdown viewers
+ * render inline HTML, and titles, messages and extracted values come from
+ * the audited site. Line breaks collapse to a space so a value cannot break
+ * out of a table row, and control characters are dropped.
  */
 function escapeMarkdown(text: string | null | undefined): string {
   if (text == null) return '';
-  return text.replace(/[|\\`*_{}[\]()#+\-.!]/g, '\\$&');
+  return text
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, '')
+    .replace(/\r\n|[\r\n]/g, ' ')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/[|\\`*_{}[\]()#+\-.!]/g, '\\$&');
 }
 
 /**
@@ -137,6 +153,12 @@ export function renderMarkdownReport(result: AuditResult): string {
   }
   lines.push('');
 
+  const coverage = coverageLine(result);
+  if (coverage) {
+    lines.push(`> ${coverage}`);
+    lines.push('');
+  }
+
   // One entry per problem, ranked. A crawl produces one rule result per rule
   // per page, so listing them raw repeated the same finding once per page.
   const findings = collectFindings(result);
@@ -207,9 +229,77 @@ export function renderMarkdownReport(result: AuditResult): string {
     }
   }
 
+  // What `[rules.override]` hid, folded so it never vanishes silently
+  const ignored = collectIgnoredFindings(result);
+  if (ignored.length > 0) {
+    lines.push('<details>');
+    lines.push(`<summary>Ignored by config (${ignored.length})</summary>`);
+    lines.push('');
+    for (const i of ignored) {
+      lines.push(`- \`${escapeMarkdown(i.ruleId)}\` (${i.status === 'fail' ? 'failed' : 'warning'})`);
+    }
+    lines.push('');
+    lines.push('</details>');
+    lines.push('');
+  }
+
   // Summary
   const totalPassed = result.categoryResults.reduce((sum, cat) => sum + cat.passCount, 0);
   const totalChecks = totalPassed + warnings.length + failures.length;
+
+  const brokenExternal = brokenExternalSection(result, 50, 3);
+  if (brokenExternal) {
+    lines.push('## Broken external links');
+    lines.push('');
+    lines.push('| Target | Answer | Linked from |');
+    lines.push('|--------|--------|-------------|');
+    for (const target of brokenExternal.targets) {
+      const more = target.morePages > 0 ? `, +${target.morePages} more` : '';
+      lines.push(`| ${escapeMarkdown(target.url)} | ${escapeMarkdown(target.reason)} | ${target.pages.map(escapeMarkdown).join(', ')}${more} |`);
+    }
+    lines.push('');
+    if (brokenExternal.moreTargets > 0) lines.push(`+${brokenExternal.moreTargets} more broken targets in the JSON report.`);
+    if (brokenExternal.aside) lines.push(`Also: ${brokenExternal.aside}.`);
+    lines.push('');
+  }
+
+  const custom = customResults(result);
+  if (custom) {
+    lines.push('## Custom checks', '', 'From `[[custom.search]]` and `[[custom.extract]]` in seomator.toml. Not scored.', '');
+    const rows = customSearchRows(custom);
+    if (rows.length > 0) {
+      lines.push('| Search | Result | Pages |', '|--------|--------|-------|');
+      for (const row of rows) lines.push(`| ${escapeMarkdown(row.name)} | ${row.outcome} | ${escapeMarkdown(row.summary)} |`);
+      lines.push('');
+      for (const row of rows.filter((r) => r.failingPages.length > 0)) {
+        lines.push(`**${escapeMarkdown(row.name)}** fails on:`, '');
+        for (const page of row.failingPages) lines.push(`- ${escapeMarkdown(page)}`);
+        lines.push('');
+      }
+    }
+    // One row per value, so the table pastes into a spreadsheet
+    const values = custom.extractions.flatMap((e) => e.pages.flatMap((p) => p.values.map((v) => [e.name, p.url, v])));
+    if (values.length > 0) {
+      lines.push('| Extraction | Page | Value |', '|------------|------|-------|');
+      for (const [name, url, value] of values) lines.push(`| ${escapeMarkdown(name)} | ${escapeMarkdown(url)} | ${escapeMarkdown(value)} |`);
+      lines.push('');
+    }
+  }
+
+  const linkSummary = result.extras?.linkScoreSummary as LinkScoreSummary | undefined;
+  if (linkSummary && linkSummary.pages > 1) {
+    lines.push('## Link Score');
+    lines.push('');
+    lines.push(`Internal link strength of the ${linkSummary.pages} crawled pages, 0 to 100. A metric: it changes no score.`);
+    lines.push('');
+    const table = (title: string, pages: LinkScoreSummary['top']) => {
+      lines.push(`**${title}**`, '', '| Page | Link Score |', '|------|-----------:|');
+      for (const page of pages) lines.push(`| ${escapeMarkdown(page.url)} | ${page.score.toFixed(1)} |`);
+      lines.push('');
+    };
+    table('Best linked', linkSummary.top);
+    if (linkSummary.lowestIndexable.length > 0) table('Weakest indexable pages', linkSummary.lowestIndexable);
+  }
 
   lines.push('## Summary');
   lines.push('');

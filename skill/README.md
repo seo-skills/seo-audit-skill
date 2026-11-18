@@ -14,7 +14,7 @@ When you ask Claude to audit a website, this skill:
 
 ## Capabilities
 
-- **373 SEO Rules** across 20 categories
+- **398 SEO Rules** across 20 categories
 - **Core Web Vitals** measurement (LCP, CLS, FCP, TTFB, INP)
 - **Multi-page crawling** for site-wide audits
 - **Actionable fixes** for every issue found
@@ -23,15 +23,26 @@ When you ask Claude to audit a website, this skill:
 
 | Category | Weight | What It Checks |
 |----------|--------|----------------|
-| Meta Tags | 15% | Title, description, canonical, viewport |
-| Technical SEO | 15% | robots.txt, sitemap, URL structure |
-| Core Web Vitals | 15% | LCP, CLS, FCP, TTFB, INP |
-| Security | 10% | HTTPS, HSTS, CSP, headers |
-| Links | 10% | Broken links, anchor text, depth |
-| Images | 10% | Alt text, dimensions, formats |
-| Headings | 10% | H1, hierarchy, uniqueness |
-| Structured Data | 8% | JSON-LD validation |
-| Social | 7% | Open Graph, Twitter cards |
+| Core | 11% | Essential SEO: meta tags, canonical, H1, indexing directives, title uniqueness |
+| Performance | 10% | Core Web Vitals, compression, caching, minification, and performance optimization |
+| Links | 8% | Analyzes internal and external links, anchor text, broken links, and link quality |
+| Images | 8% | Checks alt attributes, dimensions, lazy loading, formats, and optimization |
+| Security | 8% | Validates HTTPS, security headers, mixed content, and SSL configuration |
+| Technical SEO | 7% | Validates robots.txt, sitemap, SSL, status codes, and other technical aspects |
+| Accessibility | 7% | Checks for WCAG compliance, screen reader support, and keyboard navigation |
+| Crawlability | 5% | Validates sitemap, pagination, indexability signals, and crawl configuration |
+| Structured Data | 5% | Checks for valid JSON-LD, Schema.org markup, and rich snippets |
+| Content | 5% | Analyzes text quality, readability, duplicate content, and heading structure |
+| JavaScript Rendering | 5% | Checks JS-rendered content, SSR detection, and raw vs rendered DOM consistency |
+| Social | 3% | Validates Open Graph, Twitter Cards, and social sharing metadata |
+| E-E-A-T | 3% | Experience, Expertise, Authority, Trust signals for content quality |
+| URL Structure | 3% | Analyzes URL formatting, length, parameters, session IDs, and slug quality |
+| Redirects | 3% | Validates redirect types, chains, loops, meta refresh, and JS redirects |
+| Mobile | 2% | Mobile-friendliness: font size, viewport, horizontal scroll, and interstitials |
+| Internationalization | 2% | Language declarations, hreflang validation, and multi-region support |
+| HTML Validation | 2% | Validates HTML structure: DOCTYPE, charset, head integrity, and document size |
+| AI/GEO Readiness | 2% | Generative Engine Optimization: semantic HTML, content structure, AI bot access |
+| Legal Compliance | 1% | Privacy policy and legal compliance signals: cookie consent |
 
 ## Example Prompts
 

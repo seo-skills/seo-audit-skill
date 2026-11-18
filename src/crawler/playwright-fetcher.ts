@@ -5,6 +5,8 @@ import { chromium, type Browser, type Page, type Request, type Response } from '
 import type { AssetInfo, CoreWebVitals, FailedRequestInfo, RenderDiagnostics } from '../types.js';
 import { getUserAgent, MOBILE_USER_AGENT } from './user-agent.js';
 import { rethrowIfAborted, throwIfAborted } from '../errors.js';
+import { runProbes, type RenderProbe } from '../render/probes.js';
+import { unusedFromBlockCoverage, unusedFromCssRanges, type CodeCoverage } from '../render/coverage.js';
 
 /**
  * Shape of a `web-vitals` report, narrowed to the fields we read.
@@ -129,6 +131,10 @@ export interface PlaywrightFetchResult {
    * means "not captured", which rules report as unmeasured.
    */
   assets?: AssetInfo[];
+  /** Render probe results by id; see `render/probes.ts` */
+  probes?: Record<string, unknown>;
+  /** How much of each script and stylesheet the load used */
+  coverage?: CodeCoverage;
 }
 
 /**
@@ -349,6 +355,10 @@ export interface RenderOptions {
   simulateInteraction?: boolean;
   /** Cancels the render: the page is closed and the call rejects */
   signal?: AbortSignal;
+  /** Probes to run after the metrics are read; default every registered probe */
+  probes?: RenderProbe[];
+  /** Collect JavaScript and CSS coverage (default true; never for the mobile render) */
+  coverage?: boolean;
 }
 
 /**
@@ -515,6 +525,15 @@ export async function fetchPageWithPlaywright(
   const assets = collectAssets(page);
   // Likewise the metric collectors: LCP and layout shifts happen during load.
   await injectWebVitals(page);
+  // And coverage, which counts what the load runs. Not for the mobile render,
+  // which only compares content.
+  const coverageOn = options.coverage !== false && !options.mobile;
+  if (coverageOn) {
+    await Promise.all([
+      page.coverage.startJSCoverage({ resetOnNavigation: false }),
+      page.coverage.startCSSCoverage({ resetOnNavigation: false }),
+    ]).catch(() => {});
+  }
 
   try {
     const startTime = performance.now();
@@ -547,6 +566,10 @@ export async function fetchPageWithPlaywright(
       cwv.inpSynthetic = true;
     }
 
+    // Probes run last, so their work cannot show up in the metrics
+    const probes = await runProbes((script) => page.evaluate(script), options.probes);
+    const coverage = coverageOn ? await collectCoverage(page).catch(() => undefined) : undefined;
+
     return {
       html,
       statusCode: response?.status() ?? 0,
@@ -554,6 +577,8 @@ export async function fetchPageWithPlaywright(
       cwv,
       diagnostics,
       assets,
+      probes,
+      ...(coverage && { coverage }),
     };
   } catch (error) {
     rethrowIfAborted(error, options.signal);
@@ -563,6 +588,24 @@ export async function fetchPageWithPlaywright(
     await page.close().catch(() => {});
     await context.close().catch(() => {});
   }
+}
+
+/**
+ * Per-resource usage from the coverage started before navigation. Inline
+ * scripts and styles (reported under the page's own URL) are left out: the
+ * rules are about files the browser downloads.
+ */
+async function collectCoverage(page: Page): Promise<CodeCoverage> {
+  const pageUrl = page.url();
+  const [js, css] = await Promise.all([page.coverage.stopJSCoverage(), page.coverage.stopCSSCoverage()]);
+  return {
+    js: js
+      .filter((entry) => entry.url && entry.url !== pageUrl && entry.source !== undefined)
+      .map((entry) => ({ url: entry.url, totalBytes: entry.source!.length, unusedBytes: unusedFromBlockCoverage(entry.functions) })),
+    css: css
+      .filter((entry) => entry.url && entry.url !== pageUrl && entry.text !== undefined)
+      .map((entry) => ({ url: entry.url, totalBytes: entry.text!.length, unusedBytes: unusedFromCssRanges(entry.text!, entry.ranges) })),
+  };
 }
 
 /**

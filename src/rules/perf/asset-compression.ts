@@ -50,6 +50,7 @@ export const assetCompressionRule = defineRule({
     'Checks that text-based assets over 2KB are served with gzip or Brotli compression',
   category: 'perf',
   weight: 6,
+  requiresRender: true,
   run: (context: AuditContext) => {
     const { assets } = context;
 

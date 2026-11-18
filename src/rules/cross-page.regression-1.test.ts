@@ -9,9 +9,8 @@
 // targets as "crawled pages" and warning that 99.3% of 49,999 sitemap URLs
 // were orphans. content-duplicate-h1 and content-title-pattern already report
 // not measured without a crawl; these five now do too.
-import { describe, it, expect, beforeEach } from 'vitest';
-import { createTestContext } from './test-context.js';
-import { resetCrossPageState } from './registry.js';
+import { describe, it, expect } from 'vitest';
+import { createTestContext, createTestSite } from './test-context.js';
 import { titleUniqueRule } from './core/title-unique.js';
 import { duplicateDescriptionRule } from './content/duplicate-description.js';
 import { duplicateExactRule } from './content/duplicate-exact.js';
@@ -34,8 +33,6 @@ function single(url = 'https://example.com/a'): AuditContext {
 }
 
 describe('cross-page rules without a crawl (ISSUE-011)', () => {
-  beforeEach(() => resetCrossPageState());
-
   it.each([
     ['core-title-unique', titleUniqueRule],
     ['content-duplicate-description', duplicateDescriptionRule],
@@ -51,8 +48,11 @@ describe('cross-page rules without a crawl (ISSUE-011)', () => {
     ['content-duplicate-description', duplicateDescriptionRule],
     ['content-duplicate-exact', duplicateExactRule],
   ])('%s still compares pages in a crawl', async (_id, rule) => {
-    await rule.run({ ...single('https://example.com/a'), site: SITE });
-    const second = await rule.run({ ...single('https://example.com/b'), site: SITE });
+    const { contexts } = await createTestSite([
+      { url: 'https://example.com/a', html: PAGE },
+      { url: 'https://example.com/b', html: PAGE },
+    ]);
+    const second = await rule.run(contexts.get('https://example.com/b')!);
     expect(['warn', 'fail']).toContain(second.status);
   });
 });

@@ -48,6 +48,7 @@ export const consoleErrorsRule = defineRule({
     'Reports uncaught JavaScript exceptions and console errors captured while rendering the page',
   category: 'js',
   weight: 8,
+  requiresRender: true,
   run: (context: AuditContext) => {
     const diagnostics = context.renderDiagnostics;
 

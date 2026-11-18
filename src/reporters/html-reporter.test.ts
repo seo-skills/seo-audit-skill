@@ -149,7 +149,14 @@ describe('renderHtmlReport — branding', () => {
   it('lets the wordmark lettering follow the theme', () => {
     const out = renderHtmlReport(buildResult());
     // Unfilled paths default to black, which disappears against the dark theme.
-    expect(out).toContain('<g transform="translate(0 -2)" fill="currentColor">');
+    expect(out).toContain('<g fill="currentColor">');
+  });
+
+  it('draws the orange emblem and uses it as the tab icon, with nothing to fetch', () => {
+    const out = renderHtmlReport(buildResult());
+    expect(out).toContain('fill="#FE5000"');
+    expect(out).not.toContain('#064ada');
+    expect(out).toMatch(/<link rel="icon" type="image\/svg\+xml" href="data:image\/svg\+xml;base64,[A-Za-z0-9+/=]+">/);
   });
 
   it('names the product and points at the hosted tool', () => {

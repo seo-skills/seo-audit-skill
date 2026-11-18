@@ -27,7 +27,7 @@ export const hreflangToDisallowedRule = defineRule({
     if (!site?.pages) {
       return notMeasured(
         'crawl-hreflang-to-disallowed',
-        'Checking hreflang targets needs per-page crawl state - run with --crawl to build it'
+        'Checking hreflang targets needs per-page crawl state - run with --crawl to build it', undefined, 'needs-crawl'
       );
     }
 

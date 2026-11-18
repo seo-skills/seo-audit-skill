@@ -12,12 +12,10 @@ import { metaInBodyRule } from './meta-in-body.js';
 import { mimeTypeRule } from './mime-type.js';
 import {
   duplicateDescriptionRule,
-  resetDescriptionRegistry,
-  getDescriptionRegistryStats,
 } from './duplicate-description.js';
 import { titleSameAsDescriptionRule } from './title-same-as-description.js';
 import { duplicateH1Rule } from './duplicate-h1.js';
-import { createTestContext } from '../test-context.js';
+import { createTestContext, createTestSite } from '../test-context.js';
 import type { SiteContext } from '../../types.js';
 
 /**
@@ -465,82 +463,67 @@ describe('Content Rules', () => {
   });
 
   describe('duplicateDescriptionRule', () => {
-    // content-duplicate-description compares pages, so it only measures inside a crawl.
-    const crawlContext = (...args: Parameters<typeof createContext>): AuditContext => ({
-      ...createContext(...args),
-      site: { pageCount: 2, normalize: (url: string) => url } as unknown as SiteContext,
-    });
-    beforeEach(() => {
-      resetDescriptionRegistry();
-    });
+    // content-duplicate-description compares pages, so it reads a whole crawl.
+    const described = (description: string) =>
+      `<html><head><title>T</title><meta name="description" content="${description}"></head><body></body></html>`;
+    const run = async (pages: Array<{ url: string; html: string }>, url: string) => {
+      const { contexts } = await createTestSite(pages);
+      return duplicateDescriptionRule.run(contexts.get(url)!);
+    };
 
     it('should fail when no description present', async () => {
-      const html = '<html><head></head><body></body></html>';
-      const context = crawlContext(html);
-      const result = await duplicateDescriptionRule.run(context);
+      const result = await run([{ url: 'https://example.com/', html: '<html><head></head><body></body></html>' }], 'https://example.com/');
       expect(result.status).toBe('fail');
       expect(result.message).toContain('no meta description');
     });
 
     it('should pass for unique description', async () => {
-      const html = '<html><head><meta name="description" content="This is a unique page description that is long enough to be valid."></head><body></body></html>';
-      const context = crawlContext(html, {}, 'https://example.com/page1');
-      const result = await duplicateDescriptionRule.run(context);
+      const result = await run(
+        [
+          { url: 'https://example.com/page1', html: described('This is a unique page description that is long enough to be valid.') },
+          { url: 'https://example.com/page2', html: described('A different description that is also long enough to be valid here.') },
+        ],
+        'https://example.com/page1'
+      );
       expect(result.status).toBe('pass');
       expect(result.message).toContain('unique');
     });
 
-    it('should warn for duplicate descriptions', async () => {
+    it('flags every page sharing a description, the first one included', async () => {
       const desc = 'This is a duplicate description that appears on multiple pages for testing purposes.';
-      const html1 = `<html><head><meta name="description" content="${desc}"></head></html>`;
-      const html2 = `<html><head><meta name="description" content="${desc}"></head></html>`;
-
-      const context1 = crawlContext(html1, {}, 'https://example.com/page1');
-      const context2 = crawlContext(html2, {}, 'https://example.com/page2');
-
-      await duplicateDescriptionRule.run(context1);
-      const result = await duplicateDescriptionRule.run(context2);
-
-      expect(result.status).toBe('warn');
-      expect(result.message).toContain('Duplicate');
-      expect(result.details?.duplicateUrls).toContain('https://example.com/page1');
+      const pages = [
+        { url: 'https://example.com/page1', html: described(desc) },
+        { url: 'https://example.com/page2', html: described(desc) },
+      ];
+      const first = await run(pages, 'https://example.com/page1');
+      const second = await run(pages, 'https://example.com/page2');
+      expect(first.status).toBe('warn');
+      expect(second.status).toBe('warn');
+      expect(second.message).toContain('Duplicate');
+      expect(second.details?.duplicateUrls).toEqual(['https://example.com/page1']);
     });
 
     it('should detect duplicates with different case', async () => {
-      const html1 = '<html><head><meta name="description" content="Same Description Here for testing."></head></html>';
-      const html2 = '<html><head><meta name="description" content="SAME DESCRIPTION HERE FOR TESTING."></head></html>';
-
-      const context1 = crawlContext(html1, {}, 'https://example.com/page1');
-      const context2 = crawlContext(html2, {}, 'https://example.com/page2');
-
-      await duplicateDescriptionRule.run(context1);
-      const result = await duplicateDescriptionRule.run(context2);
-
+      const result = await run(
+        [
+          { url: 'https://example.com/page1', html: described('Same Description Here for testing, long enough to count.') },
+          { url: 'https://example.com/page2', html: described('SAME DESCRIPTION HERE FOR TESTING, LONG ENOUGH TO COUNT.') },
+        ],
+        'https://example.com/page2'
+      );
       expect(result.status).toBe('warn');
     });
 
-    it('should track registry stats correctly', async () => {
-      const html1 = '<html><head><meta name="description" content="Description A is unique and long enough."></head></html>';
-      const html2 = '<html><head><meta name="description" content="Description B is also unique and long enough."></head></html>';
-      const html3 = '<html><head><meta name="description" content="Description A is unique and long enough."></head></html>';
-
-      await duplicateDescriptionRule.run(crawlContext(html1, {}, 'https://example.com/1'));
-      await duplicateDescriptionRule.run(crawlContext(html2, {}, 'https://example.com/2'));
-      await duplicateDescriptionRule.run(crawlContext(html3, {}, 'https://example.com/3'));
-
-      const stats = getDescriptionRegistryStats();
-      expect(stats.totalDescriptions).toBe(2);
-      expect(stats.duplicateGroups).toBe(1);
-    });
-
-    it('should reset registry between audits', async () => {
-      const html = '<html><head><meta name="description" content="Test description that is long enough for validation."></head></html>';
-
-      await duplicateDescriptionRule.run(crawlContext(html, {}, 'https://example.com/1'));
-      resetDescriptionRegistry();
-
-      const result = await duplicateDescriptionRule.run(crawlContext(html, {}, 'https://example.com/2'));
-      expect(result.status).toBe('pass'); // No duplicate after reset
+    it('warns about a description that is too short', async () => {
+      const result = await run(
+        [
+          { url: 'https://example.com/page1', html: described('Short.') },
+          { url: 'https://example.com/page2', html: described('Another short one.') },
+        ],
+        'https://example.com/page1'
+      );
+      expect(result.status).toBe('warn');
+      expect(result.message).toContain('too short');
     });
   });
 

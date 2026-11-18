@@ -1,6 +1,7 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
-import { fetchPage } from '../../crawler/fetcher.js';
+import { getText } from '../../net/url-service.js';
+import { MAX_SITEMAP_BYTES } from '../../net/fetch.js';
 
 /**
  * Extracts the base URL (origin) from a full URL
@@ -142,7 +143,7 @@ export const sitemapValidRule = defineRule({
 
     // First try default location
     try {
-      const result = await fetchPage(sitemapUrl);
+      const result = await getText(context, sitemapUrl, { maxBytes: MAX_SITEMAP_BYTES });
       if (result.statusCode === 200) {
         sitemapContent = result.html;
       }
@@ -153,12 +154,12 @@ export const sitemapValidRule = defineRule({
     // If not found, try from robots.txt
     if (!sitemapContent) {
       try {
-        const robotsResult = await fetchPage(robotsTxtUrl);
+        const robotsResult = await getText(context, robotsTxtUrl);
         if (robotsResult.statusCode === 200) {
           const sitemapsInRobots = extractSitemapUrlsFromRobotsTxt(robotsResult.html);
           if (sitemapsInRobots.length > 0) {
             validatedUrl = sitemapsInRobots[0];
-            const result = await fetchPage(validatedUrl);
+            const result = await getText(context, validatedUrl, { maxBytes: MAX_SITEMAP_BYTES });
             if (result.statusCode === 200) {
               sitemapContent = result.html;
             }

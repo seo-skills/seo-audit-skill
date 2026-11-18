@@ -5,29 +5,56 @@
 [![node](https://img.shields.io/node/v/@seomator/seo-audit.svg)](https://www.npmjs.com/package/@seomator/seo-audit)
 [![license: MIT](https://img.shields.io/npm/l/@seomator/seo-audit.svg)](./LICENSE)
 
-**SEOmator is a comprehensive SEO audit tool that scans any website against 373 rules across 20 categories** — technical SEO, Core Web Vitals, structured data, accessibility, security headers, and AI/GEO search readiness — and returns a prioritized, actionable report. It ships as a **command-line tool**, an **Electron desktop app**, and a **Claude Code skill**, so you can run an SEO audit from a terminal, a visual dashboard, or directly inside an AI coding agent.
+**SEOmator is a comprehensive SEO audit tool that scans any website against 398 rules across 20 categories** — technical SEO, Core Web Vitals, structured data, accessibility, security headers, and AI/GEO search readiness — and returns a prioritized, actionable report. It ships as a **command-line tool**, an **Electron desktop app**, and a **Claude Code skill**, so you can run an SEO audit from a terminal, a visual dashboard, or directly inside an AI coding agent.
 
 > **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
 
+## Where SEOmator fits
+
+SEOmator is an SEO audit you can automate and trust the answer of.
+
+- **Built to run unattended.** A CLI with stable exit codes (0 pass, 1 a gate
+  failed, 2 the run could not happen), JSON output, CI gates on score,
+  coverage and chosen rules, your own checks in `seomator.toml`, and an MCP
+  server so an AI agent can run audits and read the findings.
+- **Honest about what it measured.** A check it could not take a reading for
+  says so and why ("needs a browser render", "could not verify") instead of
+  passing. New checks are reported as advisory until they have earned a
+  place in the score. A crawl says how many pages it measured, and a site
+  that asks it to slow down is respected, not counted as broken.
+- **Local and open source.** It runs on your machine, keeps audit history in a
+  local SQLite database, and comes with a web dashboard and a desktop app over
+  the same engine. Auditing a public site never lets that site point it at
+  your private network. Browser renders (`--render`, and "Render in a browser"
+  in the dashboard and desktop app) are the exception for now: the browser
+  loads a page's own resources without that check.
+
+What it is not: a tool for exploring every URL of a very large site in a
+spreadsheet view, or a source of search-traffic data. A crawl here is sized
+for an audit (10 pages by default, up to 1,000 per run on the command line),
+and Search Console data is not part of the audit yet.
+
 ## Contents
 
+- [Where SEOmator fits](#where-seomator-fits)
 - [Features](#features)
 - [Installation](#installation)
 - [Desktop App](#desktop-app)
 - [Quick Start (CLI)](#quick-start-cli)
 - [Commands](#commands)
-- [Categories & Rules](#categories--rules-373-total)
+- [Categories & Rules](#categories--rules-398-total)
 - [Configuration](#configuration)
 - [Output Formats](#output-formats)
 - [CI/CD Integration](#cicd-integration)
 - [Programmatic Usage](#programmatic-usage)
 - [Claude Code Skill](#claude-code-skill)
-- [FAQ](#faq)
+- [FAQ](#faq) and [upgrading to 8.0](./docs/upgrading-to-8.md)
 - [Requirements](#requirements)
+- [Full documentation](./docs/README.md): guides, references and every config key
 
 ## Features
 
-- **373 SEO Audit Rules** across 20 categories
+- **398 SEO Audit Rules** across 20 categories
 - **Desktop App** - Visual audit dashboard with real-time progress, interactive results, score history, and light/dark theme
 - **CLI Tool** - Single page & crawl mode with 5 output formats
 - **Core Web Vitals** - LCP, CLS, FCP, TTFB, INP measurement via Playwright
@@ -149,10 +176,15 @@ Run SEO audit on a URL.
 | `--max-pages <n>` | `-m` | Maximum pages to crawl | 10 |
 | `--concurrency <n>` | - | Concurrent requests | 3 |
 | `--timeout <ms>` | - | Request timeout in milliseconds | 30000 |
-| `--cwv` | - | Render the page in a browser for Core Web Vitals, JavaScript rendering and rendered-asset checks (slower). `--no-cwv` is still accepted | false |
+| `--render` | `--cwv` | Render each page in a browser for Core Web Vitals, JavaScript rendering, rendered-asset, accessibility (axe-core), unused code and image sizing checks (slower). `--no-cwv` is still accepted | false |
 | `--mobile` | - | Second render at a mobile viewport + mobile-first parity checks (single-page). Implies `--cwv` | false |
 | `--simulate-interaction` | - | Scroll and click the page so INP can be measured (reported as synthetic, unscored). Implies `--cwv` | false |
 | `--staging` | - | Audit a staging site: waive the noindex and robots.txt caps, and crawl past robots.txt | false |
+| `--fail-under <n>` | - | Exit 1 when the score is below n (overrides `[ci] fail_under`) | 70 |
+| `--min-coverage <pct>` | - | With `--crawl`: exit 1 when fewer than pct% of the attempted pages were measured | 0 |
+| `--max-duration <s>` | - | With `--crawl`: stop requesting pages after s seconds and score what was fetched | no limit |
+| `--ignore-crawl-delay` | - | With `--crawl`: do not honour the site's robots.txt `Crawl-delay` | false |
+| `--refresh` | `-r` | Check every external link again instead of using the link cache | false |
 | `--verbose` | `-v` | Show progress | false |
 | `--config <path>` | - | Config file path | - |
 | `--no-save` | - | Do not store this audit in your history | - |
@@ -174,7 +206,7 @@ seomator serve --no-open         # do not open a browser
 ```
 
 It reads the same `~/.seomator/audits.db` the CLI writes, binds to loopback
-only, and makes no outbound requests. Every `/api` request needs the per-launch
+only, and makes no outbound requests apart from the audits you start. Every `/api` request needs the per-launch
 token, which is printed once and written to `~/.seomator/serve.json` for agents:
 
 ```bash
@@ -244,6 +276,34 @@ seomator compare example.com --fail-on-regression   # exit 1 if worse (for CI)
 Rules are diffed by ID, so a rule that broke and a different one that got fixed
 are reported separately rather than cancelling out in a count.
 
+### `seomator mcp`
+
+The audit engine as MCP tools for AI agents, over stdio, registered as
+`seomator-audit`.
+
+```bash
+claude mcp add seomator-audit -- npx -y @seomator/seo-audit mcp
+claude mcp add seomator-audit -- npx -y @seomator/seo-audit mcp --allow-private   # local and intranet sites too
+```
+
+Destinations that resolve to loopback, private or link-local addresses are
+refused unless the server runs with `--allow-private` (or `--allow-host
+<host:port>`). See [AI agent integration](docs/ai-agent-integration.md#use-seomator-as-an-mcp-server).
+
+### `seomator explain [rule-id]`
+
+What a rule checks, how much it counts, how to fix what it finds, and the
+`[rules.override]` lines to re-rank it or gate CI on it.
+
+```bash
+seomator explain core-canonical-present    # One rule
+seomator explain --list                    # Every rule id
+seomator explain --list security           # The ids in one category
+seomator explain url-underscores --json    # For scripts and agents
+```
+
+An unknown id exits 2 and names the closest ids.
+
 ### `seomator config [key] [value]`
 
 View or modify configuration.
@@ -251,7 +311,8 @@ View or modify configuration.
 ```bash
 seomator config --list                     # Show all config
 seomator config crawler.max_pages 50       # Set value
-seomator config validate                   # Validate config
+seomator config validate                   # Validate config (exit 2 on an error)
+seomator config validate --config ci.toml --json
 ```
 
 ### `seomator db`
@@ -277,9 +338,28 @@ seomator self doctor -v          # Verbose diagnostics
 
 | Code | Meaning |
 |------|---------|
-| 0 | Audit passed (score >= 70) |
-| 1 | Audit failed (score < 70) |
-| 2 | Error occurred |
+| 0 | Audit passed: the score reached `--fail-under` (default 70) and no `fail_ci` rule failed |
+| 1 | A gate failed: the score is below `--fail-under`, a `fail_ci` rule failed, a `fail_ci` rule could not be measured, or a crawl measured less than `--min-coverage`. The last line on stderr says which |
+| 2 | The command could not do its job: bad flag, invalid config, unreachable URL, a start page that stays rate-limited |
+| 130 | The run was cancelled (Ctrl-C or SIGTERM) |
+
+Gate a build on the rules that matter to you, whatever the score:
+
+```toml
+# seomator.toml
+[ci]
+fail_under = 80
+
+[rules.override]
+"core-canonical-present"   = { fail_ci = true }
+"core-description-present" = { priority = "low" }
+"url-underscores"          = { priority = "ignore" }
+```
+
+Overrides change ranking and CI exit codes, never the score. JSON output carries
+the verdict in `gate`: `{ failUnder, score, failedCiRules, unevaluated, exitCode }`.
+Every gate, what a failing one prints, and a complete CI job:
+[docs/ci-gates.md](docs/ci-gates.md).
 
 A page that cannot rank fails whatever its other checks score. In a single-page
 audit, the overall score is capped while a page-level condition holds: `noindex`
@@ -292,9 +372,9 @@ A staging site is blocked on purpose: audit it with `--staging`. That waives the
 noindex and robots.txt caps, crawls past robots.txt, and lists what it waived as
 the launch checklist.
 
-## Categories & Rules (373 total)
+## Categories & Rules (398 total)
 
-### Core (24 rules) - 11% weight
+### Core (27 rules) - 11% weight
 
 | Rule | Description |
 |------|-------------|
@@ -322,8 +402,11 @@ the launch checklist.
 | `core-canonical-multiple` | Multiple canonical elements should agree |
 | `core-canonical-external` | Canonical pointing to a different host (worth verifying) |
 | `core-robots-directive-mismatch` | Robots directives in meta tags and X-Robots-Tag header should be consistent |
+| `core-unavailable-after` | A past `unavailable_after` date removes the page from search (advisory) |
+| `core-obsolete-robots-directives` | `noodp` and `noydir` do nothing any more (advisory) |
+| `core-canonical-fragment` | The canonical URL should not contain `#` (advisory) |
 
-### Performance (28 rules) - 10% weight
+### Performance (30 rules) - 10% weight
 
 | Rule | Description |
 |------|-------------|
@@ -344,6 +427,8 @@ the launch checklist.
 | `perf-cache-policy` | Static assets should have cache headers |
 | `perf-minify-css` | CSS should be minified |
 | `perf-minify-js` | JavaScript should be minified |
+| `perf-unused-js` | JavaScript loaded but not run, needs `--cwv` (advisory) |
+| `perf-unused-css` | CSS loaded but unused, needs `--cwv` (advisory) |
 | `perf-response-time` | Response time under 500ms passes; over 1000ms warns |
 | `perf-http2` | Site should serve over HTTP/2 |
 | `perf-page-weight` | HTML document under 100KB passes; over 300KB warns |
@@ -388,7 +473,7 @@ the launch checklist.
 | `links-weak-inbound` | A non-entry page has more than one dofollow inbound link (requires `--crawl`) |
 | `links-chrome-inbound` | At least one inbound link sits outside the nav, header, and footer (requires `--crawl`) |
 
-### Images (14 rules) - 8% weight
+### Images (15 rules) - 8% weight
 
 | Rule | Description |
 |------|-------------|
@@ -400,6 +485,7 @@ the launch checklist.
 | `images-size` | Images should be <200KB |
 | `images-responsive` | Use srcset for responsive images |
 | `images-broken` | Images should not return 404 |
+| `images-oversized-delivery` | Images not served much larger than shown, needs `--cwv` (advisory) |
 | `images-figure-captions` | Figure elements should have figcaption |
 | `images-filename-quality` | Use descriptive filenames |
 | `images-inline-svg-size` | Inline SVGs should be <5KB |
@@ -438,7 +524,7 @@ the launch checklist.
 | `security-obfuscated-script` | No long high-entropy inline script calls eval, Function, or atob |
 | `security-brand-impersonation` | Brand sign-in links point at the brand or this host |
 
-### Technical SEO (18 rules) - 7% weight
+### Technical SEO (19 rules) - 7% weight
 
 | Rule | Description |
 |------|-------------|
@@ -450,6 +536,7 @@ the launch checklist.
 | `technical-trailing-slash` | Consistent trailing slash usage |
 | `technical-www-redirect` | www/non-www should redirect to one version |
 | `technical-404-page` | Custom 404 page should exist |
+| `technical-amp-pairing` | The AMP version loads and points back (advisory) |
 | `technical-soft-404` | Soft 404 pages should return proper 404 status |
 | `technical-server-error` | No 5xx server errors |
 | `technical-4xx-non-404` | No 400, 403, 410 client errors |
@@ -461,7 +548,7 @@ the launch checklist.
 | `technical-duplicate-ga` | No multiple Google Analytics property IDs |
 | `technical-consent-mode` | A Google tag is paired with a consent update |
 
-### Crawlability (38 rules) - 5% weight
+### Crawlability (39 rules) - 5% weight
 
 | Rule | Description |
 |------|-------------|
@@ -475,6 +562,7 @@ the launch checklist.
 | `crawl-sitemap-size-limit` | Sitemap should be <50MB |
 | `crawl-sitemap-duplicate-urls` | No duplicate URLs in sitemap |
 | `crawl-sitemap-orphan-urls` | Sitemap URLs should be linked internally |
+| `crawl-indexable-not-in-sitemap` | Indexable pages should be in the sitemap (advisory) |
 | `crawl-blocked-resources` | Critical resources not blocked by robots.txt |
 | `crawl-crawl-delay` | Excessive Crawl-delay slows indexing |
 | `crawl-sitemap-in-robotstxt` | robots.txt should reference sitemap |
@@ -528,7 +616,7 @@ the launch checklist.
 | `schema-entity-type-drift` | One absolute @id keeps the same @type (requires `--crawl`) |
 | `schema-entity-split` | One organization or person name is not published under two absolute @ids (requires `--crawl`) |
 
-### JavaScript Rendering (16 rules) - 5% weight
+### JavaScript Rendering (17 rules) - 5% weight
 
 | Rule | Description |
 |------|-------------|
@@ -545,11 +633,12 @@ the launch checklist.
 | `js-rendered-links` | Navigation links present without JavaScript |
 | `js-blocked-resources` | Critical JS not blocked by robots.txt |
 | `js-ssr-check` | Server-side rendering detected |
+| `js-ajax-crawling-scheme` | No `#!` URLs, which Google no longer crawls (advisory) |
 | `js-console-errors` | No uncaught JavaScript exceptions or console errors while rendering |
 | `js-failed-requests` | Scripts, stylesheets and other subresources load successfully |
 | `js-document-write` | Inline scripts should not use `document.write()` |
 
-### Accessibility (36 rules) - 7% weight
+### Accessibility (46 rules) - 7% weight
 
 | Rule | Description |
 |------|-------------|
@@ -565,6 +654,16 @@ the launch checklist.
 | `a11y-touch-targets` | Minimum 44x44px touch target sizing |
 | `a11y-video-captions` | Videos have captions or transcripts |
 | `a11y-zoom-disabled` | Viewport doesn't disable user zoom |
+| `a11y-axe-names` | Accessible Names problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-landmarks` | Landmarks problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-keyboard` | Keyboard and Focus problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-tables` | Tables problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-lists` | Lists problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-media` | Media and Motion problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-frames` | Frames problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-aria` | ARIA Validity problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-language` | Document Language problems found by axe-core, needs `--cwv` (advisory) |
+| `a11y-axe-other` | Other Accessibility problems found by axe-core, needs `--cwv` (advisory) |
 | `a11y-iframe-title` | Iframes and frames have title attributes |
 | `a11y-object-alt` | `<object>` elements provide a text alternative |
 | `a11y-empty-heading` | No empty or inaccessible headings |
@@ -622,14 +721,18 @@ the launch checklist.
 | `content-thin-vs-site` | A page is not far shorter than the median page of the same kind (requires `--crawl`) |
 | `content-title-pattern` | The title keeps the suffix most of the site uses (requires `--crawl`) |
 
-### Social (9 rules) - 3% weight
+### Social (13 rules) - 3% weight
 
 | Rule | Description |
 |------|-------------|
 | `social-og-title` | og:title meta tag |
 | `social-og-description` | og:description meta tag |
 | `social-og-image` | og:image with valid URL |
-| `social-og-image-size` | og:image dimensions (1200x630) |
+| `social-og-image-size` | Declared og:image dimensions match the real image |
+| `social-og-image-reachable` | og:image loads, is an image, under 5 MB, at least 1200x630 (advisory) |
+| `social-meta-multiple` | Each og:*/twitter:* property declared once (advisory) |
+| `social-twitter-attribute` | twitter:* uses name=, not property= (advisory) |
+| `social-duplicate-og` | og:title and og:description unique across the crawl (advisory) |
 | `social-twitter-card` | twitter:card meta tag |
 | `social-og-url` | og:url meta tag |
 | `social-og-url-canonical` | og:url matches canonical |
@@ -692,7 +795,7 @@ the launch checklist.
 | `redirect-resource-loop` | Resources should not be caught in redirect loops (requires render) |
 | `redirect-resource-chain` | Resources should not go through multi-hop redirect chains (requires render) |
 
-### Mobile (12 rules) - 2% weight
+### Mobile (13 rules) - 2% weight
 
 | Rule | Description |
 |------|-------------|
@@ -702,6 +805,7 @@ the launch checklist.
 | `mobile-viewport-width` | No fixed viewport width |
 | `mobile-multiple-viewports` | Single viewport meta tag |
 | `mobile-image-maps` | No `<map>`/`<area>` image maps |
+| `mobile-separate-urls` | A separate mobile URL loads and points back (advisory) |
 | `mobile-viewport-content` | Viewport directives: width, initial-scale, no minimum-scale |
 | `mobile-parity-content` | Mobile render carries as much content as desktop (`--cwv --mobile`) |
 | `mobile-parity-title` | Title and meta description match mobile vs desktop (`--cwv --mobile`) |
@@ -727,7 +831,7 @@ the launch checklist.
 | `i18n-hreflang-x-default` | Language annotation targets same URL as x-default (insight) |
 | `i18n-hreflang-incoming-invalid` | Incoming hreflang annotations use valid language codes (requires `--crawl`) |
 
-### HTML Validation (11 rules) - 2% weight
+### HTML Validation (12 rules) - 2% weight
 
 | Rule | Description |
 |------|-------------|
@@ -742,6 +846,7 @@ the launch checklist.
 | `htmlval-multiple-descriptions` | Single meta description only |
 | `htmlval-title-outside-head` | No `<title>` element outside of `<head>` |
 | `htmlval-base-url` | At most one `<base>` element with a valid href |
+| `htmlval-body-structure` | One `<body>`, after `<html>`, nothing before `<head>` (advisory) |
 
 ### AI/GEO Readiness (13 rules) - 2% weight
 
@@ -788,7 +893,7 @@ drop_query_prefixes = ["utm_", "gclid", "fbclid"]
 
 [rules]
 enable = ["*"]
-disable = ["perf-inp"]  # Supports wildcards: "core-*"
+disable = ["cwv-inp"]  # Supports wildcards: "core-*"
 
 [output]
 format = "console"  # console, json, html, markdown, llm
@@ -796,10 +901,20 @@ format = "console"  # console, json, html, markdown, llm
 
 Config priority (highest to lowest):
 1. CLI arguments
-2. Local `./seomator.toml`
-3. Parent directory configs
-4. Global `~/.seomator/config.toml`
+2. Local settings, `.seomator/settings.json` (written by `seomator config <key> <value>`)
+3. The first `seomator.toml` found walking up from the current directory (only one is read)
+4. Global settings, `~/.seomator/settings.json`
 5. Built-in defaults
+
+Every key, which command reads it, and the CI, override, rule-option and
+custom-check sections: [docs/configuration.md](docs/configuration.md).
+Step-by-step guides: [gating CI](docs/ci-gates.md) and
+[your own checks](docs/custom-checks.md) (`[[custom.search]]`,
+`[[custom.extract]]`). Every doc: [docs/README.md](docs/README.md).
+
+## Link Score
+
+A crawl (`audit --crawl`) also computes an internal **Link Score** for each page: PageRank over the site's own links, scaled 0 to 100, where the best-linked page scores 100. Redirecting URLs are folded into their target, a canonicalised page passes everything to its canonical, and nofollow links pass nothing. Every report lists the ten best-linked pages and the ten weakest pages a search engine would index; JSON carries every page's score in `extras.linkScores`. It is a metric for deciding which pages need more internal links: it changes no score and no ranking.
 
 ## Output Formats
 
@@ -854,57 +969,17 @@ Score:     88/100  [A]
 
 ## CI/CD Integration
 
-### GitHub Actions
+The exit code is the verdict (see [Exit Codes](#exit-codes)), so a CI step is
+the command itself:
 
-```yaml
-name: SEO Audit
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-jobs:
-  audit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install SEOmator
-        run: npm install -g @seomator/seo-audit
-
-      - name: Install Playwright browsers
-        run: npx playwright install chromium
-
-      - name: Run SEO Audit
-        run: seomator audit https://your-staging-url.com --cwv --format json -o seo-report.json
-
-      - name: Upload Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: seo-report
-          path: seo-report.json
+```bash
+seomator config validate
+seomator audit https://your-staging-url.com --crawl -m 50 --no-save --format json -o reports/seo.json
 ```
 
-### GitLab CI
-
-```yaml
-seo-audit:
-  image: node:20
-  script:
-    - npm install -g @seomator/seo-audit
-    - npx playwright install chromium
-    - seomator audit https://your-staging-url.com --cwv --format json -o seo-report.json
-  artifacts:
-    paths:
-      - seo-report.json
-```
+[docs/ci-gates.md](docs/ci-gates.md) covers setting the score threshold,
+gating on rules and on crawl coverage, reading the verdict from JSON, and has
+complete GitHub Actions and GitLab CI jobs.
 
 ## Programmatic Usage
 
@@ -945,7 +1020,7 @@ npx skills add seo-skills/seo-audit-skill
 
 ### What is SEOmator?
 
-SEOmator is an SEO audit tool that checks a website against 373 rules across 20 categories — covering technical SEO, Core Web Vitals, structured data, accessibility, security headers, content quality, and AI/GEO search readiness — and returns a scored, prioritized report of what to fix first. It's available as an open-source CLI, an Electron desktop app, and a Claude Code skill.
+SEOmator is an SEO audit tool that checks a website against 398 rules across 20 categories — covering technical SEO, Core Web Vitals, structured data, accessibility, security headers, content quality, and AI/GEO search readiness — and returns a scored, prioritized report of what to fix first. It's available as an open-source CLI, an Electron desktop app, and a Claude Code skill.
 
 ### How is SEOmator different from Lighthouse or PageSpeed Insights?
 
@@ -961,7 +1036,7 @@ The CLI (`@seomator/seo-audit`) is MIT-licensed and free to install and run loca
 
 ### Can I run SEOmator in CI/CD?
 
-Yes. It returns exit code `0` for a passing score (≥70), `1` for a failing score, and `2` on error, plus JSON output for parsing. See the [GitHub Actions and GitLab CI examples](#cicd-integration).
+Yes. It returns exit code `0` for a passing run, `1` when a gate fails (a score below `--fail-under`, default 70, or a failing `fail_ci` rule), and `2` on error, plus JSON output for parsing. See [How to gate CI on an SEOmator audit](docs/ci-gates.md) for GitHub Actions and GitLab CI jobs.
 
 ### Can I use SEOmator with Claude or other AI agents?
 
@@ -969,7 +1044,7 @@ Yes. The `--format llm` flag outputs token-efficient, injection-hardened XML des
 
 ## Requirements
 
-- **Node.js 20.3+** (required by better-sqlite3 and `AbortSignal.any()`; uses native fetch API)
+- **Node.js 20.18.1+** (required by better-sqlite3, `AbortSignal.any()` and the undici 7 HTTP client)
 - **Playwright** (for Core Web Vitals and JS rendering analysis)
 
 After installing, run `npx playwright install chromium` to install the browser for CWV measurement.

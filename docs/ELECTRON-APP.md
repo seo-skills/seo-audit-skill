@@ -20,7 +20,7 @@ re-signed. The desktop app is not published to npm; only the CLI is.
   npm install
   ```
 
-- Node.js 20.3 or later.
+- Node.js 20.18.1 or later.
 - On macOS, `codesign` from the Xcode command line tools. The rebuild scripts
   use it to re-sign the native module.
 
@@ -309,14 +309,18 @@ each in its own session.
 The CLI renders pages with Playwright. The desktop app renders them in a hidden
 `BrowserWindow` instead (`electron/main/electron-fetcher.ts`), because a
 Playwright Chromium binary inside the `.app` bundle is blocked by macOS
-Gatekeeper. The hidden window returns the rendered HTML, the status code and
-Core Web Vitals read from the page's performance APIs, in the same shape
-Playwright's fetcher returns, so the auditor cannot tell them apart.
+Gatekeeper. The hidden window returns the rendered HTML, the status code,
+Core Web Vitals read from the page's performance APIs, and the render probes
+(axe-core and image sizing, run through `webContents.executeJavaScript`), in
+the same shape Playwright's fetcher returns, so the auditor cannot tell them
+apart.
 
 The trade-off is reach. A `BrowserWindow` cannot emulate a mobile viewport or
 drive a synthetic interaction, so the desktop build reports `mobileParity` and
 `simulateInteraction` as unavailable and the form hides both, rather than
-offering settings that would do nothing.
+offering settings that would do nothing. It does not collect script and
+stylesheet coverage yet (`codeCoverage: false`), so `perf-unused-js` and
+`perf-unused-css` are not measured in the desktop app.
 
 One more difference from the CLI: a run started in the app does not read
 `seomator.toml`, because the shared session never loads it. Core Web Vitals
@@ -368,7 +372,7 @@ without failing the rebuild, since only Electron needs the signature.
 |---|---|---|
 | Shared `AuditSession` and queries | One run model and one history for every surface | One audit at a time; the desktop app has no retry save or unsaved export yet |
 | `ui/` shared with the web dashboard | One UI to build and fix | Every UI change has to be checked in two hosts |
-| Hidden `BrowserWindow` instead of Playwright | No Chromium binary for Gatekeeper to block | No mobile parity, no simulated interaction |
+| Hidden `BrowserWindow` instead of Playwright | No Chromium binary for Gatekeeper to block | No mobile parity, no simulated interaction, no unused-code coverage yet |
 | One `better-sqlite3` build in the checkout | A plain `npm install` works for the CLI | A rebuild on every switch between the CLI and the app |
 | Re-sign after every rebuild | No guessing which artifact is bad | A macOS-only step, and a dependency on `codesign` |
 | Preload emitted as an ES module, following the package's `"type": "module"` | No separate CommonJS build for one file | The app window runs with `sandbox: false` |

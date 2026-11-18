@@ -26,7 +26,7 @@ export const hreflangToNoindexRule = defineRule({
     if (!site?.pages) {
       return notMeasured(
         'crawl-hreflang-to-noindex',
-        'Checking hreflang targets needs per-page crawl state - run with --crawl to build it'
+        'Checking hreflang targets needs per-page crawl state - run with --crawl to build it', undefined, 'needs-crawl'
       );
     }
 

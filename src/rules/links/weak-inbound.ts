@@ -18,7 +18,7 @@ export const weakInboundRule = defineRule({
   run: (context: AuditContext) => {
     const edges = getInboundEdges(context);
     if (!edges || !context.site) {
-      return notMeasured('links-weak-inbound', NEEDS_SITE_GRAPH_MESSAGE);
+      return notMeasured('links-weak-inbound', NEEDS_SITE_GRAPH_MESSAGE, undefined, 'needs-crawl');
     }
 
     if (context.site.normalize(context.url) === context.site.normalize(context.site.entryUrl)) {

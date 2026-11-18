@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { pageStatus } from '../../site/groups.js';
 
 // Reference hint: international/has-outgoing-hreflang-annotations-to-broken-urls
 /**
@@ -93,10 +94,12 @@ export const hreflangToBrokenRule = defineRule({
       for (const { hreflang, href } of validUrls) {
         const info = pages.get(normalize(href));
         if (!info) continue; // target was not crawled - nothing to check
-        if (info.statusCode >= 400) {
-          errorUrls.push({ hreflang, href, statusCode: info.statusCode });
-        } else if (info.statusCode === 0) {
+        // A target that timed out or stayed rate-limited is not broken
+        const status = pageStatus(info);
+        if (status === null) {
           timeoutUrls.push({ hreflang, href });
+        } else if (status >= 400) {
+          errorUrls.push({ hreflang, href, statusCode: status });
         }
       }
     }
@@ -117,7 +120,7 @@ export const hreflangToBrokenRule = defineRule({
     if (brokenTotal === 0) {
       return warn(
         'i18n-hreflang-to-broken',
-        `${timeoutUrls.length} hreflang target(s) could not be fetched during the crawl (timeout)`,
+        `${timeoutUrls.length} hreflang target(s) could not be fetched during the crawl (timed out or rate-limited)`,
         {
           totalHreflang: hreflangElements.length,
           timeoutCount: timeoutUrls.length,

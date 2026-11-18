@@ -28,11 +28,7 @@ export const markdownResponseRule = defineRule({
       return pass('geo-markdown-response', 'Page URL has no origin to probe', { found: false });
     }
 
-    const negotiated = await probeOnce(
-      `${origin}/`,
-      { Accept: 'text/markdown' },
-      context.signal
-    );
+    const negotiated = await probeOnce(context, `${origin}/`, { Accept: 'text/markdown' });
     if (
       negotiated &&
       negotiated.status === 200 &&
@@ -41,7 +37,7 @@ export const markdownResponseRule = defineRule({
       return pass('geo-markdown-response', 'Root responds with Markdown', { via: 'accept' });
     }
 
-    const variant = await probeOnce(`${origin}/index.md`, {}, context.signal);
+    const variant = await probeOnce(context, `${origin}/index.md`, {});
     if (variant && variant.status === 200 && !looksLikeHtml(variant)) {
       return pass('geo-markdown-response', 'index.md is available', { via: 'index.md' });
     }

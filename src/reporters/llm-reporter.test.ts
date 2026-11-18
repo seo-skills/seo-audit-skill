@@ -213,3 +213,27 @@ describe('renderLlmError', () => {
     expect(nasty).toContain('&amp;');
   });
 });
+
+describe('custom extractions in the LLM report', () => {
+  it('lists a bounded number of pages and values, and says how many were left out', () => {
+    const pages = Array.from({ length: 100 }, (_, i) => ({
+      url: `https://example.com/p${i}`,
+      values: Array.from({ length: 12 }, (__, j) => `value-${i}-${j}-${'v'.repeat(400)}`),
+    }));
+    const xml = renderLlmReport(buildResult({ extras: { custom: { searches: [], extractions: [{ name: 'sku', pages }] } } }));
+    expect(xml).toContain('https://example.com/p19:');
+    expect(xml).not.toContain('https://example.com/p20:');
+    expect(xml).toContain('omitted="80"');
+    expect(xml).not.toContain('value-0-5-');
+    expect(xml).not.toContain('v'.repeat(400));
+  });
+});
+
+describe('custom extraction values in the LLM report', () => {
+  it('says when a page had more values than it lists', () => {
+    const pages = [{ url: 'https://example.com/a', values: ['v1', 'v2', 'v3', 'v4', 'v5', 'v6'] }];
+    const xml = renderLlmReport(buildResult({ extras: { custom: { searches: [], extractions: [{ name: 'sku', pages }] } } }));
+    expect(xml).toContain('(+1 more)');
+    expect(xml).toContain('--format json has every value');
+  });
+});

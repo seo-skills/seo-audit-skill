@@ -26,8 +26,8 @@ const run = (over: Partial<AuditRunOptions> = {}): AuditRunOptions => ({
 });
 
 describe('the scoring model is recorded on the run', () => {
-  it('is 4, the model that also caps a crawl by its start page', () => {
-    expect(SCORING_VERSION).toBe(4);
+  it('is 5, the model with the 8.0 rule fixes', () => {
+    expect(SCORING_VERSION).toBe(5);
   });
 
   it('reports a model change as a difference', () => {
@@ -48,7 +48,7 @@ describe('the scoring model is recorded on the run', () => {
   it('renders the versions, so the report names what changed', () => {
     const [difference] = compareRunProfiles(run({ scoringVersion: 1 }), run());
     expect(difference.previous).toBe('1');
-    expect(difference.current).toBe('4');
+    expect(difference.current).toBe('5');
   });
 });
 

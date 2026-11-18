@@ -22,6 +22,7 @@ export const clsRule = defineRule({
     'Measures visual stability by checking how much the page layout shifts during loading',
   category: 'perf',
   weight: 25,
+  requiresRender: true,
   run: async (context: AuditContext) => {
     const { cwv } = context;
     const cls = cwv.cls;

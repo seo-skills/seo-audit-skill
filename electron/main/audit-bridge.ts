@@ -30,6 +30,11 @@ export const DESKTOP_CAPABILITIES: Capabilities = {
   mobileParity: false,
   simulateInteraction: false,
   persistence: true,
+  // Probes run through executeJavaScript, as on the CLI
+  imageSizing: true,
+  accessibilityEngine: true,
+  // Coverage needs the DevTools protocol through webContents.debugger: not yet
+  codeCoverage: false,
 };
 
 let session: AuditSession | null = null;

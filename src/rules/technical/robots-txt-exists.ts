@@ -1,6 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail } from '../define-rule.js';
-import { fetchUrl } from '../../crawler/fetcher.js';
+import { urlServiceFor } from '../../net/url-service.js';
 import { rethrowIfAborted } from '../../errors.js';
 
 /**
@@ -29,7 +29,7 @@ export const robotsTxtExistsRule = defineRule({
     const robotsTxtUrl = `${baseUrl}/robots.txt`;
 
     try {
-      const statusCode = await fetchUrl(robotsTxtUrl, 10000, context.signal);
+      const statusCode = (await urlServiceFor(context).status(robotsTxtUrl)).status;
 
       if (statusCode === 200) {
         return pass(

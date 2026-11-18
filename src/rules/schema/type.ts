@@ -77,9 +77,12 @@ export const structuredDataTypeRule = defineRule({
     if (jsonLdScripts.length === 0) {
       // Absence is schema-present's finding; grading it again here would
       // penalise the same gap a second time.
-      return notMeasured('schema-type', 'No JSON-LD to check (schema-present reports its absence)', {
-        found: false,
-      });
+      return notMeasured(
+        'schema-type',
+        'No JSON-LD to check (schema-present reports its absence)',
+        { found: false },
+        'not-applicable'
+      );
     }
 
     const allTypes: string[] = [];

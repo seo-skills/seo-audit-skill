@@ -33,7 +33,7 @@ export const thinVsSiteRule = defineRule({
     if (!pages || (context.site?.pageCount ?? 0) < MIN_SAMPLE) {
       return notMeasured(
         'content-thin-vs-site',
-        'Comparing length with the rest of the site needs a crawl of at least four pages'
+        'Comparing length with the rest of the site needs a crawl of at least four pages', undefined, 'needs-crawl'
       );
     }
 

@@ -7,7 +7,6 @@ import { xmlLangMismatchRule } from './a11y/xml-lang-mismatch.js';
 import { geoMetaRule } from './eeat/geo-meta.js';
 import { agentsMdRule } from './geo/agents-md.js';
 import { markdownResponseRule } from './geo/markdown-response.js';
-import { resetGeoProbes } from './geo/probe.js';
 import { rslLicenseRule } from './geo/rsl-license.js';
 import { duplicateJsRule } from './perf/duplicate-js.js';
 import { sourceMapsRule } from './perf/source-maps.js';
@@ -16,7 +15,6 @@ import { obfuscatedScriptRule } from './security/obfuscated-script.js';
 import { consentModeRule } from './technical/consent-mode.js';
 
 afterEach(() => {
-  resetGeoProbes();
   vi.unstubAllGlobals();
 });
 

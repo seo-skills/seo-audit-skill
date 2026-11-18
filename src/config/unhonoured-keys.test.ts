@@ -50,26 +50,26 @@ describe('changing an inert key says so', () => {
     expect(unhonoured(config)).toContain('crawler.follow_redirects');
   });
 
-  it('warns when per_host_concurrency is changed', () => {
+  it('no longer calls per_host_concurrency inert: the crawler honours it now', () => {
     const config = getDefaultConfig();
     config.crawler.per_host_concurrency = 4;
-    expect(unhonoured(config)).toContain('crawler.per_host_concurrency');
+    expect(unhonoured(config)).not.toContain('crawler.per_host_concurrency');
   });
 
-  it('warns for the external-link settings, which have no checker behind them', () => {
+  it('no longer calls the external-link settings inert: the link checker reads them', () => {
     const config = getDefaultConfig();
     config.external_links.enabled = false;
     config.external_links.cache_ttl_days = 30;
+    config.external_links.timeout_ms = 5000;
+    config.external_links.concurrency = 2;
 
-    const paths = unhonoured(config);
-    expect(paths).toContain('external_links.enabled');
-    expect(paths).toContain('external_links.cache_ttl_days');
+    expect(unhonoured(config).filter((path) => path.startsWith('external_links.'))).toEqual([]);
   });
 
-  it('warns when rule_options is populated', () => {
+  it('no longer calls rule_options inert: rules read it now', () => {
     const config = getDefaultConfig();
-    config.rule_options = { 'content-word-count': { min: 500 } };
-    expect(unhonoured(config)).toContain('rule_options');
+    config.rule_options = { 'technical-soft-404': { min_words: 800 } };
+    expect(unhonoured(config)).not.toContain('rule_options');
   });
 
   it('stays a warning, not an error, so the audit still runs', () => {

@@ -33,7 +33,7 @@ import { h1SingleRule } from './h1-single.js';
 import { canonicalHeaderRule } from './canonical-header.js';
 import { nosnippetRule } from './nosnippet.js';
 import { robotsMetaRule } from './robots-meta.js';
-import { titleUniqueRule, resetTitleRegistry, getTitleRegistryStats } from './title-unique.js';
+import { titleUniqueRule } from './title-unique.js';
 
 // Canonical validation rules
 import { canonicalConflictingRule } from './canonical-conflicting.js';
@@ -46,6 +46,9 @@ import { canonicalAttributesRule } from './canonical-attributes.js';
 import { canonicalMultipleRule } from './canonical-multiple.js';
 import { canonicalExternalRule } from './canonical-external.js';
 import { robotsDirectiveMismatchRule } from './robots-directive-mismatch.js';
+import { unavailableAfterRule } from './unavailable-after.js';
+import { obsoleteRobotsDirectivesRule } from './obsolete-robots-directives.js';
+import { canonicalFragmentRule } from './canonical-fragment.js';
 
 // Export all rules
 export {
@@ -80,7 +83,6 @@ export {
 };
 
 // Export utility functions
-export { resetTitleRegistry, getTitleRegistryStats };
 
 // Register all rules
 registerRule(titlePresentRule);
@@ -107,3 +109,6 @@ registerRule(canonicalAttributesRule);
 registerRule(canonicalMultipleRule);
 registerRule(canonicalExternalRule);
 registerRule(robotsDirectiveMismatchRule);
+registerRule(unavailableAfterRule);
+registerRule(obsoleteRobotsDirectivesRule);
+registerRule(canonicalFragmentRule);

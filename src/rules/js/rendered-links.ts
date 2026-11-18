@@ -14,6 +14,7 @@ export const renderedLinksRule = defineRule({
   description: 'Checks if important links are only present after JavaScript rendering',
   category: 'js',
   weight: 7,
+  requiresRender: true,
   run: async (context: AuditContext) => {
     const rendered$ = (context as any).rendered$;
 

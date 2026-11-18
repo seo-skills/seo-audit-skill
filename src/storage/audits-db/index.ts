@@ -242,6 +242,46 @@ export class AuditsDatabase {
   /**
    * Insert rule results
    */
+  /** One row per page: a crawl's Link Scores, too many for the extras row */
+  insertLinkScores(auditId: number, scores: Record<string, number>): void {
+    const insert = this.db.prepare('INSERT INTO audit_link_scores (audit_id, url, score) VALUES (?, ?, ?)');
+    for (const [url, score] of Object.entries(scores)) insert.run(auditId, url, score);
+  }
+
+  /** Every value the run's extractions pulled, one row per value */
+  insertCustomValues(auditId: number, extractions: Array<{ name: string; pages: Array<{ url: string; values: string[] }> }>): void {
+    const insert = this.db.prepare(
+      'INSERT INTO audit_custom_values (audit_id, extraction, url, position, value) VALUES (?, ?, ?, ?, ?)'
+    );
+    for (const extraction of extractions) {
+      for (const page of extraction.pages) {
+        page.values.forEach((value, position) => insert.run(auditId, extraction.name, page.url, position, value));
+      }
+    }
+  }
+
+  /** A stored audit's extracted values, grouped as the run reported them */
+  getCustomValues(auditId: number): Map<string, Array<{ url: string; values: string[] }>> {
+    const rows = this.db
+      .prepare('SELECT extraction, url, value FROM audit_custom_values WHERE audit_id = ? ORDER BY rowid')
+      .all(auditId) as Array<{ extraction: string; url: string; value: string }>;
+    const byName = new Map<string, Array<{ url: string; values: string[] }>>();
+    for (const row of rows) {
+      const pages = byName.get(row.extraction) ?? [];
+      const last = pages[pages.length - 1];
+      if (last && last.url === row.url) last.values.push(row.value);
+      else pages.push({ url: row.url, values: [row.value] });
+      byName.set(row.extraction, pages);
+    }
+    return byName;
+  }
+
+  /** A stored audit's Link Scores by page URL; empty when it has none */
+  getLinkScores(auditId: number): Record<string, number> {
+    const rows = this.db.prepare('SELECT url, score FROM audit_link_scores WHERE audit_id = ?').all(auditId) as Array<{ url: string; score: number }>;
+    return Object.fromEntries(rows.map((row) => [row.url, row.score]));
+  }
+
   insertResults(auditId: number, resultInputs: InsertResultInput[]): number {
     return results.insertResults(this.db, auditId, resultInputs);
   }

@@ -55,6 +55,8 @@ export function aggregateCategory(category: CategoryResult, auditUrl: string): R
     }
 
     summary.totalPages++;
+    if (result.advisory) summary.advisory = true;
+    if (result.overridden) summary.overridden = result.overridden;
     if (!measured) continue;
 
     summary.measuredPages++;
@@ -71,13 +73,21 @@ export function aggregateCategory(category: CategoryResult, auditUrl: string): R
     const top = worst.get(ruleId);
     if (summary.notMeasured) {
       // Exactly what notMeasured() produces live, and what the SQL read gives
-      // back: a warning-shaped placeholder that scores nothing.
-      summary.status = 'warn';
+      // back: not measured, scoring nothing. Its status says so outright, so
+      // no surface shows it as a warning.
+      summary.status = 'not-measured';
       summary.score = 50;
       summary.weight = 0;
       const any = category.results.find((r) => r.ruleId === ruleId);
       summary.message = any?.message ?? '';
       if (any?.details) summary.details = any.details;
+      // The SQL read keeps the largest recorded reason; do the same here so
+      // memory and disk agree.
+      const reasons = category.results
+        .filter((r) => r.ruleId === ruleId && r.reason)
+        .map((r) => r.reason!)
+        .sort();
+      if (reasons.length > 0) summary.reason = reasons[reasons.length - 1];
     } else if (top) {
       summary.status = top.status;
       summary.score = top.score;
@@ -113,6 +123,7 @@ export function aggregateCategory(category: CategoryResult, auditUrl: string): R
       status: summary.status,
       affectedPages: summary.affectedPages,
       measuredPages: summary.measuredPages,
+      ...(summary.overridden?.priority && { override: summary.overridden.priority }),
     });
   }
 

@@ -2,7 +2,7 @@
 
 > **Type:** Reference
 
-This is the catalog of every check SEOmator runs: **373 rules** across **20 categories**. For each rule it lists the ID, the name reports print, the rule's weight, the result it gives when it finds a problem, and what it checks. Rules that need more than one line also have a details entry below their category table. The rule IDs are the values that `[rules] enable` and `[rules] disable` in `seomator.toml` match.
+This is the catalog of every check SEOmator runs: **398 rules** across **20 categories**. For each rule it lists the ID, the name reports print, the rule's weight, the result it gives when it finds a problem, and what it checks. Rules that need more than one line also have a details entry below their category table. The rule IDs are the values that `[rules] enable` and `[rules] disable` in `seomator.toml` match.
 
 ## How to read this reference
 
@@ -17,7 +17,7 @@ Every rule returns one result for each audited page.
 | `fail` | 0 | Counts at the rule's weight |
 | `not-measured` | none | Weight 0: left out of every average |
 
-A rule reports `not-measured` when its input is missing: the audit skipped the browser render (it runs only with `--cwv`), the check compares pages and the audit was not a crawl, or the page has nothing for the rule to grade. In JSON output such a result still carries `"score": 50`, next to `"weight": 0`, and the weight keeps it out of the score. A rule that throws an error is recorded as `fail`.
+A rule reports `not-measured` when its input is missing: the audit skipped the browser render (it runs only with `--cwv`), the check compares pages and the audit was not a crawl, or the page has nothing for the rule to grade. In JSON output such a result still carries `"score": 50`, next to `"weight": 0`, and the weight keeps it out of the score. A rule that throws an error is recorded as `not-measured`, with reason `rule-error`.
 
 To read individual results, filter the JSON report by rule ID:
 
@@ -91,7 +91,7 @@ The ID is the value `-c` takes and the prefix of every rule ID in the category. 
 
 <a id="core"></a>
 
-### Core (24 rules)
+### Core (27 rules)
 
 Essential SEO checks for meta tags, canonical URLs, H1 headings, and indexing directives.
 
@@ -121,6 +121,9 @@ Essential SEO checks for meta tags, canonical URLs, H1 headings, and indexing di
 | `core-canonical-multiple` | Multiple Canonical Tags | 6 | warn/fail | Detects multiple canonical elements in the HTML and whether they agree |
 | `core-robots-directive-mismatch` | Robots Directive Mismatch | 5 | warn/fail | Checks robots directives in meta tags and the X-Robots-Tag header are consistent |
 | `core-canonical-external` | Canonical Points To External URL | 1 | pass only | Reports when the canonical URL points to a different host (insight; legitimate for syndication) |
+| `core-unavailable-after` | Unavailable-After Date | 10 (advisory) | warn/fail | Checks robots `unavailable_after` dates: a past date removes the page from search results |
+| `core-obsolete-robots-directives` | Obsolete Robots Directives | 2 (advisory) | warn | Flags robots directives no search engine reads any more (`noodp`, `noydir`) |
+| `core-canonical-fragment` | Canonical Without Fragment | 5 (advisory) | warn | Checks that the canonical URL has no `#fragment`, which search engines ignore |
 
 #### core-title-present
 - **What it checks:** A non-empty `<title>` element exists. A `<title>` inside inline SVG does not count. A missing or empty title fails.
@@ -209,11 +212,23 @@ Essential SEO checks for meta tags, canonical URLs, H1 headings, and indexing di
 - **What it checks:** Insight-level: the canonical URL points to a different host. Cross-domain canonicals are the legitimate mechanism for content syndication and consolidating duplicates across owned domains, but the page cedes its ranking signals to the other host. Always passes; the finding travels in the message so the intent can be confirmed
 - **Fix:** No action required; verify the external canonical target is deliberate
 
+#### core-unavailable-after
+- **What it checks:** `unavailable_after` in a `robots` or `googlebot` meta tag, or in an X-Robots-Tag header that applies to Google. Dates in RFC 822, RFC 850 and ISO 8601 form are read. A date that has passed fails: Google no longer shows the page, the same outcome as noindex. A date within 30 days warns, a date it cannot read warns, a later date passes with the date in the details. Pages without the directive are not measured. Advisory: reported, not scored yet
+- **Fix:** Remove the directive, or move its date, if the page should stay in search results
+
+#### core-obsolete-robots-directives
+- **What it checks:** `noodp` and `noydir` in any robots meta tag or X-Robots-Tag. They kept web-directory descriptions out of snippets, and the directories closed years ago. Pages with no robots directives are not measured. Advisory
+- **Fix:** Remove them
+
+#### core-canonical-fragment
+- **What it checks:** A canonical URL, in the element or the HTTP `Link` header, containing `#`. Search engines drop the fragment, so `/page#section` and a hash-bang `/#!/page` both point at the bare URL. Pages without a canonical are not measured. Advisory
+- **Fix:** Point the canonical at a URL without `#`
+
 ---
 
 <a id="perf"></a>
 
-### Performance (28 rules)
+### Performance (30 rules)
 
 Core Web Vitals measurements and static performance optimization hints.
 
@@ -236,6 +251,8 @@ Core Web Vitals measurements and static performance optimization hints.
 | `perf-cache-policy` | Cache Policy | 7 | warn | Checks the page response for caching headers (Cache-Control, ETag, Last-Modified, Expires); none at all warns |
 | `perf-minify-css` | Minify Inline CSS | 5 | warn | Checks inline CSS is minified; with render data, also flags large external stylesheets lacking a `.min.` URL marker (heuristic) |
 | `perf-minify-js` | Minify Inline JS | 5 | warn | Checks inline JavaScript is minified; with render data, also flags large external scripts lacking a `.min.` URL marker (heuristic) |
+| `perf-unused-js` | Unused JavaScript | 5 (advisory) | warn/fail | Needs `--cwv` (CLI and web; not the desktop app). JavaScript each file loads but does not run during load: a file wasting 20 KiB warns, 250 KiB in total fails; top ten listed, first- or third-party |
+| `perf-unused-css` | Unused CSS | 5 (advisory) | warn/fail | Needs `--cwv`. CSS no element on the page uses, by stylesheet, with the same thresholds |
 | `perf-asset-cache-policy` | Static Asset Cache Policy | 6 | warn | Per-asset check: static CSS/JS/image/font responses carry a cache-control max-age of at least 1 hour (requires render; not measured without --cwv) |
 | `perf-asset-compression` | Text Asset Compression | 6 | warn | Per-asset check: text-based assets over 2KB are served with gzip/Brotli (requires render; not measured without --cwv) |
 | `perf-image-encoding` | Efficient Image Encoding | 6 | warn/fail | Per-asset check: images transferred over 100KB (warn) or served in legacy BMP/TIFF formats (fail) (requires render; not measured without --cwv) |
@@ -368,7 +385,7 @@ Analyzes internal and external links, anchor text, broken links, and link qualit
 - **Fix:** Update or remove links returning 404. Point to correct destination URLs.
 
 #### links-external-valid
-- **What it checks:** The first 20 external links on the page, each with HEAD and then GET when HEAD fails. A 4xx, a 5xx or no answer warns. Results are not cached between audits.
+- **What it checks:** Every external link on the page. The run checks each target once (HEAD, then GET when HEAD fails) before rules run, so a link on many pages is one request. A target that is gone (404, 410, another 5xx, a domain that does not resolve) warns. A refusal (401, 403, 429, 999) or no answer is listed as could not verify and never changes the status. Settled answers are cached for `[external_links] cache_ttl_days`; `audit --refresh` checks again. Options: `max_urls` (2000) and `max_seconds` (300) bound a crawl's checks; a single page gets 30 seconds.
 - **Fix:** Fix or remove dead external links.
 
 #### links-anchor-text
@@ -415,7 +432,7 @@ Analyzes internal and external links, anchor text, broken links, and link qualit
 
 <a id="images"></a>
 
-### Images (14 rules)
+### Images (15 rules)
 
 Checks alt attributes, dimensions, lazy loading, optimization, and accessibility.
 
@@ -429,6 +446,7 @@ Checks alt attributes, dimensions, lazy loading, optimization, and accessibility
 | `images-size` | Image File Size | 10 | warn | Flags images that look oversized from filename hints or declared dimensions; file sizes are not fetched |
 | `images-responsive` | Responsive Images | 10 | warn | Checks srcset for responsive images |
 | `images-broken` | No Broken Images | 15 | fail | Checks images don't return 404 |
+| `images-oversized-delivery` | Images Sized For Display | 5 (advisory) | warn/fail | Needs `--cwv`. Each image against the largest box it is shown in, at a 2x pixel ratio: waste over 4 KiB warns, over 200 KiB in total fails |
 | `images-figure-captions` | Figure Captions | 5 | warn | Checks figure elements have figcaption |
 | `images-filename-quality` | Image Filename Quality | 5 | warn | Checks for descriptive image filenames |
 | `images-inline-svg-size` | Inline SVG Size | 5 | warn | Checks inline SVGs aren't too large (>5KB) |
@@ -578,7 +596,7 @@ Validates HTTPS, security headers, mixed content, SSL, and leaked secrets.
 
 <a id="technical"></a>
 
-### Technical SEO (18 rules)
+### Technical SEO (19 rules)
 
 Validates robots.txt, sitemap, status codes, URL structure, and analytics tag setup.
 
@@ -592,6 +610,7 @@ Validates robots.txt, sitemap, status codes, URL structure, and analytics tag se
 | `technical-trailing-slash` | Trailing Slash Consistency | 1 | warn | Warns when one internal path is linked both with and without a trailing slash |
 | `technical-www-redirect` | WWW Redirect | 1 | warn/fail | Validates www/non-www consistency |
 | `technical-404-page` | Custom 404 Page | 1 | warn/fail | Checks for custom 404 page |
+| `technical-amp-pairing` | AMP Pairing | 5 (advisory) | warn/fail | An `amphtml` page that does not load, or names no canonical back, fails; one indexable on its own warns |
 | `technical-soft-404` | Soft 404 Detection | 10 | fail | Detects pages returning 200 but showing error content |
 | `technical-server-error` | Server Error Detection | 10 | fail | Detects 5xx server errors |
 | `technical-4xx-non-404` | 4xx Client Error Detection | 8 | warn/fail | Detects 4xx errors other than 404 (403, 410, etc.) |
@@ -648,7 +667,7 @@ Validates robots.txt, sitemap, status codes, URL structure, and analytics tag se
 
 <a id="crawl"></a>
 
-### Crawlability (38 rules)
+### Crawlability (39 rules)
 
 Validates indexability signals, sitemap conflicts, canonical chains, and pagination.
 
@@ -666,6 +685,7 @@ The cross-page rules (`crawl-sitemap-orphan-urls`, `crawl-pagination-isolated`, 
 | `crawl-sitemap-size-limit` | Sitemap Size Limit | 5 | warn/fail | A sitemap file is over 40 MB (warn) or 50 MB (fail) uncompressed; each file behind an index is judged on its own |
 | `crawl-sitemap-duplicate-urls` | Sitemap Duplicate URLs | 6 | warn | A page URL appears more than once across the fetched sitemap files |
 | `crawl-sitemap-orphan-urls` | Sitemap Orphan URLs | 7 | warn | Sitemap URLs not linked from any crawled page (requires --crawl) |
+| `crawl-indexable-not-in-sitemap` | Indexable Page In Sitemap | 5 (advisory) | warn | Crawl: a 200, indexable, self-canonical page missing from the sitemap. Not measured when the sitemap was read only in part |
 | `crawl-blocked-resources` | Blocked Resources | 7 | warn | CSS/JS blocked by robots.txt |
 | `crawl-blocked-images` | Blocked Images | 7 | fail | Image URLs disallowed by robots.txt cannot be crawled for image indexing |
 | `crawl-crawl-delay` | Crawl Delay | 5 | warn | Crawl-delay above 10 seconds for `*`, Googlebot or Bingbot in robots.txt |
@@ -990,7 +1010,7 @@ Analyzes text quality, readability, headings, and duplicate content.
 
 <a id="js"></a>
 
-### JavaScript Rendering (16 rules)
+### JavaScript Rendering (17 rules)
 
 Compares the served HTML with the DOM after JavaScript runs, and checks the render for errors and failed requests.
 
@@ -1009,6 +1029,7 @@ Compares the served HTML with the DOM after JavaScript runs, and checks the rend
 | `js-rendered-links` | Rendered Links Dependency | 7 | warn | JavaScript adds most links: the rendered `a[href]` count is over double the source count and more than 10 higher (requires render; not measured without --cwv) |
 | `js-blocked-resources` | Blocked JavaScript Resources | 7 | warn | Same-host scripts disallowed for `User-agent: *` in robots.txt; stylesheets are not checked |
 | `js-ssr-check` | Server-Side Rendering Check | 10 | warn/fail | Checks if server-side rendering is implemented |
+| `js-ajax-crawling-scheme` | AJAX Crawling Scheme | 5 (advisory) | fail | Internal `#!` links or `<meta name="fragment" content="!">`: Google stopped supporting the scheme in 2018 |
 | `js-console-errors` | JavaScript Console Errors | 8 | warn/fail | Uncaught exceptions (fail) and console errors (warn) captured while rendering (requires render; not measured without --cwv) |
 | `js-failed-requests` | Failed Resource Requests | 8 | warn/fail | Subresources that failed to load while rendering; a failed script, stylesheet, document, fetch or XHR fails (requires render; not measured without --cwv) |
 | `js-document-write` | No document.write() | 7 | warn | Inline scripts do not use `document.write()` |
@@ -1042,14 +1063,14 @@ Compares the served HTML with the DOM after JavaScript runs, and checks the rend
 
 <a id="a11y"></a>
 
-### Accessibility (36 rules)
+### Accessibility (46 rules)
 
 Checks for WCAG compliance, screen reader support, and keyboard navigation.
 
 | Rule ID | Name | Weight | Severity | Description |
 |---------|------|-------:|----------|-------------|
 | `a11y-aria-labels` | ARIA Labels | 10 | warn/fail | Interactive elements have accessible names |
-| `a11y-color-contrast` | Color Contrast | 8 | warn | Heuristic check of inline-style colours for likely low contrast; not measured when no element has an inline colour |
+| `a11y-color-contrast` | Color Contrast | 8 | warn/fail | With `--cwv`, axe-core's measured contrast (serious violations fail). Without, a heuristic check of inline-style colours that warns; not measured when no element has an inline colour |
 | `a11y-focus-visible` | Focus Visible | 8 | warn/fail | Checks for focus indicator styles |
 | `a11y-form-labels` | Form Labels | 10 | warn/fail | Form inputs have associated labels |
 | `a11y-heading-order` | Heading Order | 8 | warn/fail | Heading levels don't skip |
@@ -1057,9 +1078,19 @@ Checks for WCAG compliance, screen reader support, and keyboard navigation.
 | `a11y-link-text` | Link Text | 8 | warn/fail | Descriptive link text |
 | `a11y-skip-link` | Skip Link | 6 | warn | Skip-to-content link present |
 | `a11y-table-headers` | Table Headers | 6 | warn/fail | Data tables have proper headers |
-| `a11y-touch-targets` | Touch Targets | 6 | warn | Minimum 44x44px touch target size |
+| `a11y-touch-targets` | Touch Targets | 6 | warn/fail | With `--cwv`, axe-core's `target-size` on the laid-out page. Without, minimum 44x44px sizing hints in the source |
 | `a11y-video-captions` | Video Captions | 8 | warn/fail | Videos have captions or transcripts |
 | `a11y-zoom-disabled` | Zoom Disabled | 10 | fail | Viewport doesn't disable user zoom |
+| `a11y-axe-names` | Accessible Names (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for names and labels: area alt, role="img", summary, dialog, meter, progressbar, tooltip, treeitem and tab names. Serious or critical fails |
+| `a11y-axe-landmarks` | Landmarks (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for landmarks: content outside landmarks, banner/contentinfo/main nesting and duplicates. Serious or critical fails |
+| `a11y-axe-keyboard` | Keyboard and Focus (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for keyboard and focus: scrollable regions and frames reachable by keyboard, nested interactive controls. Serious or critical fails |
+| `a11y-axe-tables` | Tables (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for tables: empty headers, invalid scope, duplicate captions. Serious or critical fails |
+| `a11y-axe-lists` | Lists (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for definition lists. Serious or critical fails |
+| `a11y-axe-media` | Media and Motion (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for autoplaying audio, blink, marquee. Serious or critical fails |
+| `a11y-axe-frames` | Frames (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for frames: unique titles, testable content. Serious or critical fails |
+| `a11y-axe-aria` | ARIA Validity (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for ARIA attributes and roles each element allows, required attributes, valid values. Serious or critical fails |
+| `a11y-axe-language` | Document Language (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for a valid lang value on html. Serious or critical fails |
+| `a11y-axe-other` | Other Accessibility (axe) | 3 (advisory) | warn/fail | Needs `--cwv`. axe-core violations for every other axe rule no SEOmator rule covers, such as link-in-text-block. Serious or critical fails |
 | `a11y-aria-hidden-focusable` | aria-hidden Not Over Focusable Content | 4 | fail | aria-hidden not on body or wrapping focusable elements |
 | `a11y-aria-valid` | Valid ARIA Roles and Attributes | 5 | fail | ARIA roles exist and aria-* attributes are spelled correctly |
 | `a11y-accesskey-unique` | Unique Access Keys | 2 | warn | No accesskey assigned to more than one element |
@@ -1085,11 +1116,16 @@ Checks for WCAG compliance, screen reader support, and keyboard navigation.
 | `a11y-tabindex-positive` | No Positive Tabindex | 3 | warn | No element uses a tabindex greater than 0 |
 | `a11y-valid-lang-element` | Valid Element Language Tags | 2 | warn | Element lang attributes are well-formed BCP 47 |
 
+#### a11y-axe-* (ten rules)
+- **What they check:** With `--cwv`, axe-core (the accessibility engine browsers' dev tools use) runs in the rendered page with every rule except experimental and deprecated ones, and reports violations only; its "needs review" results are left out. An axe rule that an existing SEOmator rule already answers is reported there (`image-alt` under `images-alt-present`, `color-contrast` under `a11y-color-contrast`, and so on); the rest are grouped by area, each finding naming the axe rule, its impact, its WCAG tags and example elements. Serious or critical violations fail, others warn. Without a render they are not measured. Advisory
+- **Configure:** leave known exceptions out with `[rule_options."a11y-axe-landmarks"] disable_axe_rules = ["region"]`
+- **Fix:** Follow the help link in each finding
+
 #### a11y-aria-labels
 - **Fix:** Add `aria-label`, visible text content, or `title` to interactive elements (buttons, links, inputs).
 
 #### a11y-color-contrast
-- **What it checks:** Inline `style` colours only, by heuristic: text and background colour names from a known low-contrast list (such as yellow on white), light grey text, and text over a `background-image` with no `background-color`. It computes no contrast ratio. Not measured when no element has an inline colour or background image.
+- **What it checks:** With `--cwv`, axe-core's `color-contrast` result on the rendered page, from computed colours: no violation passes, a serious or critical one fails, any other warns. Without a render, inline `style` colours only, by heuristic: text and background colour names from a known low-contrast list (such as yellow on white), light grey text, and text over a `background-image` with no `background-color`. The heuristic computes no contrast ratio, and is not measured when no element has an inline colour or background image.
 - **Fix:** Ensure minimum 4.5:1 contrast ratio for normal text, 3:1 for large text.
 
 #### a11y-focus-visible
@@ -1115,7 +1151,7 @@ Checks for WCAG compliance, screen reader support, and keyboard navigation.
 - **Fix:** Use `<th scope="col">` for column headers, `<th scope="row">` for row headers.
 
 #### a11y-touch-targets
-- **What it checks:** A heuristic, not a rendered measurement: inline `width` or `height` on links, buttons and other focusable controls; `<style>` rules that size `a`, `button`, `.btn` or `role=button` under 44px; images inside links or buttons with `width` or `height` under 44; and icon-only controls with inline padding under 10px.
+- **What it checks:** With `--cwv`, axe-core's `target-size` result on the laid-out page, judged as for `a11y-color-contrast`. Without a render, a heuristic, not a rendered measurement: inline `width` or `height` on links, buttons and other focusable controls; `<style>` rules that size `a`, `button`, `.btn` or `role=button` under 44px; images inside links or buttons with `width` or `height` under 44; and icon-only controls with inline padding under 10px.
 - **Fix:** Ensure interactive elements are at least 44x44 CSS pixels (WCAG 2.5.5 Target Size, Level AAA). The Level AA minimum in WCAG 2.5.8 is 24x24.
 
 #### a11y-video-captions
@@ -1189,7 +1225,7 @@ Checks for WCAG compliance, screen reader support, and keyboard navigation.
 
 <a id="social"></a>
 
-### Social (9 rules)
+### Social (13 rules)
 
 Validates Open Graph, Twitter Cards, and social sharing metadata.
 
@@ -1198,7 +1234,11 @@ Validates Open Graph, Twitter Cards, and social sharing metadata.
 | `social-og-title` | Open Graph Title | 1 | warn/fail | `og:title` tag with content. Missing or empty fails; declared with `name=` instead of `property=` warns |
 | `social-og-description` | Open Graph Description | 1 | warn/fail | `og:description` tag with content. Missing or empty fails; declared with `name=` instead of `property=` warns |
 | `social-og-image` | Open Graph Image | 1 | warn/fail | `og:image` tag with an absolute http(s) URL. Missing or empty fails; any other URL, or a `name=` declaration, warns |
-| `social-og-image-size` | Open Graph Image Size | 1 | warn/fail | Declared `og:image:width` and `og:image:height`: missing tags or under 1200x630 warn; under 200x200, or no `og:image`, fails |
+| `social-og-image-size` | Open Graph Image Size | 1 | warn | Declared `og:image:width` and `og:image:height` match the real size of the fetched image; a mismatch warns |
+| `social-og-image-reachable` | Share Image Loads | 5 (advisory) | warn/fail | Fetches `og:image` and `twitter:image`: unreachable, not an image, over 5 MB or under 600x315 fails; under 1200x630 or off 1.91:1 warns |
+| `social-meta-multiple` | Social Meta Declared Once | 2 (advisory) | warn | The same `og:*` or `twitter:*` property declared twice with different values (arrays such as `og:image` excepted) |
+| `social-twitter-attribute` | Twitter Card Attribute | 1 (advisory) | warn | `twitter:*` declared with `property=` instead of `name=` |
+| `social-duplicate-og` | Unique Share Title and Description | 3 (advisory) | warn | Crawl: `og:title` or `og:description` shared with other indexable pages |
 | `social-og-url` | Open Graph URL | 1 | warn/fail | `og:url` tag with an absolute http(s) URL. Missing or empty fails; any other URL, or a `name=` declaration, warns |
 | `social-og-url-canonical` | Open Graph URL Matches Canonical | 1 | warn/fail | `og:url` matches the canonical URL. A mismatch, or a canonical with no `og:url`, fails; `og:url` alone, or neither, warns |
 | `social-twitter-card` | Twitter Card | 1 | warn/fail | `twitter:card` tag with a known type (summary, summary_large_image, app, player). Missing or empty fails; an unknown type warns |
@@ -1210,7 +1250,16 @@ Validates Open Graph, Twitter Cards, and social sharing metadata.
 - **Fix:** Add `<meta property="og:title">`, `og:description`, and `og:image` (1200x630px) for social sharing.
 
 #### social-og-image-size
-- **Fix:** Add `og:image:width` (1200) and `og:image:height` (630) meta tags.
+- **What it checks:** When the page declares `og:image:width` or `og:image:height`, the declared size against the real pixel size read from the image. A mismatch warns; values that are not whole pixel counts warn. Not measured when nothing is declared or the image cannot be read; whether the image is large enough is `social-og-image-reachable`'s check
+- **Fix:** Set the declared size to the image's real size.
+
+#### social-og-image-reachable
+- **What it checks:** Fetches the first 64 KB of `og:image`, and of `twitter:image` when it names a different image, once per run however many pages share it. Fails when the image does not load (same host: not 200 or 206; another host: gone), is not an image, or is over 5 MB (size from `Content-Length`, or the `Content-Range` total of a 206). Reads the pixel size of PNG, JPEG, GIF and WebP: under 600x315 fails, under 1200x630 or more than 5% off 1.91:1 warns. A `summary` Twitter card is judged as a square, 144x144 at least. AVIF and SVG sizes are not read; their other checks still apply. A server that refuses the request, or no answer, is not measured. Advisory
+- **Fix:** Serve a JPEG or PNG of at least 1200x630 and under 5 MB.
+
+#### social-meta-multiple / social-twitter-attribute / social-duplicate-og
+- **What they check:** A property declared more than once with different values (platforms pick differently; `og:image` and its structured properties, `og:video*`, `og:audio*`, `og:locale:alternate`, `article:tag` and `article:author` are arrays and allowed). `twitter:*` written with `property=`, which X reads but the card markup does not specify. In a crawl, `og:title` or `og:description` shared with other pages a search engine would index. All advisory
+- **Fix:** One tag per property, `name=` for Twitter tags, and share text written for each page.
 
 #### social-og-url / social-og-url-canonical
 - **What it checks:** `social-og-url` applies the same presence, `name=` and absolute-URL checks as `og:image`. `social-og-url-canonical` compares `og:url` with the canonical after lowercasing the host and dropping a trailing slash: a mismatch, or a canonical with no `og:url`, fails; `og:url` with no canonical, or neither tag, warns.
@@ -1431,7 +1480,7 @@ Validates redirect implementation, types, and common redirect issues.
 
 <a id="mobile"></a>
 
-### Mobile (12 rules)
+### Mobile (13 rules)
 
 Mobile-friendliness checks for font size, viewport, and responsive layout.
 
@@ -1448,6 +1497,7 @@ Mobile-friendliness checks for font size, viewport, and responsive layout.
 | `mobile-parity-structured-data` | Mobile Structured Data Parity | 8 | fail | JSON-LD present on mobile as on desktop (requires --cwv --mobile) |
 | `mobile-parity-links` | Mobile Internal Link Parity | 6 | warn | Mobile shows at least half as many links as desktop; counts every `a[href]` except fragments and `javascript:` (requires --cwv --mobile) |
 | `mobile-image-maps` | Image Maps | 8 | warn | Detects `<map>`/`<area>` image maps, whose fixed-coordinate tap targets do not adapt to mobile screens |
+| `mobile-separate-urls` | Separate Mobile URL | 5 (advisory) | warn/fail | A mobile alternate (`max-width` up to 640px) that does not load fails; one without a canonical back to this page warns |
 | `mobile-viewport-content` | Viewport Meta Content | 10 | warn | Validates viewport directives: width present, initial-scale=1, no minimum-scale |
 
 #### mobile-font-size
@@ -1549,7 +1599,7 @@ Checks language declarations and multi-language hreflang implementation.
 
 <a id="htmlval"></a>
 
-### HTML Validation (11 rules)
+### HTML Validation (12 rules)
 
 Validates HTML document structure, DOCTYPE, charset, and common markup issues.
 
@@ -1566,6 +1616,7 @@ Validates HTML document structure, DOCTYPE, charset, and common markup issues.
 | `htmlval-multiple-descriptions` | Single Meta Description | 10 | fail | Detects multiple meta description tags |
 | `htmlval-title-outside-head` | Title Element Inside Head | 12 | fail | Detects `<title>` elements placed outside of `<head>` |
 | `htmlval-base-url` | Valid Base URL | 6 | warn/fail | Checks the document has at most one `<base>` element with a valid href |
+| `htmlval-body-structure` | Document Structure | 5 (advisory) | fail | Raw source: a second `<body>`, a `<body>` before `<html>`, or content between `<html>` and `<head>` |
 
 #### htmlval-missing-doctype
 - **Fix:** Add `<!DOCTYPE html>` as the first line of every HTML document.
@@ -1717,7 +1768,7 @@ seomator audit https://example.com -c core,perf,links
 ## Score Calculation
 
 1. Each rule returns a score: **0** (fail), **50** (warn), or **100** (pass)
-2. Category score = weighted average of rule scores within that category
+2. Category score = weighted average of rule scores within that category. Not-measured results and advisory rules are left out
 3. Overall score = weighted sum of category scores (using category weights)
 4. In a single-page audit, a page-level condition caps the overall score while
    it holds: `noindex` for Google or a robots.txt disallow (20), no `<title>` and

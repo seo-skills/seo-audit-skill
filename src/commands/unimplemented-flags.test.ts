@@ -22,40 +22,40 @@ afterEach(() => vi.restoreAllMocks());
 describe('a caller who passes one is told it does nothing', () => {
   it('warns for --refresh', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
-    warnUnimplementedFlags({ refresh: true });
+    warnUnimplementedFlags({ refresh: true }, 'crawl');
     expect(err).toHaveBeenCalledWith(expect.stringContaining('--refresh'));
     expect(err).toHaveBeenCalledWith(expect.stringContaining('no effect'));
   });
 
   it('warns for --resume', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
-    warnUnimplementedFlags({ resume: true });
+    warnUnimplementedFlags({ resume: true }, 'crawl');
     expect(err).toHaveBeenCalledWith(expect.stringContaining('--resume'));
   });
 
   it('warns once per flag when both are passed', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
-    warnUnimplementedFlags({ refresh: true, resume: true });
+    warnUnimplementedFlags({ refresh: true, resume: true }, 'crawl');
     expect(err).toHaveBeenCalledTimes(2);
   });
 
   it('says nothing when neither is passed', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
-    warnUnimplementedFlags({ verbose: true, crawl: false });
+    warnUnimplementedFlags({ verbose: true, crawl: false }, 'crawl');
     expect(err).not.toHaveBeenCalled();
   });
 
   it('does not fire on a falsy value, which is the default', () => {
     // Commander defaults both to false, so every run carries the key.
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
-    warnUnimplementedFlags({ refresh: false, resume: false });
+    warnUnimplementedFlags({ refresh: false, resume: false }, 'crawl');
     expect(err).not.toHaveBeenCalled();
   });
 
   it('warns on stderr, so a redirected report is still only the report', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
-    warnUnimplementedFlags({ refresh: true });
+    warnUnimplementedFlags({ refresh: true }, 'crawl');
     expect(err).toHaveBeenCalled();
     expect(log).not.toHaveBeenCalled();
   });
@@ -66,8 +66,10 @@ describe('the flags are not advertised', () => {
 
   it('registers them hidden rather than as documented options', () => {
     // A `.option('-r, --refresh', 'Ignore cache, ...')` line is what put a
-    // promise of caching into `--help` on two commands.
-    expect(cli).not.toMatch(/\.option\(\s*'-r, --refresh'/);
+    // promise of caching into `--help` on two commands. `audit --refresh` is
+    // real now (it bypasses the link cache), so only `audit` documents it.
+    expect(cli.match(/\.option\(\s*'-r, --refresh'/g)).toHaveLength(1);
+    expect(cli).toMatch(/\.option\('-r, --refresh', 'Check every external link again/);
     expect(cli).not.toMatch(/\.option\(\s*'--resume'/);
     expect(cli).toMatch(/hideHelp\(\)/);
   });
@@ -77,6 +79,13 @@ describe('the flags are not advertised', () => {
     // option" on a command line that used to work.
     expect(cli).toMatch(/new Option\('-r, --refresh'\)/);
     expect(cli).toMatch(/new Option\('--resume'\)/);
+  });
+
+  it('does not call --refresh a no-op where it is implemented', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    warnUnimplementedFlags({ refresh: true, resume: true }, 'audit');
+    expect(err).toHaveBeenCalledTimes(1);
+    expect(err).toHaveBeenCalledWith(expect.stringContaining('--resume'));
   });
 
   it('keeps both flags in one list, so neither is half-removed', () => {
@@ -109,7 +118,8 @@ describe('the docs do not teach them either', () => {
     if (!existsSync(path)) return;
     const text = readFileSync(path, 'utf8');
 
-    for (const { flags } of UNIMPLEMENTED_FLAGS) {
+    // The docs describe `audit`; `--refresh` is real there and may be taught
+    for (const { flags } of UNIMPLEMENTED_FLAGS.filter((f) => f.on.includes('audit'))) {
       const flag = flags.split(', ').pop()!;
       const lines = text
         .split('\n')

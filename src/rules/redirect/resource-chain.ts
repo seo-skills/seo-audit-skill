@@ -22,6 +22,7 @@ export const resourceChainRedirectRule = defineRule({
   description: 'Checks that page resources do not resolve through multi-hop redirect chains',
   category: 'redirect',
   weight: 8,
+  requiresRender: true,
   run: (context: AuditContext) => {
     const assets = context.assets;
 

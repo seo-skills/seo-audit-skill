@@ -1,6 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
-import { fetchPage } from '../../crawler/fetcher.js';
+import { getText } from '../../net/url-service.js';
 
 /**
  * Extracts the base URL (origin) from a full URL
@@ -135,7 +135,7 @@ export const robotsTxtValidRule = defineRule({
     const robotsTxtUrl = `${baseUrl}/robots.txt`;
 
     try {
-      const result = await fetchPage(robotsTxtUrl);
+      const result = await getText(context, robotsTxtUrl);
 
       if (result.statusCode !== 200) {
         return warn(

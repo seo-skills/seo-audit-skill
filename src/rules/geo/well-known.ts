@@ -37,7 +37,7 @@ export const wellKnownAgentRule = defineRule({
 
     const found: string[] = [];
     for (const path of MANIFESTS) {
-      const result = await probeOnce(`${origin}${path}`, {}, context.signal);
+      const result = await probeOnce(context, `${origin}${path}`, {});
       if (result && result.status === 200 && !looksLikeHtml(result)) found.push(path);
     }
 
@@ -45,7 +45,7 @@ export const wellKnownAgentRule = defineRule({
       return pass('geo-well-known', `Agent manifest found: ${found.join(', ')}`, { found });
     }
 
-    const legacy = await probeOnce(`${origin}${LEGACY}`, {}, context.signal);
+    const legacy = await probeOnce(context, `${origin}${LEGACY}`, {});
     if (legacy && legacy.status === 200 && !looksLikeHtml(legacy)) {
       return warn('geo-well-known', 'Only a legacy ai-plugin.json manifest was found', {
         found: [LEGACY],

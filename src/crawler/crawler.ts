@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import { fetchPage as defaultFetchPage, createAuditContext, type FetchPageOptions, type FetchResult } from './fetcher.js';
-import { rethrowIfAborted, throwIfAborted } from '../errors.js';
+import { AuditError, rethrowIfAborted, throwIfAborted, waitUnlessAborted } from '../errors.js';
 import type { AssetInfo, AuditContext, CoreWebVitals, DiscoverySource, InboundEdge, RenderDiagnostics, SiteContext, SitePageInfo } from '../types.js';
 import { summarizeSchemaNodes } from '../rules/schema/utils.js';
 import { pageKindFrom } from '../rules/content/page-kind.js';
@@ -9,6 +9,12 @@ import { UrlFilter, type UrlFilterOptions } from './url-filter.js';
 import { RobotsMatcher } from './robots.js';
 import { getUserAgent } from './user-agent.js';
 import { DOCUMENT_TITLE } from '../rules/document-title.js';
+import { netFetch, readTextCapped, MAX_PAGE_BYTES } from '../net/fetch.js';
+import { createHash } from 'node:crypto';
+import { isNoindex, isNofollow, isPaginatedPage, readCanonical } from '../indexability.js';
+import { shingleText } from '../site/near-duplicates.js';
+import { bodyText as visibleBodyText } from '../rules/content/utils/visible-text.js';
+import type { CodeCoverage } from '../render/coverage.js';
 
 /**
  * Progress callback for reporting crawl status
@@ -54,6 +60,26 @@ export interface PageRenderResult {
   diagnostics?: RenderDiagnostics;
   /** Per-subresource response data observed during the render */
   assets?: AssetInfo[];
+  /** Render probe results by id */
+  probes?: Record<string, unknown>;
+  /** How much of each script and stylesheet the load used */
+  coverage?: CodeCoverage;
+}
+
+/**
+ * Put a render's results on a page's context: the rendered DOM, diagnostics,
+ * assets and probes. The one place both the single-page and crawl paths do
+ * it, so a field the renderer returns cannot be dropped by one of them.
+ */
+export function applyRender(context: AuditContext, render: PageRenderResult): void {
+  if (render.html) {
+    context.renderedHtml = render.html;
+    context.rendered$ = cheerio.load(render.html);
+  }
+  if (render.diagnostics) context.renderDiagnostics = render.diagnostics;
+  if (render.assets) context.assets = render.assets;
+  if (render.probes) context.probes = render.probes;
+  if (render.coverage) context.coverage = render.coverage;
 }
 
 /**
@@ -101,6 +127,122 @@ export interface CrawlerOptions {
   delayMs?: number;
   /** Same, but per host. `crawler.per_host_delay_ms`, equally unread. */
   perHostDelayMs?: number;
+  /**
+   * Most requests in flight to one host at once (`crawler.per_host_concurrency`).
+   * Unlimited when unset, so a directly-built Crawler keeps its behaviour.
+   */
+  perHostConcurrency?: number;
+  /**
+   * Honour the robots.txt `Crawl-delay` of the group that governs this
+   * crawler, capped at {@link MAX_CRAWL_DELAY_MS}. Defaults to true; has no
+   * effect when robots.txt is not respected.
+   */
+  respectCrawlDelay?: boolean;
+  /** Longest `Retry-After` honoured, in milliseconds (`crawler.max_retry_after_ms`) */
+  maxRetryAfterMs?: number;
+  /** First backoff when a 429 or 503 carries no `Retry-After` (doubles after) */
+  backoffBaseMs?: number;
+  /**
+   * Stop starting new requests at this time (epoch ms) and return what was
+   * fetched. The crawl ends "with gaps"; it is not cancelled.
+   */
+  deadline?: number;
+  /** Told when the crawl waits on a host: a rate limit or a Crawl-delay */
+  onWaiting?: (waiting: CrawlWaiting) => void;
+  /** Told once, before the first page, when a Crawl-delay applies */
+  onCrawlDelay?: (delay: CrawlDelayNotice) => void;
+}
+
+/** The crawl is waiting on a host */
+export interface CrawlWaiting {
+  host: string;
+  /** How long the wait is, in milliseconds */
+  waitMs: number;
+  reason: 'rate-limited';
+  /** The status that caused it */
+  status: number;
+}
+
+/** A robots.txt Crawl-delay the crawl will honour, and what it costs */
+export interface CrawlDelayNotice {
+  host: string;
+  /** The delay applied, after the cap, in milliseconds */
+  delayMs: number;
+  /** The delay the site asked for, in milliseconds */
+  requestedMs: number;
+  capped: boolean;
+  /** How long the crawl may take at this delay, in milliseconds */
+  projectedMs: number;
+}
+
+/** Retries per URL on 429 and 503 before it is recorded as rate-limited */
+export const MAX_RATE_LIMIT_RETRIES = 3;
+/** Most a robots.txt Crawl-delay is honoured for */
+export const MAX_CRAWL_DELAY_MS = 10_000;
+/** Most a host's delay grows to while it keeps rate-limiting */
+const MAX_ADAPTIVE_DELAY_MS = 60_000;
+/** Consecutive failed pages (rate-limited or 5xx) before a host is given up */
+export const HOST_FAILURE_LIMIT = 10;
+
+/** What a crawl could not do, for the run summary and the coverage line */
+export interface CrawlReport {
+  /** Pages still rate-limited after their retries */
+  rateLimitedPages: string[];
+  /** Per host: pages it rate-limited, and the last Retry-After it sent (seconds) */
+  rateLimitedHosts: Array<{ host: string; pages: number; lastRetryAfterS: number | null }>;
+  /** Queued pages never requested: their host was given up, or the time limit hit */
+  notFetched: string[];
+  /** Hosts given up after repeated failures */
+  abandonedHosts: string[];
+  /** The Crawl-delay honoured, when one applied */
+  crawlDelay: CrawlDelayNotice | null;
+  /** The crawl stopped at its time limit */
+  stoppedByDeadline: boolean;
+}
+
+/** Per-host scheduling state */
+interface HostState {
+  /** No request to this host starts before this time */
+  pausedUntil: number;
+  /** Backoffs in a row with no success between them */
+  consecutiveBackoffs: number;
+  /** Extra delay added after repeated backoffs */
+  extraDelayMs: number;
+  /** Pages in a row that ended rate-limited or 5xx */
+  consecutiveFailures: number;
+  /** Given up: no further requests */
+  abandoned: boolean;
+  inFlight: number;
+  rateLimitedPages: number;
+  lastRetryAfterS: number | null;
+}
+
+/**
+ * Milliseconds a `Retry-After` header asks for: seconds, or an HTTP date.
+ *
+ * @returns null when the header is absent or unreadable
+ */
+/**
+ * Why a run stopped on a page that stayed rate-limited. A 429 is the site
+ * asking for fewer requests; a 503 is the site saying it cannot answer now,
+ * so it gets its own wording.
+ */
+export function rateLimitedMessage(host: string, status: number, lastRetryAfterS: number | null): string {
+  const requests = MAX_RATE_LIMIT_RETRIES + 1;
+  const wait = lastRetryAfterS !== null ? `; it last asked to wait ${lastRetryAfterS} s` : '';
+  const what =
+    status === 503
+      ? `${host} answered 503 Service Unavailable to all ${requests} requests${wait}. The site may be down or shedding load.`
+      : `${host} is limiting how fast SEOmator can request pages (HTTP ${status} to all ${requests} requests${wait}).`;
+  return `${what} Nothing was saved.`;
+}
+
+export function parseRetryAfter(value: string | undefined, now = Date.now()): number | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (/^\d+(\.\d+)?$/.test(trimmed)) return Math.round(Number(trimmed) * 1000);
+  const date = Date.parse(trimmed);
+  return Number.isNaN(date) ? null : Math.max(0, date - now);
 }
 
 /**
@@ -113,21 +255,8 @@ export interface CrawledPage {
   context: AuditContext;
   /** Any error that occurred */
   error?: string;
-}
-
-/**
- * Split a robots directive string (meta content or X-Robots-Tag value) into
- * lowercase tokens.
- *
- * A copy of the parser in `src/rules/core/robots-meta.ts`, kept local because
- * the layering runs rules → crawler, never the reverse.
- */
-function parseRobotsDirectiveTokens(content: string): string[] {
-  return content
-    .toLowerCase()
-    .split(/[,\s]+/)
-    .map((d) => d.trim())
-    .filter((d) => d.length > 0);
+  /** The site was still rate-limiting this page after its retries */
+  rateLimited?: boolean;
 }
 
 /**
@@ -150,9 +279,59 @@ export class Crawler {
   /** Earliest time the next request to each host may start */
   private nextHostSlot = new Map<string, number>();
   private activeCount = 0;
+  /** Idle workers waiting for a running page to finish */
+  private progressWaiters: Array<() => void> = [];
   private urlFilter: UrlFilter;
   /** Built once per crawl from the site's robots.txt; null when not applied. */
   private robots: RobotsMatcher | null = null;
+  private hosts = new Map<string, HostState>();
+  /** Requests made per URL, for the rate-limit retry budget */
+  private attempts = new Map<string, number>();
+  /** The Crawl-delay applied to the entry host, in milliseconds */
+  private crawlDelayMs = 0;
+  private report: CrawlReport = Crawler.emptyReport();
+
+  private static emptyReport(): CrawlReport {
+    return {
+      rateLimitedPages: [],
+      rateLimitedHosts: [],
+      notFetched: [],
+      abandonedHosts: [],
+      crawlDelay: null,
+      stoppedByDeadline: false,
+    };
+  }
+
+  /** What the last crawl could not do */
+  getReport(): CrawlReport {
+    return this.report;
+  }
+
+  private hostOf(url: string): string {
+    try {
+      return new URL(url).host;
+    } catch {
+      return '';
+    }
+  }
+
+  private hostState(host: string): HostState {
+    let state = this.hosts.get(host);
+    if (!state) {
+      state = {
+        pausedUntil: 0,
+        consecutiveBackoffs: 0,
+        extraDelayMs: 0,
+        consecutiveFailures: 0,
+        abandoned: false,
+        inFlight: 0,
+        rateLimitedPages: 0,
+        lastRetryAfterS: null,
+      };
+      this.hosts.set(host, state);
+    }
+    return state;
+  }
 
   constructor(options: Partial<CrawlerOptions> = {}) {
     this.options = {
@@ -170,6 +349,13 @@ export class Crawler {
       // so a directly-built Crawler keeps its old speed.
       delayMs: options.delayMs ?? 0,
       perHostDelayMs: options.perHostDelayMs ?? 0,
+      perHostConcurrency: options.perHostConcurrency,
+      respectCrawlDelay: options.respectCrawlDelay ?? true,
+      maxRetryAfterMs: options.maxRetryAfterMs ?? 120_000,
+      backoffBaseMs: options.backoffBaseMs ?? 5_000,
+      deadline: options.deadline,
+      onWaiting: options.onWaiting,
+      onCrawlDelay: options.onCrawlDelay,
     };
 
     // Initialize URL filter with provided options
@@ -190,12 +376,12 @@ export class Crawler {
     try {
       const robotsUrl = new URL('/robots.txt', startUrl).href;
       const timeout = AbortSignal.timeout(this.options.timeout);
-      const response = await fetch(robotsUrl, {
+      const response = await netFetch(robotsUrl, {
         headers: { 'User-Agent': getUserAgent() },
         signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
       });
       if (!response.ok) return;
-      this.robots = new RobotsMatcher(await response.text(), getUserAgent());
+      this.robots = new RobotsMatcher(await readTextCapped(response, MAX_PAGE_BYTES), getUserAgent());
     } catch (error) {
       // Unreachable robots.txt is not a reason to refuse to crawl — but a
       // cancelled one is a cancelled crawl.
@@ -222,6 +408,11 @@ export class Crawler {
     this.discoverySourceByUrl.clear();
     this.results = [];
     this.activeCount = 0;
+    this.progressWaiters = [];
+    this.hosts.clear();
+    this.attempts.clear();
+    this.crawlDelayMs = 0;
+    this.report = Crawler.emptyReport();
 
     // Apply overrides
     if (maxPages !== undefined) {
@@ -241,6 +432,7 @@ export class Crawler {
 
     throwIfAborted(this.options.signal);
     await this.loadRobots(startUrl);
+    this.applyCrawlDelay(startUrl);
 
     // Normalize and add start URL to queue
     const normalizedStart = this.normalizeUrl(startUrl);
@@ -253,8 +445,57 @@ export class Crawler {
     // Process queue with concurrency control
     await this.processQueue();
 
+    this.finishReport();
     this.reportProgress('', true);
     return this.results;
+  }
+
+  /**
+   * Honour the site's Crawl-delay, capped, and say what it will cost.
+   *
+   * Applied to the entry host only: the crawl stays on that host, and the
+   * delay is the site's request about its own server.
+   */
+  private applyCrawlDelay(startUrl: string): void {
+    const seconds = this.robots?.crawlDelaySeconds;
+    if (!this.options.respectCrawlDelay || seconds === undefined || seconds <= 0) return;
+    const requestedMs = Math.round(seconds * 1000);
+    const delayMs = Math.min(requestedMs, MAX_CRAWL_DELAY_MS);
+    this.crawlDelayMs = delayMs;
+    const spacing = Math.max(delayMs, this.options.perHostDelayMs ?? 0);
+    const notice: CrawlDelayNotice = {
+      host: this.hostOf(startUrl),
+      delayMs,
+      requestedMs,
+      capped: requestedMs > delayMs,
+      projectedMs: spacing * Math.max(0, this.options.maxPages - 1),
+    };
+    this.report.crawlDelay = notice;
+    this.options.onCrawlDelay?.(notice);
+  }
+
+  /**
+   * Close the report: what was queued and never requested, per-host counts.
+   *
+   * A link left in the queue is a gap only when something cut the crawl
+   * short: the time limit, or its host given up. A crawl that stopped at its
+   * page limit found more links than it had pages to spend, and is complete.
+   */
+  private finishReport(): void {
+    for (const url of this.queue) {
+      if (this.report.stoppedByDeadline || this.hosts.get(this.hostOf(url))?.abandoned) this.report.notFetched.push(url);
+    }
+    this.queue = [];
+    // Coverage is measured against what the crawl would have fetched: no more
+    // than the pages its budget had left, however many links were queued
+    const budget = Math.max(0, this.options.maxPages - this.results.length);
+    if (this.report.notFetched.length > budget) this.report.notFetched.length = budget;
+    for (const [host, state] of this.hosts) {
+      if (state.rateLimitedPages > 0) {
+        this.report.rateLimitedHosts.push({ host, pages: state.rateLimitedPages, lastRetryAfterS: state.lastRetryAfterS });
+      }
+      if (state.abandoned) this.report.abandonedHosts.push(host);
+    }
   }
 
   /**
@@ -274,6 +515,12 @@ export class Crawler {
 
   /**
    * Worker that processes URLs from the queue
+   *
+   * An empty queue only means the crawl is over when no request is still in
+   * flight: a page being fetched can add links. So an idle worker waits for
+   * a running page to finish and looks again, rather than leaving. Leaving
+   * after a fixed pause made every crawl whose start page took longer than
+   * that pause run one request at a time, whatever `concurrency` said.
    */
   private async worker(): Promise<void> {
     while (true) {
@@ -284,26 +531,42 @@ export class Crawler {
         break;
       }
 
-      // Get next URL from queue
+      // Out of time: stop starting requests; what was fetched is kept
+      if (this.options.deadline !== undefined && Date.now() >= this.options.deadline) {
+        this.report.stoppedByDeadline = true;
+        break;
+      }
+
       const url = this.getNextUrl();
-      if (!url) {
-        // No more URLs to process
-        // Wait a bit in case other workers are adding URLs
-        await this.sleep(100);
-
-        // Check again
-        const retryUrl = this.getNextUrl();
-        if (!retryUrl) {
-          break;
-        }
-
-        await this.waitForTurn(retryUrl);
-        await this.processUrl(retryUrl);
-      } else {
+      if (url) {
         await this.waitForTurn(url);
         await this.processUrl(url);
+        continue;
       }
+
+      if (this.activeCount === 0) break;
+      await this.waitForProgress();
     }
+  }
+
+  /** Resolve when a page finishes (and may have queued links) or the run is cancelled */
+  private waitForProgress(): Promise<void> {
+    return new Promise((resolve) => {
+      const signal = this.options.signal;
+      const onAbort = () => resolve();
+      this.progressWaiters.push(() => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve();
+      });
+      signal?.addEventListener('abort', onAbort, { once: true });
+    });
+  }
+
+  /** Wake every idle worker */
+  private notifyProgress(): void {
+    const waiters = this.progressWaiters;
+    this.progressWaiters = [];
+    for (const wake of waiters) wake();
   }
 
   /**
@@ -319,15 +582,70 @@ export class Crawler {
       return null;
     }
 
-    const url = this.queue.shift()!;
-    this.activeCount++;
-    return url;
+    // The first queued URL whose host is not given up and has room under the
+    // per-host limit. URLs of a given-up host are set aside as not fetched.
+    const limit = this.options.perHostConcurrency ?? Infinity;
+    for (let index = 0; index < this.queue.length; index++) {
+      const candidate = this.queue[index];
+      const state = this.hostState(this.hostOf(candidate));
+      if (state.abandoned) {
+        this.queue.splice(index, 1);
+        this.report.notFetched.push(candidate);
+        index--;
+        continue;
+      }
+      if (state.inFlight >= limit) continue;
+      this.queue.splice(index, 1);
+      state.inFlight++;
+      this.activeCount++;
+      return candidate;
+    }
+    return null;
+  }
+
+  /**
+   * Back off a host that answered 429 or 503.
+   *
+   * Waits for its `Retry-After` (capped), or 5 s doubling to 60 s with 20%
+   * jitter when it sent none. Every second backoff in a row also doubles
+   * the host's delay for the rest of the run, so a crawl that keeps tripping
+   * a rate limit slows down instead of hammering it.
+   */
+  private backOff(host: string, status: number, retryAfter: string | undefined, attempt: number): number {
+    const state = this.hostState(host);
+    const requested = parseRetryAfter(retryAfter);
+    if (requested !== null) state.lastRetryAfterS = Math.round(requested / 1000);
+    const base = this.options.backoffBaseMs ?? 5_000;
+    const fallback = Math.min(base * 2 ** (attempt - 1), MAX_ADAPTIVE_DELAY_MS) * (0.8 + Math.random() * 0.4);
+    const waitMs = Math.round(requested !== null ? Math.min(requested, this.options.maxRetryAfterMs ?? 120_000) : fallback);
+
+    state.pausedUntil = Math.max(state.pausedUntil, Date.now() + waitMs);
+    state.consecutiveBackoffs++;
+    if (state.consecutiveBackoffs % 2 === 0) {
+      state.extraDelayMs = Math.min(MAX_ADAPTIVE_DELAY_MS, Math.max(base, state.extraDelayMs * 2));
+    }
+    this.options.onWaiting?.({ host, waitMs, reason: 'rate-limited', status });
+    return waitMs;
+  }
+
+  /** Count a page that ended badly against its host, and give the host up past the limit */
+  private noteFailure(host: string): void {
+    const state = this.hostState(host);
+    state.consecutiveFailures++;
+    if (state.consecutiveFailures >= HOST_FAILURE_LIMIT) state.abandoned = true;
+  }
+
+  private noteSuccess(host: string): void {
+    const state = this.hostState(host);
+    state.consecutiveFailures = 0;
+    state.consecutiveBackoffs = 0;
   }
 
   /**
    * Process a single URL
    */
   private async processUrl(url: string): Promise<void> {
+    const host = this.hostOf(url);
     try {
       // Report progress
       this.reportProgress(url);
@@ -343,26 +661,54 @@ export class Crawler {
       } catch (error) {
         // A page that failed to load is a finding; a cancelled run is not.
         rethrowIfAborted(error, this.options.signal);
+        // A start page that cannot be loaded means the run could not happen,
+        // as it does for a single page: scoring the failure read as a site
+        // that got worse, not a job that is broken
+        if (url === this.entryUrl) throw error;
         this.results.push({
           url,
           context: this.createEmptyContext(url),
           error: error instanceof Error ? error.message : 'Unknown error',
         });
+        this.noteFailure(host);
         return;
       }
 
+      // A rate limit is the site asking us to slow down, not a client
+      // error: wait and try again, and if it persists record the page as
+      // rate-limited rather than score a 4xx we caused.
+      if (fetchResult.statusCode === 429 || fetchResult.statusCode === 503) {
+        const attempt = (this.attempts.get(url) ?? 0) + 1;
+        this.attempts.set(url, attempt);
+        if (attempt <= MAX_RATE_LIMIT_RETRIES) {
+          this.backOff(host, fetchResult.statusCode, fetchResult.headers['retry-after'], attempt);
+          this.queue.unshift(url);
+          return;
+        }
+        const state = this.hostState(host);
+        state.rateLimitedPages++;
+        this.report.rateLimitedPages.push(url);
+        this.results.push({
+          url,
+          context: createAuditContext(url, fetchResult, {}),
+          error: `rate-limited (HTTP ${fetchResult.statusCode}) after ${MAX_RATE_LIMIT_RETRIES} retries`,
+          rateLimited: true,
+        });
+        this.noteFailure(host);
+        if (url === this.entryUrl) {
+          throw new AuditError('rate-limited', rateLimitedMessage(host, fetchResult.statusCode, state.lastRetryAfterS));
+        }
+        return;
+      }
+
+      if (fetchResult.statusCode >= 500) this.noteFailure(host);
+      else this.noteSuccess(host);
+
       // Render in a browser if a renderer was provided
-      let cwv: CoreWebVitals = {};
-      let renderedHtml: string | undefined;
-      let diagnostics: RenderDiagnostics | undefined;
-      let assets: AssetInfo[] | undefined;
+      let render: PageRenderResult | undefined;
       if (this.options.renderPage) {
         try {
-          const rendered = await this.options.renderPage(url);
-          cwv = rendered.cwv;
-          renderedHtml = rendered.html;
-          diagnostics = rendered.diagnostics;
-          assets = rendered.assets;
+          render = await this.options.renderPage(url);
         } catch (error) {
           rethrowIfAborted(error, this.options.signal);
           // Rendering failed, continue with the HTTP response alone
@@ -370,20 +716,11 @@ export class Crawler {
       }
 
       // Create audit context
-      const context = createAuditContext(url, fetchResult, cwv);
+      const context = createAuditContext(url, fetchResult, render?.cwv ?? {});
       if (this.options.signal) {
         context.signal = this.options.signal;
       }
-      if (renderedHtml) {
-        context.renderedHtml = renderedHtml;
-        context.rendered$ = cheerio.load(renderedHtml);
-      }
-      if (diagnostics) {
-        context.renderDiagnostics = diagnostics;
-      }
-      if (assets) {
-        context.assets = assets;
-      }
+      if (render) applyRender(context, render);
 
       // Add to results
       this.results.push({ url, context });
@@ -395,6 +732,8 @@ export class Crawler {
       this.discoverFromPageSignals(context);
     } finally {
       this.activeCount--;
+      this.hostState(host).inFlight--;
+      this.notifyProgress();
     }
   }
 
@@ -413,10 +752,17 @@ export class Crawler {
     const outboundLinksByUrl = new Map<string, Set<string>>();
     const inboundEdgesByUrl = new Map<string, InboundEdge[]>();
     const pages = new Map<string, SitePageInfo>();
+    const redirectTargetByUrl = new Map<string, string>();
     let pageCount = 0;
 
     for (const page of this.results) {
       const from = this.normalizeUrl(page.url);
+      // Where this URL's redirects ended, so an alias can be folded into it
+      const chain = page.context?.redirectChain;
+      if (chain && chain.length > 1) {
+        const final = this.normalizeUrl(chain[chain.length - 1].url);
+        if (final !== from) redirectTargetByUrl.set(from, final);
+      }
       // Recorded for every result, including failed fetches (statusCode 0):
       // sitemap cross-reference rules need to see those too. Cheap primitives
       // only — no HTML is retained.
@@ -467,76 +813,16 @@ export class Crawler {
       pages,
       discoverySourceByUrl: this.discoverySourceByUrl,
       inboundEdgesByUrl,
+      redirectTargetByUrl,
       normalize: (url: string) => this.normalizeUrl(url),
     };
   }
 
-  /**
-   * Distil one crawled page into its SitePageInfo record.
-   *
-   * Parses only what is already in memory (`context.$`, headers) — no new
-   * fetches. Errored pages carry an empty context, so parsing them yields the
-   * defaults with `statusCode: 0`.
-   */
+  /** One crawled page's record, with this crawl's robots.txt answer */
   private buildPageInfo(page: CrawledPage): SitePageInfo {
-    const { $, headers, statusCode } = page.context;
-
-    const info: SitePageInfo = {
-      statusCode,
-      noindex: false,
-      nofollow: false,
-      // Best-effort: the matcher exists only when respectRobots is on and
-      // robots.txt was reachable, so "unknown" is reported as false.
-      disallowed: this.robots ? !this.robots.isAllowed(page.url) : false,
-      hreflangOut: {},
-    };
-
-    const canonicalHref = $('link[rel="canonical"]').first().attr('href');
-    if (canonicalHref !== undefined) {
-      try {
-        info.canonical = new URL(canonicalHref, page.url).href;
-      } catch {
-        info.canonical = null;
-      }
-    }
-
-    const directives: string[] = [];
-    $('meta[name="robots"]').each((_, el) => {
-      directives.push(...parseRobotsDirectiveTokens($(el).attr('content') ?? ''));
-    });
-    const xRobotsTag = headers['x-robots-tag'];
-    if (xRobotsTag) {
-      directives.push(...parseRobotsDirectiveTokens(xRobotsTag));
-    }
-    info.noindex = directives.includes('noindex') || directives.includes('none');
-    info.nofollow = directives.includes('nofollow') || directives.includes('none');
-
-    $('link[rel="alternate"][hreflang]').each((_, el) => {
-      const code = $(el).attr('hreflang')?.trim();
-      const href = $(el).attr('href');
-      if (!code || !href) return;
-      try {
-        info.hreflangOut[code] = new URL(href, page.url).href;
-      } catch {
-        // An unresolvable hreflang target is a per-page finding, not recorded here.
-      }
-    });
-
-    const h1 = $('h1').first().text().trim();
-    if (h1) info.h1 = h1;
-
-    const title = $(DOCUMENT_TITLE).first().text().replace(/\s+/g, ' ').trim();
-    if (title) info.title = title;
-    info.wordCount = countWords(extractMainContent($));
-
-    const schemaNodes = summarizeSchemaNodes($);
-    info.pageKind = pageKindFrom(
-      schemaNodes.flatMap((node) => node.types),
-      page.url
-    );
-    if (schemaNodes.length > 0) info.schemaNodes = schemaNodes;
-
-    return info;
+    // Best-effort: the matcher exists only when respectRobots is on and
+    // robots.txt was reachable, so "unknown" is reported as false.
+    return buildSitePageInfo(page, this.robots ? !this.robots.isAllowed(page.url) : false);
   }
 
   /**
@@ -769,7 +1055,7 @@ export class Crawler {
    * Sleep helper
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return waitUnlessAborted(ms, this.options.signal);
   }
 
   /**
@@ -781,17 +1067,24 @@ export class Crawler {
    * no delay at concurrency > 1.
    */
   private async waitForTurn(url: string): Promise<void> {
+    const host = this.hostOf(url);
+    const state = this.hostState(host);
     const delay = this.options.delayMs ?? 0;
-    const hostDelay = this.options.perHostDelayMs ?? 0;
-    if (delay <= 0 && hostDelay <= 0) return;
+    const crawlDelay = host === this.hostOf(this.entryUrl) ? this.crawlDelayMs : 0;
+    const hostDelay = Math.max(this.options.perHostDelayMs ?? 0, crawlDelay) + state.extraDelayMs;
 
-    let host: string;
-    try {
-      host = new URL(url).host;
-    } catch {
-      host = '';
+    if (delay > 0 || hostDelay > 0) await this.reserveSlot(host, delay, hostDelay);
+
+    // A pause set while this request waited for its slot (another page got a
+    // 429) still applies: a reserved slot is not permission to ignore it.
+    while (state.pausedUntil > Date.now()) {
+      throwIfAborted(this.options.signal);
+      await this.sleep(state.pausedUntil - Date.now());
     }
+  }
 
+  /** Reserve this request's start time, synchronously, then wait for it */
+  private async reserveSlot(host: string, delay: number, hostDelay: number): Promise<void> {
     const now = Date.now();
     const nextAllowed = Math.max(
       now,
@@ -804,7 +1097,81 @@ export class Crawler {
 
     const wait = nextAllowed - now;
     if (wait > 0) await this.sleep(wait);
+    throwIfAborted(this.options.signal);
   }
+}
+
+/**
+ * Distil one crawled page into its SitePageInfo record.
+ *
+ * Exported so a stored crawl or a test can build the same records the
+ * crawler does.
+ *
+ * Parses only what is already in memory (`context.$`, headers) — no new
+ * fetches. Errored pages carry an empty context, so parsing them yields the
+ * defaults with `statusCode: 0`.
+ */
+export function buildSitePageInfo(page: Pick<CrawledPage, 'url' | 'context' | 'rateLimited'>, disallowed: boolean): SitePageInfo {
+  const { $, headers, statusCode } = page.context;
+
+  const info: SitePageInfo = {
+    statusCode,
+    noindex: false,
+    nofollow: false,
+    disallowed,
+    hreflangOut: {},
+    ...(page.rateLimited && { rateLimited: true }),
+  };
+
+  // One classifier for every reader of indexability: the score caps, these
+  // records and the cross-page checks built on them.
+  const page$ = { $, headers, url: page.url };
+  const canonical = readCanonical(page$);
+  if (canonical !== undefined) info.canonical = canonical;
+  info.noindex = isNoindex(page$);
+  info.nofollow = isNofollow(page$);
+  if (isPaginatedPage(page$)) info.isPaginated = true;
+
+  $('link[rel="alternate"][hreflang]').each((_, el) => {
+    const code = $(el).attr('hreflang')?.trim();
+    const href = $(el).attr('href');
+    if (!code || !href) return;
+    try {
+      info.hreflangOut[code] = new URL(href, page.url).href;
+    } catch {
+      // An unresolvable hreflang target is a per-page finding, not recorded here.
+    }
+  });
+
+  const h1 = $('h1').first().text().trim();
+  if (h1) info.h1 = h1;
+
+  const title = $(DOCUMENT_TITLE).first().text().replace(/\s+/g, ' ').trim();
+  if (title) info.title = title;
+  const mainContent = extractMainContent($);
+  info.wordCount = countWords(mainContent);
+
+  // What the cross-page duplicate checks compare, computed once per page
+  // while the parsed document is still in memory.
+  const description = $('meta[name="description"]').first().attr('content')?.trim();
+  if (description) info.description = description;
+  const ogTitle = $('meta[property="og:title"]').first().attr('content')?.trim();
+  if (ogTitle) info.ogTitle = ogTitle;
+  const ogDescription = $('meta[property="og:description"]').first().attr('content')?.trim();
+  if (ogDescription) info.ogDescription = ogDescription;
+  const bodyText = visibleBodyText($);
+  if (bodyText.length >= 50) info.contentHash = createHash('md5').update(bodyText).digest('hex');
+  const main = mainContent.replace(/\s+/g, ' ').trim();
+  if (main.length >= 100) info.shingles = shingleText(main);
+
+  const schemaNodes = summarizeSchemaNodes($);
+  info.pageKind = pageKindFrom(
+    schemaNodes.flatMap((node) => node.types),
+    page.url
+  );
+  if (schemaNodes.length > 0) info.schemaNodes = schemaNodes;
+
+  return info;
 }
 
 /**
@@ -812,4 +1179,42 @@ export class Crawler {
  */
 export function createCrawler(options?: Partial<CrawlerOptions>): Crawler {
   return new Crawler(options);
+}
+
+/**
+ * What a crawl's Crawl-delay will cost, before the crawl starts.
+ *
+ * Reads the site's robots.txt the way the crawl will and projects the
+ * duration at `maxPages`. For callers that must decide up front whether the
+ * crawl fits their time budget (an agent cannot wait 28 hours for an answer).
+ *
+ * @returns The notice the crawl would send, or null when no delay applies
+ */
+export async function projectCrawlDelay(
+  startUrl: string,
+  maxPages: number,
+  perHostDelayMs = 0,
+  timeout = 10_000
+): Promise<CrawlDelayNotice | null> {
+  try {
+    const response = await netFetch(new URL('/robots.txt', startUrl).href, {
+      headers: { 'User-Agent': getUserAgent() },
+      signal: AbortSignal.timeout(timeout),
+    });
+    if (!response.ok) return null;
+    const robots = new RobotsMatcher(await readTextCapped(response, MAX_PAGE_BYTES), getUserAgent());
+    const seconds = robots.crawlDelaySeconds;
+    if (seconds === undefined || seconds <= 0) return null;
+    const requestedMs = Math.round(seconds * 1000);
+    const delayMs = Math.min(requestedMs, MAX_CRAWL_DELAY_MS);
+    return {
+      host: new URL(startUrl).host,
+      delayMs,
+      requestedMs,
+      capped: requestedMs > delayMs,
+      projectedMs: Math.max(delayMs, perHostDelayMs) * Math.max(0, maxPages - 1),
+    };
+  } catch {
+    return null;
+  }
 }

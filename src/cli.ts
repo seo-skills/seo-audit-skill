@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { Command, InvalidArgumentError, Option } from 'commander';
+import { Command, CommanderError, InvalidArgumentError, Option } from 'commander';
 import { getCategoryIds } from './categories/index.js';
 import { getVersion } from './version.js';
 import { OUTPUT_FORMATS, type AuditOptions } from './commands/audit.js';
@@ -23,6 +23,7 @@ import {
   runDbStats,
   runDbRestore,
   runSelfDoctor,
+  runExplain,
 } from './commands/index.js';
 
 /**
@@ -114,6 +115,11 @@ function parseIntValue(value: string, name: string, min: number, max: number): n
 
 const program = new Command();
 
+// Usage errors exit 2, gate failures exit 1. Commander's own default is 1 for
+// a bad flag, which a CI script cannot tell from "the audit found problems".
+// Set before any `.command()`, so every subcommand inherits it.
+program.exitOverride();
+
 program
   .name('seomator')
   .description(
@@ -141,23 +147,37 @@ program
   .option('-v, --verbose', 'Show progress', false)
   // `--cwv` first, so the default stays unset: a lone `--no-cwv` would make it
   // true, which is how every audit used to launch a browser nobody asked for.
-  .option('--cwv', 'Render the page in a browser for Core Web Vitals and rendered-page checks (slower)')
+  .option('--render', 'Render each page in a browser: Core Web Vitals, accessibility, unused code and image sizing (slower)')
+  .option('--cwv', 'Same as --render')
   // Still parses so existing scripts keep working; skipping the render is the default now.
   .addOption(new Option('--no-cwv').hideHelp())
-  .option('--mobile', 'Also render at a mobile viewport and run mobile-first parity checks (single-page; implies --cwv)', false)
+  .option('--mobile', 'Also render at a mobile viewport and run mobile-first parity checks (single-page; implies --render)', false)
   .option('--simulate-interaction', 'Click and scroll the page so INP can be measured (reported as synthetic; implies --cwv)', false)
   .option('--staging', 'Audit a staging site: waive the noindex and robots.txt caps, and crawl past robots.txt', false)
-  .addOption(new Option('-r, --refresh').hideHelp().default(false))
+  .option('-r, --refresh', 'Check every external link again instead of using the link cache', false)
   .addOption(new Option('--resume').hideHelp().default(false))
   .option('--config <path>', 'Config file path')
   // --no-save must be declared before --save so the default stays true.
   .option('--no-save', 'Do not store this audit in the history database')
   .option('--save', 'Deprecated: also write the legacy JSON report (use --json-report)')
   .option('--json-report', 'Also write the legacy JSON report to .seomator/reports/', false)
+  .option('--fail-under <n>', 'Exit 1 when the score is below n (default 70, or [ci] fail_under)', (v) => parseIntValue(v, 'fail-under', 0, 100))
+  .option('--min-coverage <pct>', 'With --crawl: exit 1 when fewer than pct% of the attempted pages were measured', (v) => parseIntValue(v, 'min-coverage', 0, 100))
+  .option('--max-duration <s>', 'With --crawl: stop requesting pages after s seconds and score what was fetched', (v) => parseIntValue(v, 'max-duration', 1, 86400))
+  .option('--ignore-crawl-delay', "With --crawl: do not honour the site's robots.txt Crawl-delay", false)
   .action((url: string, options: AuditOptions, command: Command) =>
     runAudit(url, {
       ...options,
+      // --render is the name; --cwv the older one for the same thing
+      ...((options as { render?: boolean }).render && { cwv: true }),
       saveExplicit: command.getOptionValueSource('save') === 'cli' && options.save === true,
+      // Only a flag the user typed overrides seomator.toml; a flag default
+      // used to replace the file's value on every run.
+      explicitFlags: {
+        maxPages: command.getOptionValueSource('maxPages') === 'cli',
+        concurrency: command.getOptionValueSource('concurrency') === 'cli',
+        timeout: command.getOptionValueSource('timeout') === 'cli',
+      },
     })
   );
 
@@ -219,6 +239,8 @@ program
   .option('-j, --json', 'Output as JSON', false)
   .option('-v, --verbose', 'Show progress', false)
   .option('--staging', 'Analyze a staging crawl: waive the noindex cap', false)
+  .option('--config <path>', 'Config file path')
+  .option('--fail-under <n>', 'Exit 1 when the score is below n (default 70, or [ci] fail_under)', (v) => parseIntValue(v, 'fail-under', 0, 100))
   .action((crawlId: string | undefined, options: AnalyzeOptions, command: Command) =>
     runAnalyze(crawlId, {
       ...options,
@@ -251,6 +273,36 @@ program
   .option('--fail-on-regression', 'Exit 1 when the score dropped or new failures appeared', false)
   .action(runCompare);
 
+// MCP server
+program
+  .command('mcp')
+  .description('Run the seomator-audit MCP server over stdio, so AI agents can run and read audits')
+  .option('--allow-private', 'Let audits reach loopback, private and link-local addresses (local and intranet sites)', false)
+  .option(
+    '--allow-host <host:port>',
+    'Allow one private host:port without --allow-private (repeatable)',
+    (value: string, previous: string[]) => [...previous, value],
+    [] as string[]
+  )
+  .option('--config <path>', 'Config file, read at the start of every run (default: seomator.toml search)')
+  .action(async (options: { allowPrivate: boolean; allowHost: string[]; config?: string }) => {
+    // Imported lazily so other commands do not load the MCP SDK.
+    const { startMcpServer } = await import('./mcp/server.js');
+    await startMcpServer({
+      allowPrivate: options.allowPrivate,
+      allowHosts: options.allowHost,
+      ...(options.config && { config: options.config }),
+    });
+  });
+
+// Explain command
+program
+  .command('explain [rule-id]')
+  .description('Explain what a rule checks, how much it counts and how to configure it')
+  .option('--list [category]', 'List every rule id, or the ids in one category')
+  .option('--json', 'Output as JSON', false)
+  .action(runExplain);
+
 // Config command
 program
   .command('config [key] [value]')
@@ -258,6 +310,8 @@ program
   .option('--global', 'Modify global settings', false)
   .option('--local', 'Modify local settings', false)
   .option('--list', 'Show all config values', false)
+  .option('--config <path>', 'With validate: check this file instead of searching for seomator.toml')
+  .option('--json', 'With validate: print the result as JSON', false)
   .action(runConfig);
 
 // Database management command
@@ -297,4 +351,12 @@ selfCommand
   .option('-v, --verbose', 'Show detailed output', false)
   .action(runSelfDoctor);
 
-program.parse();
+try {
+  program.parse();
+} catch (error) {
+  // Commander has already printed its message; only the exit code is ours.
+  if (error instanceof CommanderError) {
+    process.exit(error.exitCode === 0 ? 0 : 2);
+  }
+  throw error;
+}

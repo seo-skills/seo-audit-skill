@@ -4,15 +4,12 @@ import type {
   CategoryResult,
   RuleResult,
   CategoryDefinition,
-  CoreWebVitals,
-  RenderDiagnostics,
-  AssetInfo,
   SiteContext,
   SitemapFetchResult,
   AuditRunOptions,
 } from './types.js';
 import { categories, getCategoryById } from './categories/index.js';
-import { getRulesByCategory, resetCrossPageState } from './rules/registry.js';
+import { getRuleById, getRulesByCategory } from './rules/registry.js';
 import { isRuleEnabled } from './rules/pattern-matcher.js';
 import { loadAllRules } from './rules/loader.js';
 import {
@@ -30,7 +27,7 @@ import {
 import { buildPageSnapshot } from './page-snapshot.js';
 import { SCORING_VERSION } from './scoring.js';
 import { applyScoreCaps, pageCaps, readPageFacts, siteCaps } from './score-caps.js';
-import { AuditError, rethrowIfAborted, throwIfAborted } from './errors.js';
+import { AuditError, rethrowIfAborted, throwIfAborted, waitUnlessAborted } from './errors.js';
 import { getUserAgent } from './crawler/user-agent.js';
 import type { UrlFilterOptions } from './crawler/url-filter.js';
 import { fetchSitemap } from './crawler/sitemap.js';
@@ -38,6 +35,23 @@ import {
   buildCategoryResult,
   buildAuditResult,
 } from './scoring.js';
+import { netFetch, pinEntryRedirects, readTextCapped, MAX_PAGE_BYTES } from './net/fetch.js';
+import { policyForTarget, runWithNetPolicy, type NetMode } from './net/policy.js';
+import { UrlService, type StatusCache } from './net/url-service.js';
+import { computeLinkScores, linkScoreSummary } from './site/link-score.js';
+import { CustomRunner, type CustomResults } from './custom/custom-checks.js';
+import type { CustomConfig } from './config/schema.js';
+import { LinkCache } from './storage/link-cache.js';
+import {
+  EXTERNAL_LINKS_DISABLED,
+  SINGLE_PAGE_BUDGET_MS,
+  checkExternalLinks,
+  externalLinksExtras,
+  type ExternalLinksExtras,
+} from './site/external-links.js';
+import { MAX_RATE_LIMIT_RETRIES, applyRender, parseRetryAfter, rateLimitedMessage, type CrawlDelayNotice, type CrawlWaiting } from './crawler/crawler.js';
+import { notMeasured, resolveRuleOptions, defaultRuleOptions } from './rules/define-rule.js';
+import type { AuditRule, RuleOptionValues } from './types.js';
 
 /**
  * Callback for when a category audit starts
@@ -181,14 +195,80 @@ export interface AuditorOptions {
    * the background. The call rejects with an `AuditAbortedError`.
    */
   signal?: AbortSignal;
+  /**
+   * Which destinations the run may reach. `auto` (the default) blocks
+   * private, loopback and link-local destinations when the target itself is
+   * public, so a page cannot point the audit at an internal service. `strict`
+   * blocks them for every request, the target included. `allowHosts` lists
+   * `host:port` pairs that stay reachable.
+   */
+  network?: { mode?: NetMode; allowHosts?: string[] };
+  /**
+   * Per-rule option values, keyed by rule id: the `rule_options` table of
+   * `seomator.toml`. Each rule receives its declared defaults with these laid
+   * over them. Validate with `validateConfig` first; undeclared keys are
+   * ignored here.
+   */
+  ruleOptions?: Record<string, Record<string, unknown>>;
+  /** Most requests in flight to one host at once (`crawler.per_host_concurrency`) */
+  perHostConcurrency?: number;
+  /** Honour robots.txt Crawl-delay, capped at 10 s. Default true. */
+  respectCrawlDelay?: boolean;
+  /** Longest Retry-After honoured, in ms (`crawler.max_retry_after_ms`) */
+  maxRetryAfterMs?: number;
+  /**
+   * Stop a crawl's requests after this long and score what was fetched; the
+   * run ends "completed with gaps" (`crawler.max_duration_s`).
+   */
+  maxDurationMs?: number;
+  /** Told once, before the first page, when the site's Crawl-delay applies */
+  onCrawlDelay?: (notice: CrawlDelayNotice) => void;
+  /** Told when the crawl waits on a rate-limited host */
+  onWaiting?: (waiting: CrawlWaiting) => void;
+  /**
+   * `[external_links]`. Without `cacheTtlDays` nothing persists between runs;
+   * the CLI passes the configured 7 days.
+   */
+  externalLinks?: ExternalLinksOptions;
+  /** Told how many unique external URLs the run is about to check */
+  onExternalLinks?: (count: number) => void;
+  /** `[[custom.search]]` and `[[custom.extract]]`: a separate pass, never scored */
+  custom?: Partial<CustomConfig>;
+}
+
+export interface ExternalLinksOptions {
+  /** `false` makes `links-external-valid` not measured and requests nothing */
+  enabled?: boolean;
+  /** Per request, in ms (default 10000) */
+  timeoutMs?: number;
+  /** Requests in flight at once (default 5) */
+  concurrency?: number;
+  /** Days a settled answer persists in the link cache; 0 or absent: never */
+  cacheTtlDays?: number;
+  /** Ask again even when the link cache has an answer (`--refresh`) */
+  refresh?: boolean;
+  /** A cache to use instead of opening the one under SEOMATOR_HOME (tests) */
+  cache?: StatusCache;
 }
 
 /**
  * Resolved options with defaults applied.
  * browserFetcher stays optional because it has no default.
  */
-type ResolvedAuditorOptions = Required<Omit<AuditorOptions, 'browserFetcher' | 'signal'>> &
-  Pick<AuditorOptions, 'browserFetcher' | 'signal'>;
+type OptionalAuditorKeys =
+  | 'browserFetcher'
+  | 'signal'
+  | 'perHostConcurrency'
+  | 'maxDurationMs'
+  | 'onCrawlDelay'
+  | 'onWaiting'
+  | 'onExternalLinks'
+  | 'custom';
+type ResolvedAuditorOptions = Required<Omit<AuditorOptions, OptionalAuditorKeys>> &
+  Pick<AuditorOptions, OptionalAuditorKeys>;
+
+/** Pages of a crawl scored at the same time */
+const PAGE_SCORING_CONCURRENCY = 4;
 
 /**
  * Main Auditor class for running SEO audits
@@ -197,6 +277,14 @@ export class Auditor {
   private options: ResolvedAuditorOptions;
   private rulesLoaded = false;
   private categoriesToAudit: CategoryDefinition[] = [];
+  /** The current run's URL requests; see `withUrlService` */
+  private urls: UrlService | undefined;
+  /** The current run's external link report, for `extras.externalLinks` */
+  private externalLinksReport: ExternalLinksExtras | undefined;
+  /** When the current run started: every page's `context.now` */
+  private runStartedAt = Date.now();
+  /** The current run's custom checks */
+  private custom = new CustomRunner({});
 
   constructor(options: AuditorOptions = {}) {
     this.options = {
@@ -225,6 +313,17 @@ export class Auditor {
       onPageComplete: options.onPageComplete ?? (() => {}),
       onCrawlProgress: options.onCrawlProgress ?? (() => {}),
       onPageStart: options.onPageStart ?? (() => {}),
+      network: { mode: options.network?.mode ?? 'auto', allowHosts: options.network?.allowHosts ?? [] },
+      ruleOptions: options.ruleOptions ?? {},
+      perHostConcurrency: options.perHostConcurrency,
+      respectCrawlDelay: options.respectCrawlDelay ?? true,
+      maxRetryAfterMs: options.maxRetryAfterMs ?? 120_000,
+      maxDurationMs: options.maxDurationMs,
+      onCrawlDelay: options.onCrawlDelay,
+      onWaiting: options.onWaiting,
+      externalLinks: options.externalLinks ?? {},
+      onExternalLinks: options.onExternalLinks,
+      custom: options.custom,
     };
 
     // Determine which categories to audit
@@ -268,15 +367,16 @@ export class Auditor {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
-        const response = await fetch(robotsUrl, {
+        const response = await netFetch(robotsUrl, {
           signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
           headers: {
             'User-Agent': getUserAgent(),
           },
         });
-        clearTimeout(timeoutId);
+        // The timer stays armed through the body: a robots.txt that sends
+        // headers and then drips bytes is cut off at the same 5 s
         if (response.ok) {
-          return await response.text();
+          return await readTextCapped(response, MAX_PAGE_BYTES);
         }
       } finally {
         clearTimeout(timeoutId);
@@ -326,6 +426,8 @@ export class Auditor {
     context.sitemapIsIndex = sitemap.isIndex;
     context.sitemapDocuments = sitemap.documents;
     context.sitemapSkippedCount = sitemap.skippedSitemaps;
+    context.sitemapComplete = sitemap.complete;
+    context.sitemapGaps = sitemap.gaps;
   }
 
   /**
@@ -334,16 +436,122 @@ export class Auditor {
    * @returns AuditResult for the page
    */
   async audit(url: string): Promise<AuditResult> {
+    return this.underNetPolicy(url, () => this.withUrlService(url, () => this.auditSinglePage(url)));
+  }
+
+  /**
+   * Give `fn` one URL service for the whole run, with the link cache open
+   * when `externalLinks.cacheTtlDays` asks for one, and close it after.
+   */
+  private async withUrlService<T>(siteUrl: string, fn: () => Promise<T>): Promise<T> {
+    const previous = this.urls;
+    const ext = this.options.externalLinks;
+    // A cache the caller passed is theirs to close; one opened here is ours
+    let opened: LinkCache | undefined;
+    if (!ext.cache && ext.enabled !== false && (ext.cacheTtlDays ?? 0) > 0) {
+      try {
+        opened = new LinkCache({ ttlDays: ext.cacheTtlDays });
+      } catch (error) {
+        // A link cache that cannot open costs speed, not correctness
+        console.error(`Link cache unavailable, checking every link fresh: ${error instanceof Error ? error.message : error}`);
+      }
+    }
+    const service = this.createUrlService(siteUrl, ext.cache ?? opened ?? null);
+    this.urls = service;
+    this.externalLinksReport = undefined;
+    this.runStartedAt = Date.now();
+    this.custom = new CustomRunner(this.options.custom ?? {});
+    try {
+      return await fn();
+    } finally {
+      service.close();
+      opened?.close();
+      this.urls = previous;
+    }
+  }
+
+  private createUrlService(siteUrl: string, cache: StatusCache | null): UrlService {
+    const ext = this.options.externalLinks;
+    return new UrlService({
+      siteUrl,
+      ...(ext.timeoutMs !== undefined && { timeoutMs: ext.timeoutMs }),
+      ...(ext.concurrency !== undefined && { concurrency: ext.concurrency }),
+      ...(this.options.perHostConcurrency !== undefined && { perHostConcurrency: this.options.perHostConcurrency }),
+      cache,
+      refresh: ext.refresh ?? false,
+      maxRetryAfterMs: this.options.maxRetryAfterMs,
+      ...(this.options.signal && { signal: this.options.signal }),
+    });
+  }
+
+  /**
+   * Check every external link on `contexts` once, and hand each context the
+   * answers before its rules run. Skipped when `links-external-valid` will not
+   * run. A crawl uses the rule's `max_urls` and `max_seconds`; a single page
+   * gets 30 seconds.
+   */
+  private async prepareExternalLinks(contexts: AuditContext[], crawl: boolean): Promise<void> {
+    const rule = getRuleById('links-external-valid');
+    const runs =
+      rule !== undefined &&
+      this.categoriesToAudit.some((category) => category.id === rule.category) &&
+      isRuleEnabled(rule.id, this.options.enableRules, this.options.disableRules);
+    if (!runs || contexts.length === 0) return;
+
+    if (this.options.externalLinks.enabled === false) {
+      for (const context of contexts) context.externalLinks = EXTERNAL_LINKS_DISABLED;
+      return;
+    }
+    const options = this.optionsFor(rule);
+    const maxUrls = Number(options['max_urls']);
+    const budgetMs = crawl ? Number(options['max_seconds']) * 1000 : SINGLE_PAGE_BUDGET_MS;
+    const check = await checkExternalLinks(this.urls!, contexts, { maxUrls, budgetMs }, this.options.onExternalLinks);
+    for (const context of contexts) context.externalLinks = check;
+    this.externalLinksReport = externalLinksExtras(check);
+  }
+
+  /**
+   * Run `fn` with every request it makes under this run's network policy.
+   * See `net/policy.ts`.
+   */
+  private async underNetPolicy<T>(url: string, fn: () => Promise<T>): Promise<T> {
+    const { mode, allowHosts } = this.options.network;
+    throwIfAborted(this.options.signal);
+    const base = await policyForTarget(url, mode ?? 'auto', allowHosts ?? []);
+    const policy =
+      (mode ?? 'auto') === 'auto'
+        ? await pinEntryRedirects(url, base, { timeoutMs: this.options.timeout, signal: this.options.signal })
+        : base;
+    return runWithNetPolicy(policy, fn);
+  }
+
+  private async auditSinglePage(url: string): Promise<AuditResult> {
     throwIfAborted(this.options.signal);
     await this.ensureRulesLoaded();
-    resetCrossPageState();
 
     // Fetch the page, recording the redirect hops so redirect-loop and
-    // redirect-broken have a chain to read.
-    const fetchResult = await fetchPage(url, this.options.timeout, {
+    // redirect-broken have a chain to read. A rate limit is retried the way a
+    // crawl retries it: it says nothing about the page.
+    let fetchResult = await fetchPage(url, this.options.timeout, {
       trackRedirects: true,
       ...(this.options.signal && { signal: this.options.signal }),
     });
+    for (let attempt = 1; fetchResult.statusCode === 429 || fetchResult.statusCode === 503; attempt++) {
+      const requested = parseRetryAfter(fetchResult.headers['retry-after']);
+      if (attempt > MAX_RATE_LIMIT_RETRIES) {
+        throw new AuditError(
+          'rate-limited',
+          rateLimitedMessage(new URL(url).host, fetchResult.statusCode, requested !== null ? Math.round(requested / 1000) : null)
+        );
+      }
+      const waitMs = Math.min(requested ?? 5000 * 2 ** (attempt - 1), this.options.maxRetryAfterMs);
+      await waitUnlessAborted(waitMs, this.options.signal);
+      throwIfAborted(this.options.signal);
+      fetchResult = await fetchPage(url, this.options.timeout, {
+        trackRedirects: true,
+        ...(this.options.signal && { signal: this.options.signal }),
+      });
+    }
 
     // Refuse to score something that is not an auditable page. Most rules pass
     // when the thing they check is absent, so an empty body used to score
@@ -376,29 +584,16 @@ export class Auditor {
     }
 
     // Get Core Web Vitals and rendered DOM if enabled
-    let cwv: CoreWebVitals = {};
-    let renderedHtml: string | undefined;
-    let rendered$: import('cheerio').CheerioAPI | undefined;
-    let renderDiagnostics: RenderDiagnostics | undefined;
-    let assets: AssetInfo[] | undefined;
+    let render: PlaywrightFetchResult | undefined;
     let mobileHtml: string | undefined;
     let mobile$: import('cheerio').CheerioAPI | undefined;
     if (this.options.measureCwv) {
       const fetcher = this.options.browserFetcher ?? fetchPageWithPlaywright;
       try {
-        const pwResult = await fetcher(url, this.options.timeout, {
+        render = await fetcher(url, this.options.timeout, {
           simulateInteraction: this.options.simulateInteraction,
           ...(this.options.signal && { signal: this.options.signal }),
         });
-        cwv = pwResult.cwv;
-        renderDiagnostics = pwResult.diagnostics;
-        assets = pwResult.assets;
-        // Capture rendered HTML for JS rendering rules
-        if (pwResult.html) {
-          renderedHtml = pwResult.html;
-          const cheerio = await import('cheerio');
-          rendered$ = cheerio.load(renderedHtml);
-        }
 
         // Mobile-first parity: a second render at a mobile viewport, while the
         // shared browser is still open. Uses the real Playwright renderer
@@ -431,30 +626,25 @@ export class Auditor {
     }
 
     // Create audit context
-    const context = createAuditContext(url, fetchResult, cwv);
+    const context = createAuditContext(url, fetchResult, render?.cwv ?? {});
     if (this.options.signal) {
       context.signal = this.options.signal;
     }
+    context.urls = this.urls;
+    context.now = this.runStartedAt;
 
     // Enrich with robots.txt, sitemap, and rendered DOM
     await this.enrichContext(context, url);
-    if (renderedHtml) {
-      context.renderedHtml = renderedHtml;
-      context.rendered$ = rendered$;
-    }
-    if (renderDiagnostics) {
-      context.renderDiagnostics = renderDiagnostics;
-    }
-    if (assets) {
-      context.assets = assets;
-    }
+    if (render) applyRender(context, render);
     if (mobileHtml) {
       context.mobileHtml = mobileHtml;
       context.mobile$ = mobile$;
     }
 
     // Run all categories
+    await this.prepareExternalLinks([context], false);
     const categoryResults = await this.runAllCategories(context);
+    this.custom.runPage(context);
 
     // Build the final result, then hold the score down for any condition the
     // category average cannot express (see score-caps.ts)
@@ -469,6 +659,8 @@ export class Auditor {
       this.runOptions(false, 1, 1),
       { pages: [url], detail: 'per-page' }
     );
+    if (this.externalLinksReport) result.extras = { ...result.extras, externalLinks: this.externalLinksReport };
+    if (!this.custom.empty) result.extras = { ...result.extras, custom: this.custom.results() };
     return applyScoreCaps(result, pageCaps(readPageFacts(context), { staging: this.options.staging }));
   }
 
@@ -484,9 +676,12 @@ export class Auditor {
     maxPages = 10,
     concurrency = 3
   ): Promise<AuditResult> {
+    return this.underNetPolicy(url, () => this.withUrlService(url, () => this.auditCrawl(url, maxPages, concurrency)));
+  }
+
+  private async auditCrawl(url: string, maxPages: number, concurrency: number): Promise<AuditResult> {
     throwIfAborted(this.options.signal);
     await this.ensureRulesLoaded();
-    resetCrossPageState();
 
     // Pre-fetch robots.txt and sitemap once for the entire crawl
     const robotsTxtContent = await this.fetchRobotsTxt(url);
@@ -502,24 +697,25 @@ export class Auditor {
       urlFilter: this.options.urlFilter,
       delayMs: this.options.delayMs,
       perHostDelayMs: this.options.perHostDelayMs,
+      ...(this.options.perHostConcurrency !== undefined && { perHostConcurrency: this.options.perHostConcurrency }),
+      // A staging crawl ignores robots.txt, its Crawl-delay included.
+      respectCrawlDelay: this.options.respectCrawlDelay && !this.options.staging,
+      maxRetryAfterMs: this.options.maxRetryAfterMs,
+      ...(this.options.maxDurationMs !== undefined && { deadline: Date.now() + this.options.maxDurationMs }),
+      ...(this.options.onCrawlDelay && { onCrawlDelay: this.options.onCrawlDelay }),
+      ...(this.options.onWaiting && { onWaiting: this.options.onWaiting }),
       ...(this.options.signal && { signal: this.options.signal }),
       onProgress: (progress) => this.options.onCrawlProgress(progress),
       onPageStart: (pageUrl) => this.options.onPageStart(pageUrl),
       renderPage: this.options.measureCwv
         ? async (pageUrl: string) => {
             try {
-              const result = await fetcher(pageUrl, this.options.timeout, {
+              // Passed through whole: picking fields here is how `html` was once
+              // dropped, and every JS-rendering rule reported "rendered DOM not
+              // available" on every page of every crawl
+              return await fetcher(pageUrl, this.options.timeout, {
                 ...(this.options.signal && { signal: this.options.signal }),
               });
-              // `html` is what the JS-rendering rules read. Leaving it out here
-              // is what made all eleven of them report "rendered DOM not
-              // available" on every page of every crawl.
-              return {
-                cwv: result.cwv,
-                html: result.html,
-                diagnostics: result.diagnostics,
-                assets: result.assets,
-              };
             } catch (error) {
               rethrowIfAborted(error, this.options.signal);
               return { cwv: {} };
@@ -553,6 +749,8 @@ export class Auditor {
       if (crawledPage.context) {
         crawledPage.context.robotsTxtContent = robotsTxtContent;
         crawledPage.context.site = site;
+        crawledPage.context.urls = this.urls;
+        crawledPage.context.now = this.runStartedAt;
         if (this.options.signal) {
           crawledPage.context.signal = this.options.signal;
         }
@@ -567,7 +765,18 @@ export class Auditor {
     // start page. A site-wide block always reaches it; averaged with the
     // pages behind it, it moved the score by a point (see score-caps.ts).
     const timestamp = new Date().toISOString();
-    const result = buildAuditResult(
+    const report = crawler.getReport();
+    const failed = crawledPages.filter((page) => page.error && !page.rateLimited).length;
+    const coverage = {
+      pages: crawledPages.map((p) => p.url),
+      detail: 'per-page' as const,
+      attempted: crawledPages.length + report.notFetched.length,
+      measured: crawledPages.filter((page) => !page.error).length,
+      rateLimited: report.rateLimitedPages.length,
+      failed,
+      notFetched: report.notFetched.length,
+    };
+    const built = buildAuditResult(
       url,
       allCategoryResults,
       this.categoriesToAudit,
@@ -575,12 +784,34 @@ export class Auditor {
       crawledPages.length,
       undefined,
       this.runOptions(true, maxPages, concurrency),
-      { pages: crawledPages.map((p) => p.url), detail: 'per-page' }
+      coverage
     );
+    const gaps = coverage.rateLimited + coverage.failed + coverage.notFetched > 0 || report.stoppedByDeadline;
+    built.completionState = gaps ? 'completed-with-gaps' : 'completed';
+    // A metric, not a rule: shown in reports, changes no score
+    const linkScores = computeLinkScores(site);
+    built.extras = {
+      ...built.extras,
+      ...(linkScores.size > 0 && {
+        linkScores: Object.fromEntries(linkScores),
+        linkScoreSummary: linkScoreSummary(site, linkScores),
+      }),
+      ...(this.externalLinksReport && { externalLinks: this.externalLinksReport }),
+      ...(!this.custom.empty && { custom: this.custom.results() }),
+      crawl: {
+        rateLimitedPages: coverage.rateLimited,
+        rateLimitedHosts: report.rateLimitedHosts,
+        notFetched: coverage.notFetched,
+        abandonedHosts: report.abandonedHosts,
+        stoppedByDeadline: report.stoppedByDeadline,
+        crawlDelayApplied: report.crawlDelay,
+      },
+    };
+
     const start = crawledPages.find((page) => page.url === site.entryUrl && !page.error);
-    if (!start) return result;
+    if (!start) return built;
     return applyScoreCaps(
-      result,
+      built,
       siteCaps(readPageFacts(start.context), start.url, { staging: this.options.staging })
     );
   }
@@ -599,6 +830,21 @@ export class Auditor {
    * @returns One CategoryResult per audited category
    */
   async auditPages(pages: CrawledPage[]): Promise<CategoryResult[]> {
+    const audited = pages.filter((page) => !page.error && page.context).map((page) => page.context);
+    // `seomator analyze` calls this outside a run: it gets a service of its
+    // own, and the same network policy an audit of that site would have, so a
+    // stored page linking to a private address cannot make this machine ask it
+    if (!this.urls && audited.length > 0) {
+      const siteUrl = audited[0].url;
+      return this.underNetPolicy(siteUrl, () => this.withUrlService(siteUrl, () => this.auditPages(pages)));
+    }
+    for (const context of audited) {
+      context.urls ??= this.urls;
+      context.now ??= this.runStartedAt;
+    }
+    if (audited.some((context) => !context.externalLinks)) {
+      await this.prepareExternalLinks(audited, true);
+    }
     const crawledPages = pages;
     // Collect all rule results per category across all pages
     const categoryRuleResults = new Map<string, RuleResult[]>();
@@ -608,29 +854,35 @@ export class Auditor {
       categoryRuleResults.set(category.id, []);
     }
 
-    let pageNumber = 0;
-    for (const crawledPage of crawledPages) {
-      throwIfAborted(this.options.signal);
-      pageNumber++;
-
-      // Skip pages with errors
-      if (crawledPage.error) {
-        this.options.onPageComplete(crawledPage.url, pageNumber, crawledPages.length);
-        continue;
-      }
-
-      // Run categories for this page
-      const pageResults = await this.runAllCategories(crawledPage.context);
-
-      // Merge results into aggregated map
-      for (const categoryResult of pageResults) {
-        const existing = categoryRuleResults.get(categoryResult.categoryId);
-        if (existing) {
-          existing.push(...categoryResult.results);
+    // Pages are scored a few at a time, so one page's slow requests do not
+    // hold up the rest; the run's URL service still bounds the requests.
+    // Results are merged in page order, so the outcome does not depend on
+    // which page finished first. `pageNumber` counts completions, so progress
+    // only moves forward.
+    const perPage: Array<CategoryResult[] | null> = new Array(crawledPages.length).fill(null);
+    let next = 0;
+    let completed = 0;
+    const worker = async () => {
+      while (next < crawledPages.length) {
+        const index = next++;
+        const crawledPage = crawledPages[index];
+        throwIfAborted(this.options.signal);
+        // Skip pages with errors
+        if (!crawledPage.error) {
+          perPage[index] = await this.runAllCategories(crawledPage.context);
+          this.custom.runPage(crawledPage.context);
         }
+        completed++;
+        this.options.onPageComplete(crawledPage.url, completed, crawledPages.length);
       }
+    };
+    await Promise.all(Array.from({ length: Math.min(PAGE_SCORING_CONCURRENCY, crawledPages.length) }, worker));
 
-      this.options.onPageComplete(crawledPage.url, pageNumber, crawledPages.length);
+    // Merge results into the aggregated map, in page order
+    for (const pageResults of perPage) {
+      for (const categoryResult of pageResults ?? []) {
+        categoryRuleResults.get(categoryResult.categoryId)?.push(...categoryResult.results);
+      }
     }
 
     // Build final category results from aggregated data
@@ -641,6 +893,16 @@ export class Auditor {
     }
 
     return finalResults;
+  }
+
+  /** The last run's external link report, for a caller building its own result */
+  getExternalLinksReport(): ExternalLinksExtras | undefined {
+    return this.externalLinksReport;
+  }
+
+  /** The last run's custom check results, when it had any */
+  getCustomResults(): CustomResults | undefined {
+    return this.custom.empty ? undefined : this.custom.results();
   }
 
   /**
@@ -668,50 +930,17 @@ export class Auditor {
       // the overall score down and report a narrower audit as a catastrophic
       // one. Dropping it lets calculateOverallScore renormalise over the
       // categories that actually ran.
-      if (rules.length === 0) {
+      // Advisory rules do not count toward the score, so a category with
+      // nothing else in it would score 0 at its full weight: dropped the same
+      // way, so adding an advisory rule never moves the overall score.
+      if (rules.length === 0 || rules.every((rule) => rule.advisory)) {
         continue;
       }
 
-      const ruleResults: RuleResult[] = [];
-
-      // Run each rule
-      for (const rule of rules) {
-        try {
-          const result = await rule.run(context);
-          // Inject ruleId, weight and page URL for consistent tracking.
-          // A result that set its own weight keeps it — that is how
-          // notMeasured() opts a result out of scoring with weight 0.
-          const resultWithMeta: RuleResult = {
-            ...result,
-            ruleId: rule.id,
-            weight: result.weight ?? rule.weight,
-            details: {
-              ...result.details,
-              pageUrl: context.url,
-            },
-          };
-          ruleResults.push(resultWithMeta);
-          this.options.onRuleComplete(rule.id, rule.name, resultWithMeta);
-        } catch (error) {
-          // A cancelled run is not a rule failure: stop rather than scoring
-          // 332 rules as "execution failed".
-          rethrowIfAborted(error, this.options.signal);
-
-          // Rule threw an error, treat as fail
-          const errorResult: RuleResult = {
-            ruleId: rule.id,
-            status: 'fail',
-            message: `Rule execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            score: 0,
-            weight: rule.weight,
-            details: {
-              pageUrl: context.url,
-            },
-          };
-          ruleResults.push(errorResult);
-          this.options.onRuleComplete(rule.id, rule.name, errorResult);
-        }
-      }
+      // A category's rules run together: they read the context and never
+      // write it, and their requests share the run's limits. Results keep
+      // the rules' order whatever order they finish in.
+      const ruleResults = await Promise.all(rules.map((rule) => this.runRule(rule, context)));
 
       // Build category result
       const categoryResult = buildCategoryResult(category.id, ruleResults);
@@ -722,6 +951,103 @@ export class Auditor {
     }
 
     return results;
+  }
+
+  /** Run one rule on one page; a crash is a not-measured result, a cancel is thrown */
+  private async runRule(rule: AuditRule, context: AuditContext): Promise<RuleResult> {
+    // A render-only rule on a page with no render: not measured, without
+    // running it, and the same answer from every such rule
+    if (rule.requiresRender && context.renderedHtml === undefined) {
+      const result: RuleResult = {
+        ...notMeasured(
+          rule.id,
+          this.options.measureCwv
+            ? 'The browser render failed for this page'
+            : 'Needs a browser render: rerun with --render',
+          { pageUrl: context.url },
+          this.options.measureCwv ? 'could-not-verify' : 'needs-render'
+        ),
+        ...(rule.advisory && { advisory: true }),
+      };
+      this.options.onRuleComplete(rule.id, rule.name, result);
+      return result;
+    }
+    try {
+      const result = await rule.run(context, this.optionsFor(rule));
+      // Inject ruleId, weight and page URL for consistent tracking.
+      // A result that set its own weight keeps it — that is how
+      // notMeasured() opts a result out of scoring with weight 0.
+      const resultWithMeta: RuleResult = {
+        ...result,
+        ruleId: rule.id,
+        weight: result.weight ?? rule.weight,
+        ...(rule.advisory && { advisory: true }),
+        details: {
+          ...result.details,
+          pageUrl: context.url,
+        },
+      };
+      this.options.onRuleComplete(rule.id, rule.name, resultWithMeta);
+      return resultWithMeta;
+    } catch (error) {
+      // A cancelled run is not a rule failure: stop rather than scoring
+      // 332 rules as "execution failed".
+      rethrowIfAborted(error, this.options.signal);
+
+      // A check that crashed took no reading. Scoring it as a weighted
+      // fail blamed the site for the engine's bug, and let any thrown
+      // network or parse error drag the score down.
+      const errorResult: RuleResult = {
+        ...notMeasured(
+          rule.id,
+          `The check failed to run: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          { pageUrl: context.url },
+          'rule-error'
+        ),
+        ...(rule.advisory && { advisory: true }),
+      };
+      this.options.onRuleComplete(rule.id, rule.name, errorResult);
+      return errorResult;
+    }
+  }
+
+  /** Effective options per rule, resolved once per run */
+  private resolvedOptions = new Map<string, RuleOptionValues>();
+
+  /** A rule's declared defaults with the configured `rule_options` over them */
+  private optionsFor(rule: AuditRule): RuleOptionValues {
+    let values = this.resolvedOptions.get(rule.id);
+    if (!values) {
+      values = resolveRuleOptions(rule, this.options.ruleOptions[rule.id]);
+      this.resolvedOptions.set(rule.id, values);
+    }
+    return values;
+  }
+
+  /** The `rule_options` values this run used that differ from the defaults */
+  getRunRuleOptions(): Record<string, Record<string, unknown>> | undefined {
+    return this.changedRuleOptions();
+  }
+
+  /**
+   * Configured option values that differ from the rules' defaults.
+   *
+   * Recorded on the run because a threshold change moves verdicts without
+   * the site changing. Undefined when every rule ran on its defaults.
+   */
+  private changedRuleOptions(): Record<string, Record<string, unknown>> | undefined {
+    const changed: Record<string, Record<string, unknown>> = {};
+    for (const [ruleId, configured] of Object.entries(this.options.ruleOptions)) {
+      const rule = getRuleById(ruleId);
+      if (!rule?.options) continue;
+      const defaults = defaultRuleOptions(rule);
+      for (const [key, value] of Object.entries(configured)) {
+        if (!(key in rule.options)) continue;
+        if (JSON.stringify(value) === JSON.stringify(defaults[key])) continue;
+        (changed[ruleId] ??= {})[key] = value;
+      }
+    }
+    return Object.keys(changed).length > 0 ? changed : undefined;
   }
 
   /**
@@ -747,6 +1073,7 @@ export class Auditor {
       // Recorded only when set: absent reads as a production audit, which is
       // what every audit stored before the option existed was.
       ...(this.options.staging && { staging: true }),
+      ...(this.changedRuleOptions() && { ruleOptions: this.changedRuleOptions() }),
       timeout: this.options.timeout,
     };
   }

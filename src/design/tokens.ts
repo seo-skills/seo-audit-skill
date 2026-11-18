@@ -27,19 +27,26 @@ export interface TextPair {
   bg: string;
 }
 
+/**
+ * The SEOmator brand, as on seomator.com: every neutral has zero chroma, the
+ * interface accent is ink, and the one orange belongs to the agent (the
+ * emblem's #FE5000) and to the one primary action on a screen. It used to be
+ * blue on slate; slate's blue tint reads as a second brand colour next to the
+ * orange emblem.
+ */
 export const LIGHT = {
-  'color-bg': '#f8fafc',
+  'color-bg': '#fafafa',
   'color-bg-elevated': '#ffffff',
-  'color-bg-hover': '#f1f5f9',
-  'color-bg-active': '#e2e8f0',
-  'color-border': '#e2e8f0',
-  'color-border-subtle': '#f1f5f9',
+  'color-bg-hover': '#f4f4f4',
+  'color-bg-active': '#e5e5e5',
+  'color-border': '#e5e5e5',
+  'color-border-subtle': '#f4f4f4',
 
-  'color-text': '#0f172a',
-  'color-text-secondary': '#475569',
-  // Was #94a3b8 at 2.56:1 on white — below AA for normal text, and it carries
-  // every timestamp, category label and secondary line in the product.
-  'color-text-muted': '#64748b',
+  'color-text': '#171717',
+  'color-text-secondary': '#525252',
+  // Slate's #94a3b8 was 2.56:1 on white — below AA for normal text, and it
+  // carries every timestamp, category label and secondary line in the product.
+  'color-text-muted': '#6b6b6b',
 
   // The status colours are used as text on white AND as text on their own
   // tint, so each is chosen to clear 4.5:1 in both. The previous values were
@@ -54,14 +61,23 @@ export const LIGHT = {
   'color-fail-bg': '#fee2e2',
   'color-info': '#1d4ed8',
   'color-info-bg': '#dbeafe',
-  'color-neutral': '#475569',
-  'color-neutral-bg': '#f1f5f9',
+  'color-neutral': '#525252',
+  'color-neutral-bg': '#f4f4f4',
 
-  'color-accent': '#064ada',
-  'color-accent-hover': '#0540b8',
-  'color-accent-light': 'rgba(6, 74, 218, 0.1)',
+  // Ink: selection, focus, links, checkboxes and secondary buttons. Not orange,
+  // or every selected tab would compete with the agent for the eye.
+  'color-accent': '#171717',
+  'color-accent-hover': '#262626',
+  'color-accent-light': 'rgba(23, 23, 23, 0.06)',
   /** Text drawn on top of the accent, not the accent itself */
   'color-on-accent': '#ffffff',
+
+  // The agent orange: the agent at work (progress) and the one primary action.
+  'color-agent': '#fe5000',
+  'color-agent-hover': '#e64800',
+  // Ink, not white: white on #fe5000 is 3.3:1, below AA for a 14px label.
+  // Ink is the brand's own pairing for text on orange (6.0:1).
+  'color-on-agent': '#0a0a0a',
 
   'shadow-sm': '0 1px 2px rgba(0, 0, 0, 0.05)',
   'shadow-md': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
@@ -75,24 +91,25 @@ export const LIGHT = {
 } as const;
 
 /**
- * Zinc, not pure black.
+ * Neutral greys, not pure black.
  *
  * `#000000` with `#0a0a0a` for raised surfaces is 1.03:1 — on an OLED panel the
- * card edges simply vanish, which is part of what "looks bad" meant. The
- * dashboard already used zinc; the report did not. Zinc wins.
+ * card edges simply vanish, which is part of what "looks bad" meant. So the page
+ * is the brand's `#0a0a0a` and raised surfaces step up to `#171717`, the same
+ * 1.13:1 step zinc had, without zinc's blue tint.
  */
 export const DARK = {
-  'color-bg': '#09090b',
-  'color-bg-elevated': '#18181b',
-  'color-bg-hover': '#27272a',
-  'color-bg-active': '#3f3f46',
-  'color-border': '#27272a',
-  'color-border-subtle': '#1e1e22',
+  'color-bg': '#0a0a0a',
+  'color-bg-elevated': '#171717',
+  'color-bg-hover': '#262626',
+  'color-bg-active': '#404040',
+  'color-border': '#262626',
+  'color-border-subtle': '#1f1f1f',
 
-  'color-text': '#fafafa',
-  'color-text-secondary': '#a1a1aa',
-  // Was #71717a at 3.63:1 on the elevated surface.
-  'color-text-muted': '#8b8b94',
+  'color-text': '#ededed',
+  'color-text-secondary': '#a1a1a1',
+  // Zinc's #71717a was 3.63:1 on the elevated surface.
+  'color-text-muted': '#8b8b8b',
 
   'color-pass': '#34d399',
   'color-pass-bg': 'rgba(16, 185, 129, 0.12)',
@@ -104,19 +121,24 @@ export const DARK = {
   'color-fail-bg': 'rgba(239, 68, 68, 0.12)',
   'color-info': '#60a5fa',
   'color-info-bg': 'rgba(59, 130, 246, 0.12)',
-  'color-neutral': '#a1a1aa',
-  'color-neutral-bg': 'rgba(161, 161, 170, 0.14)',
+  'color-neutral': '#a1a1a1',
+  'color-neutral-bg': 'rgba(161, 161, 161, 0.14)',
 
-  'color-accent': '#7ba3f5',
-  'color-accent-hover': '#a5c0f8',
-  'color-accent-light': 'rgba(6, 74, 218, 0.2)',
-  'color-on-accent': '#0b1220',
+  'color-accent': '#ededed',
+  'color-accent-hover': '#ffffff',
+  'color-accent-light': 'rgba(237, 237, 237, 0.10)',
+  'color-on-accent': '#0a0a0a',
+
+  // The same orange in both themes: it is the emblem's, not a theme colour.
+  'color-agent': '#fe5000',
+  'color-agent-hover': '#e64800',
+  'color-on-agent': '#0a0a0a',
 
   'shadow-sm': '0 1px 3px rgba(0, 0, 0, 0.5)',
   'shadow-md': '0 4px 8px rgba(0, 0, 0, 0.6)',
   'shadow-lg': '0 12px 24px rgba(0, 0, 0, 0.7)',
 
-  'toolbar-bg': 'rgba(24, 24, 27, 0.72)',
+  'toolbar-bg': 'rgba(23, 23, 23, 0.72)',
   'toolbar-border': 'rgba(255, 255, 255, 0.10)',
   'segment-track': 'rgba(255, 255, 255, 0.06)',
   'segment-active': 'rgba(255, 255, 255, 0.16)',
@@ -132,10 +154,13 @@ export const METRICS = {
   'radius-sm': '4px',
   'radius-md': '8px',
   'radius-lg': '12px',
-  // No webfont is fetched. A tool that runs on localhost should not need the
-  // internet to render text, or announce every reader to a third party.
-  'font-sans': "'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  'font-mono': "'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
+  // The brand pairs Geist for text with Geist Mono for readouts, URLs and
+  // numbers. No webfont is fetched: the dashboard and the desktop app bundle
+  // both faces (ui/main.tsx), and the single-file HTML report falls back to
+  // the system stack, so a tool that runs on localhost never needs the
+  // internet to render text or announces a reader to a third party.
+  'font-sans': "'Geist Variable', 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  'font-mono': "'Geist Mono Variable', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
 } as const;
 
 /**
@@ -164,6 +189,8 @@ export const TEXT_PAIRS: readonly TextPair[] = [
   { fg: 'color-neutral', bg: 'color-neutral-bg' },
   { fg: 'color-accent', bg: 'color-bg-elevated' },
   { fg: 'color-on-accent', bg: 'color-accent' },
+  { fg: 'color-on-agent', bg: 'color-agent' },
+  { fg: 'color-on-agent', bg: 'color-agent-hover' },
   // Solid warn and fail buttons. These carried a hardcoded `#fff`, which is
   // right over the light theme's dark amber and red and close to invisible over
   // the dark theme's bright ones.

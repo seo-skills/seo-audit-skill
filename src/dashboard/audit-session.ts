@@ -20,6 +20,8 @@ import { saveAuditToDatabase, stripUserinfo, type SavedAudit } from '../storage/
 import { generateId } from '../storage/utils/hash.js';
 import type { AuditRunOptions, AuditSource } from '../storage/types.js';
 import { buildRuleMetadata } from './queries.js';
+import { applyRuleOverrides } from '../rules/overrides.js';
+import type { RuleOverride } from '../config/schema.js';
 import type { RuleMetadata } from './contract.js';
 
 /** Rule results kept in the live state; older ones are dropped */
@@ -33,6 +35,9 @@ export const MAX_RECENT_RULES = 50;
  * next run also clears it.
  */
 export const RUN_RETENTION_MS = 15 * 60 * 1000;
+
+/** How long a session run (dashboard, desktop, MCP) may crawl by default */
+export const SESSION_MAX_DURATION_MS = 60 * 60 * 1000;
 
 /** Bounds on what a client may ask for */
 export const RUN_LIMITS = {
@@ -134,6 +139,11 @@ export interface RunState {
   lastPageAt: string | null;
   categories: CategoryProgress[];
   recentRules: Array<{ ruleId: string; ruleName: string; status: RuleResult['status']; message: string }>;
+  /**
+   * What a long, quiet phase is doing: "Checking 312 external links",
+   * "Waiting on example.com, 12 s". Null when the progress bar says enough.
+   */
+  activity: string | null;
   /** Set once the finished audit has been stored */
   auditId: string | null;
   error: RunError | null;
@@ -149,6 +159,12 @@ export interface Capabilities {
   simulateInteraction: boolean;
   /** Finished audits can be stored */
   persistence: boolean;
+  /** The render reads each image's displayed size (images-oversized-delivery) */
+  imageSizing: boolean;
+  /** The render runs the accessibility engine */
+  accessibilityEngine: boolean;
+  /** The render collects JavaScript and CSS coverage (needs the DevTools protocol) */
+  codeCoverage: boolean;
 }
 
 export const DEFAULT_CAPABILITIES: Capabilities = {
@@ -156,6 +172,9 @@ export const DEFAULT_CAPABILITIES: Capabilities = {
   mobileParity: true,
   simulateInteraction: true,
   persistence: true,
+  imageSizing: true,
+  accessibilityEngine: true,
+  codeCoverage: true,
 };
 
 export interface AuditSessionOptions {
@@ -164,7 +183,26 @@ export interface AuditSessionOptions {
   /** What this build can do. The defaults describe the Playwright engine. */
   capabilities?: Partial<Capabilities>;
   /** Extra engine options, e.g. Electron's own browser fetcher */
-  auditorOptions?: Pick<AuditorOptions, 'browserFetcher' | 'respectRobots'>;
+  auditorOptions?: Pick<
+    AuditorOptions,
+    | 'browserFetcher'
+    | 'respectRobots'
+    | 'network'
+    | 'enableRules'
+    | 'disableRules'
+    | 'ruleOptions'
+    | 'perHostConcurrency'
+    | 'respectCrawlDelay'
+    | 'maxRetryAfterMs'
+    | 'maxDurationMs'
+    | 'externalLinks'
+    | 'custom'
+    | 'urlFilter'
+    | 'delayMs'
+    | 'perHostDelayMs'
+  >;
+  /** `[rules.override]`: re-ranks findings before the result is summarized or stored */
+  ruleOverrides?: Record<string, RuleOverride>;
   /** Injectable for tests */
   createAuditor?: (options: AuditorOptions) => Auditor;
   /** Injectable for tests */
@@ -239,6 +277,7 @@ const IDLE_STATE: RunState = {
   lastPageAt: null,
   categories: [],
   recentRules: [],
+  activity: null,
   auditId: null,
   error: null,
 };
@@ -471,6 +510,10 @@ export class AuditSession {
     const save = this.options.saveAudit ?? saveAuditToDatabase;
 
     const auditor = makeAuditor({
+      // A session run is unattended once started: without a limit, a site
+      // with a 10 s Crawl-delay or a host that rate-limits every page holds
+      // the run slot for hours. An hour, unless the caller says otherwise.
+      maxDurationMs: SESSION_MAX_DURATION_MS,
       ...this.options.auditorOptions,
       categories: args.categories,
       timeout: args.timeout,
@@ -509,8 +552,21 @@ export class AuditSession {
               : recentRules,
         });
       },
+      // The phases where the bar stands still say what they are doing
+      onExternalLinks: (count) => {
+        this.patch({ activity: `Checking ${count} external link${count === 1 ? '' : 's'}` });
+      },
+      onWaiting: (waiting) => {
+        this.patch({ activity: `Waiting on ${waiting.host}, ${Math.ceil(waiting.waitMs / 1000)} s (it asked to slow down)` });
+      },
+      onCrawlDelay: (notice) => {
+        this.patch({
+          activity: `${notice.host} asks for ${notice.delayMs / 1000} s between requests; this crawl may take up to ${Math.ceil(notice.projectedMs / 60000)} min`,
+        });
+      },
       onPageComplete: (pageUrl, pageNumber, totalPages) => {
         this.patch({
+          activity: null,
           phase: 'auditing',
           pages: { completed: pageNumber, total: totalPages, currentUrl: stripUserinfo(pageUrl) },
           // First stamped once; last on every completion, so the rate is
@@ -525,6 +581,7 @@ export class AuditSession {
       const result = args.crawl
         ? await auditor.auditWithCrawl(args.url, args.maxPages, args.concurrency)
         : await auditor.audit(args.url);
+      if (this.options.ruleOverrides) applyRuleOverrides(result, this.options.ruleOverrides);
 
       const outcome: RunOutcome = {
         runId,

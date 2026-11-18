@@ -23,6 +23,7 @@ export const resourceBrokenRedirectRule = defineRule({
   description: 'Checks that redirected page resources do not resolve to a 4xx or 5xx status',
   category: 'redirect',
   weight: 12,
+  requiresRender: true,
   run: (context: AuditContext) => {
     const assets = context.assets;
 

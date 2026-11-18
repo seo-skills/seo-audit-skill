@@ -25,7 +25,8 @@
 
 import { getRuleById } from './registry.js';
 import { getCategoryById } from '../categories/index.js';
-import type { RuleStatus } from '../types.js';
+import type { OverridePriority, RuleStatus } from '../types.js';
+import { overridePriorityFactor } from './overrides.js';
 
 /**
  * How much a status counts toward priority.
@@ -51,6 +52,8 @@ export interface PriorityInput {
   affectedPages: number;
   /** Pages where the rule took a reading */
   measuredPages: number;
+  /** `[rules.override]` priority for this rule, when one is set */
+  override?: OverridePriority;
 }
 
 /**
@@ -75,7 +78,7 @@ export function rulePriority(input: PriorityInput): number {
   if (input.measuredPages <= 0) return 0;
 
   const share = input.affectedPages / input.measuredPages;
-  return rule.weight * category.weight * severity * share;
+  return rule.weight * category.weight * severity * share * overridePriorityFactor(input.override);
 }
 
 /**

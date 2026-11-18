@@ -8,11 +8,15 @@ import type {
 import type { RuleSummary } from '../dashboard/contract.js';
 import { scoreToVerdict, verdictStyle } from '../verdict.js';
 import { rulePriority } from '../rules/priority.js';
+import type { OverridePriority } from '../types.js';
 import { toCss as tokensToCss } from '../design/tokens.js';
 import { getCategoryById } from '../categories/index.js';
 import { getFixSuggestion } from './fix-suggestions.js';
 import { getRuleById } from '../rules/registry.js';
 import { isNotMeasured } from '../rules/define-rule.js';
+import { brokenExternalSection } from './external-links-section.js';
+import type { LinkScoreSummary } from '../site/link-score.js';
+import { customResults, customSearchRows } from './custom-section.js';
 
 /**
  * Rule metadata cache structure
@@ -110,6 +114,8 @@ interface AggregatedIssue {
    * find out what to fix first.
    */
   priority: number;
+  /** `[rules.override]` priority, when the config set one */
+  override?: OverridePriority;
 }
 
 /**
@@ -182,6 +188,7 @@ function aggregateIssuesByRule(
           pages: [],
           pageCount: 0,
           priority: 0,
+          ...(r.overridden?.priority && { override: r.overridden.priority }),
         });
       }
 
@@ -215,6 +222,7 @@ function aggregateIssuesByRule(
         status: fromDisplayStatus(g.status),
         affectedPages: g.pageCount,
         measuredPages,
+        ...(g.override && { override: g.override }),
       });
     }
 
@@ -2004,18 +2012,23 @@ function generateScript(pages: string[]): string {
  * The SEOmator wordmark, inlined so the report stays a single self-contained
  * file with no network fetch for its own branding.
  *
- * The mark keeps its brand blue and white arc; the lettering inherits
- * `currentColor`. The source file left that path unfilled, which defaults to
- * black and would have rendered the name invisible against the dark theme.
+ * The paths are the designer's `electron/resources/brand/seomator-logo.svg`,
+ * byte for byte. The emblem stays orange on both themes; the lettering inherits
+ * `currentColor`, which is how the designer's light and dark files differ.
+ * Unfilled lettering would default to black and vanish against the dark theme.
  *
- * Mark plus lettering, roughly 5:1, so it is sized by height and left to find
- * its own width.
+ * Emblem plus lettering, roughly 5.7:1, so it is sized by height and left to
+ * find its own width.
  */
 /** Where the header lockup and the footer send readers for the hosted tool. */
 const SEOMATOR_TOOL_URL = 'https://seomator.com/free-seo-audit-tool';
 
 const SEOMATOR_WORDMARK =
-  '<svg viewBox="0 0 1047.992 203" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SEOmator"><g transform="translate(0 -2)" fill="currentColor"><circle cx="101.5" cy="101.5" r="101.5" transform="translate(0 2)" fill="#064ada"/><path d="M64.1,75.1a57.1,57.1,0,0,0,57.1-57.1H7A57.1,57.1,0,0,0,64.1,75.1Z" transform="translate(37.409 85.505)" fill="#fff"/><path d="M40.112,2.392q-24.1,0-39.744-16.744L17.112-29.624Q27.6-17.848,39.56-17.848q6.44,0,9.844-2.852a8.882,8.882,0,0,0,3.4-7.084,7.925,7.925,0,0,0-1.2-4.416q-1.2-1.84-4.968-3.5a64.2,64.2,0,0,0-11.316-3.312q-12.88-3.128-19.136-7.728t-8.28-10.3A34.959,34.959,0,0,1,5.888-68.816,26.725,26.725,0,0,1,15.364-89.7q9.476-8.372,26.22-8.372,11.592,0,19.872,3.5T77.1-81.512l-18.032,13.8a22.427,22.427,0,0,0-7.82-7.912,18.546,18.546,0,0,0-9.108-2.392,16.513,16.513,0,0,0-8.556,2.024,6.937,6.937,0,0,0-3.4,6.44,6.813,6.813,0,0,0,2.208,4.692q2.208,2.3,10.672,4.508,13.984,3.5,21.344,8.188t10.12,10.58A30.4,30.4,0,0,1,77.28-28.52,27,27,0,0,1,72.4-12.7,33.591,33.591,0,0,1,59.156-1.656,43.209,43.209,0,0,1,40.112,2.392Zm90.9,0q-14.72,0-25.944-6.808A47.419,47.419,0,0,1,87.676-22.54a51.639,51.639,0,0,1-6.164-25.116,50.9,50.9,0,0,1,6.44-25.3,49.363,49.363,0,0,1,17.572-18.308,47.855,47.855,0,0,1,25.484-6.808,46.911,46.911,0,0,1,25.3,6.808A47.71,47.71,0,0,1,173.42-72.956a52.7,52.7,0,0,1,6.164,25.3q0,2.024-.184,4.232t-.552,4.6H107.272a25.6,25.6,0,0,0,8.188,13.8q6.164,5.336,15.548,5.336a26.318,26.318,0,0,0,14.076-3.68,27.229,27.229,0,0,0,9.292-9.2L173.7-18.032q-5.7,9.016-17.112,14.72A56.393,56.393,0,0,1,131.008,2.392Zm-.368-79.12a22.471,22.471,0,0,0-15.088,5.336,25.436,25.436,0,0,0-8.28,13.984H154.56a27,27,0,0,0-8.372-13.616A22.423,22.423,0,0,0,130.64-76.728ZM234.6,2.392a50.976,50.976,0,0,1-26.312-6.808A49.394,49.394,0,0,1,190.164-22.54a49.332,49.332,0,0,1-6.532-25.116,49.831,49.831,0,0,1,6.532-25.208A49.18,49.18,0,0,1,208.288-91.08,50.976,50.976,0,0,1,234.6-97.888,50.842,50.842,0,0,1,261-91.08a49.389,49.389,0,0,1,18.032,18.216,49.832,49.832,0,0,1,6.532,25.208,49.332,49.332,0,0,1-6.532,25.116A49.6,49.6,0,0,1,261-4.416,50.842,50.842,0,0,1,234.6,2.392Zm0-22.632a25.023,25.023,0,0,0,13.8-3.772,25.629,25.629,0,0,0,9.108-10.028,29.313,29.313,0,0,0,3.22-13.616,29.7,29.7,0,0,0-3.22-13.8A25.629,25.629,0,0,0,248.4-71.484a25.023,25.023,0,0,0-13.8-3.772,25.023,25.023,0,0,0-13.8,3.772,25.629,25.629,0,0,0-9.108,10.028,29.7,29.7,0,0,0-3.22,13.8,29.313,29.313,0,0,0,3.22,13.616A25.629,25.629,0,0,0,220.8-24.012,25.023,25.023,0,0,0,234.6-20.24ZM294.768,0V-95.68H319.24V-81.7q7.544-16.192,29.256-16.192A35.66,35.66,0,0,1,366.712-93.2a34.145,34.145,0,0,1,12.88,13.34A35.856,35.856,0,0,1,391.828-93.2q7.452-4.692,20.148-4.692A36.468,36.468,0,0,1,430.56-93.1a34.092,34.092,0,0,1,13.064,13.616q4.784,8.832,4.784,20.976V0h-24.84V-52.44q0-12.512-5.336-18.124a18.188,18.188,0,0,0-13.8-5.612q-8.648,0-14.076,4.968T384.928-52.44V0h-24.84V-52.44q0-12.512-5.7-18.124t-14.9-5.612a19.676,19.676,0,0,0-13.892,5.612q-5.98,5.612-5.98,18.124V0ZM503.976,2.392a44.116,44.116,0,0,1-23.828-6.716,49.3,49.3,0,0,1-17.112-18.032,50.447,50.447,0,0,1-6.348-25.116,51.323,51.323,0,0,1,3.68-19.412,51.486,51.486,0,0,1,10.12-16.008,47.719,47.719,0,0,1,15-10.856A43.522,43.522,0,0,1,503.976-97.7q12.512,0,19.5,4.692a31.8,31.8,0,0,1,10.856,12.42V-95.68h24.656V0h-24.1V-15.64A33,33,0,0,1,523.94-2.576Q516.856,2.392,503.976,2.392Zm4.048-22.448a26.174,26.174,0,0,0,14.26-3.772,26.092,26.092,0,0,0,9.292-10.028,28.653,28.653,0,0,0,3.312-13.616,29.032,29.032,0,0,0-3.312-13.8,26.788,26.788,0,0,0-9.292-10.12,25.7,25.7,0,0,0-14.26-3.864,25.483,25.483,0,0,0-13.892,3.772,26.092,26.092,0,0,0-9.292,10.028,29.032,29.032,0,0,0-3.312,13.8,28.821,28.821,0,0,0,3.312,13.524,26.6,26.6,0,0,0,9.292,10.212A25.027,25.027,0,0,0,508.024-20.056ZM608.12,0q-14.168,0-21.712-6.992t-7.544-22.632v-44.9H565.432V-95.68h13.432V-115l24.84-2.576v21.9h20.24v21.16H603.7v43.608q0,8.832,7.728,8.832h10.3V0ZM675.1,2.392a50.976,50.976,0,0,1-26.312-6.808A49.4,49.4,0,0,1,630.66-22.54a49.332,49.332,0,0,1-6.532-25.116,49.831,49.831,0,0,1,6.532-25.208A49.181,49.181,0,0,1,648.784-91.08,50.976,50.976,0,0,1,675.1-97.888a50.842,50.842,0,0,1,26.4,6.808,49.389,49.389,0,0,1,18.032,18.216,49.831,49.831,0,0,1,6.532,25.208,49.332,49.332,0,0,1-6.532,25.116A49.6,49.6,0,0,1,701.5-4.416,50.842,50.842,0,0,1,675.1,2.392Zm0-22.632a25.023,25.023,0,0,0,13.8-3.772A25.629,25.629,0,0,0,698-34.04a29.313,29.313,0,0,0,3.22-13.616,29.7,29.7,0,0,0-3.22-13.8A25.629,25.629,0,0,0,688.9-71.484a25.023,25.023,0,0,0-13.8-3.772,25.023,25.023,0,0,0-13.8,3.772,25.629,25.629,0,0,0-9.108,10.028,29.7,29.7,0,0,0-3.22,13.8,29.313,29.313,0,0,0,3.22,13.616A25.629,25.629,0,0,0,661.3-24.012,25.023,25.023,0,0,0,675.1-20.24ZM735.264,0V-95.68h24.1v18.216q2.392-10.3,9.752-15.732t19.872-4.692V-74.52h-3.5a25.574,25.574,0,0,0-18.032,6.808Q760.1-60.9,760.1-48.944V0Z" transform="translate(259 160)"/></g></svg>';
+  '<svg viewBox="0 0 850 150" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SEOmator"><path d="M75 5C27.1762 5 5 26.7323 5 75C5 123.268 27.1762 145 75 145C122.824 145 145 123.268 145 75C145 26.7323 122.832 5 75 5Z" fill="#FE5000"/><g filter="url(#seomator-visor-shadow)"><path d="M74.9825 53C4.58302 53.9094 -3.78745 135.394 74.9825 134.999C153.752 135.356 145.478 53.9543 74.9825 53Z" fill="white"/></g><path d="M100.114 91.3539C100.938 101.56 106.033 109.452 111.493 108.98C116.953 108.508 120.711 99.8523 119.886 89.6461C119.062 79.4399 113.967 71.5485 108.507 72.0201C103.047 72.4917 99.2888 81.1477 100.114 91.3539Z" fill="#FE5000"/><path d="M68.2375 93.9149C69.5702 105.763 76.1406 114.734 82.913 113.953C89.6854 113.171 94.0951 102.933 92.7625 91.0851C91.4298 79.2371 84.8594 70.266 78.087 71.0474C71.3146 71.8289 66.9049 82.067 68.2375 93.9149Z" fill="#FE5000"/><g fill="currentColor"><path d="M820.43 115.706H798.152V38.0013H819.283V63.2472H821.085C825.999 41.6079 832.552 37.1816 842.708 37.1816H845.001V62.7554H840.414C824.853 62.7554 820.43 67.3456 820.43 81.1161V115.706Z"/><path d="M748.011 118C722.785 118 707.879 102.427 707.879 76.8527C707.879 50.9511 723.277 35.8691 748.011 35.8691C772.255 35.8691 787.816 50.9511 787.816 76.8527C787.816 102.427 772.746 118 748.011 118ZM747.848 54.5577C735.562 54.5577 730.157 62.5905 730.157 76.6888C730.157 90.7872 735.235 98.9839 747.848 98.9839C760.297 98.9839 765.539 90.7872 765.539 76.6888C765.539 62.5905 760.133 54.5577 747.848 54.5577Z"/><path d="M658.192 91.2787V55.7049H648.691V38H658.192V18H680.47V38H700.946V55.7049H680.47V87.6721C680.47 93.9016 682.763 97.0164 689.479 97.0164C692.919 97.0164 696.687 96.0328 699.635 95.0492L702.092 115.049C696.195 116.852 692.264 118 683.746 118C665.727 118 658.192 106.033 658.192 91.2787Z"/><path d="M601.98 98.3282C611.481 98.3282 617.706 91.4429 617.706 80.6232V74.5577C617.706 63.2462 611.645 56.0331 601.817 56.0331C591.169 56.0331 586.255 62.9183 586.255 77.5085C586.255 91.4429 591.005 98.3282 601.98 98.3282ZM564.469 77.5085C564.469 50.4593 574.297 35.8691 591.333 35.8691C603.782 35.8691 612.136 44.0659 616.231 57.6724H617.706V38.0003H639.983V115.705H617.706V95.3773H616.395C612.464 108.984 603.946 118 591.005 118C574.297 118 564.469 103.738 564.469 77.5085Z"/><path d="M455.379 72.4265V115.705H433.102V38.0003H454.888V58.82H456.526C460.949 43.738 470.286 35.8691 482.571 35.8691C496.331 35.8691 503.047 44.5577 504.03 59.1478H505.831C510.09 43.9019 518.936 35.8691 531.713 35.8691C546.947 35.8691 554.646 46.197 554.646 63.0823V115.705H532.204V69.3118C532.204 61.4429 528.6 56.0331 520.41 56.0331C510.909 56.0331 505.012 62.7544 505.012 72.4265V115.705H482.735V69.3118C482.735 61.4429 478.967 56.0331 470.941 56.0331C461.44 56.0331 455.379 62.7544 455.379 72.4265Z"/><path d="M382.961 118C357.734 118 342.828 102.427 342.828 76.8527C342.828 50.9511 358.226 35.8691 382.961 35.8691C407.204 35.8691 422.765 50.9511 422.765 76.8527C422.765 102.427 407.695 118 382.961 118ZM382.797 54.5577C370.511 54.5577 365.106 62.5905 365.106 76.6888C365.106 90.7872 370.184 98.9839 382.797 98.9839C395.246 98.9839 400.488 90.7872 400.488 76.6888C400.488 62.5905 395.082 54.5577 382.797 54.5577Z"/><path d="M300.114 52.5904C289.959 52.5904 284.225 57.8364 283.079 70.6232H315.512C315.185 58.4921 310.107 52.5904 300.114 52.5904ZM300.442 117.836C277.018 117.836 260.965 104.886 260.965 78.4921C260.965 51.6068 275.544 35.8691 300.77 35.8691C324.685 35.8691 335.988 49.9675 335.988 71.4429C335.988 74.7216 335.824 77.8364 335.497 81.9347H282.915C284.225 94.3937 289.959 99.9675 300.606 99.9675C311.089 99.9675 314.366 95.0495 316.331 89.1478L335.005 94.2298C331.565 107.672 322.556 117.836 300.442 117.836Z"/><path d="M221.365 118C195.156 118 187.129 107.509 185 93.4103L204.984 89.3119C206.95 97.8365 212.192 102.263 221.856 102.263C229.391 102.263 233.159 99.8037 233.323 94.7218C233.323 89.9677 230.21 87.3447 215.959 84.5578C194.665 79.9677 187.457 72.9185 187.457 59.6398C187.457 44.7218 198.104 35.8693 220.054 35.8693C242.66 35.8693 250.031 44.7218 252.816 58.3283L232.995 62.4267C231.193 54.3939 227.59 51.2792 219.563 51.2792C212.192 51.2792 208.588 53.7382 208.588 58.3283C208.588 62.5906 210.718 65.7054 224.641 68.4923C248.884 73.5742 254.781 81.607 254.781 93.7382C254.781 108.82 244.789 118 221.365 118Z"/></g><defs><filter id="seomator-visor-shadow" x="19" y="47" width="112" height="88" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset dy="-6"/><feGaussianBlur stdDeviation="6"/><feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/><feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 0.696922 0 0 0 0 0.556472 0 0 0 0.8 0"/><feBlend mode="normal" in2="shape" result="effect1_innerShadow_1_2594"/></filter></defs></svg>';
+
+/** The emblem alone as an SVG data URI: the report's tab icon, with no file to fetch. */
+const SEOMATOR_FAVICON =
+  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNTAgMTUwIj48cGF0aCBmaWxsPSIjRkU1MDAwIiBkPSJNNzUgNUMyNy4xNzYyIDUgNSAyNi43MzIzIDUgNzVDNSAxMjMuMjY4IDI3LjE3NjIgMTQ1IDc1IDE0NUMxMjIuODI0IDE0NSAxNDUgMTIzLjI2OCAxNDUgNzVDMTQ1IDI2LjczMjMgMTIyLjgzMiA1IDc1IDVaIi8+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTc0Ljk4MjUgNTNDNC41ODMwMiA1My45MDk0IC0zLjc4NzQ1IDEzNS4zOTQgNzQuOTgyNSAxMzQuOTk5QzE1My43NTIgMTM1LjM1NiAxNDUuNDc4IDUzLjk1NDMgNzQuOTgyNSA1M1oiLz48cGF0aCBmaWxsPSIjRkU1MDAwIiBkPSJNNjguMjM3NSA5My45MTQ5QzY5LjU3MDIgMTA1Ljc2MyA3Ni4xNDA2IDExNC43MzQgODIuOTEzIDExMy45NTNDODkuNjg1NCAxMTMuMTcxIDk0LjA5NTEgMTAyLjkzMyA5Mi43NjI1IDkxLjA4NTFDOTEuNDI5OCA3OS4yMzcxIDg0Ljg1OTQgNzAuMjY2IDc4LjA4NyA3MS4wNDc0QzcxLjMxNDYgNzEuODI4OSA2Ni45MDQ5IDgyLjA2NyA2OC4yMzc1IDkzLjkxNDlaIi8+PHBhdGggZmlsbD0iI0ZFNTAwMCIgZD0iTTEwMC4xMTQgOTEuMzUzOUMxMDAuOTM4IDEwMS41NiAxMDYuMDMzIDEwOS40NTIgMTExLjQ5MyAxMDguOThDMTE2Ljk1MyAxMDguNTA4IDEyMC43MTEgOTkuODUyMyAxMTkuODg2IDg5LjY0NjFDMTE5LjA2MiA3OS40Mzk5IDExMy45NjcgNzEuNTQ4NSAxMDguNTA3IDcyLjAyMDFDMTAzLjA0NyA3Mi40OTE3IDk5LjI4ODggODEuMTQ3NyAxMDAuMTE0IDkxLjM1MzlaIi8+PC9zdmc+';
 
 /**
  * Generate SVG icons
@@ -2138,6 +2151,68 @@ function renderPageSnapshot(page: PageSnapshot | undefined, url: string): string
           ${outline}
         </section>
       </div>`;
+}
+
+/** The team's own searches and extractions, not scored */
+function renderCustomChecks(result: AuditResult): string {
+  const custom = customResults(result);
+  if (!custom) return '';
+  const searches = customSearchRows(custom)
+    .map(
+      (row) => `<tr class="issue-row"><td>${escapeHtml(row.name)}</td><td>${row.outcome}</td><td>${escapeHtml(row.summary)}${
+        row.failingPages.length > 0 ? `<br>${row.failingPages.slice(0, 10).map((p) => `<span class="issue-row-url" title="${escapeHtml(p)}">${escapeHtml(getShortUrl(p))}</span>`).join('<br>')}` : ''
+      }</td></tr>`
+    )
+    .join('');
+  const values = custom.extractions
+    .flatMap((e) => e.pages.flatMap((p) => p.values.map((v) => `<tr class="issue-row"><td>${escapeHtml(e.name)}</td><td><span class="issue-row-url" title="${escapeHtml(p.url)}">${escapeHtml(getShortUrl(p.url))}</span></td><td>${escapeHtml(v)}</td></tr>`)))
+    .join('');
+  return `<section class="category-progress-section" id="custom-checks">
+        <div class="category-progress-title">Custom checks (not scored)</div>
+        ${searches ? `<table class="issues-table"><thead><tr><th>Search</th><th>Result</th><th>Pages</th></tr></thead><tbody>${searches}</tbody></table>` : ''}
+        ${values ? `<table class="issues-table"><thead><tr><th>Extraction</th><th>Page</th><th>Value</th></tr></thead><tbody>${values}</tbody></table>` : ''}
+      </section>`;
+}
+
+/** Internal Link Score: the best-linked pages and the weakest indexable ones */
+function renderLinkScores(result: AuditResult): string {
+  const summary = result.extras?.linkScoreSummary as LinkScoreSummary | undefined;
+  if (!summary || summary.pages <= 1) return '';
+  const rows = (pages: LinkScoreSummary['top']) =>
+    pages
+      .map((p) => `<tr class="issue-row"><td><span class="issue-row-url" title="${escapeHtml(p.url)}">${escapeHtml(getShortUrl(p.url))}</span></td><td>${p.score.toFixed(1)}</td></tr>`)
+      .join('');
+  const table = (title: string, pages: LinkScoreSummary['top']) =>
+    `<div class="category-progress-title">${title}</div><table class="issues-table"><thead><tr><th>Page</th><th>Link Score</th></tr></thead><tbody>${rows(pages)}</tbody></table>`;
+  return `<section class="category-progress-section" id="link-score">
+        <div class="category-progress-title">Link Score (internal links, 0-100; changes no score)</div>
+        ${table('Best linked', summary.top)}
+        ${summary.lowestIndexable.length > 0 ? table('Weakest indexable pages', summary.lowestIndexable) : ''}
+      </section>`;
+}
+
+/** Broken external links, one row per dead target with the pages that link to it */
+function renderBrokenExternal(result: AuditResult): string {
+  const section = brokenExternalSection(result, 100, 5);
+  if (!section) return '';
+  const rows = section.targets
+    .map(
+      (t) => `<tr class="issue-row">
+            <td><span class="issue-row-url" title="${escapeHtml(t.url)}">${escapeHtml(t.url)}</span></td>
+            <td>${escapeHtml(t.reason)}</td>
+            <td>${t.pages.map((p) => `<span class="issue-row-url" title="${escapeHtml(p)}">${escapeHtml(getShortUrl(p))}</span>`).join('<br>')}${t.morePages > 0 ? `<br>+${t.morePages} more` : ''}</td>
+          </tr>`
+    )
+    .join('');
+  return `<section class="category-progress-section" id="broken-external-links">
+        <div class="category-progress-title">Broken external links (${section.targets.length + section.moreTargets})</div>
+        <table class="issues-table">
+          <thead><tr><th>Target</th><th>Answer</th><th>Linked from</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        ${section.moreTargets > 0 ? `<p>+${section.moreTargets} more in the JSON report.</p>` : ''}
+        ${section.aside ? `<p>Also: ${escapeHtml(section.aside)}.</p>` : ''}
+      </section>`;
 }
 
 export function renderHtmlReport(result: AuditResult): string {
@@ -2338,10 +2413,17 @@ export function renderHtmlReport(result: AuditResult): string {
     // measured is kept but folded away. Rendering all 332 rules expanded is
     // what made this report 54,000 pixels tall, and the 278 that passed are
     // the part nobody scrolls to.
+    // `[rules.override]` priority = "ignore" takes a finding out of the
+    // ranked list, but never out of the report: it sits in its own fold.
+    const ignoredByConfig = (i: AggregatedIssue) =>
+      i.override === 'ignore' && i.status !== 'pass';
     const actionable = aggregatedIssues
-      .filter(i => i.status === 'fail' || i.status === 'warn')
+      .filter(i => (i.status === 'fail' || i.status === 'warn') && !ignoredByConfig(i))
       .sort(byPriority);
-    const quiet = aggregatedIssues.filter(i => i.status === 'pass' || i.status === 'notmeasured');
+    const quiet = aggregatedIssues.filter(
+      i => (i.status === 'pass' || i.status === 'notmeasured') && !ignoredByConfig(i)
+    );
+    const ignored = aggregatedIssues.filter(ignoredByConfig);
 
     const renderIssue = (issue: AggregatedIssue) => {
       const fix = getFixSuggestion(issue.ruleId);
@@ -2411,7 +2493,14 @@ export function renderHtmlReport(result: AuditResult): string {
          </details>`
       : '';
 
-    const rulesHtml = actionableHtml + quietHtml;
+    const ignoredHtml = ignored.length
+      ? `<details class="quiet-rules">
+           <summary>Ignored by config (${ignored.length})</summary>
+           <div class="quiet-rules-body">${ignored.map(renderIssue).join('')}</div>
+         </details>`
+      : '';
+
+    const rulesHtml = actionableHtml + quietHtml + ignoredHtml;
 
     return `
       <section class="category-section" id="category-${cat.categoryId}">
@@ -2444,6 +2533,7 @@ export function renderHtmlReport(result: AuditResult): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SEO Audit Report - ${escapeHtml(result.url)}</title>
+  <link rel="icon" type="image/svg+xml" href="${SEOMATOR_FAVICON}">
   <style>${generateStyles()}</style>
 </head>
 <body>
@@ -2635,6 +2725,10 @@ export function renderHtmlReport(result: AuditResult): string {
 
       <!-- Category Sections -->
       ${categorySectionsHtml}
+
+      ${renderBrokenExternal(result)}
+      ${renderLinkScores(result)}
+      ${renderCustomChecks(result)}
 
       <!-- Footer -->
       <footer class="footer">

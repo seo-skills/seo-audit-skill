@@ -91,8 +91,8 @@ function extractDomain(url: string): string {
  * @param options - Banner options
  */
 export function renderBanner(options: BannerOptions): void {
-  // ASCII art in cyan
-  console.log(chalk.cyan(ASCII_BANNER));
+  // ASCII art in the emblem's orange, the brand's one colour
+  console.log(chalk.hex('#FE5000')(ASCII_BANNER));
 
   // Version and website
   console.log(chalk.gray(`  v${VERSION}  •  ${WEBSITE_URL}`));

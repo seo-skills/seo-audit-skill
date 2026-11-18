@@ -22,6 +22,7 @@ export const inpRule = defineRule({
     'Measures responsiveness by checking the latency of user interactions',
   category: 'perf',
   weight: 20,
+  requiresRender: true,
   run: async (context: AuditContext) => {
     const { cwv } = context;
     const inp = cwv.inp;

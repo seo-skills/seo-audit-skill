@@ -19,6 +19,11 @@ import { randomBytes } from 'node:crypto';
 import { scoreToVerdict } from '../verdict.js';
 import { isNotMeasured } from '../rules/define-rule.js';
 import { collectFindings } from './findings.js';
+import { collectIgnoredFindings } from '../rules/overrides.js';
+import { coverageLine } from './coverage-line.js';
+import { brokenExternalSection } from './external-links-section.js';
+import type { LinkScoreSummary } from '../site/link-score.js';
+import { customResults, customSearchRows } from './custom-section.js';
 import { AUDIT_SCHEMA_VERSION } from '../types.js';
 import type { AuditResult } from '../types.js';
 import { getFixSuggestion } from './fix-suggestions.js';
@@ -147,6 +152,15 @@ interface IssueData {
  */
 export const MAX_ISSUES = 150;
 
+/** Pages, values per page and characters per value an extraction lists */
+const MAX_EXTRACTION_PAGES = 20;
+const MAX_EXTRACTION_VALUES = 5;
+const MAX_EXTRACTION_VALUE_CHARS = 200;
+
+function clipValue(value: string): string {
+  return value.length > MAX_EXTRACTION_VALUE_CHARS ? `${value.slice(0, MAX_EXTRACTION_VALUE_CHARS)}…` : value;
+}
+
 /**
  * Render audit result in LLM-optimized XML format
  *
@@ -154,7 +168,7 @@ export const MAX_ISSUES = 150;
  * @param prettyPrint - Whether to add indentation and newlines (default: false for minimal tokens)
  * @returns XML string
  */
-export function renderLlmReport(result: AuditResult, prettyPrint = false): string {
+export function renderLlmReport(result: AuditResult, prettyPrint = false, maxIssues = MAX_ISSUES): string {
   const nl = prettyPrint ? '\n' : '';
   const t1 = prettyPrint ? '  ' : '';
   const t2 = prettyPrint ? '    ' : '';
@@ -248,8 +262,8 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
 
   // A model reading a truncated list with no marker will treat it as the whole
   // list. Cap it, and say plainly how much was left out.
-  const omitted = Math.max(0, ranked.length - MAX_ISSUES);
-  const issues: IssueData[] = ranked.slice(0, MAX_ISSUES).map((f) => ({
+  const omitted = Math.max(0, ranked.length - maxIssues);
+  const issues: IssueData[] = ranked.slice(0, maxIssues).map((f) => ({
     severity: getSeverity(f.status === 'fail' ? 'fail' : 'warn'),
     rule: f.ruleId,
     cat: f.categoryId,
@@ -302,6 +316,72 @@ export function renderLlmReport(result: AuditResult, prettyPrint = false): strin
   // reading this must be able to tell "we checked and it is fine" from "we
   // could not check". `<summary notMeasured>` already carried the count; this
   // carries which ones.
+  // A crawl that could not measure every page: the score covers the rest
+  const coverage = coverageLine(result);
+  if (coverage) lines.push(`${t1}<coverage>${escapeXml(coverage)}</coverage>${nl}`);
+  // One entry per dead target, with the pages that carry it. URLs come from
+  // the audited site, so they are wrapped like every other site string.
+  const brokenExternal = brokenExternalSection(result, 25, 3);
+  if (brokenExternal) {
+    lines.push(`${t1}<broken-external-links count="${brokenExternal.targets.length + brokenExternal.moreTargets}">${nl}`);
+    for (const target of brokenExternal.targets) {
+      const pages = target.pages.join(' ') + (target.morePages > 0 ? ` +${target.morePages} more` : '');
+      lines.push(`${t2}<link answer="${escapeXml(target.reason)}">${wrapUntrusted(target.url, nonce)} from ${wrapUntrusted(pages, nonce)}</link>${nl}`);
+    }
+    lines.push(`${t1}</broken-external-links>${nl}`);
+  }
+  // The team's own checks, not scored; page URLs and extracted values come
+  // from the audited site
+  const custom = customResults(result);
+  if (custom) {
+    lines.push(`${t1}<custom-checks scored="false">${nl}`);
+    for (const row of customSearchRows(custom)) {
+      const pages = row.failingPages.length > 0 ? ` ${wrapUntrusted(row.failingPages.join(' '), nonce)}` : '';
+      lines.push(`${t2}<search name="${escapeXml(row.name)}" result="${row.outcome}">${escapeXml(row.summary)}${pages}</search>${nl}`);
+    }
+    for (const extraction of custom.extractions) {
+      // Bounded like the issues list: an agent reads this in its context
+      // window, and a multi-value extraction over a large crawl has no limit
+      const shown = extraction.pages.slice(0, MAX_EXTRACTION_PAGES);
+      const omitted = extraction.pages.length - shown.length;
+      const clipped = shown.some(
+        (p) => p.values.length > MAX_EXTRACTION_VALUES || p.values.some((v) => v.length > MAX_EXTRACTION_VALUE_CHARS)
+      );
+      const values = shown
+        .map((p) => {
+          const more = p.values.length - MAX_EXTRACTION_VALUES;
+          return `${p.url}: ${p.values.slice(0, MAX_EXTRACTION_VALUES).map(clipValue).join(' | ')}${more > 0 ? ` (+${more} more)` : ''}`;
+        })
+        .join('\n');
+      const note =
+        omitted > 0 || clipped
+          ? ` note="first ${MAX_EXTRACTION_PAGES} pages, ${MAX_EXTRACTION_VALUES} values each; --format json has every value"`
+          : '';
+      lines.push(
+        `${t2}<extraction name="${escapeXml(extraction.name)}" pages="${extraction.pages.length}"` +
+          (omitted > 0 ? ` omitted="${omitted}"` : '') +
+          `${note}>${wrapUntrusted(values, nonce)}</extraction>${nl}`
+      );
+    }
+    lines.push(`${t1}</custom-checks>${nl}`);
+  }
+  // Internal link strength: a metric, not a finding
+  const linkSummary = result.extras?.linkScoreSummary as LinkScoreSummary | undefined;
+  if (linkSummary && linkSummary.pages > 1) {
+    const list = (pages: LinkScoreSummary['top']) => pages.map((p) => `${p.score.toFixed(1)} ${p.url}`).join('; ');
+    lines.push(`${t1}<link-score pages="${linkSummary.pages}">${nl}`);
+    lines.push(`${t2}<best-linked>${wrapUntrusted(list(linkSummary.top), nonce)}</best-linked>${nl}`);
+    if (linkSummary.lowestIndexable.length > 0) {
+      lines.push(`${t2}<weakest-indexable>${wrapUntrusted(list(linkSummary.lowestIndexable), nonce)}</weakest-indexable>${nl}`);
+    }
+    lines.push(`${t1}</link-score>${nl}`);
+  }
+  // Hidden by `[rules.override]`. Named so an agent never mistakes a finding
+  // the team chose to hide for one the audit did not raise.
+  const ignored = collectIgnoredFindings(result);
+  if (ignored.length > 0) {
+    lines.push(`${t1}<ignored-by-config>${ignored.map((i) => i.ruleId).join(', ')}</ignored-by-config>${nl}`);
+  }
   if (notMeasured.length > 0) {
     lines.push(`${t1}<not-measured>${notMeasured.join(', ')}</not-measured>${nl}`);
   }

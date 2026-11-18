@@ -1,31 +1,31 @@
-import type { AuditContext } from '../../types.js';
-import { defineRule, pass, fail } from '../define-rule.js';
+import type { AuditContext, RuleOptionValues } from '../../types.js';
+import { defineRule, pass, fail, readRuleOptions } from '../define-rule.js';
 import { DOCUMENT_TITLE } from '../document-title.js';
 import { bodyText as visibleBodyText } from '../content/utils/visible-text.js';
 
 /**
- * Patterns in the page title that indicate a soft 404
+ * Title or H1 text that, as a whole segment, says the page does not exist.
+ *
+ * Matched against whole segments, never as substrings: "Error Handling in
+ * Rust", "Terrorism Studies MA" and "Book Room 404" are real pages, and a
+ * substring match failed all three. "error" alone is not on the list; it
+ * matches too much.
  */
-const TITLE_SOFT_404_PATTERNS = [
+const TITLE_PHRASES = [
   '404',
-  'not found',
   'page not found',
-  'error',
+  'not found',
+  'error 404',
+  '404 not found',
+  'this page could not be found',
+  "oops! that page can't be found",
 ];
 
 /**
- * Patterns in the H1 that indicate a soft 404
+ * Body text that, on a thin page, says the page does not exist.
+ * Matched on word boundaries.
  */
-const H1_SOFT_404_PATTERNS = [
-  '404',
-  'not found',
-  'page not found',
-];
-
-/**
- * Body text patterns that, combined with thin content, indicate a soft 404
- */
-const BODY_SOFT_404_PATTERNS = [
+const BODY_PHRASES = [
   'not found',
   "doesn't exist",
   'does not exist',
@@ -38,38 +38,101 @@ const BODY_SOFT_404_PATTERNS = [
 ];
 
 /**
- * Minimum word count threshold; pages below this with error-like
- * body text are flagged as soft 404s.
+ * How thin a page must be for each signal to count.
+ *
+ * An error-shaped title or H1 is a strong signal, so it needs only a page
+ * shorter than a real article. A body phrase alone is weak ("not found" is
+ * ordinary prose in a FAQ), so it needs a nearly empty page.
  */
-const MIN_WORD_COUNT = 100;
+const MAX_WORDS_WITH_TITLE_SIGNAL = 500;
+const MAX_WORDS_WITH_BODY_SIGNAL = 100;
+
+/** Characters trimmed from the end of a segment */
+const TRAILING = new Set([' ', '.', '!', '?', '\u2026', ':', ';', ',']);
+
+/** Longest text normalised: a heading or a thin page's text is far shorter */
+const MAX_NORMALIZED_CHARS = 10_000;
 
 /**
- * Counts the number of words in a text string
+ * Lower-case, straighten curly apostrophes and trim trailing punctuation,
+ * so "Oops! That page can\u2019t be found." compares equal to the phrase.
+ *
+ * Trimmed with a loop, not an end-anchored regex: a pattern like `[.!?]+$`
+ * backtracks quadratically over a long run of punctuation that is not at
+ * the end, and page text is whatever the audited site serves.
  */
-function countWords(text: string): number {
-  const trimmed = text.trim();
-  if (trimmed.length === 0) return 0;
-  return trimmed.split(/\s+/).length;
+function normalize(text: string): string {
+  const collapsed = text
+    .slice(0, MAX_NORMALIZED_CHARS)
+    .toLowerCase()
+    .replace(/[\u2018\u2019\u02bc]/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+  let end = collapsed.length;
+  while (end > 0 && TRAILING.has(collapsed[end - 1])) end--;
+  return collapsed.slice(0, end);
 }
 
 /**
- * Checks whether any pattern from the list appears in the text
+ * Split a title into the segments a site name is joined with.
+ *
+ * "404 - Page Not Found | Shop" is three segments: "404", "Page Not Found"
+ * and "Shop". A hyphen separates only when spaced, so "e-commerce" stays
+ * whole; a colon separates when a space follows it, as in "404: This page
+ * could not be found".
  */
-function matchesAny(text: string, patterns: string[]): string | null {
-  for (const pattern of patterns) {
-    if (text.includes(pattern)) {
-      return pattern;
-    }
+export function titleSegments(text: string): string[] {
+  return text
+    .slice(0, MAX_NORMALIZED_CHARS)
+    .split(/\s*[|·–—]\s*|\s+-\s+|:\s+/u)
+    .map(normalize)
+    .filter((segment) => segment.length > 0);
+}
+
+/** The phrase a title or H1 matches as a whole segment, or null */
+export function errorShapedHeading(text: string, extraPhrases: readonly string[] = []): string | null {
+  const extra = extraPhrases.map(normalize);
+  for (const segment of titleSegments(text)) {
+    if (TITLE_PHRASES.includes(segment) || extra.includes(segment)) return segment;
   }
   return null;
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function phrasePattern(phrase: string): RegExp {
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(phrase)}(?![\\p{L}\\p{N}])`, 'u');
+}
+
+const BODY_PATTERNS = BODY_PHRASES.map((phrase) => [phrase, phrasePattern(phrase)] as const);
+
+/** The body phrase found on word boundaries, or null */
+export function errorShapedBody(text: string, extraPhrases: readonly string[] = []): string | null {
+  const normalized = normalize(text);
+  const patterns = [
+    ...BODY_PATTERNS,
+    ...extraPhrases.map((phrase) => [phrase, phrasePattern(normalize(phrase))] as const),
+  ];
+  for (const [phrase, pattern] of patterns) {
+    if (pattern.test(normalized)) return phrase;
+  }
+  return null;
+}
+
+function countWords(text: string): number {
+  const trimmed = text.trim();
+  return trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length;
 }
 
 /**
  * Rule: Detect soft 404 pages
  *
- * A soft 404 is a page that returns HTTP 200 but displays content
- * indicating the resource does not exist. Search engines may waste
- * crawl budget indexing these pages, and users receive mixed signals.
+ * A soft 404 is a page that returns HTTP 200 but says the thing it was asked
+ * for does not exist. It takes two signals: an error-shaped phrase and a thin
+ * page. One alone is ordinary: long articles about 404 errors exist, and so
+ * do short pages that say "not found" about something else.
  */
 export const soft404Rule = defineRule({
   id: 'technical-soft-404',
@@ -78,16 +141,43 @@ export const soft404Rule = defineRule({
     'Detects pages that return HTTP 200 but display error page content (soft 404)',
   category: 'technical',
   weight: 10,
-  run: async (context: AuditContext) => {
+  options: {
+    min_words: {
+      type: 'number',
+      default: MAX_WORDS_WITH_TITLE_SIGNAL,
+      min: 1,
+      max: 100000,
+      description: 'A page with an error-shaped title or H1 fails only below this many words',
+    },
+    min_words_body: {
+      type: 'number',
+      default: MAX_WORDS_WITH_BODY_SIGNAL,
+      min: 1,
+      max: 100000,
+      description: 'A page whose text alone says it is gone fails only below this many words',
+    },
+    extra_title_phrases: {
+      type: 'string[]',
+      default: [],
+      description: 'More title or H1 segments that mean "this page does not exist", such as your CMS default',
+    },
+    extra_body_phrases: {
+      type: 'string[]',
+      default: [],
+      description: 'More phrases in the text that mean "this page does not exist"',
+    },
+  },
+  run: async (context: AuditContext, options?: RuleOptionValues) => {
     const { statusCode, $ } = context;
+    const opts = readRuleOptions(soft404Rule, options);
+    const maxWordsTitle = opts.min_words as number;
+    const maxWordsBody = opts.min_words_body as number;
+    const extraTitle = opts.extra_title_phrases as readonly string[];
+    const extraBody = opts.extra_body_phrases as readonly string[];
 
     // If the server correctly returns 404, this rule passes
     if (statusCode === 404) {
-      return pass(
-        'technical-soft-404',
-        'Page correctly returns 404 status code',
-        { statusCode }
-      );
+      return pass('technical-soft-404', 'Page correctly returns 404 status code', { statusCode });
     }
 
     // Only check for soft 404 when the status code is 200
@@ -99,40 +189,29 @@ export const soft404Rule = defineRule({
       );
     }
 
-    const indicators: string[] = [];
-
-    // Check title for soft 404 patterns
-    const title = $(DOCUMENT_TITLE).first().text().toLowerCase();
-    const titleMatch = matchesAny(title, TITLE_SOFT_404_PATTERNS);
-    if (titleMatch) {
-      indicators.push(`Title contains "${titleMatch}"`);
-    }
-
-    // Check H1 for soft 404 patterns
-    const h1 = $('h1').text().toLowerCase();
-    const h1Match = matchesAny(h1, H1_SOFT_404_PATTERNS);
-    if (h1Match) {
-      indicators.push(`H1 contains "${h1Match}"`);
-    }
-
-    // Check body text for soft 404 patterns combined with thin content
+    const title = $(DOCUMENT_TITLE).first().text().trim();
+    const h1 = $('h1').first().text().trim();
     const bodyText = visibleBodyText($);
     const wordCount = countWords(bodyText);
 
-    if (wordCount < MIN_WORD_COUNT) {
-      const bodyLower = bodyText.toLowerCase();
-      const bodyMatch = matchesAny(bodyLower, BODY_SOFT_404_PATTERNS);
-      if (bodyMatch) {
-        indicators.push(
-          `Body has thin content (${wordCount} words) and contains "${bodyMatch}"`
-        );
-      }
+    const indicators: string[] = [];
+
+    if (wordCount < maxWordsTitle) {
+      const titleMatch = errorShapedHeading(title, extraTitle);
+      if (titleMatch) indicators.push(`title reads "${titleMatch}"`);
+      const h1Match = errorShapedHeading(h1, extraTitle);
+      if (h1Match) indicators.push(`H1 reads "${h1Match}"`);
+    }
+
+    if (wordCount < maxWordsBody) {
+      const bodyMatch = errorShapedBody(bodyText, extraBody);
+      if (bodyMatch) indicators.push(`the text says "${bodyMatch}"`);
     }
 
     if (indicators.length > 0) {
       return fail(
         'technical-soft-404',
-        `Page returns 200 but appears to be a soft 404: ${indicators.join('; ')}`,
+        `Page returns 200 but appears to be a soft 404: ${indicators.join('; ')}, on a page of ${wordCount} words`,
         {
           statusCode,
           indicators,
@@ -144,10 +223,6 @@ export const soft404Rule = defineRule({
       );
     }
 
-    return pass(
-      'technical-soft-404',
-      'Page does not appear to be a soft 404',
-      { statusCode, wordCount }
-    );
+    return pass('technical-soft-404', 'Page does not appear to be a soft 404', { statusCode, wordCount });
   },
 });

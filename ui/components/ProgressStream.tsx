@@ -105,11 +105,19 @@ export function ProgressStream({ run }: ProgressStreamProps) {
             className="h-full rounded-full transition-all duration-300"
             style={{
               width: `${Math.min(100, (value / total) * 100)}%`,
-              backgroundColor: 'var(--color-accent)',
+              // The agent at work: the one place orange moves on screen
+              backgroundColor: 'var(--color-agent)',
             }}
           />
         </div>
       </div>
+
+      {/* A long, quiet phase says what it is doing, once */}
+      {run.activity && (
+        <p className="text-sm" role="status" style={{ color: 'var(--color-text-secondary)' }}>
+          {run.activity}
+        </p>
+      )}
 
       {/* What is being worked on right now */}
       {currentUrl && (

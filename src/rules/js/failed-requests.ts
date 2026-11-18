@@ -42,6 +42,7 @@ export const failedRequestsRule = defineRule({
     'Reports scripts, stylesheets and other subresources that failed to load while rendering',
   category: 'js',
   weight: 8,
+  requiresRender: true,
   run: (context: AuditContext) => {
     const diagnostics = context.renderDiagnostics;
 

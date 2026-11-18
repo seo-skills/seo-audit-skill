@@ -1,7 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
-import { requestSignal } from '../../crawler/fetcher.js';
-import { rethrowIfAborted, throwIfAborted } from '../../errors.js';
+import { redirectChain, urlServiceFor } from '../../net/url-service.js';
 
 /**
  * Normalize URL for comparison (lowercase host, consistent trailing slash)
@@ -24,8 +23,8 @@ function normalizeUrl(url: string): string {
  * Returns final URL if redirect chain is detected
  */
 async function checkCanonicalRedirect(
-  canonicalUrl: string,
-  signal?: AbortSignal
+  context: AuditContext,
+  canonicalUrl: string
 ): Promise<{
   redirects: boolean;
   statusCode: number;
@@ -33,85 +32,17 @@ async function checkCanonicalRedirect(
   chainLength: number;
   error?: string;
 }> {
-  throwIfAborted(signal);
-  const head = requestSignal(10000, signal);
-  try {
-    // Use fetch with redirect: 'manual' to detect redirects
-    const response = await fetch(canonicalUrl, {
-      method: 'HEAD',
-      redirect: 'manual',
-      signal: head.signal,
-    });
-
-    const statusCode = response.status;
-
-    // 3xx status means redirect
-    if (statusCode >= 300 && statusCode < 400) {
-      const location = response.headers.get('location');
-      if (location) {
-        // Resolve relative URLs
-        const finalUrl = new URL(location, canonicalUrl).href;
-
-        // Check if the redirect target also redirects (chain detection)
-        let chainLength = 1;
-        let currentUrl = finalUrl;
-
-        for (let i = 0; i < 5; i++) {
-          // Max 5 redirects
-          throwIfAborted(signal);
-          const hop = requestSignal(5000, signal);
-          try {
-            const chainResponse = await fetch(currentUrl, {
-              method: 'HEAD',
-              redirect: 'manual',
-              signal: hop.signal,
-            });
-
-            if (chainResponse.status >= 300 && chainResponse.status < 400) {
-              const nextLocation = chainResponse.headers.get('location');
-              if (nextLocation) {
-                currentUrl = new URL(nextLocation, currentUrl).href;
-                chainLength++;
-              } else {
-                break;
-              }
-            } else {
-              break;
-            }
-          } catch (error) {
-            rethrowIfAborted(error, signal);
-            break;
-          } finally {
-            hop.dispose();
-          }
-        }
-
-        return {
-          redirects: true,
-          statusCode,
-          finalUrl: currentUrl,
-          chainLength,
-        };
-      }
-    }
-
-    return {
-      redirects: false,
-      statusCode,
-      chainLength: 0,
-    };
-  } catch (error) {
-    rethrowIfAborted(error, signal);
-    const message = error instanceof Error ? error.message : String(error);
-    return {
-      redirects: false,
-      statusCode: 0,
-      chainLength: 0,
-      error: message,
-    };
-  } finally {
-    head.dispose();
+  // The first hop's own status; asked once per run, and reused by the chain
+  const first = await urlServiceFor(context).get(canonicalUrl, { method: 'HEAD', followRedirects: false });
+  if (first.status === 0) {
+    return { redirects: false, statusCode: 0, chainLength: 0, error: first.failure ?? 'network' };
   }
+  if (!(first.status >= 300 && first.status < 400 && first.location)) {
+    return { redirects: false, statusCode: first.status, chainLength: 0 };
+  }
+  // The first redirect, then up to five more hops
+  const chain = await redirectChain(context, canonicalUrl, 6);
+  return { redirects: true, statusCode: first.status, finalUrl: chain.finalUrl, chainLength: chain.redirectCount };
 }
 
 /**
@@ -158,7 +89,7 @@ export const canonicalRedirectRule = defineRule({
     const isSelfReferencing = normalizedUrl === normalizedCanonical;
 
     // Check if canonical redirects
-    const redirectInfo = await checkCanonicalRedirect(absoluteCanonical, context.signal);
+    const redirectInfo = await checkCanonicalRedirect(context, absoluteCanonical);
 
     const details = {
       canonical: absoluteCanonical,

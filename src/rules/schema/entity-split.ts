@@ -27,7 +27,7 @@ export const entitySplitRule = defineRule({
   run: (context: AuditContext) => {
     const nodes = loadSchemaNodes(context);
     if (!nodes) {
-      return notMeasured('schema-entity-split', NEEDS_ENTITY_CRAWL);
+      return notMeasured('schema-entity-split', NEEDS_ENTITY_CRAWL, undefined, 'needs-crawl');
     }
     if (nodes.length === 0) {
       return notMeasured('schema-entity-split', NO_SCHEMA_NODES);

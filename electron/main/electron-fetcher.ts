@@ -8,6 +8,7 @@
 
 import { BrowserWindow, session } from 'electron';
 import type { PlaywrightFetchResult } from '@core/crawler/index.js';
+import { runProbes } from '@core/render/probes.js';
 import type { CoreWebVitals } from '@core/types.js';
 
 /**
@@ -43,7 +44,20 @@ export async function fetchPageWithBrowserWindow(
       nodeIntegration: false,
       contextIsolation: true,
       session: ses,
+      // A hidden window is throttled like a background tab; probes and
+      // timers would run slower than in Playwright
+      backgroundThrottling: false,
     },
+  });
+  // The layout Playwright renders: 1280x720 at a pixel ratio of 1, whatever
+  // the display, so axe and the image-size probe see the same boxes
+  win.webContents.enableDeviceEmulation({
+    screenPosition: 'desktop',
+    screenSize: { width: 1280, height: 720 },
+    viewPosition: { x: 0, y: 0 },
+    viewSize: { width: 1280, height: 720 },
+    deviceScaleFactor: 1,
+    scale: 1,
   });
 
   try {
@@ -65,11 +79,15 @@ export async function fetchPageWithBrowserWindow(
     // Measure Core Web Vitals
     const cwv = await measureCwvInWindow(win);
 
+    // The same probe scripts the CLI runs through Playwright
+    const probes = await runProbes((script) => win.webContents.executeJavaScript(script));
+
     return {
       html,
       statusCode,
       responseTime: Math.round(loadTime),
       cwv,
+      probes,
     };
   } finally {
     win.destroy();

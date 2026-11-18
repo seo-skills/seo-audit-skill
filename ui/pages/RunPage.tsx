@@ -85,6 +85,12 @@ export function RunPage() {
           isRunning={status === 'running'}
           capabilities={appInfo?.capabilities ?? null}
           initialUrl={params.get('url') ?? undefined}
+          // "Run again" and the render hint carry the stored run options
+          initialOptions={{
+            ...(params.get('render') === '1' && { measureCwv: true }),
+            ...(params.get('crawl') === '1' && { crawl: true }),
+            ...(Number(params.get('maxPages')) > 0 && { maxPages: Number(params.get('maxPages')) }),
+          }}
           onRun={handleRun}
           onCancel={() => void cancel()}
         />

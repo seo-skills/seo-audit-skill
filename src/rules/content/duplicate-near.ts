@@ -1,226 +1,128 @@
-import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn, fail, notMeasured } from '../define-rule.js';
-import { registerResettable } from '../registry.js';
-import { extractMainContent } from './utils/text-extractor.js';
+import type { AuditContext, RuleOptionValues } from '../../types.js';
+import { defineRule, pass, warn, fail, notMeasured, readRuleOptions } from '../define-rule.js';
+import {
+  ELIGIBILITY_RULE_OPTIONS,
+  eligibilityFrom,
+  listedUrls,
+  nearDuplicateAnalysis,
+  pageEligibility,
+} from '../../site/groups.js';
+
+/** Similarity above which a page fails: near-duplicate content */
+const DUPLICATE_THRESHOLD = 0.8;
+/** Similarity above which a page warns: similar content */
+const SIMILAR_THRESHOLD = 0.6;
 
 /**
- * Similarity thresholds for near-duplicate detection
- */
-const DUPLICATE_THRESHOLD = 0.8; // Jaccard > 0.8 = near duplicate (fail)
-const SIMILAR_THRESHOLD = 0.6; // Jaccard > 0.6 = similar content (warn)
-
-/**
- * Maximum number of words to consider for trigram generation.
- * Using the first 500 words keeps the comparison efficient while capturing
- * enough content to detect similarity.
- */
-const MAX_WORDS = 500;
-
-/**
- * Stored page data for cross-page comparison
- */
-interface StoredPage {
-  url: string;
-  trigrams: Set<string>;
-}
-
-/**
- * Module-level registry storing trigram sets per URL.
- * This enables cross-page near-duplicate detection during multi-page crawls.
- */
-const nearDuplicateRegistry: StoredPage[] = [];
-
-/**
- * Reset the near-duplicate registry (call at start of each audit run)
- */
-export function resetNearDuplicateRegistry(): void {
-  nearDuplicateRegistry.length = 0;
-}
-
-registerResettable(resetNearDuplicateRegistry);
-
-/**
- * Get near-duplicate registry stats (for testing/debugging)
- */
-export function getNearDuplicateRegistryStats(): {
-  totalPages: number;
-} {
-  return {
-    totalPages: nearDuplicateRegistry.length,
-  };
-}
-
-/**
- * Extract word trigrams from text.
- * Splits text into words, takes the first MAX_WORDS, and generates
- * all consecutive 3-word sequences as a Set for Jaccard comparison.
- */
-function extractTrigrams(text: string): Set<string> {
-  const words = text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')
-    .split(/\s+/)
-    .filter((w) => w.length > 0)
-    .slice(0, MAX_WORDS);
-
-  const trigrams = new Set<string>();
-
-  for (let i = 0; i <= words.length - 3; i++) {
-    trigrams.add(`${words[i]} ${words[i + 1]} ${words[i + 2]}`);
-  }
-
-  return trigrams;
-}
-
-/**
- * Compute Jaccard similarity between two sets.
- * Returns a value between 0 (completely different) and 1 (identical).
- */
-function jaccardSimilarity(setA: Set<string>, setB: Set<string>): number {
-  if (setA.size === 0 && setB.size === 0) {
-    return 1;
-  }
-
-  if (setA.size === 0 || setB.size === 0) {
-    return 0;
-  }
-
-  let intersectionSize = 0;
-  // Iterate over the smaller set for efficiency
-  const [smaller, larger] =
-    setA.size <= setB.size ? [setA, setB] : [setB, setA];
-
-  for (const item of smaller) {
-    if (larger.has(item)) {
-      intersectionSize++;
-    }
-  }
-
-  const unionSize = setA.size + setB.size - intersectionSize;
-  return unionSize === 0 ? 0 : intersectionSize / unionSize;
-}
-
-/**
- * Rule: Detect near-duplicate content using trigram-based Jaccard similarity
+ * Rule: Detect near-duplicate content across the crawl
  *
- * Near-duplicate content (e.g., pages with only minor text differences)
- * can cause keyword cannibalization and confuse search engines about
- * which page to rank. This rule compares word trigram sets between
- * crawled pages to detect high similarity.
- *
- * This is a Tier 3 cross-page rule that uses a module-level registry
- * to store trigram sets across pages within a crawl session.
+ * Near-duplicate pages compete with each other for the same queries. Each
+ * eligible page's main content (its first 500 words) is compared with every
+ * other's through MinHash candidate pairs confirmed by exact Jaccard
+ * similarity of word trigrams (see `site/near-duplicates.ts`). A page's
+ * verdict comes from its most similar page; the finding lists every page
+ * above the warning threshold.
  */
 export const duplicateNearRule = defineRule({
   id: 'content-duplicate-near',
   name: 'Near-Duplicate Content',
-  description:
-    'Detects near-duplicate content across crawled pages using trigram similarity',
+  description: 'Detects near-duplicate content across crawled pages using trigram similarity',
   category: 'content',
   weight: 7,
-  run: async (context: AuditContext) => {
-    // Without a crawl the registry holds only this page, so a pass here
-    // would compare it against nothing.
-    if (!context.site) {
-      return notMeasured('content-duplicate-near', 'Near-duplicate detection needs other pages to compare against - run with --crawl');
-    }
+  options: {
+    ...ELIGIBILITY_RULE_OPTIONS,
+    fail_threshold: {
+      type: 'number',
+      default: DUPLICATE_THRESHOLD,
+      min: 0.5,
+      max: 1,
+      description: 'Fail above this similarity (0 to 1)',
+    },
+    warn_threshold: {
+      type: 'number',
+      default: SIMILAR_THRESHOLD,
+      min: 0.5,
+      max: 1,
+      description: 'Warn above this similarity (0 to 1)',
+    },
+  },
+  run: async (context: AuditContext, options?: RuleOptionValues) => {
+    const { url } = context;
+    const opts = readRuleOptions(duplicateNearRule, options);
+    const eligibility = eligibilityFrom(opts);
+    const failAbove = opts.fail_threshold as number;
+    const warnAbove = Math.min(opts.warn_threshold as number, failAbove);
 
-    const { $, url } = context;
-
-    // Main content only: the first 500 words of the whole body are site
-    // navigation on most sites, which made every page "similar" to the next.
-    const bodyText = extractMainContent($).replace(/\s+/g, ' ').trim();
-
-    if (!bodyText || bodyText.length < 100) {
-      return pass(
+    if (!context.site?.pages) {
+      return notMeasured(
         'content-duplicate-near',
-        'Page has insufficient content for near-duplicate detection',
-        {
-          url,
-          textLength: bodyText.length,
-          reason: 'skipped',
-        }
+        'Near-duplicate detection needs other pages to compare against - run with --crawl',
+        undefined,
+        'needs-crawl'
       );
     }
 
-    const trigrams = extractTrigrams(bodyText);
+    const site = context.site;
+    const eligible = pageEligibility(site, url, eligibility);
+    if (!eligible.eligible) {
+      return notMeasured('content-duplicate-near', `Not compared: ${eligible.reason}`, undefined, 'not-compared');
+    }
 
-    // Need at least a few trigrams for meaningful comparison
-    if (trigrams.size < 5) {
-      nearDuplicateRegistry.push({ url, trigrams });
-      return pass(
+    const self = site.pages!.get(site.normalize(url));
+    if (!self?.shingles || self.shingles.length < 5) {
+      return pass('content-duplicate-near', 'Page has insufficient content for near-duplicate detection', {
+        url,
+        reason: 'skipped',
+      });
+    }
+
+    const analysis = nearDuplicateAnalysis(site, eligibility, warnAbove);
+    if (analysis.kind === 'too-many-candidates') {
+      return notMeasured(
         'content-duplicate-near',
-        'Page has too few word trigrams for reliable comparison',
-        {
-          url,
-          trigramCount: trigrams.size,
-          reason: 'skipped',
-        }
+        `Too many similar pages to compare (${analysis.candidatePairs.toLocaleString('en-US')} candidate pairs); run a smaller crawl or narrow it with include/exclude`,
+        { url },
+        'could-not-verify'
       );
     }
 
-    // Compare with all stored pages
-    let highestSimilarity = 0;
-    let mostSimilarUrl = '';
-
-    for (const stored of nearDuplicateRegistry) {
-      const similarity = jaccardSimilarity(trigrams, stored.trigrams);
-      if (similarity > highestSimilarity) {
-        highestSimilarity = similarity;
-        mostSimilarUrl = stored.url;
-      }
-    }
-
-    // Register this page for future comparisons
-    nearDuplicateRegistry.push({ url, trigrams });
-
-    const roundedSimilarity = Math.round(highestSimilarity * 100) / 100;
-
+    const similar = (analysis.similar.get(site.normalize(url)) ?? []).filter((p) => p.similarity > warnAbove);
+    const highest = similar[0];
     const details = {
       url,
-      trigramCount: trigrams.size,
-      highestSimilarity: roundedSimilarity,
-      mostSimilarUrl: mostSimilarUrl || null,
-      thresholds: {
-        duplicate: DUPLICATE_THRESHOLD,
-        similar: SIMILAR_THRESHOLD,
-      },
+      highestSimilarity: highest ? Math.round(highest.similarity * 100) / 100 : 0,
+      mostSimilarUrl: highest?.url ?? null,
+      similarUrls: listedUrls(similar.map((p) => p.url)).urls,
+      similarCount: similar.length,
+      thresholds: { duplicate: failAbove, similar: warnAbove },
     };
 
-    if (highestSimilarity > DUPLICATE_THRESHOLD) {
+    if (highest && highest.similarity > failAbove) {
       return fail(
         'content-duplicate-near',
-        `Near-duplicate content detected: ${Math.round(highestSimilarity * 100)}% similar to ${mostSimilarUrl}`,
+        `Near-duplicate content detected: ${Math.round(highest.similarity * 100)}% similar to ${highest.url}`,
         {
           ...details,
-          impact:
-            'Near-duplicate pages cause keyword cannibalization and confuse search engines about which page to rank',
+          impact: 'Near-duplicate pages cause keyword cannibalization and confuse search engines about which page to rank',
           recommendation:
             'Consolidate similar pages, differentiate their content significantly, or use canonical tags to indicate the preferred version.',
         }
       );
     }
 
-    if (highestSimilarity > SIMILAR_THRESHOLD) {
+    if (highest) {
       return warn(
         'content-duplicate-near',
-        `Similar content detected: ${Math.round(highestSimilarity * 100)}% similar to ${mostSimilarUrl}`,
+        `Similar content detected: ${Math.round(highest.similarity * 100)}% similar to ${highest.url}`,
         {
           ...details,
-          impact:
-            'Highly similar content may compete with itself in search rankings',
+          impact: 'Highly similar content may compete with itself in search rankings',
           recommendation:
             'Review both pages and differentiate their content, titles, and meta descriptions to target different search intents.',
         }
       );
     }
 
-    return pass(
-      'content-duplicate-near',
-      mostSimilarUrl
-        ? `Content is sufficiently unique (highest similarity: ${Math.round(highestSimilarity * 100)}%)`
-        : 'First page analyzed (no comparison available yet)',
-      details
-    );
+    return pass('content-duplicate-near', 'Content is sufficiently unique', details);
   },
 });

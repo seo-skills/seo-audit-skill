@@ -21,7 +21,7 @@
  * staging audit waives the indexability caps and records them instead.
  */
 import type { AuditContext, AuditResult, ScoreCap } from './types.js';
-import { parseRobotsDirectives } from './rules/core/robots-meta.js';
+import { isNoindex } from './indexability.js';
 import { DOCUMENT_TITLE } from './rules/document-title.js';
 import { extractMainContent, countWords } from './rules/content/utils/text-extractor.js';
 import { RobotsMatcher } from './crawler/robots.js';
@@ -63,50 +63,6 @@ function isAppShell($: AuditContext['$']): boolean {
 }
 
 /**
- * Directives written `name: value`. Inside an X-Robots-Tag they look like a
- * user-agent prefix and must not be read as one.
- */
-const VALUED_DIRECTIVES = new Set([
-  'max-snippet',
-  'max-image-preview',
-  'max-video-preview',
-  'unavailable_after',
-]);
-
-/**
- * Whether Google is told not to index the page.
- *
- * Reads the `robots` and `googlebot` meta tags, and the X-Robots-Tag header.
- * A header segment prefixed with a crawler name applies to that crawler, and
- * so do the segments after it: in `bingbot: nofollow, noindex` both
- * directives are Bing's. Only unprefixed and `googlebot:` directives count,
- * because a cap from another engine's directive would mark down a page
- * Google indexes.
- */
-function hasGoogleNoindex({ $, headers }: AuditContext): boolean {
-  const tokens: string[] = [];
-
-  $('meta[name="robots" i], meta[name="googlebot" i]').each((_, el) => {
-    tokens.push(...parseRobotsDirectives($(el).attr('content') ?? ''));
-  });
-
-  let agent: string | null = null; // null: the directive applies to every crawler
-  for (const segment of (headers['x-robots-tag'] ?? '').split(',')) {
-    let directive = segment;
-    const prefixed = /^\s*([a-z][a-z0-9_-]*)\s*:(.*)$/i.exec(segment);
-    if (prefixed && !VALUED_DIRECTIVES.has(prefixed[1].toLowerCase())) {
-      agent = prefixed[1].toLowerCase();
-      directive = prefixed[2];
-    }
-    if (agent === null || agent === 'googlebot') {
-      tokens.push(...parseRobotsDirectives(directive));
-    }
-  }
-
-  return tokens.includes('noindex') || tokens.includes('none');
-}
-
-/**
  * Read the facts the caps decide on.
  *
  * Read from the page, not from rule results, so a cap holds even when
@@ -120,7 +76,7 @@ export function readPageFacts(context: AuditContext): PageFacts {
   const page = context.rendered$ ?? $;
   const unread = !context.rendered$ && isAppShell($);
   return {
-    noindex: hasGoogleNoindex(context),
+    noindex: isNoindex(context),
     robotsDisallowed: !new RobotsMatcher(context.robotsTxtContent ?? '', 'Googlebot').isAllowed(url),
     hasTitle: page(DOCUMENT_TITLE).first().text().trim().length > 0,
     mainContentWords: unread ? null : countWords(extractMainContent(page)),

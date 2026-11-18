@@ -22,6 +22,7 @@ export const ttfbRule = defineRule({
     'Measures server response time by checking how long until the first byte is received',
   category: 'perf',
   weight: 15,
+  requiresRender: true,
   run: async (context: AuditContext) => {
     const { cwv } = context;
     const ttfb = cwv.ttfb;

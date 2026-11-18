@@ -58,6 +58,7 @@ import { videoForAnimationsRule } from './video-for-animations.js';
 import { imageEncodingRule } from './image-encoding.js';
 import { duplicateJsRule } from './duplicate-js.js';
 import { sourceMapsRule } from './source-maps.js';
+import { unusedJsRule, unusedCssRule } from './unused-code.js';
 
 // Export all rules
 export {
@@ -128,3 +129,5 @@ registerRule(legacyJavascriptRule);
 registerRule(imageEncodingRule);
 registerRule(duplicateJsRule);
 registerRule(sourceMapsRule);
+registerRule(unusedJsRule);
+registerRule(unusedCssRule);

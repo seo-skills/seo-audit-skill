@@ -2,7 +2,7 @@
 
 <!-- Updated: 2026-09-01 -->
 
-SEOmator ships **373 rules across 20 weighted categories**. Category weights
+SEOmator ships **398 rules across 20 weighted categories**. Category weights
 sum to exactly 100. Each rule returns `pass` (100), `warn` (50), or `fail` (0);
 the category score is the average of its rule results weighted by each rule's
 declared `weight`, and the overall score is the weighted average of category
@@ -16,31 +16,31 @@ neither side of the average.
 
 | Category ID | Name | Weight | Rules | Covers |
 |-------------|------|--------|-------|--------|
-| `core` | Core | 11% | 24 | Title, meta description, canonical, viewport, favicon, H1, lang |
-| `perf` | Performance | 10% | 28 | LCP, INP, CLS, TTFB, FCP, render-blocking resources, compression |
+| `core` | Core | 11% | 27 | Title, meta description, canonical, viewport, favicon, H1, lang |
+| `perf` | Performance | 10% | 30 | LCP, INP, CLS, TTFB, FCP, render-blocking resources, compression |
 | `links` | Links | 8% | 27 | Broken links, anchor text, internal linking, nofollow; click depth and inbound links need `--crawl` |
-| `images` | Images | 8% | 14 | Alt text, dimensions, lazy loading, WebP/AVIF, srcset, file size |
+| `images` | Images | 8% | 15 | Alt text, dimensions, lazy loading, WebP/AVIF, srcset, file size |
 | `security` | Security | 8% | 26 | HTTPS, HSTS, CSP, X-Frame-Options, mixed content, SSL, leaked secrets, cookie flags |
-| `technical` | Technical SEO | 7% | 18 | robots.txt, sitemap, URL hygiene, www redirect, custom 404 |
-| `crawl` | Crawlability | 5% | 38 | noindex, robots directives, sitemap coverage, lastmod quality, redirect chains |
+| `technical` | Technical SEO | 7% | 19 | robots.txt, sitemap, URL hygiene, www redirect, custom 404 |
+| `crawl` | Crawlability | 5% | 39 | noindex, robots directives, sitemap coverage, lastmod quality, redirect chains |
 | `schema` | Structured Data | 5% | 19 | JSON-LD presence/validity, required fields, deprecated types |
 | `content` | Content | 5% | 27 | Word count, thin content, readability, duplicate content |
-| `js` | JavaScript Rendering | 5% | 16 | CSR vs SSR, rendered-DOM diff, JS-dependent content, console errors, failed requests |
-| `a11y` | Accessibility | 7% | 36 | ARIA, contrast, form labels, skip links, focus management |
-| `social` | Social | 3% | 9 | Open Graph, Twitter Card, og:image validity |
+| `js` | JavaScript Rendering | 5% | 17 | CSR vs SSR, rendered-DOM diff, JS-dependent content, console errors, failed requests |
+| `a11y` | Accessibility | 7% | 46 | ARIA, contrast, form labels, skip links, focus management |
+| `social` | Social | 3% | 13 | Open Graph, Twitter Card, og:image validity |
 | `eeat` | E-E-A-T | 3% | 16 | Author bylines, dates, about/contact pages, external citations |
 | `url` | URL Structure | 3% | 14 | Lowercase, hyphens, length, parameters, trailing slash |
 | `redirect` | Redirects | 3% | 11 | Chains, loops, 302-vs-301, meta refresh |
-| `mobile` | Mobile | 2% | 12 | Viewport, font sizes, tap spacing, mobile-first parity (content, title, canonical, structured data, links) |
+| `mobile` | Mobile | 2% | 13 | Viewport, font sizes, tap spacing, mobile-first parity (content, title, canonical, structured data, links) |
 | `i18n` | Internationalization | 2% | 13 | hreflang validity, x-default, lang attributes |
-| `htmlval` | HTML Validation | 2% | 11 | Duplicate IDs, deprecated tags, DOCTYPE, encoding |
+| `htmlval` | HTML Validation | 2% | 12 | Duplicate IDs, deprecated tags, DOCTYPE, encoding |
 | `geo` | AI/GEO Readiness | 2% | 13 | AI crawler access, llms.txt, citability structure |
 | `legal` | Legal Compliance | 1% | 1 | Privacy policy presence |
 
 ## Rule ID Convention
 
 Rule IDs follow `<category>-<descriptive-name>`, e.g. `core-canonical-conflicting`,
-`perf-lcp`, `security-hsts`, `geo-llms-txt`. IDs are self-describing; the LLM report
+`cwv-lcp`, `security-hsts`, `geo-llms-txt`. IDs are self-describing; the LLM report
 format includes the rule message and a fix suggestion alongside each failing rule.
 
 ## Score Interpretation
@@ -50,13 +50,14 @@ format includes the rule message and a fix suggestion alongside each failing rul
 | 90–100 | A | Excellent — minor optimizations only |
 | 80–89 | B | Good — address warnings |
 | 70–79 | C | Fair — several issues to fix |
-| 60–69 | D | Needs work — priority fixes required |
-| <60 | F | Poor — critical issues to resolve |
+| 50–69 | D | Needs work — priority fixes required |
+| <50 | F | Poor — critical issues to resolve |
 
 ## Listing Rules at Runtime
 
 The authoritative rule list lives in the installed package. To enumerate rules for a
-category, read the category's `index.ts` in the SEOmator source
+category, run `seomator explain --list <category>` (`seomator explain <rule-id>`
+says what one rule checks), read the category's `index.ts` in the SEOmator source
 (`src/rules/<category>/index.ts`) or run an audit and inspect per-rule results in
 `--format json` output.
 

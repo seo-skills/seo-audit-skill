@@ -1,6 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
-import { fetchUrl } from '../../crawler/fetcher.js';
+import { urlServiceFor } from '../../net/url-service.js';
 import { rethrowIfAborted } from '../../errors.js';
 import { internalLinkTargets } from './link-targets.js';
 
@@ -33,21 +33,28 @@ export const brokenInternalRule = defineRule({
     // answered 200 when asked again, so it is reported apart from broken.
     const uncheckedLinks: string[] = [];
 
-    for (const href of targets) {
-      let statusCode: number;
-      try {
-        statusCode = await fetchUrl(href, 10000, context.signal);
-      } catch (error) {
-        rethrowIfAborted(error, context.signal);
-        statusCode = 0;
-      }
-
-      if (statusCode === 0) {
+    // Asked once per run whichever page links them, and in parallel within
+    // the service's limits; results are read back in link order
+    const urls = urlServiceFor(context);
+    const answers = await Promise.all(
+      targets.map(async (href) => {
+        try {
+          return await urls.status(href);
+        } catch (error) {
+          rethrowIfAborted(error, context.signal);
+          return null;
+        }
+      })
+    );
+    targets.forEach((href, i) => {
+      const info = answers[i];
+      // A host still rate-limiting after the retries said nothing about the page
+      if (!info || info.status === 0 || info.rateLimited) {
         uncheckedLinks.push(href);
-      } else if (statusCode === 404 || statusCode === 410 || statusCode >= 500) {
-        brokenLinks.push({ href, statusCode });
+      } else if (info.status === 404 || info.status === 410 || info.status >= 500) {
+        brokenLinks.push({ href, statusCode: info.status });
       }
-    }
+    });
 
     const details = {
       totalChecked: targets.length,

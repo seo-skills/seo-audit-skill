@@ -38,7 +38,7 @@ export const hreflangIncomingInvalidRule = defineRule({
     if (!site?.pages) {
       return notMeasured(
         'i18n-hreflang-incoming-invalid',
-        'Validating incoming hreflang annotations needs per-page crawl state - run with --crawl to build it'
+        'Validating incoming hreflang annotations needs per-page crawl state - run with --crawl to build it', undefined, 'needs-crawl'
       );
     }
 

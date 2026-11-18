@@ -1,11 +1,11 @@
 ---
 name: seo-audit
-description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 373 rules and 20 categories, and can diff two audits to show what a deploy changed. Use when analyzing websites, debugging SEO issues, checking site health, or comparing a site before and after a change.
+description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 398 rules and 20 categories, and can diff two audits to show what a deploy changed. Use when analyzing websites, debugging SEO issues, checking site health, or comparing a site before and after a change.
 license: MIT
-compatibility: Requires Node.js 20.3+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
+compatibility: Requires Node.js 20.18.1+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
 metadata:
   author: seomator
-  version: "7.0.0"
+  version: "8.0.0"
 allowed-tools: Bash(seomator:*)
 ---
 
@@ -13,7 +13,7 @@ allowed-tools: Bash(seomator:*)
 
 Audit websites for SEO, technical, content, performance, security, JavaScript rendering, and AI readiness using the SEOmator CLI.
 
-SEOmator provides comprehensive website auditing by analyzing website structure and content against **373 rules** across **20 categories**.
+SEOmator provides comprehensive website auditing by analyzing website structure and content against **398 rules** across **20 categories**.
 
 It provides a list of issues with severity levels, affected URLs, and actionable fix suggestions.
 
@@ -25,26 +25,26 @@ It provides a list of issues with severity levels, affected URLs, and actionable
 
 ## What This Skill Does
 
-This skill enables AI agents to audit websites for **373 rules** in **20 categories**, including:
+This skill enables AI agents to audit websites for **398 rules** in **20 categories**, including:
 
-- **Core SEO** (24 rules): Canonical URLs, indexing directives, title uniqueness, canonical conflicts/loops
-- **Performance** (28 rules): LCP, CLS, FCP, TTFB, INP, compression, caching, minification, HTTP/2
+- **Core SEO** (27 rules): Canonical URLs, indexing directives, title uniqueness, canonical conflicts/loops
+- **Performance** (30 rules): LCP, CLS, FCP, TTFB, INP, compression, caching, minification, HTTP/2
 - **Links** (27 rules): Broken links, redirect chains, anchor text, localhost/fragment links, plus click depth and inbound internal links from the site graph (`--crawl`)
-- **Images** (14 rules): Alt text, dimensions, lazy loading, modern formats, alt length, background images
+- **Images** (15 rules): Alt text, dimensions, lazy loading, modern formats, alt length, background images
 - **Security** (26 rules): HTTPS, HSTS, CSP, external link safety, leaked secrets, SSL expiry/protocol, cookie flags and lifetime
-- **Technical SEO** (18 rules): robots.txt, sitemap.xml, URL structure, 404 pages, soft 404s, error codes
-- **Crawlability** (38 rules): Sitemap conflicts, indexability signals, canonical chains, pagination issues, sitemap lastmod quality
+- **Technical SEO** (19 rules): robots.txt, sitemap.xml, URL structure, 404 pages, soft 404s, error codes
+- **Crawlability** (39 rules): Sitemap conflicts, indexability signals, canonical chains, pagination issues, sitemap lastmod quality
 - **Structured Data** (19 rules): Schema.org markup, Article, Organization, FAQ, Product, Breadcrumb
-- **JavaScript Rendering** (16 rules): Rendered DOM checks, raw vs rendered mismatches, SSR detection, console errors, failed resource requests
-- **Accessibility** (36 rules): ARIA labels, color contrast, form labels, landmarks, touch targets
+- **JavaScript Rendering** (17 rules): Rendered DOM checks, raw vs rendered mismatches, SSR detection, console errors, failed resource requests
+- **Accessibility** (46 rules): ARIA labels, color contrast, form labels, landmarks, touch targets
 - **Content** (27 rules): Word count, readability, keyword density, duplicate detection, pixel widths
-- **Social** (9 rules): Open Graph tags, Twitter cards, share buttons, profile links
+- **Social** (13 rules): Open Graph tags, Twitter cards, share buttons, profile links
 - **E-E-A-T** (16 rules): Author bylines, citations, trust signals, about/contact pages, YMYL detection
 - **URL Structure** (14 rules): Keyword slugs, stop words, uppercase, underscores, session IDs, tracking params
 - **Redirects** (11 rules): Redirect loops, types (301/302), meta refresh, JavaScript redirects, broken redirects
-- **Mobile** (12 rules): Font sizes, horizontal scroll, interstitials, viewport, mobile-first parity (content, title, canonical, structured data, links) via `--cwv --mobile`
+- **Mobile** (13 rules): Font sizes, horizontal scroll, interstitials, viewport, mobile-first parity (content, title, canonical, structured data, links) via `--cwv --mobile`
 - **Internationalization** (13 rules): lang attribute, hreflang validation (return links, conflicts, mismatches)
-- **HTML Validation** (11 rules): Doctype, charset, head structure, lorem ipsum, multiple titles/descriptions
+- **HTML Validation** (12 rules): Doctype, charset, head structure, lorem ipsum, multiple titles/descriptions
 - **AI/GEO Readiness** (13 rules): Semantic HTML, AI bot access, llms.txt, schema drift
 - **Legal Compliance** (1 rule): Cookie consent
 
@@ -90,7 +90,7 @@ seomator self doctor
 ```
 
 This checks:
-- Node.js version (20.3 or later required)
+- Node.js version (20.18.1 or later required)
 - npm availability
 - Chrome/Chromium for Core Web Vitals and JS rendering
 - Write permissions for ~/.seomator
@@ -177,17 +177,33 @@ Verbose output for debugging:
 seomator audit https://example.com --format llm -v
 ```
 
+## MCP server
+
+`seomator mcp` serves the same engine as MCP tools over stdio, registered as
+`seomator-audit`:
+
+```bash
+claude mcp add seomator-audit -- npx -y @seomator/seo-audit mcp                  # public sites
+claude mcp add seomator-audit -- npx -y @seomator/seo-audit mcp --allow-private  # also local and intranet sites
+```
+
+Tools: `audit_url` (returns a `runId` at once, `waitS` up to 25), `audit_status`,
+`cancel_run`, `list_audits`, `get_audit`, `get_findings` (paged), `compare_audits`,
+`list_rules`, `explain_rule`. Failures are `isError` with `{ code, message, hint }`.
+See `docs/ai-agent-integration.md` for the full contract.
+
 ## Exit codes
 
 An agent must be able to tell "the audit failed" from "the site scored badly".
-`audit` and `compare` use these codes (other commands, such as `config` and
-`self doctor`, exit `1` on an error of their own):
+`audit`, `analyze` and `compare` use these codes (other commands, such as
+`self doctor`, or `config <key>` for a key that does not exist, exit `1` on an
+error of their own):
 
 | Code | Meaning |
 |------|---------|
 | `0` | Success |
-| `1` | The run worked, and the result is below a threshold — `audit`/`analyze` scored under 70, or `compare --fail-on-regression` found a regression |
-| `2` | The command failed: unreachable URL, HTTP error, missing crawl, bad `--config` path |
+| `1` | The run worked, and a gate failed: `audit`/`analyze` scored under `--fail-under` (default 70), a `[rules.override]` rule with `fail_ci = true` failed or could not be measured, a crawl measured less than `--min-coverage`, or `compare --fail-on-regression` found a regression. The last stderr line starts with `Exit 1:` and says which; JSON carries it in `gate` |
+| `2` | The command failed: bad flag, invalid config (including an unknown rule id in `[rules.override]`), unreachable URL, HTTP error, a start page that stays rate-limited, missing crawl, bad `--config` path |
 | `130` | Cancelled with Ctrl-C |
 
 **A non-zero exit is not automatically a failure.** `1` means the tool worked
@@ -203,12 +219,15 @@ Under `--format llm` the same error is XML:
 `<seo-audit ok="false"><error code="http-error"><message>…</message><hint>…</hint></error></seo-audit>`.
 
 A command line the parser rejects (an unknown flag, an invalid URL or option
-value) exits `1` with the reason on stderr and nothing on stdout. Treat a `1`
-with empty stdout as a usage error, not as a low score.
+value) exits `2` with the reason on stderr, starting `error:`, and nothing on
+stdout. Treat that as a usage error to fix, not as a failed site; `1` always
+means a gate failed.
 
 `code` is one of `dns`, `unreachable` (nothing answered: refused, reset or no
 route), `tls` (certificate rejected), `timeout`, `http-error`, `non-html`,
-`playwright-missing`, `no-pages`, `config`, `aborted` or `unknown`.
+`rate-limited` (the start page kept answering 429 or 503), `private-address`
+(a request resolved to a loopback, private or link-local address and was
+refused), `playwright-missing`, `no-pages`, `config`, `aborted` or `unknown`.
 
 ## Command Reference
 
@@ -220,13 +239,18 @@ route), `tls` (certificate rejected), `timeout`, `http-error`, `non-html`,
 | `--max-pages <n>` | `-m` | Maximum pages to crawl | 10 |
 | `--crawl` | | Enable multi-page crawl | false |
 | `--categories <list>` | `-c` | Comma-separated categories to audit | All |
-| `--cwv` | | Render in a browser: Core Web Vitals + JS rendering | false |
+| `--cwv` | `--render` | Render in a browser: Core Web Vitals, JS rendering, axe-core accessibility, unused JS/CSS and image sizing | false |
 | `--mobile` | | Render mobile viewport + mobile-first parity (single-page); implies `--cwv` | false |
 | `--verbose` | `-v` | Show progress | false |
 | `--output <path>` | `-o` | Output file path | |
 | `--config <path>` | | Config file path | |
 | `--no-save` | | Do not store this audit in ~/.seomator | |
 | `--staging` | | Audit a staging site: waive the noindex and robots.txt caps and crawl past robots.txt; the waived caps are listed | false |
+| `--fail-under <n>` | | Exit 1 when the score is below n (overrides `[ci] fail_under`) | 70 |
+| `--min-coverage <pct>` | | With `--crawl`: exit 1 when fewer than pct% of the attempted pages were measured | 0 |
+| `--max-duration <s>` | | With `--crawl`: stop requesting pages after s seconds and score what was fetched | no limit |
+| `--ignore-crawl-delay` | | With `--crawl`: do not honour the site's robots.txt `Crawl-delay` | false |
+| `--refresh` | `-r` | Check every external link again instead of using the link cache | false |
 
 Audits are stored by default, so `compare` and `report` always have history.
 
@@ -247,7 +271,7 @@ audit is stored unless it ran with `--no-save`.
 | `--against <auditId>` | Compare against a specific audit instead of the previous run | latest-but-one |
 | `--trend` | Show score history for the domain instead of a two-run diff | false |
 | `--json` / `-j` | Machine-readable diff | false |
-| `--fail-on-regression` | Exit 1 when the score dropped or any rule's status got worse. Two audits measured differently (Core Web Vitals, scoring model, rule filters, staging) are reported as not like-for-like and never fail | false |
+| `--fail-on-regression` | Exit 1 when the score dropped or any rule's status got worse. Two audits measured differently (Core Web Vitals, scoring model, rule filters, rule options, staging) are reported as not like-for-like and never fail | false |
 
 Rules are diffed by ID, so a rule that broke and a different one that was fixed
 are reported separately rather than cancelling out in a count.
@@ -258,6 +282,7 @@ are reported separately rather than cancelling out in a count.
 seomator init              # Create config file
 seomator self doctor       # Check system setup
 seomator config --list     # Show all config values
+seomator explain <rule-id> # What a rule checks, its weight, the fix and override lines
 seomator report --list     # List past reports
 seomator compare <domain>  # Diff the two most recent saved audits
 seomator db stats          # Show database statistics
@@ -299,8 +324,9 @@ seomator audit https://example.com --crawl -m 100 --format llm
 
 ```bash
 # User asks: "Re-audit the site, ignore cached results"
-# Every run fetches every page fresh — there is no cache to bypass.
-seomator audit https://example.com --format llm
+# Pages are always fetched fresh. External link answers are kept in a link
+# cache for 7 days by default; --refresh checks every external link again.
+seomator audit https://example.com --format llm --refresh
 ```
 
 ### Example 4: Generate Shareable Report
@@ -354,9 +380,9 @@ tag is present and well-formed, and only a real fetch reveals nothing came back.
 |-------|-------|---------|
 | 90-100 | A | Excellent - Minor optimizations only |
 | 80-89 | B | Good - Address warnings |
-| 70-79 | C | Needs Work - Priority fixes required |
-| 50-69 | D | Poor - Multiple critical issues |
-| 0-49 | F | Critical - Major problems to resolve |
+| 70-79 | C | Fair - Several issues to fix |
+| 50-69 | D | Needs Work - Priority fixes required |
+| 0-49 | F | Poor - Critical issues to resolve |
 
 ### Priority Order (by category weight)
 
@@ -394,7 +420,9 @@ Fix issues in this order for maximum impact:
 A category score is the average of its rule results — `pass` 100, `warn` 50,
 `fail` 0 — weighted by each rule's declared weight, so a heavy rule such as
 `security-https` moves the category far more than a minor one. The overall score
-is the weighted average of category scores using the weights above.
+is the weighted average of category scores using the weights above. Advisory
+rules (new checks, marked "Advisory" in every report) are listed but never count
+toward a score.
 
 **A page-level condition can cap the overall score.** An average cannot say
 "nothing else matters", so while one of these holds, the overall score stays at
@@ -507,7 +535,7 @@ seomator audit https://example.com
 3. **Enrich**: Fetches robots.txt and sitemap once per audit
 4. **Render** (if CWV enabled): Captures rendered DOM via Playwright, plus console errors and failed resource requests
 5. **Crawl** (if enabled): Discovers and fetches linked pages
-6. **Analyze**: Runs 373 audit rules against each page
+6. **Analyze**: Runs 398 audit rules against each page
 7. **Score**: Calculates category and overall weighted scores
 8. **Report**: Generates output in requested format
 
@@ -542,6 +570,6 @@ untrusted delimiters would dilute the signal.
 
 ## Resources
 
-- **Full rules reference**: See `docs/SEO-AUDIT-RULES.md` for all 373 rules
+- **Full rules reference**: See `docs/SEO-AUDIT-RULES.md` for all 398 rules
 - **Storage architecture**: See `docs/STORAGE-ARCHITECTURE.md` for database details
 - **CLI help**: `seomator --help` and `seomator <command> --help`

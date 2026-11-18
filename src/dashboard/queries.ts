@@ -13,7 +13,7 @@ import { categories as categoryDefinitions } from '../categories/index.js';
 import { getRuleById } from '../rules/registry.js';
 import { rulePriority } from '../rules/priority.js';
 import { getFixSuggestion } from '../reporters/fix-suggestions.js';
-import type { AuditResult, CategoryResult } from '../types.js';
+import type { AuditCoverage, AuditResult, CategoryResult, CompletionState } from '../types.js';
 import {
   toAuditSummaryDto,
   type AuditDetail,
@@ -112,7 +112,9 @@ export function getAuditDetail(db: AuditsDatabase, auditId: string): AuditDetail
         affectedPages: s.affectedPages,
         measuredPages: s.measuredPages,
       }),
-      status: s.status,
+      // Said outright: the UI tests the status, and a not-measured rule read
+      // as status "warn" showed as a warning and was listed as an issue
+      status: s.notMeasured ? 'not-measured' : s.status,
       message: s.message,
       score: s.score,
       weight: s.notMeasured ? 0 : 1,
@@ -122,6 +124,8 @@ export function getAuditDetail(db: AuditsDatabase, auditId: string): AuditDetail
       affectedPages: s.affectedPages,
       notMeasured: s.notMeasured,
       samplePages: s.samplePages,
+      ...(s.advisory && { advisory: true }),
+      ...(s.notMeasured && s.reason && { reason: s.reason as RuleSummary['reason'] }),
     };
     const list = byCategory.get(s.categoryId);
     if (list) list.push(entry);
@@ -154,13 +158,55 @@ export function getAuditDetail(db: AuditsDatabase, auditId: string): AuditDetail
   // support instead of a per-page filter that only sees sampled pages.
   const pages = db.getAuditPages(audit.id);
 
+  // Caps and waivers come back from the stored extras, so a capped score is
+  // never shown without its reason. Override marks go back on the results.
+  const linkScores = db.getLinkScores(audit.id);
+  let extras = Object.keys(linkScores).length > 0 ? { ...audit.extras, linkScores } : audit.extras;
+  // Extracted values come back from their table into the stored summary
+  const storedCustom = extras?.['custom'] as { searches: unknown[]; extractions: Array<{ name: string }> } | undefined;
+  if (storedCustom) {
+    const values = db.getCustomValues(audit.id);
+    extras = {
+      ...extras,
+      custom: {
+        searches: storedCustom.searches,
+        extractions: storedCustom.extractions.map((e) => ({ name: e.name, pages: values.get(e.name) ?? [] })),
+      },
+    };
+  }
+  const overrides = (extras?.['overrides'] ?? {}) as Record<string, RuleSummary['overridden']>;
+  for (const category of categoryResults) {
+    for (const entry of category.results) {
+      const mark = overrides[entry.ruleId];
+      if (!mark) continue;
+      entry.overridden = mark;
+      const summary = entry as RuleSummary;
+      if (mark.priority) {
+        summary.priority = rulePriority({
+          ruleId: summary.ruleId,
+          categoryId: category.categoryId,
+          status: summary.notMeasured ? 'not-measured' : summary.status,
+          affectedPages: summary.affectedPages,
+          measuredPages: summary.measuredPages,
+          override: mark.priority,
+        });
+      }
+    }
+  }
+  // A crawl's gaps come back too, so it never reads as complete when it was not
+  const completion = storedCompletion(extras?.['completion']);
+
   const result: AuditResult = {
     url: audit.startUrl,
     overallScore: audit.overallScore,
     categoryResults,
     timestamp: audit.startedAt.toISOString(),
     crawledPages: audit.pagesAudited,
-    coverage: { pages, detail: 'aggregated' },
+    coverage: { pages, detail: 'aggregated', ...completion?.counts },
+    ...(completion && { completionState: completion.state }),
+    ...(isCap(extras?.['scoreCap']) && { scoreCap: extras!['scoreCap'] as AuditResult['scoreCap'] }),
+    ...(Array.isArray(extras?.['waivedCaps']) && { waivedCaps: extras!['waivedCaps'] as AuditResult['waivedCaps'] }),
+    ...(extras && { extras }),
   };
 
   return {
@@ -326,4 +372,33 @@ export function compareStored(
     engineChanged: comparison.engineChanged,
     rules: diffRules(db.getAllResults(previous.id), db.getAllResults(current.id)),
   };
+}
+
+/** A stored score cap that has the shape the reporters render */
+const COVERAGE_COUNTS = ['attempted', 'measured', 'rateLimited', 'failed', 'notFetched'] as const;
+
+/**
+ * A crawl's stored completion: its state and the counts behind "Measured 2 of
+ * 3 pages". Null for a single-page audit, a row saved before it was kept, or a
+ * value that is not one.
+ */
+function storedCompletion(value: unknown): { state: CompletionState; counts: Partial<AuditCoverage> } | null {
+  if (!value || typeof value !== 'object') return null;
+  const stored = value as Record<string, unknown>;
+  if (stored['state'] !== 'completed' && stored['state'] !== 'completed-with-gaps') return null;
+  const counts: Partial<AuditCoverage> = {};
+  for (const key of COVERAGE_COUNTS) {
+    const count = stored[key];
+    if (typeof count === 'number') counts[key] = count;
+  }
+  return { state: stored['state'], counts };
+}
+
+function isCap(value: unknown): boolean {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as { uncappedScore?: unknown }).uncappedScore === 'number' &&
+    Array.isArray((value as { caps?: unknown }).caps)
+  );
 }

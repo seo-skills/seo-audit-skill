@@ -29,15 +29,16 @@ const OUTPUT = join(root, 'electron/resources/icon.png');
 const SIZE = 1024;
 
 /**
- * Fraction of the canvas left empty around the mark.
+ * Fraction of the canvas left empty on each side of the mark's viewBox.
  *
- * The mark is a full-bleed circle. Dropped into an icon canvas untouched it
- * renders edge to edge, which reads as oversized beside macOS icons that sit
- * inside the standard squircle with breathing room. ~9% inset puts the circle
- * on the same optical footing as its neighbours in the Dock, and costs
- * nothing on Windows or Linux. Set to 0 for a full-bleed mark.
+ * The emblem is a squircle, which is already the shape of a macOS app icon, so
+ * it should sit exactly where Apple's icon grid puts the body: 824px of a
+ * 1024px canvas, the same footing as its neighbours in the Dock. The body
+ * fills 140 of the viewBox's 150 units, so the viewBox is drawn at
+ * 824 / (140 / 150) ≈ 883px, leaving ≈ 6.9% per side. It costs nothing on
+ * Windows or Linux. Set to 0 for a full-bleed mark.
  */
-const PADDING_RATIO = 0.09;
+const PADDING_RATIO = (1 - 824 / 1024 / (140 / 150)) / 2;
 
 const check = process.argv.includes('--check');
 

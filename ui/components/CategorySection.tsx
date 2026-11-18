@@ -58,7 +58,7 @@ export function CategorySection({ category, filter, ruleMetadata, defaultExpande
   const filteredRules =
     filter === 'all'
       ? category.results
-      : category.results.filter((r) => r.status === filter);
+      : category.results.filter((r) => r.status === (filter === 'notmeasured' ? 'not-measured' : filter));
 
   // Deduplicate rules by ruleId (keep worst status for multi-page audits)
   const uniqueRules = Array.from(

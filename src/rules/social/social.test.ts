@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import * as cheerio from 'cheerio';
 import type { AuditContext } from '../../types.js';
 import { ogImageSizeRule } from './og-image-size.js';
@@ -6,6 +6,7 @@ import { ogUrlCanonicalRule } from './og-url-canonical.js';
 import { shareButtonsRule } from './share-buttons.js';
 import { socialProfilesRule } from './social-profiles.js';
 import { createTestContext } from '../test-context.js';
+import { png } from './image-fixtures.js';
 
 /**
  * Helper to create an audit context from HTML
@@ -16,61 +17,41 @@ function createContext(html: string, url = 'https://example.com'): AuditContext 
 
 describe('Social Rules', () => {
   describe('social-og-image-size', () => {
-    it('should fail when og:image is missing', async () => {
-      const context = createContext('<html><head></head></html>');
-      const result = await ogImageSizeRule.run(context);
-      expect(result.status).toBe('fail');
-      expect(result.details?.hasImage).toBe(false);
+    const IMAGE = 'https://example.com/image.png';
+    const head = (dims = '') => `<html><head><meta property="og:image" content="${IMAGE}">${dims}</head></html>`;
+    const declared = (w: string, h: string) => `<meta property="og:image:width" content="${w}"><meta property="og:image:height" content="${h}">`;
+    const serveImage = (bytes: Uint8Array<ArrayBuffer>, status = 200) =>
+      vi.stubGlobal('fetch', vi.fn(async () => new Response(bytes, { status, headers: { 'content-type': 'image/png' } })));
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('is not measured without an og:image, or without declared dimensions', async () => {
+      expect((await ogImageSizeRule.run(createContext('<html><head></head></html>'))).status).toBe('not-measured');
+      expect((await ogImageSizeRule.run(createContext(head()))).status).toBe('not-measured');
     });
 
-    it('should warn when og:image exists but no dimensions', async () => {
-      const context = createContext(`
-        <html><head>
-          <meta property="og:image" content="https://example.com/image.jpg">
-        </head></html>
-      `);
-      const result = await ogImageSizeRule.run(context);
-      expect(result.status).toBe('warn');
-      expect(result.details?.hasDimensions).toBe(false);
-    });
-
-    it('should pass when dimensions are optimal (1200x630)', async () => {
-      const context = createContext(`
-        <html><head>
-          <meta property="og:image" content="https://example.com/image.jpg">
-          <meta property="og:image:width" content="1200">
-          <meta property="og:image:height" content="630">
-        </head></html>
-      `);
-      const result = await ogImageSizeRule.run(context);
+    it('passes when the declared size is the real size', async () => {
+      serveImage(png(1200, 630));
+      const result = await ogImageSizeRule.run(createContext(head(declared('1200', '630'))));
       expect(result.status).toBe('pass');
-      expect(result.details?.optimal).toBe(true);
+      expect(result.details?.actual).toEqual({ width: 1200, height: 630 });
     });
 
-    it('should warn when dimensions are below recommended', async () => {
-      const context = createContext(`
-        <html><head>
-          <meta property="og:image" content="https://example.com/image.jpg">
-          <meta property="og:image:width" content="600">
-          <meta property="og:image:height" content="315">
-        </head></html>
-      `);
-      const result = await ogImageSizeRule.run(context);
+    it('warns when the declared size is not the real size', async () => {
+      serveImage(png(600, 315));
+      const result = await ogImageSizeRule.run(createContext(head(declared('1200', '630'))));
       expect(result.status).toBe('warn');
-      expect(result.details?.belowRecommended).toBe(true);
+      expect(result.message).toContain('declares 1200×630 but the image is 600×315');
     });
 
-    it('should fail when dimensions are too small', async () => {
-      const context = createContext(`
-        <html><head>
-          <meta property="og:image" content="https://example.com/image.jpg">
-          <meta property="og:image:width" content="100">
-          <meta property="og:image:height" content="100">
-        </head></html>
-      `);
-      const result = await ogImageSizeRule.run(context);
-      expect(result.status).toBe('fail');
-      expect(result.details?.tooSmall).toBe(true);
+    it('warns when the declared values are not whole pixel counts', async () => {
+      const result = await ogImageSizeRule.run(createContext(head(declared('wide', '630'))));
+      expect(result.status).toBe('warn');
+    });
+
+    it('is not measured when the image cannot be read', async () => {
+      serveImage(new Uint8Array(0), 404);
+      const result = await ogImageSizeRule.run(createContext(head(declared('1200', '630'))));
+      expect(result.status).toBe('not-measured');
     });
   });
 

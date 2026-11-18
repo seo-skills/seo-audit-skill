@@ -15,6 +15,7 @@ export const renderedContentRule = defineRule({
   description: 'Checks if significant content is only present after JavaScript rendering',
   category: 'js',
   weight: 8,
+  requiresRender: true,
   run: async (context: AuditContext) => {
     const rendered$ = (context as any).rendered$;
 

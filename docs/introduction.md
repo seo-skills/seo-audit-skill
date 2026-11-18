@@ -23,7 +23,7 @@ assistants change what they read.
 
 SEOmator automates those checks. It is a command-line tool, published on npm as
 `@seomator/seo-audit`, that loads a page, tests it against
-**373 rules** across **20 categories**, and turns the results into a score out
+**398 rules** across **20 categories**, and turns the results into a score out
 of 100 and a ranked list of what to fix.
 
 It runs on your machine. There is no account, and pages are not sent to a
@@ -49,7 +49,7 @@ structure, HTML validity, readiness for AI search, and legal compliance.
                ▼
   ┌─────────────────────────┐
   │ 2. Render (optional)    │  Headless browser: Core Web Vitals,
-  │                         │  rendered DOM, loaded assets. On with --cwv.
+  │                         │  rendered DOM, loaded assets. On with --render.
   └────────────┬────────────┘
                ▼
   ┌─────────────────────────┐
@@ -74,18 +74,22 @@ structure, HTML validity, readiness for AI search, and legal compliance.
    page (a PDF, a JSON API, a feed), or its status is 400 or higher, the audit
    stops with an error instead of a score. [Refusing to score](#refusing-to-score)
    explains why.
-2. **Render.** With `--cwv`, SEOmator opens the page in a headless
-   browser. It tries the Chrome, Chromium or Edge installed on your machine
-   first, then Playwright's own Chromium. The render measures Core Web Vitals,
-   captures the page after JavaScript has run, and records every asset the page
-   loaded. If no browser can start, the audit carries on without the render.
+2. **Render.** With `--render` (or its older name `--cwv`), SEOmator opens the
+   page in a headless browser. It tries the Chrome, Chromium or Edge installed
+   on your machine first, then Playwright's own Chromium. The render measures
+   Core Web Vitals, captures the page after JavaScript has run, and records
+   every asset the page loaded. It also runs checks inside the page: axe-core
+   accessibility, unused JavaScript and CSS, and images delivered far larger
+   than they are shown. If no browser can start, the audit carries on without
+   the render, and those checks report that they need one.
 3. **Site files.** SEOmator reads `robots.txt`, then every sitemap it lists, or
    `/sitemap.xml` when it lists none. Sitemap indexes and gzipped sitemaps are
    followed.
 4. **Rules.** Every rule reads what it needs from what was collected: the
    served HTML, the rendered page, headers, the redirect chain, robots.txt, the
    sitemap. Each returns pass, warn, fail or not measured. A rule that crashes
-   counts as a failure, so a bug cannot pass silently.
+   is reported as not measured, with the error, so a bug in SEOmator neither
+   passes silently nor marks the site down.
 5. **Score.** The results become category scores and an overall score, and the
    overall score may be capped. The next sections explain how.
 
@@ -110,9 +114,15 @@ The score is three layers of weighted averages:
   Core down to 1% for Legal Compliance, and the weights add up to 100. The
   overall score is the weighted average of the category scores.
   [SEO Audit Rules](./SEO-AUDIT-RULES.md) lists the weights.
+- **Advisory rules.** New rules start as advisory: they are reported and carry
+  no weight until their verdicts have been checked on real sites. Category
+  pass, warning and failure counts leave them out. The dashboard and the
+  desktop app mark them "Advisory", JSON output sets `advisory: true`, and
+  `seomator explain <rule-id>` says whether a rule is one.
 - **Grade.** A is 90 or more, B 80 or more, C 70 or more, D 50 or more, and F
-  below 50. Every surface uses the same bands. 70 is also the pass line:
-  `seomator audit` exits with `1` below it, so a CI job fails.
+  below 50. Every surface uses the same bands. 70 is also the default pass
+  line: `seomator audit` exits with `1` below it, so a CI job fails.
+  `--fail-under` or `[ci] fail_under` moves the line.
 
 ## Score caps
 
@@ -139,7 +149,8 @@ outweigh, the overall score is held at or below a ceiling. There are two kinds:
   main content, and 30 for both.
 
 Only the lowest applicable ceiling counts, and only when it is below the
-average. Every ceiling is under 70, so a capped audit always fails a CI run.
+average. Every ceiling is under 70, so a capped audit fails a CI run at the
+default pass line.
 Category scores are never capped: they still describe what was measured. The
 report prints the uncapped average and the reason under the score; JSON output
 carries them as `scoreCap`, and `--format llm` as `<score-cap>`.
@@ -198,8 +209,10 @@ measured**, and says what it needs. It carries weight 0, so it moves neither
 side of the average: you cannot score what you did not measure. The usual
 reasons:
 
-- **No render** (no `--cwv`, or no browser found): Core Web Vitals and most
-  JavaScript-rendering checks.
+- **No render** (no `--cwv`, or no browser found): Core Web Vitals, most
+  JavaScript-rendering checks, accessibility with axe-core, unused JavaScript
+  and CSS, and image sizing. Without `--cwv`, the console report says how many
+  checks a render would add.
 - **A single page**: checks that compare pages or need the link graph, such as
   title uniqueness, duplicate content, click depth, inbound links and sitemap
   orphans. They need `--crawl`.
@@ -212,9 +225,10 @@ reasons:
 
 The trade-off: an audit that measured less can score higher, because the checks
 it skipped can no longer fail. A single-page audit of example.com with `--cwv`
-reported 54 checks as not measured and scored 86. The same audit without it
-reported 76 and scored 87. That is why SEOmator records how each audit was
-measured.
+reported 67 checks as not measured and scored 87. The same audit without it
+reported 101 and scored 88: the JavaScript Rendering checks that failed on the
+rendered page were not measured, so that category rose from 79 to 100. That is
+why SEOmator records how each audit was measured.
 
 ## Comparing audits over time
 
@@ -231,7 +245,8 @@ gate.
 
 Two scores are only comparable if they were measured the same way. Each stored
 audit records how it ran: Core Web Vitals on or off, mobile parity, simulated
-interaction, category and rule filters, staging, and the scoring model. When
+interaction, category and rule filters, rule options, staging, and the scoring
+model. When
 one of these differs, `compare` says the diff is not like-for-like, and
 `--fail-on-regression` does not fail. A different page limit is reported but
 does not count: it changes how much was covered, not whether a check could run.
@@ -257,8 +272,8 @@ report, or your own real-user monitoring) shows what they experience.
 
 Lab numbers are good at showing what changed between two runs under the same
 conditions. They still move from run to run: two audits of an unchanged
-example.com, two minutes apart, timed the server's first byte as a pass and
-then as a warning at 978 ms.
+example.com, about a minute apart, timed the server's first byte at 133 ms and
+then 219 ms, and the Largest Contentful Paint at 0.23 s and then 0.32 s.
 
 SEOmator has no field data and no data from search engines: no rankings, no
 backlinks, no search demand. A high score means the page follows the rules it
@@ -276,10 +291,9 @@ on 3 of 50 pages lowers the category in proportion instead of deciding it. Only
 the start page can cap the score. A crawl is slower: with Core Web Vitals on,
 every page is rendered.
 
-A known gap: `seomator audit` ignores `max_pages`, `concurrency` and
-`timeout_ms` in the `[crawler]` section of `seomator.toml`, because the
-command's own flag defaults override them. Set them with `-m`, `--concurrency`
-and `--timeout` instead. See [Configuration](./configuration.md).
+`seomator audit` reads `max_pages`, `concurrency` and `timeout_ms` from the
+`[crawler]` section of `seomator.toml`, and a typed `-m`, `--concurrency` or
+`--timeout` overrides them. See [Configuration](./configuration.md).
 
 You can also split the work. `seomator crawl` stores the pages without scoring
 them, and `seomator analyze` runs the rules on a stored crawl later. robots.txt
@@ -307,14 +321,17 @@ categories or rule filters as not like-for-like.
 - **Terminal and CI.** `seomator audit` prints the report from the
   [Quickstart](./quickstart.md). `--format json`, `html`, `markdown` and `llm`
   write the same result for programs, browsers, documents and AI assistants.
-  The exit code carries the verdict: `seomator audit` exits with `0` at 70 or
-  more, `1` below 70, `2` when the audit could not run, and `130` when you
-  cancel it. `compare --fail-on-regression` exits with `1` on a regression.
+  The exit code carries the verdict: `seomator audit` exits with `0` when its
+  gates pass (by default a score of 70 or more), `1` when one fails (a score
+  under the pass line, a `fail_ci` rule, or a crawl below `--min-coverage`),
+  `2` when the audit could not run, and `130` when you cancel it.
+  `compare --fail-on-regression` exits with `1` on a regression.
 - **Local dashboard.** `seomator serve` shows your stored audits in a browser
   at `127.0.0.1:7360`. See [Web dashboard](./WEB-DASHBOARD.md).
 - **AI agents.** `--format llm` is a compact report written for language
   models, and the SEOmator skill teaches an agent to run audits and act on the
-  results. See [AI Agent Integration](./ai-agent-integration.md).
+  results. `seomator mcp` serves the same engine as MCP tools. See
+  [AI Agent Integration](./ai-agent-integration.md).
 - **Your own code.** The package exports the same `Auditor` the CLI uses.
 - **Desktop app.** An Electron app built from the same repository wraps the
   same engine and the same interface as the dashboard. It is not part of the

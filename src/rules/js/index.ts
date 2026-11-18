@@ -38,6 +38,7 @@ import { ssrCheckRule } from './ssr-check.js';
 import { consoleErrorsRule } from './console-errors.js';
 import { documentWriteRule } from './document-write.js';
 import { failedRequestsRule } from './failed-requests.js';
+import { ajaxCrawlingSchemeRule } from './ajax-crawling-scheme.js';
 
 // Export all rules
 export {
@@ -81,3 +82,4 @@ registerRule(ssrCheckRule);
 registerRule(consoleErrorsRule);
 registerRule(failedRequestsRule);
 registerRule(documentWriteRule);
+registerRule(ajaxCrawlingSchemeRule);

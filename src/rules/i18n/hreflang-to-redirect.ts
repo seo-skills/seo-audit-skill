@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn } from '../define-rule.js';
+import { pageStatus } from '../../site/groups.js';
 
 // Reference hint: international/has-outgoing-hreflang-annotations-to-redirecting-urls
 /**
@@ -83,8 +84,9 @@ export const hreflangToRedirectRule = defineRule({
         }
         const info = pages.get(normalize(absolute));
         if (!info) continue; // target was not crawled - nothing to check
-        if (info.statusCode >= 300 && info.statusCode < 400) {
-          redirectingUrls.push({ hreflang, href: absolute, statusCode: info.statusCode });
+        const status = pageStatus(info);
+        if (status !== null && status >= 300 && status < 400) {
+          redirectingUrls.push({ hreflang, href: absolute, statusCode: status });
         }
       }
     }

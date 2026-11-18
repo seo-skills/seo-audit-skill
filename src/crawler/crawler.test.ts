@@ -247,6 +247,41 @@ describe('discovery sources', () => {
     expect(sources.get(CANONICAL_TARGET)!.has('canonical')).toBe(true);
   });
 
+  it('keeps every worker busy when the start page is slow', async () => {
+    // A start page slower than any idle wait used to leave one worker for the
+    // whole crawl: the others found an empty queue and quit before it linked
+    // anywhere.
+    const links = Array.from({ length: 8 }, (_, i) => `<a href="/p${i}">p${i}</a>`).join('');
+    let inFlight = 0;
+    let maxInFlight = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.endsWith('/robots.txt')) return new Response('', { status: 404 });
+        inFlight++;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, url === HOME ? 250 : 60));
+        inFlight--;
+        const html = url === HOME ? `<html><body>${links}</body></html>` : '<html><body>leaf</body></html>';
+        return new Response(html, { status: 200, headers: { 'content-type': 'text/html' } });
+      })
+    );
+
+    const crawler = new Crawler({ maxPages: 9, concurrency: 4 });
+    const results = await crawler.crawl(HOME);
+
+    expect(results).toHaveLength(9);
+    expect(maxInFlight).toBe(4);
+  });
+
+  it('stops when the queue is empty and nothing is in flight', async () => {
+    stubFetch({ [HOME]: '<html><body>no links</body></html>' });
+    const crawler = new Crawler({ maxPages: 10, concurrency: 4 });
+    const results = await crawler.crawl(HOME);
+    expect(results.map((r) => r.url)).toEqual([HOME]);
+  });
+
   it('ignores external and non-http canonical targets', async () => {
     stubFetch({
       [HOME]: '<html><head><link rel="canonical" href="https://other.com/x"></head><body><a href="/about">About</a></body></html>',

@@ -90,24 +90,35 @@ export function makeBaselineFetch() {
  * eeat-author-expertise (no author) report not measured instead of a pass and
  * a "not applicable" warn: a11y keeps 98, eeat rises 87 -> 90.
  */
+// Not measured +1 in technical, crawl, mobile and js: the advisory rules
+// technical-amp-pairing, crawl-indexable-not-in-sitemap, mobile-separate-urls
+// and js-ajax-crawling-scheme find nothing to grade on the fixture. No score moves.
 const EXPECTED_CATEGORIES: Record<string, [number, number, number, number, number]> = {
-  core: [99, 21, 1, 1, 1],
-  technical: [99, 17, 0, 1, 0],
-  perf: [90, 15, 5, 0, 8],
+  // Not measured 1 -> 3: core-unavailable-after and core-obsolete-robots-directives
+  // (advisory) find no directive to grade on the fixture. The score does not move.
+  core: [99, 21, 1, 1, 3],
+  technical: [99, 17, 0, 1, 1],
+  // Not measured 8 -> 10: perf-unused-js and perf-unused-css need a render. No score moves.
+  perf: [90, 15, 5, 0, 10],
   links: [97, 17, 1, 1, 8],
-  images: [59, 8, 4, 2, 0],
+  // Not measured 0 -> 1: images-oversized-delivery needs a render. No score moves.
+  images: [59, 8, 4, 2, 1],
   security: [78, 15, 6, 3, 2],
-  crawl: [99, 20, 1, 0, 17],
+  crawl: [99, 20, 1, 0, 18],
   schema: [92, 13, 2, 0, 4],
-  a11y: [98, 34, 1, 0, 1],
+  // Not measured 1 -> 11: the ten a11y-axe-* rules need a render. No score moves.
+  a11y: [98, 34, 1, 0, 11],
   content: [96, 20, 0, 1, 6],
-  social: [61, 4, 3, 2, 0],
+  // 61 -> 63: social-og-image-size now compares declared with real dimensions,
+  // and the fixture declares none, so its "missing dimensions" warning became
+  // not measured. social-duplicate-og (advisory) is not measured on one page.
+  social: [63, 4, 2, 2, 2],
   eeat: [90, 12, 2, 0, 2],
   url: [100, 14, 0, 0, 0],
-  mobile: [90, 6, 1, 0, 5],
+  mobile: [90, 6, 1, 0, 6],
   i18n: [100, 12, 0, 0, 1],
   legal: [100, 1, 0, 0, 0],
-  js: [100, 3, 0, 0, 13],
+  js: [100, 3, 0, 0, 14],
   redirect: [100, 8, 0, 0, 3],
   htmlval: [100, 11, 0, 0, 0],
   geo: [81, 8, 5, 0, 0],

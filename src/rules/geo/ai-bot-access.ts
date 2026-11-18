@@ -1,6 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
-import { fetchPage } from '../../crawler/fetcher.js';
+import { getText } from '../../net/url-service.js';
 
 /**
  * Known AI crawler user-agent identifiers.
@@ -206,7 +206,7 @@ export const aiBotAccessRule = defineRule({
     let robotsContent: string | null = null;
 
     try {
-      const result = await fetchPage(robotsTxtUrl);
+      const result = await getText(context, robotsTxtUrl);
       if (result.statusCode === 200) {
         robotsContent = result.html;
       }

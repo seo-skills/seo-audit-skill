@@ -27,6 +27,7 @@ export const mobileParityContentRule = defineRule({
   description: 'Checks that the mobile render contains as much body content as desktop',
   category: 'mobile',
   weight: 10,
+  requiresRender: true,
   run: (context: AuditContext) => {
     const inputs = parityInputs('mobile-parity-content', context);
     if (!inputs.available) return inputs.result;
@@ -88,6 +89,7 @@ export const mobileParityTitleRule = defineRule({
   description: 'Checks that the title and meta description match between mobile and desktop',
   category: 'mobile',
   weight: 8,
+  requiresRender: true,
   run: (context: AuditContext) => {
     const inputs = parityInputs('mobile-parity-title', context);
     if (!inputs.available) return inputs.result;
@@ -140,6 +142,7 @@ export const mobileParityCanonicalRule = defineRule({
   description: 'Checks that the canonical URL matches between mobile and desktop',
   category: 'mobile',
   weight: 8,
+  requiresRender: true,
   run: (context: AuditContext) => {
     const inputs = parityInputs('mobile-parity-canonical', context);
     if (!inputs.available) return inputs.result;
@@ -181,6 +184,7 @@ export const mobileParityStructuredDataRule = defineRule({
   description: 'Checks that JSON-LD structured data is present on mobile as well as desktop',
   category: 'mobile',
   weight: 8,
+  requiresRender: true,
   run: (context: AuditContext) => {
     const inputs = parityInputs('mobile-parity-structured-data', context);
     if (!inputs.available) return inputs.result;
@@ -226,6 +230,7 @@ export const mobileParityLinksRule = defineRule({
   description: 'Checks that mobile exposes a comparable number of internal links to desktop',
   category: 'mobile',
   weight: 6,
+  requiresRender: true,
   run: (context: AuditContext) => {
     const inputs = parityInputs('mobile-parity-links', context);
     if (!inputs.available) return inputs.result;

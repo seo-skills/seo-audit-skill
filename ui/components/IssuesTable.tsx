@@ -40,6 +40,10 @@ interface IssueRow {
   message: string;
   pageUrl: string | null;
   count: number;
+  /** Reported, not counted in the score yet: listed after the scored findings */
+  advisory: boolean;
+  /** The server's ranking of how much the finding matters; 0 when absent */
+  priority: number;
 }
 
 export function IssuesTable({ result, ruleMetadata, onIssueClick }: IssuesTableProps) {
@@ -67,15 +71,20 @@ export function IssuesTable({ result, ruleMetadata, onIssueClick }: IssuesTableP
           message: rule.message,
           pageUrl: pageUrl ?? null,
           count: 1,
+          advisory: rule.advisory === true,
+          priority: (rule as { priority?: number }).priority ?? 0,
         });
       }
     }
     issues.push(...ruleMap.values());
   }
 
-  // Sort: failures first, then by count descending
+  // Scored findings before advisory ones, failures before warnings, then by
+  // the server's priority (overrides included), then by how many pages
   issues.sort((a, b) => {
+    if (a.advisory !== b.advisory) return a.advisory ? 1 : -1;
     if (a.status !== b.status) return a.status === 'fail' ? -1 : 1;
+    if (a.priority !== b.priority) return b.priority - a.priority;
     return b.count - a.count;
   });
 
@@ -163,7 +172,8 @@ export function IssuesTable({ result, ruleMetadata, onIssueClick }: IssuesTableP
                     backgroundColor: issue.status === 'fail' ? 'var(--color-fail-bg)' : 'var(--color-warn-bg)',
                   }}
                 >
-                  {issue.status === 'fail' ? 'Critical' : 'Warning'}
+                  {issue.status === 'fail' ? 'Fails' : 'Warning'}
+                  {issue.advisory && ' · advisory'}
                 </span>
               </td>
               {result.crawledPages > 1 && (

@@ -19,11 +19,15 @@ import { ProgressReporter, renderTerminalReport, outputJsonReport } from '../rep
 import { buildAuditResult } from '../scoring.js';
 import { loadAllRules } from '../rules/loader.js';
 import { createAuditContext } from '../crawler/index.js';
-import { resetCrossPageState } from '../rules/registry.js';
 import type { AuditContext } from '../types.js';
 import { emitCommandError } from './machine-error.js';
 import { SCORING_VERSION } from '../scoring.js';
 import { applyScoreCaps, readPageFacts, siteCaps } from '../score-caps.js';
+import { assertRunnableConfig, externalLinksOptions } from './run-config.js';
+import { applyRuleOverrides } from '../rules/overrides.js';
+import { evaluateGate } from '../gate.js';
+import { classifyError } from '../errors.js';
+import type { SeomatorConfig } from '../config/schema.js';
 
 export interface AnalyzeOptions {
   categories?: string[];
@@ -38,6 +42,10 @@ export interface AnalyzeOptions {
   verbose: boolean;
   /** Analyze a staging crawl: waive the noindex cap */
   staging?: boolean;
+  /** Config file path; otherwise seomator.toml is searched for */
+  config?: string;
+  /** Exit 1 below this score; overrides `[ci] fail_under` */
+  failUnder?: number;
 }
 
 /**
@@ -114,8 +122,32 @@ export function announceAnalysis(crawl: Pick<StoredCrawl, 'id' | 'url' | 'pages'
 }
 
 export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOptions): Promise<void> {
-  const { config } = loadConfig(process.cwd());
   const baseDir = process.cwd();
+
+  // Loaded inside the error handling, so a bad config reaches the same
+  // code, message and exit 2 as every other failure instead of a stack trace.
+  let config: SeomatorConfig;
+  let configWarnings: string[];
+  try {
+    await loadAllRules();
+    const loaded = loadConfig(baseDir, {}, options.config);
+    configWarnings = assertRunnableConfig(loaded.config, loaded.configPath, { categories: options.categories ?? [] });
+    config = loaded.config;
+  } catch (error) {
+    const audited = classifyError(error);
+    emitCommandError({
+      json: options.json === true,
+      code: audited.code,
+      message: audited.message,
+      ...(audited.hint && { hint: audited.hint }),
+      exitCode: 2,
+    });
+    return;
+  }
+  const failUnder = options.failUnder ?? config.ci.fail_under;
+  for (const warning of configWarnings) {
+    console.error(chalk.yellow(`Config warning: ${warning}`));
+  }
 
   const persistence = resolvePersistence({
     save: options.save,
@@ -166,9 +198,6 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
     verbose: options.verbose,
   });
 
-  // Load all rules before analysis
-  await loadAllRules();
-
   const auditor = new Auditor({
     categories: options.categories,
     // `analyze` reads the same seomator.toml as `audit`, so a rule filter
@@ -176,6 +205,9 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
     // audit that would have produced it is not a difference anyone asked for.
     enableRules: config.rules.enable,
     disableRules: config.rules.disable,
+    ruleOptions: config.rule_options,
+    externalLinks: externalLinksOptions(config),
+    custom: config.custom,
     measureCwv: false, // CWV already measured during crawl
     onCategoryStart: (id, name) => progress.onCategoryStart(id, name),
     onCategoryComplete: (id, name, result) => progress.onCategoryComplete(id, name, result),
@@ -202,12 +234,13 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
     // this the command sat silent through a multi-page analysis.
     progress.startCrawlProgress(crawl.pages.length);
 
-    // Rules that compare pages against each other hold state across the run
-    resetCrossPageState();
-
     const pages = crawl.pages.map((page) => {
       try {
-        return { url: page.url, context: createContextFromStoredPage(page) };
+        // Dates are judged against the time of the crawl, not of the replay
+        const context = createContextFromStoredPage(page);
+        const crawledAt = Date.parse(crawl.timestamp);
+        if (Number.isFinite(crawledAt)) context.now = crawledAt;
+        return { url: page.url, context };
       } catch (error) {
         return {
           url: page.url,
@@ -232,6 +265,10 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
       undefined,
       { pages: pages.map((p) => p.url), detail: 'per-page' }
     );
+    const externalLinks = auditor.getExternalLinksReport();
+    if (externalLinks) built.extras = { ...built.extras, externalLinks };
+    const custom = auditor.getCustomResults();
+    if (custom) built.extras = { ...built.extras, custom };
 
     // Capped like `audit --crawl` when search engines cannot index the start
     // page. That is the first stored page: the crawler records the entry
@@ -245,6 +282,9 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
         : built;
 
     progress.stop();
+
+    applyRuleOverrides(result, config.rules.override);
+    result.gate = evaluateGate(result, { failUnder, overrides: config.rules.override });
 
     if (persistence.legacyJson) {
       const report = createReport(
@@ -274,6 +314,7 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
             simulateInteraction: false,
             categories: options.categories ?? [],
             scoringVersion: SCORING_VERSION,
+            ...(auditor.getRunRuleOptions() && { ruleOptions: auditor.getRunRuleOptions() }),
             // analyze applies rules.enable/disable too, so the run has to carry
             // them or `compare` reads a filtered analysis as like-for-like.
             enableRules: config.rules.enable,
@@ -302,7 +343,10 @@ export async function runAnalyze(crawlId: string | undefined, options: AnalyzeOp
 
     // Set the code rather than exiting, so a large --json payload on stdout is
     // not truncated at the pipe buffer. See the note in commands/audit.ts.
-    process.exitCode = result.overallScore >= 70 ? 0 : 1;
+    process.exitCode = result.gate.exitCode;
+    if (result.gate.reason) {
+      console.error(chalk.red(`Exit 1: ${result.gate.reason}`));
+    }
   } catch (error) {
     progress.stop();
     console.error(chalk.red('Analysis failed:'), error instanceof Error ? error.message : 'Unknown error');

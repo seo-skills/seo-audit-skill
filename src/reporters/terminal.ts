@@ -10,6 +10,12 @@ import {
 } from './banner.js';
 import { isNotMeasured } from '../rules/define-rule.js';
 import { rulePriority } from '../rules/priority.js';
+import { collectIgnoredFindings, isIgnoredByConfig } from '../rules/overrides.js';
+import { coverageLine } from './coverage-line.js';
+import { brokenExternalSection } from './external-links-section.js';
+import type { LinkScoreSummary } from '../site/link-score.js';
+import { customResults, customSearchRows } from './custom-section.js';
+import type { OverridePriority } from '../types.js';
 import { normalizeMessage } from './findings.js';
 import { getRuleById } from '../rules/registry.js';
 
@@ -29,6 +35,8 @@ interface GroupedIssue {
   priority: number;
   /** Pages the rule could be measured on, for the priority share */
   measuredPages: number;
+  /** `[rules.override]` priority, when the config set one */
+  override?: OverridePriority;
 }
 
 /**
@@ -97,6 +105,8 @@ function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
 
     for (const ruleResult of categoryResult.results) {
       if (ruleResult.status === 'pass') continue;
+      // Hidden by `[rules.override]`; counted in the footer instead.
+      if (isIgnoredByConfig(ruleResult)) continue;
 
       // Get or create category entry
       if (!categoryMap.has(categoryResult.categoryId)) {
@@ -142,6 +152,7 @@ function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
           details: [],
           priority: 0,
           measuredPages: 0,
+          ...(ruleResult.overridden?.priority && { override: ruleResult.overridden.priority }),
         };
         categoryIssues.issues.push(existingIssue);
         groupsByKey.set(groupKey, existingIssue);
@@ -192,6 +203,7 @@ function groupIssuesByCategory(result: AuditResult): CategoryIssues[] {
         status: isNotMeasured(issue) ? 'not-measured' : issue.status,
         affectedPages: Math.max(issue.pages.length, 1),
         measuredPages: Math.max(issue.measuredPages, 1),
+        ...(issue.override && { override: issue.override }),
       });
     }
     const severity = (i: GroupedIssue): number =>
@@ -257,11 +269,57 @@ function renderDetailsList(details: Array<{ key: string; value: string }>, maxIt
   }
 }
 
+/** C0 and C1 control characters other than tab and line feed */
+const CONTROL_CHARACTER = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/;
+const CONTROL_CHARACTERS = new RegExp(CONTROL_CHARACTER.source, 'g');
+
+/**
+ * `value` with control characters removed from every string in it.
+ *
+ * Messages, titles, URLs and values come from the audited site, and a page
+ * can write ESC or BEL as a character reference. Printed raw, that is an
+ * escape sequence the site sends to whoever reads this report: it can hide
+ * lines, retitle the window or, on some terminals, write the clipboard.
+ *
+ * Copies only what changes, and walks the result rather than serialising it:
+ * a large crawl's result is past the longest string JSON.stringify can build.
+ * The walk stops at a fixed depth: this report reads a few levels down, and a
+ * page's structured data can nest deep enough to overflow the stack. What lies
+ * below is replaced, never passed on uncleaned.
+ */
+const MAX_CLEAN_DEPTH = 32;
+const TOO_DEEP = '[nested too deep to show]';
+
+function withoutControlCharacters<T>(value: T, depth = 0): T {
+  if (depth > MAX_CLEAN_DEPTH) return (typeof value === 'string' || (value !== null && typeof value === 'object') ? TOO_DEEP : value) as T;
+  if (typeof value === 'string') {
+    return (CONTROL_CHARACTER.test(value) ? value.replace(CONTROL_CHARACTERS, '') : value) as T;
+  }
+  if (Array.isArray(value)) {
+    let copy: unknown[] | null = null;
+    value.forEach((item, index) => {
+      const clean = withoutControlCharacters(item, depth + 1);
+      if (clean !== item) (copy ??= [...value])[index] = clean;
+    });
+    return (copy ?? value) as T;
+  }
+  if (value !== null && typeof value === 'object') {
+    let copy: Record<string, unknown> | null = null;
+    for (const [key, item] of Object.entries(value)) {
+      const clean = withoutControlCharacters(item, depth + 1);
+      if (clean !== item) (copy ??= { ...(value as Record<string, unknown>) })[key] = clean;
+    }
+    return (copy ?? value) as T;
+  }
+  return value;
+}
+
 /**
  * Render the terminal report for an audit result
- * @param result - The audit result to render
+ * @param unsafeResult - The audit result to render; site text in it is cleaned first
  */
-export function renderTerminalReport(result: AuditResult): void {
+export function renderTerminalReport(unsafeResult: AuditResult): void {
+  const result = withoutControlCharacters(unsafeResult);
   console.log();
 
   // Report header
@@ -288,6 +346,9 @@ export function renderTerminalReport(result: AuditResult): void {
       console.log(chalk.gray(`  • ${cap.reason}`));
     }
   }
+  // A crawl that could not measure every page says so under the score.
+  const coverage = coverageLine(result);
+  if (coverage) console.log(chalk.yellow(`  ${coverage}`));
   // A staging audit scores as if live; what it waived is the launch list.
   if (result.waivedCaps) {
     console.log(chalk.gray('  Waived for staging, would cap the score in production:'));
@@ -379,8 +440,9 @@ export function renderTerminalReport(result: AuditResult): void {
             ? chalk.gray('(not measured)')
             : chalk.yellow('(warning)');
 
-        // Rule ID and name
-        console.log(`  ${chalk.gray(issue.ruleId)} ${issue.ruleName} ${typeLabel}`);
+        // Rule ID and name, and where the config moved it
+        const overrideLabel = issue.override ? chalk.gray(` [priority: ${issue.override} · seomator.toml]`) : '';
+        console.log(`  ${chalk.gray(issue.ruleId)} ${issue.ruleName} ${typeLabel}${overrideLabel}`);
 
         // Status icon and message. Three states, not two: a check that took no
         // reading was drawn with the same yellow warning triangle as a real
@@ -406,6 +468,76 @@ export function renderTerminalReport(result: AuditResult): void {
       console.log();
     }
   }
+
+  // Findings `[rules.override]` hid. Listed, not dropped: a reader should be
+  // able to see what the config chose not to show them.
+  const brokenExternal = brokenExternalSection(result);
+  if (brokenExternal) {
+    console.log(chalk.bold(`BROKEN EXTERNAL LINKS (${brokenExternal.targets.length + brokenExternal.moreTargets})`));
+    for (const target of brokenExternal.targets) {
+      console.log(`  ${chalk.yellow(target.reason)}  ${target.url}`);
+      renderPagesList(target.pages, target.pages.length);
+      if (target.morePages > 0) console.log(chalk.gray(`      ... +${target.morePages} more`));
+    }
+    if (brokenExternal.moreTargets > 0) console.log(chalk.gray(`  ... +${brokenExternal.moreTargets} more`));
+    if (brokenExternal.aside) console.log(chalk.gray(`  ${brokenExternal.aside}`));
+    console.log();
+  }
+
+  // The team's own checks: shown, never scored
+  const custom = customResults(result);
+  if (custom) {
+    const icon = { pass: chalk.green('✓'), warn: chalk.yellow('!'), fail: chalk.red('✗'), stopped: chalk.yellow('…'), unchecked: chalk.gray('-') };
+    console.log(chalk.bold('CUSTOM CHECKS') + chalk.gray(' (not scored)'));
+    for (const row of customSearchRows(custom)) {
+      console.log(`  ${icon[row.outcome]} ${row.name}: ${chalk.gray(row.summary)}`);
+      renderPagesList(row.failingPages, 3);
+    }
+    for (const extraction of custom.extractions) {
+      console.log(`  ${chalk.cyan('⇢')} ${extraction.name}: ${chalk.gray(`values from ${extraction.pages.length} page${extraction.pages.length === 1 ? '' : 's'}`)}`);
+      for (const page of extraction.pages.slice(0, 3)) console.log(chalk.gray(`      ${page.values.slice(0, 3).join(', ')}`));
+    }
+    console.log();
+  }
+
+  // A metric, not a finding: which pages the site's own links favour
+  const linkSummary = result.extras?.linkScoreSummary as LinkScoreSummary | undefined;
+  if (linkSummary && linkSummary.pages > 1) {
+    const path = (url: string) => {
+      try {
+        return new URL(url).pathname || '/';
+      } catch {
+        return url;
+      }
+    };
+    console.log(chalk.bold('LINK SCORE') + chalk.gray(' (internal links, 0-100; changes no score)'));
+    console.log(chalk.gray('  Best linked'));
+    for (const page of linkSummary.top) console.log(`    ${page.score.toFixed(1).padStart(5)}  ${path(page.url)}`);
+    if (linkSummary.lowestIndexable.length > 0) {
+      console.log(chalk.gray('  Weakest indexable pages'));
+      for (const page of linkSummary.lowestIndexable) console.log(`    ${page.score.toFixed(1).padStart(5)}  ${path(page.url)}`);
+    }
+    console.log();
+  }
+
+  const ignored = collectIgnoredFindings(result);
+  if (ignored.length > 0) {
+    console.log(chalk.gray(`Ignored by config (${ignored.length}): ${ignored.map((i) => i.ruleId).join(', ')}`));
+    console.log();
+  }
+
+  // Checks that only a browser render, or a crawl, can answer, counted once per rule
+  const needing = (reason: string) =>
+    new Set(result.categoryResults.flatMap((c) => c.results).filter((r) => r.reason === reason).map((r) => r.ruleId)).size;
+  const needsRender = needing('needs-render');
+  const needsCrawl = needing('needs-crawl');
+  if (needsRender > 0) {
+    console.log(chalk.gray(`${needsRender} check${needsRender === 1 ? '' : 's'} need a browser render: rerun with --render`));
+  }
+  if (needsCrawl > 0) {
+    console.log(chalk.gray(`${needsCrawl} check${needsCrawl === 1 ? '' : 's'} need a crawl: rerun with --crawl`));
+  }
+  if (needsRender + needsCrawl > 0) console.log();
 
   // Summary footer. Carries the not-measured count too: without it the closing
   // line read "217 passed • 34 warnings • 24 failed" for a 332-rule audit, and

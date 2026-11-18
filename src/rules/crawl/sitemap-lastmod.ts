@@ -1,6 +1,5 @@
 import type { AuditContext, SitemapEntry } from '../../types.js';
 import { defineRule, pass, warn, notMeasured } from '../define-rule.js';
-import { registerResettable } from '../registry.js';
 
 /**
  * Fraction of entries that must share one lastmod before it reads as
@@ -16,16 +15,11 @@ const MIN_ENTRIES_TO_JUDGE = 10;
 const FUTURE_TOLERANCE_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Sitemap analysis is site-wide, but rules run per page. Cached so the work
- * happens once per audit instead of once per crawled page.
+ * Sitemap analysis is site-wide, but rules run per page. Every page of a run
+ * carries the same entries array, so the analysis is memoised on it and is
+ * done once per audit; it goes when the run's entries do.
  */
-let cachedResult: { key: string; value: ReturnType<typeof analyse> } | null = null;
-
-export function resetSitemapLastmodCache(): void {
-  cachedResult = null;
-}
-
-registerResettable(resetSitemapLastmodCache);
+const analyses = new WeakMap<SitemapEntry[], Analysis>();
 
 interface Analysis {
   total: number;
@@ -112,11 +106,11 @@ export const sitemapLastmodRule = defineRule({
       return pass('crawl-sitemap-lastmod', 'No sitemap entries to check', { entryCount: 0 });
     }
 
-    const key = `${entries.length}:${entries[0]?.loc ?? ''}`;
-    if (!cachedResult || cachedResult.key !== key) {
-      cachedResult = { key, value: analyse(entries, Date.now()) };
+    let analysis = analyses.get(entries);
+    if (!analysis) {
+      analysis = analyse(entries, context.now ?? Date.now());
+      analyses.set(entries, analysis);
     }
-    const analysis = cachedResult.value as Analysis;
 
     const details = {
       entryCount: analysis.total,

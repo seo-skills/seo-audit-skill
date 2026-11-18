@@ -45,6 +45,7 @@ import { autocompleteRule } from './autocomplete.js';
 import { xmlLangMismatchRule } from './xml-lang-mismatch.js';
 import { ariaHiddenBodyRule } from './aria-hidden-body.js';
 import { ariaRequiredRule } from './aria-required.js';
+import { axeGroupRules } from './axe-rules.js';
 
 // Export all rules
 export {
@@ -123,3 +124,4 @@ registerRule(autocompleteRule);
 registerRule(xmlLangMismatchRule);
 registerRule(ariaHiddenBodyRule);
 registerRule(ariaRequiredRule);
+for (const rule of axeGroupRules) registerRule(rule);

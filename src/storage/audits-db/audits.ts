@@ -34,7 +34,38 @@ function hydrateAudit(row: DbAudit): HydratedAudit {
     source: (row.source as AuditSource | null) ?? null,
     engineVersion: row.engine_version ?? null,
     run: row.run_json ? (JSON.parse(row.run_json) as AuditRunOptions) : null,
+    extras: parseExtras(row),
   };
+}
+
+/** A section saved as `{ truncated, bytes }` because it was too large to store */
+function isTruncationMarker(section: unknown): boolean {
+  return typeof section === 'object' && section !== null && (section as { truncated?: unknown }).truncated === true;
+}
+
+/**
+ * Read an audit's stored extras without letting a bad value break the audit.
+ *
+ * A row whose extras do not parse (a truncated write, a hand edit) loads with
+ * no extras, and says so on stderr with the audit id and where parsing
+ * stopped. The rest of the audit is intact.
+ */
+function parseExtras(row: DbAudit): Record<string, unknown> | null {
+  if (!row.extras_json) return null;
+  try {
+    const value = JSON.parse(row.extras_json) as unknown;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    // A section too large to store was saved as { truncated, bytes }. No
+    // reader expects that shape, so it loads as absent, not as the section.
+    return Object.fromEntries(Object.entries(value).filter(([, section]) => !isTruncationMarker(section)));
+  } catch (error) {
+    const where = error instanceof Error ? error.message : 'unknown position';
+    console.error(
+      `Could not read the stored extras of audit ${row.audit_id} (${where}). ` +
+        'The audit loads without them. Run the audit again to regenerate it.'
+    );
+    return null;
+  }
 }
 
 /**
@@ -76,8 +107,8 @@ export function createAudit(
       `
     INSERT INTO audits (
       audit_id, domain, project_name, crawl_id, start_url,
-      overall_score, config_json, source, engine_version, run_json
-    ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
+      overall_score, config_json, source, engine_version, run_json, extras_json
+    ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
     RETURNING *
   `
     )
@@ -90,7 +121,8 @@ export function createAudit(
       input.config ? JSON.stringify(input.config) : null,
       input.source ?? null,
       input.engineVersion ?? null,
-      input.run ? JSON.stringify(input.run) : null
+      input.run ? JSON.stringify(input.run) : null,
+      input.extras && Object.keys(input.extras).length > 0 ? JSON.stringify(input.extras) : null
     ) as DbAudit;
 
   return hydrateAudit(result);

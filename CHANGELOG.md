@@ -7,7 +7,291 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0] - 2026-11-17
+
+Upgrading from 7.x: see [docs/upgrading-to-8.md](docs/upgrading-to-8.md) for
+what can break a script or CI job, why scores move, and what to change.
+
+### Added
+
+- **CI gates you control.** `--fail-under <n>` on `audit` and `analyze`, and
+  `[ci] fail_under` in `seomator.toml`, replace the fixed threshold of 70 (the
+  flag wins; `0` never fails on score).
+- **`[rules.override]`** re-ranks findings and gates CI on them without
+  touching the score. `priority = "high" | "normal" | "low" | "ignore"` moves a
+  finding in the "what to fix first" order; `ignore` takes it out of every
+  findings list and shows it in a collapsed "Ignored by config" section, and
+  JSON keeps it marked `overridden`. `fail_ci = true` exits 1 when the rule
+  fails on any page, at any score. A gated rule that ran but took no reading
+  also exits 1, so a gate that could not be evaluated never passes silently.
+- JSON output carries the CI verdict in `gate`:
+  `{ failUnder, score, failedCiRules, unevaluated, exitCode }`. When a run
+  exits 1, the last line on stderr says why, for example
+  `Exit 1: core-canonical-present failed (fail_ci); score 85 passed fail-under 70`.
+- `seomator config validate --config <path> --json` checks a config file the
+  way `audit` will, rule ids included, and prints the result as JSON.
+- `seomator analyze --config <path>`.
+- **`rule_options` reaches the rules.** Rules declare the options they read,
+  starting with `technical-soft-404` (`min_words`, `min_words_body`,
+  `extra_title_phrases`, `extra_body_phrases`) and `core-description-length`
+  (`min_length`, `max_length`). An undeclared key, a wrong type or an
+  out-of-range value stops the run with exit 2 and lists the keys the rule
+  reads; an unknown rule id is a warning at run start. Values that differ from
+  the defaults are stored with the audit, and `compare` treats a change as a
+  different measurement. `seomator explain` lists every option.
+- **Advisory rules.** A rule can be reported in full, with its findings
+  ranked, while not counting toward the score yet. Results carry
+  `advisory: true` and each category counts them in `advisoryCount`, outside
+  pass/warn/fail.
+- **Why a check was not measured.** A `not-measured` result now carries
+  `reason`: `not-applicable`, `not-compared`, `needs-render`, `needs-crawl`,
+  `could-not-verify`, `probe-failed`, `disabled`, `unsupported` or
+  `rule-error`. A `fail_ci` gate reads it: "nothing to find on this page"
+  satisfies the gate, "could not look" on any page exits 1. A cross-page check
+  (duplicates, orphans, canonical chains) on a single-page run is "could not
+  look": it needs a crawl.
+- **`seomator mcp`, an MCP server for AI agents.** Registered as
+  `seomator-audit`, it serves `audit_url`, `audit_status`, `cancel_run`,
+  `list_audits`, `get_audit`, `get_findings`, `compare_audits`, `list_rules`
+  and `explain_rule` over stdio. `audit_url` returns a `runId` at once
+  (`waitS` up to 25 waits for short runs), one run at a time. Every failure is
+  `isError` with `{ code, message, hint }`; an unexpected one carries a
+  correlation id and logs its stack to `$SEOMATOR_HOME/mcp.log`. Private,
+  loopback and link-local destinations are refused for every request unless
+  the server runs with `--allow-private` or `--allow-host <host:port>`, and
+  browser renders need `--allow-private` for now. `seomator.toml` (or
+  `--config`) is read again at the start of every run. stdout carries
+  protocol frames only.
+- **`seomator explain <rule-id>`** says what a rule checks, its weight, how to
+  fix what it finds, and the `[rules.override]` lines to re-rank it or gate CI
+  on it. `--list [category]` prints every rule id, `--json` is for scripts. An
+  unknown id exits 2 and names the closest ids.
+- **Crawls back off when a site asks them to.** A 429 or 503 is retried up to
+  3 times, waiting for the `Retry-After` (cut to `crawler.max_retry_after_ms`,
+  default 120 s) or 5 s doubling when there is none, and a host that keeps
+  asking gets a longer delay for the rest of the run. A page that never clears
+  is reported as rate-limited: it is not scored, and no rule calls it broken.
+  After 10 pages in a row fail on one host, the crawl stops asking it and
+  lists the rest as not fetched. A start page that stays rate-limited stops
+  the run with error code `rate-limited`.
+- **Crawls honour robots.txt `Crawl-delay`**, capped at 10 s, and print how
+  long the crawl may take before it starts. `--ignore-crawl-delay` or
+  `crawler.respect_crawl_delay = false` turns it off.
+- **`--max-duration <s>`** (`crawler.max_duration_s`) stops a crawl requesting
+  pages after that many seconds and scores what it fetched.
+- **Coverage in every report, and a gate on it.** Console, markdown and LLM
+  reports say how many pages were measured, for example `Measured 3 of 4
+  pages · 1 rate-limited`. JSON carries the counts in `coverage` and sets
+  `completionState` to `completed-with-gaps` when pages were skipped.
+  `--min-coverage <pct>` or `[ci] min_coverage` exits 1 below the threshold.
+- **External links are checked once per run, all of them.** A footer link on
+  500 pages is one request, not 500, and a single page checks every external
+  link instead of the first 20 (within 30 seconds). A crawl checks up to
+  2,000 unique targets within 300 seconds, most-linked first; the
+  `links-external-valid` options `max_urls` and `max_seconds` change that.
+  Every report lists each broken target once, with the pages that link to it
+  (`extras.externalLinks` in JSON).
+- **`[external_links]` works.** `enabled`, `timeout_ms` and `concurrency` are
+  read, and `cache_ttl_days` keeps settled answers in
+  `$SEOMATOR_HOME/link-cache.db` for later runs. `audit --refresh` (now in
+  `--help`) checks every link again.
+- **New advisory rules** (reported in every format, not counted in the score
+  until their verdicts are checked on real sites):
+  - `core-unavailable-after`: a past `unavailable_after` date in a robots meta
+    tag or X-Robots-Tag removes the page from Google's results, as noindex
+    does. Fails a past date, warns one within 30 days or one it cannot read.
+  - `core-obsolete-robots-directives`: `noodp` and `noydir` do nothing any
+    more.
+  - `core-canonical-fragment`: a canonical with `#`, a hash-bang included,
+    points at the bare URL.
+  - `social-og-image-reachable`: fetches the share image (64 KB, once per run
+    however many pages use it) and fails one that does not load, is not an
+    image, is over 5 MB or is under 600x315; warns under 1200x630 or off
+    1.91:1. A `summary` Twitter card is judged as a square. Sizes are read
+    from PNG, JPEG, GIF and WebP headers.
+  - `social-meta-multiple`: an `og:*` or `twitter:*` property declared twice
+    with different values.
+  - `social-twitter-attribute`: `twitter:*` written with `property=`.
+  - `social-duplicate-og`: in a crawl, `og:title` or `og:description` shared
+    with other indexable pages.
+  - `htmlval-body-structure`: reads the raw source for a second `<body>`, a
+    `<body>` before `<html>`, or content before `<head>`, which the parser
+    repairs out of sight. Markup inside comments, attribute values, scripts,
+    textareas and titles does not count.
+  - `crawl-indexable-not-in-sitemap`: in a crawl, a page search engines can
+    index that the sitemap leaves out. Not measured when the sitemap was read
+    only in part.
+  - `js-ajax-crawling-scheme`: `#!` links or the fragment meta tag, which
+    Google stopped supporting in 2018.
+  - `mobile-separate-urls` and `technical-amp-pairing`: a declared mobile or
+    AMP version that does not load, or does not name this page as its
+    canonical.
+  - `images-oversized-delivery` (needs `--cwv`): reads each displayed image's
+    natural and displayed size in the rendered page and estimates the bytes
+    wasted at a 2x pixel ratio. An image wasting over 4 KiB warns; over
+    200 KiB in total fails. The top ten are listed.
+  - `perf-unused-js` and `perf-unused-css` (need `--cwv`): the browser's code
+    coverage during load, per file. A file wasting 20 KiB warns, 250 KiB in
+    total fails, and the top ten are listed as first- or third-party.
+    Coverage is collected in the same page load: measured on a fixture, it
+    does not change Core Web Vitals. The desktop app cannot collect it yet
+    and reports these as not measured.
+  - **Accessibility with axe-core** (need `--cwv`): axe-core runs in the
+    rendered page, on the CLI, the web dashboard and the desktop app, with
+    every rule except experimental and deprecated ones, violations only. Ten
+    `a11y-axe-*` rules group the axe rules no SEOmator rule already covers by
+    area (names, landmarks, keyboard and focus, tables, lists, media, frames,
+    ARIA, language, other), each naming the axe rule, impact and WCAG tags.
+    `disable_axe_rules` in `[rule_options]` leaves out known exceptions.
+- **Internal Link Score.** A crawl computes PageRank over the site's own links,
+  scaled 0 to 100: redirecting URLs fold into their target, a canonicalised
+  page passes everything to its canonical, nofollow links pass nothing. Every
+  report lists the ten best-linked pages and the ten weakest indexable ones;
+  JSON has every page in `extras.linkScores`, and stored audits keep them in
+  a table of their own. A metric: it changes no score.
+- **Custom checks in `seomator.toml`.** `[[custom.search]]` tests every page
+  for text, HTML, head or body content, or a CSS selector, literally or by
+  regular expression, limited by `scope`, expecting it present or absent.
+  `[[custom.extract]]` pulls text or an attribute from a selector. They run
+  beside the rules and never change the score; results are in JSON
+  `extras.custom`. Every selector and pattern is checked before a run (exit
+  2, naming the entry), a regular expression gets 50 ms per page, and a
+  search with `fail_ci = true` exits 1 when a page fails, no page was checked,
+  or the time limit stopped one. Every report has a "Custom checks" section,
+  the markdown one with one row per extracted value, and stored audits keep
+  every value in a table of their own.
+- **The web dashboard and the desktop app show the new results.** The audit
+  page's score card names how the run ended ("Completed" or "Completed with
+  gaps"), what the crawl measured, a capped score's reason, and how many
+  checks a browser render would add, with a link to run again with rendering.
+  Advisory findings carry a chip and are counted on their own line, checks
+  that did not apply are counted apart from the rest, and a "Not measured"
+  tab lists the others, each with its reason and the one thing to do about
+  it. A "Site" section shows the crawl's notes, broken external links by
+  target and pages by Link Score; a "Custom checks" section comes last.
+- "Issues to fix" labels a failure "Fails" instead of "Critical", lists
+  advisory findings after the scored ones, and orders by the same priority
+  the reports use, `[rules.override]` included.
+- `--render` names the browser render (`--cwv` still works), and the run form
+  calls it "Render in a browser". "Crawl the whole site" is now "Crawl linked
+  pages", with the page cap in its hint. "Run again" keeps the audit's render
+  and crawl settings.
+- While a run waits or checks links, the dashboard and desktop progress view
+  say so: "Checking 312 external links", "Waiting on example.com, 12 s", or
+  the time a site's Crawl-delay will add.
+- The MCP run summary carries `notMeasuredByReason` and `advisoryCount`, and
+  its `topFindings` are scored findings only. `get_audit` takes `maxFindings`
+  (default 50).
+- `seomator init` appends commented examples of `[ci]`, `[rules.override]`,
+  `[rule_options]` and `[[custom.*]]`, each valid once uncommented.
+- The README says where SEOmator fits, and `docs/upgrading-to-8.md` covers
+  the upgrade from 7.x.
+- The MCP `audit_url` tool takes `respectCrawlDelay` and `maxDurationS`, and
+  refuses up front with `crawl-too-slow` when the site's `Crawl-delay` means
+  the crawl cannot finish in time. Its summary carries `coverage` and
+  `completionState`.
+
+- The dashboard's empty history (desktop app and `seomator serve`) shows an
+  illustration in the house image style: the SEOmator agent scanning a site,
+  with the audit history it will leave below it. It comes as a light and a dark
+  twin of the same drawing, and switches with the theme.
+- The HTML report has a tab icon: the emblem, inlined, so the file still needs
+  no network.
+
 ### Changed
+
+- **Breaking: a config that does not mean what it says stops the run.**
+  `audit` and `analyze` now run the same checks as `config validate` before
+  the first request, and exit 2 with error code `config` on any error: an
+  out-of-range value, an unknown rule id or key in `[rules.override]` (with a
+  "Did you mean" suggestion), or a `fail_ci` rule that `[rules]` or
+  `--categories` leaves out. These configs used to run and ignore the bad
+  part. `config validate` now exits 2 on an error (it exited 1) and prints to
+  stderr.
+- **Breaking: a bad flag or argument exits 2, not 1.** Exit 1 now always means
+  a gate failed (score, `fail_ci`), never that the command line was wrong.
+- The JSON schema version is 4 (`gate`, `warnings`, `RuleResult.overridden`,
+  `reason`, `advisory`, `CategoryResult.advisoryCount`).
+- **A check that crashes is not measured, not failed.** It used to score as a
+  `fail` at the rule's full weight, blaming the site for the engine's bug. It
+  is now `not-measured` with reason `rule-error`, and never moves the score.
+- A page's canonical is read from the HTTP `Link` header when the HTML has
+  no `<link rel="canonical">`, and its noindex from the `googlebot` meta tag
+  and Google-scoped `X-Robots-Tag` (not other engines'). The score caps and
+  the crawl's per-page records now share one reader.
+- The `reset*Registry` and `get*RegistryStats` helpers of the duplicate rules
+  are gone; nothing needs resetting between audits any more.
+- The `blog` preset wrote `rule_options` for `meta-tags/description-length`, a
+  rule id that does not exist. It now writes `core-description-length`.
+- **`crawler.max_pages` defaults to 10** (was 100), the same as `-m`, so a crawl
+  with no config covers the same pages whichever way it is started.
+- **`crawler.per_host_concurrency` works** (default 2). A crawl stays on one
+  host, so it now loads at most 2 pages at once by default, whatever
+  `concurrency` says. Raise both to crawl faster.
+- **robots.txt groups match the crawler's product token.** A group applied when
+  its `User-agent` appeared anywhere in the header, so `User-agent: bot`
+  governed `SEOmatorBot/3.0 (+https://...)`. It now applies only when it
+  starts a product token (`SEOmator` still matches), the longest match wins,
+  and `*` is the fallback. A crawl can reach pages a broad group blocked
+  before.
+- **Checks that need a browser render say so the same way.** Without
+  `--render`, the 42 render-only checks (rendered DOM, Core Web Vitals,
+  assets, mobile parity, image sizing, unused code and accessibility with
+  axe-core) are reported not measured with reason `needs-render`, and the
+  console report adds one line: "42 checks need a browser render: rerun with
+  --render". A render that ran and failed reports them as could not verify.
+  `seomator explain` says when a rule needs a render.
+- **Dates are judged against the run's clock.** Every page of a run shares
+  one start time, and `seomator analyze` judges a stored crawl's dates
+  (sitemap `lastmod`, `unavailable_after`) against the time it was crawled,
+  not the time it is replayed.
+- **`a11y-color-contrast` and `a11y-touch-targets` use axe-core's verdict when
+  the page was rendered** (`--cwv`): measured colours and laid-out target
+  sizes instead of guesses from the source, and a serious violation now
+  fails. Without a render they keep their heuristics. This moves the
+  accessibility score of `--cwv` runs.
+- New dependency: `axe-core` (MPL-2.0, used unmodified). It is loaded only
+  when a page is rendered.
+- **A crawl scores four pages at a time, and a category's rules run
+  together.** Rules that make requests no longer wait on each other, and the
+  run's request limits still apply. Results are merged in page order, so they
+  do not depend on which page finished first.
+- **Site-wide questions are asked once per run.** robots.txt, the sitemap,
+  the made-up URL that tests the 404 page, the GEO well-known files, PDF sizes,
+  redirect hops and internal link statuses were requested by every page's
+  rules: a 20-page crawl tested the 404 page 20 times. Every request that is
+  not a page now goes through one service per run, which asks each distinct
+  question once and limits requests per host.
+- **An external link counts as broken only when its target is gone**: 404,
+  410, another 5xx, or a domain that does not resolve. A 401, 403, 429, 999 or
+  a timeout used to warn; now it is listed as "could not verify" and never
+  changes the status. This is part of scoring model 5.
+- **`social-og-image-size` checks the declared size against the real one.** It
+  used to grade the declared `og:image:width` and `og:image:height` alone,
+  warning when they were missing. It now fetches the image and warns only when
+  the declaration is wrong; whether the image is big enough is
+  `social-og-image-reachable`'s check. Pages without declared dimensions are
+  not measured. Part of scoring model 5.
+- **Breaking: a page that answers 503 is retried before the run gives up.** A
+  single-page `audit` of a start page that stays 503 now fails with error code
+  `rate-limited` (still exit 2) instead of `http-error`, and the message says
+  the site may be down.
+- Web, desktop and MCP runs stop requesting pages after one hour and score
+  what they fetched. The CLI has no limit unless you set one.
+- Requires Node.js 20.18.1 or later (was 20.3.0). The HTML parser already
+  needed it; `package.json` now says so.
+- **The new SEOmator brand, from seomator.com.** The logo is the orange emblem
+  and the new wordmark, drawn from the designer's files byte for byte, in the
+  desktop app and dashboard header, the HTML report, the favicon and the app
+  icon (which now sits on Apple's 824px icon grid). The interface drops slate
+  and zinc for neutral greys with no colour cast, selection, focus and links
+  are ink, and the brand orange `#FE5000` is kept for the agent at work (the
+  progress bar) and the one primary action on a screen (Run audit, Run again),
+  with ink text on it for AA contrast. The CLI banner and the crawl progress
+  bar are orange too. Text is set in the brand's Geist, with Geist Mono for
+  readouts, URLs and numbers; both faces ship inside the dashboard and the
+  desktop app, so nothing is fetched at runtime. The single-file HTML report
+  falls back to the system font.
 
 - **Breaking: the browser render is opt-in. Add `--cwv` to get it.** `seomator
   audit` used to start headless Chrome on every run to measure Core Web Vitals
@@ -29,6 +313,141 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unless `--no-cwv` is also given.
 - The `--no-cwv` hints in rule messages now read "run with `--cwv`", and the
   mobile-parity hint reads "run with `--cwv --mobile`".
+
+### Security
+
+- **Text from the audited site cannot inject into reports.** The markdown
+  report escapes `<`, `>` and `&` and collapses line breaks in everything it
+  prints from a page, so a title or an extracted value cannot render as HTML
+  in a markdown viewer or break a table. The console report drops control
+  characters from everything it prints, so a page cannot send escape
+  sequences to the terminal through a title, a URL or an attribute a rule
+  quotes.
+
+- **`seomator analyze` checks links under the same network policy as
+  `audit`.** Replaying a stored crawl ran its link checks with no policy, so a
+  stored page of a public site linking to a private or cloud-metadata address
+  made this machine request it.
+
+- **A public site can no longer point an audit at your network.** Every
+  request the engine makes, from `audit`, `crawl`, `analyze`, the dashboard,
+  the desktop app and MCP, now goes through one network module. When the site
+  you audit is public, a link, image, redirect or sitemap entry on it that
+  resolves to a loopback, private, link-local (cloud metadata), shared or
+  unique-local address is refused instead of requested. The address is checked
+  when the connection opens, after DNS, so a hostname that changes its answer
+  between check and connect cannot get through, and every spelling of those
+  addresses (IPv4-mapped IPv6, decimal, NAT64) is covered. Auditing a site on
+  `localhost` or an intranet still works: that host, and any private host its
+  start page redirects to, is let through, held to the addresses it resolved
+  to when the run started, so a DNS answer that changes mid-run cannot open
+  the guard. Other private hosts its pages link to are refused, and read
+  "could not verify". A refused request reports error code `private-address`.
+  Browser renders are not covered yet: the browser loads a page's own
+  resources without the check, so MCP refuses a render unless the server runs
+  with `--allow-private`.
+- Response bodies are read with a cap: 10 MB for a page or robots.txt, and
+  50 MB for a sitemap, decompressed. A huge or endless response, or a small
+  gzip that expands without limit, can no longer exhaust memory.
+
+### Fixed
+
+- **The dashboard showed checks that took no reading as warnings.** A stored
+  rule that was not measured on any page came back as a warning-shaped row,
+  so it took a warning icon and could be listed under "Issues to fix". It now
+  comes back as not measured, live and from the database alike.
+- Link Score's "weakest pages" no longer repeats the best-linked list on a
+  small or evenly linked site.
+
+- **A page the site kept rate-limiting is not a sitemap error or a broken
+  hreflang target.** `crawl-sitemap-non-200` and `i18n-hreflang-to-broken`
+  read its 429 or 503 as an error; they now count it with the pages that could
+  not be fetched.
+- **Sitemap orphans are not cleared on a partial sitemap.** The sitemap loader
+  dropped, without a word, sitemaps it could not fetch or parse, URLs past
+  50,000 and sitemaps past its limits. It now records each, and
+  `crawl-sitemap-orphan-urls` reports not measured, instead of passing, when
+  part of the sitemap was not read. Orphans it does find are still reported.
+
+- **Sitemap orphans no longer depend on the order pages were audited.**
+  `crawl-sitemap-orphan-urls` grew its list of linked URLs page by page, so
+  the first page of a crawl compared the sitemap against its own links only
+  and reported almost every sitemap URL as an orphan. It now compares against
+  every URL the whole crawl reached, and every page reports the same answer.
+- `links-broken-internal` no longer calls a link broken because its host kept
+  answering 429 or 503 after the retries; it is counted as not checked.
+
+- **A stored audit keeps its score cap.** The `audits` table kept the run
+  options but not the cap, so history, `seomator report` and the dashboard
+  showed a capped score with no reason, which is the confusion the cap was
+  added to prevent. The cap, the caps a staging audit waived, and the
+  `[rules.override]` marks are now stored in a new `extras_json` column and
+  come back with the audit. Each result also keeps its not-measured `reason`
+  and `advisory` flag, and a crawl keeps its completion state and the counts
+  of pages it could not measure, so a stored crawl with gaps still reads
+  "Completed with gaps" and prints its "Measured 2 of 3 pages" line. A stored value that cannot be read loads as empty, with
+  a line on stderr naming the audit, and the rest of the audit is intact.
+- **`audit` reads `[crawler] max_pages`, `concurrency` and `timeout_ms` from
+  `seomator.toml`.** It passed the defaults of `-m`, `--concurrency` and
+  `--timeout` to the config loader as overrides, so the file's values never
+  reached it. A flag now wins only when you type it. The console banner's
+  `Config:` line names the file in use, found or given.
+- **Duplicate checks compare the whole crawl, so the first page of a group is
+  flagged too.** `core-title-unique`, `content-duplicate-description`,
+  `content-duplicate-exact` and `content-duplicate-near` kept their own
+  registries as pages were scored, so the first page of a duplicate group
+  passed, only later pages were flagged, and the answer depended on scoring
+  order. They now read the finished crawl: every page in a group is flagged,
+  and shuffling the scoring order changes nothing. Only pages a search engine
+  would index are compared: status 200, not noindex or robots-blocked,
+  self-canonical (or no canonical), and not a later page of a series, so a
+  paginated archive or a `?color=red` variant canonicalised to its product no
+  longer counts as a duplicate. A page outside that set is `not-measured`
+  with reason `not-compared` and says why. `content-duplicate-h1` uses the
+  same set. Each check declares `include_paginated` and
+  `include_non_indexable` options to widen it.
+- **Near-duplicate detection reads every language and scales.** The
+  tokenizer dropped everything outside ASCII, so a Turkish or Greek page
+  looked empty. It now keeps Unicode letters and digits. Pages are compared
+  through MinHash candidate pairs confirmed by exact similarity, so a 10,000
+  page crawl is compared in seconds instead of 50 million set intersections,
+  and `fail_threshold` / `warn_threshold` (0.8 / 0.6) are rule options. A
+  crawl so template-heavy that it yields more than five million candidate
+  pairs reports `could-not-verify` instead of running without bound.
+- **Soft-404 detection stops failing real pages.** It matched "error", "404"
+  and "not found" anywhere in the title or H1, so long pages titled "Error
+  Handling in Rust", "Terrorism Studies MA" or "Book Room 404" failed. It now
+  takes two signals. The first is a title or H1 that *is* an error message:
+  any segment (split at `|`, `·`, `–`, `—`, ` - ` and `: `) equals "404",
+  "page not found", "not found", "error 404", "404 not found", "this page
+  could not be found" or "oops! that page can't be found"; or text that says
+  so ("no longer available", "does not exist" and similar, on word
+  boundaries). The second is a thin page: under 500 words with the title or
+  H1 signal, under 100 with the text signal alone. Common CMS defaults such as
+  "404 - Page Not Found | Shop" are now caught. This is part of scoring model
+  5: `compare` reads audits from before it as a different model, not a
+  regression.
+- **Crawls now use the concurrency you set.** A crawl worker that found the
+  queue empty waited 100 ms and then quit for good. The start page almost
+  always takes longer than that, so every other worker left before the first
+  links were queued, and crawls ran one request at a time whatever
+  `--concurrency` or `crawler.concurrency` said. Idle workers now wait for a
+  running page to finish, and stop only when the queue is empty and nothing
+  is in flight. Crawls with `concurrency` above 1 are faster, and may reach
+  pages in a different order.
+- **The CLI no longer hangs in a terminal that reports 0 columns.** Some
+  embedded terminals and CI shells report a width of 0. The category spinner
+  divided by it and tried to erase an endless number of lines, so `audit`
+  never finished. It now prints plain lines there.
+- **A crawl whose start page cannot be reached exits 2.** The crawler recorded
+  the failure as one more broken page, so a dead site, a typo in the host or a
+  refused connection did not stop the run: `audit --crawl` scored zero pages
+  and exited 1, and `seomator crawl` printed "Crawl complete!" and exited 0.
+  Both now stop with the same message and hint as a single-page audit.
+- **The LLM report counts every page a rule was measured on.** In a live
+  crawl, `pages="N" of="M"` counted M from the failing pages only, so it
+  always read "3 of 3" even when the rule passed on a fourth page. It now
+  counts every page with a reading, as stored audits already did.
 
 ## [7.0.0] - 2026-10-15
 

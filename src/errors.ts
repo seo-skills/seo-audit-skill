@@ -8,6 +8,8 @@
  * the hint says what to do about it.
  */
 
+import { findPrivateAddressError } from './net/fetch.js';
+
 export type AuditErrorCode =
   | 'dns'
   | 'unreachable'
@@ -18,6 +20,11 @@ export type AuditErrorCode =
   | 'playwright-missing'
   | 'no-pages'
   | 'config'
+  | 'private-address'
+  | 'rate-limited'
+  | 'crawl-too-slow'
+  | 'busy'
+  | 'run-not-found'
   | 'aborted'
   | 'unknown';
 
@@ -29,6 +36,12 @@ const HINTS: Partial<Record<AuditErrorCode, string>> = {
   'non-html': 'Point the audit at an HTML page rather than a file, API or feed.',
   'http-error': 'Make sure the URL is publicly reachable and returns 200.',
   config: 'Check the --config path, or drop the flag to search for seomator.toml.',
+  'rate-limited':
+    'Try again later, lower --concurrency to 1, or set crawler.per_host_delay_ms (for example 2000) to space requests out.',
+  'crawl-too-slow':
+    "The site's Crawl-delay makes this crawl longer than allowed. Crawl fewer pages, raise the duration limit, or skip the Crawl-delay.",
+  'private-address':
+    'The address is loopback, private or link-local. From the CLI, dashboard or desktop app, a local or intranet site and the private hosts its start page redirects to are audited; other private hosts its pages point to are refused. Over MCP, every private host the run needs must be allowed: `seomator mcp --allow-private`, or one `--allow-host <host:port>` per host.',
   'playwright-missing': 'Run `npx playwright install chromium`, or audit without --cwv to skip the browser render.',
   'no-pages': 'The crawl found nothing to audit. Check robots.txt, the include/exclude patterns and that the start URL links to other pages.',
 };
@@ -79,6 +92,27 @@ export function throwIfAborted(signal?: AbortSignal): void {
 }
 
 /**
+ * Wait `ms`, or until any of `signals` fires, whichever comes first.
+ *
+ * Resolves either way; the caller checks its signals after. A plain timer
+ * cannot be cancelled, and a Retry-After wait can last minutes, so a run
+ * cancelled during one would otherwise hold its slot until the wait ended.
+ */
+export function waitUnlessAborted(ms: number, ...signals: Array<AbortSignal | undefined>): Promise<void> {
+  const live = signals.filter((signal): signal is AbortSignal => signal !== undefined);
+  if (ms <= 0 || live.some((signal) => signal.aborted)) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      for (const signal of live) signal.removeEventListener('abort', done);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    for (const signal of live) signal.addEventListener('abort', done, { once: true });
+  });
+}
+
+/**
  * Re-raise a caught error as a cancellation when the run was cancelled.
  *
  * Catch blocks that turn network failures into "unmeasured" results call this
@@ -109,6 +143,13 @@ export function classifyError(error: unknown): AuditError {
   const text = `${message} ${causeCode}`;
 
   if (isAbortError(error)) return new AuditAbortedError();
+
+  // A refusal by the network policy rides inside fetch's "fetch failed" as a
+  // cause; name it, or it reads as an unreachable site.
+  const refused = findPrivateAddressError(error);
+  if (refused) {
+    return new AuditError('private-address', refused.message, { cause: error });
+  }
 
   if (/ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(text)) {
     return new AuditError('dns', `Could not resolve the hostname: ${message}`, { cause: error });

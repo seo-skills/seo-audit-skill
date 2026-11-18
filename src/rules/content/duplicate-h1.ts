@@ -1,5 +1,6 @@
-import type { AuditContext } from '../../types.js';
-import { defineRule, pass, warn, notMeasured } from '../define-rule.js';
+import type { AuditContext, RuleOptionValues } from '../../types.js';
+import { defineRule, pass, warn, notMeasured, readRuleOptions } from '../define-rule.js';
+import { ELIGIBILITY_RULE_OPTIONS, duplicatesOf, eligibilityFrom, pageEligibility } from '../../site/groups.js';
 
 // Reference hint: duplicate-content/urls-with-duplicate-h1s
 /**
@@ -21,13 +22,17 @@ export const duplicateH1Rule = defineRule({
     'Detects pages whose h1 heading is the exact same text as another crawled page',
   category: 'content',
   weight: 5,
-  run: (context: AuditContext) => {
+  options: ELIGIBILITY_RULE_OPTIONS,
+  run: (context: AuditContext, options?: RuleOptionValues) => {
     const site = context.site;
+    const eligibility = eligibilityFrom(readRuleOptions(duplicateH1Rule, options));
 
     if (!site?.pages) {
       return notMeasured(
         'content-duplicate-h1',
-        'Cross-page H1 comparison needs the crawl page inventory - run with --crawl to build it'
+        'Cross-page H1 comparison needs the crawl page inventory - run with --crawl to build it',
+        undefined,
+        'needs-crawl'
       );
     }
 
@@ -40,17 +45,21 @@ export const duplicateH1Rule = defineRule({
     if (!thisPage || !h1) {
       return notMeasured(
         'content-duplicate-h1',
-        'No H1 text recorded for this page in the crawl data'
+        'No H1 text recorded for this page in the crawl data',
+        undefined,
+        'not-applicable'
       );
     }
 
-    const duplicateUrls: string[] = [];
-    for (const [otherUrl, info] of site.pages) {
-      if (otherUrl === url) continue;
-      if (info.h1 && info.h1.trim() === h1) {
-        duplicateUrls.push(otherUrl);
-      }
+    // The same pages as the other duplicate checks: what a search engine
+    // would index, so a paginated archive or a canonicalised variant does not
+    // count as a duplicate of the page it points to.
+    const eligible = pageEligibility(site, url, eligibility);
+    if (!eligible.eligible) {
+      return notMeasured('content-duplicate-h1', `Not compared: ${eligible.reason}`, { h1 }, 'not-compared');
     }
+
+    const duplicateUrls = duplicatesOf(site, url, 'h1', eligibility) ?? [];
 
     if (duplicateUrls.length > 0) {
       return warn(

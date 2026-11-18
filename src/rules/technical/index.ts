@@ -24,6 +24,7 @@ import { formGetMethodRule } from './form-get-method.js';
 import { duplicateGtmRule } from './duplicate-gtm.js';
 import { duplicateGaRule } from './duplicate-ga.js';
 import { consentModeRule } from './consent-mode.js';
+import { ampPairingRule } from './amp-pairing.js';
 
 // Export all rules
 export {
@@ -66,3 +67,4 @@ registerRule(formGetMethodRule);
 registerRule(duplicateGtmRule);
 registerRule(duplicateGaRule);
 registerRule(consentModeRule);
+registerRule(ampPairingRule);

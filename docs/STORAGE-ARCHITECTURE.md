@@ -10,10 +10,10 @@ The data directory is `$SEOMATOR_HOME` when that variable holds a non-blank valu
 
 | Path | Format | Written by | Read by |
 |---|---|---|---|
-| `audits.db` | SQLite | `audit`, `analyze`, `seomator serve` and the desktop app, unless saving is off (see [When an audit is stored](#when-an-audit-is-stored)); `db migrate` for legacy reports | `report`, `compare`, `seomator serve`, the desktop app, `db stats` |
+| `audits.db` | SQLite | `audit`, `analyze`, `seomator serve`, `seomator mcp` and the desktop app, unless saving is off (see [When an audit is stored](#when-an-audit-is-stored)); `db migrate` for legacy reports | `report`, `compare`, `seomator serve`, `seomator mcp`, the desktop app, `db stats` |
 | `audits.db-wal`, `audits.db-shm` | SQLite write-ahead log | SQLite, while a connection is open | SQLite |
 | `projects/<domain>/project.db` | SQLite | `db migrate` only | `db stats --verbose` only |
-| `link-cache.db` | SQLite | No command. See [Link cache](#link-cache-link-cachedb). | `db stats` prints its size if the file exists |
+| `link-cache.db` | SQLite | `audit`, `analyze` and `seomator mcp`, when they check external links. See [Link cache](#link-cache-link-cachedb). | The same commands; `db stats` prints its size if the file exists |
 | `settings.json` | JSON | `seomator config <key> <value> --global` | Every command that loads config |
 | `serve.json` | JSON, mode `0600` | `seomator serve` at start-up, removed on shutdown | Scripts and agents that need the dashboard's port and token |
 
@@ -32,7 +32,7 @@ These paths are relative to the current working directory.
 
 ### Identifiers
 
-Audit, crawl and report ids have the form `YYYY-MM-DD-xxxxxx`: the UTC date, then six hex characters from three random bytes (`generateId()` in `src/storage/utils/hash.ts`). Example: `2026-10-15-d182f9`.
+Audit, crawl and report ids have the form `YYYY-MM-DD-xxxxxx`: the UTC date, then six hex characters from three random bytes (`generateId()` in `src/storage/utils/hash.ts`). Example: `2026-11-18-262601`.
 
 ### Timestamps
 
@@ -49,7 +49,7 @@ Every `_at` column in `audits.db` and `project.db` defaults to `datetime('now')`
 | `[output] save = false` in `seomator.toml` | No | Only with `--json-report` |
 | Default | Yes | Only with `--json-report` |
 
-`seomator serve` and the desktop app store every finished run unless the run request sets `"save": false`. The dashboard's `POST /api/runs` accepts that field; the run form in the UI never sends it.
+`seomator serve` and the desktop app store every finished run unless the run request sets `"save": false`. The dashboard's `POST /api/runs` accepts that field; the run form in the UI never sends it. `seomator mcp` stores every finished run unless `[output] save = false` in the `seomator.toml` it reads.
 
 `saveAuditToDatabase()` in `src/storage/save-audit.ts` writes one audit in a single transaction, in this order:
 
@@ -72,14 +72,14 @@ One row per stored audit.
 | Column | Type | Constraint, default | Contents |
 |---|---|---|---|
 | `id` | INTEGER | PRIMARY KEY | Row id. The other tables reference this, not `audit_id`. |
-| `audit_id` | TEXT | NOT NULL, UNIQUE | Public id, such as `2026-10-15-d182f9`. `report <id>`, `compare --against` and the dashboard take this value. |
+| `audit_id` | TEXT | NOT NULL, UNIQUE | Public id, such as `2026-11-18-262601`. `report <id>`, `compare --against` and the dashboard take this value. |
 | `domain` | TEXT | NOT NULL | Hostname of the audited URL as given, with `www.` kept (`domainOf()`). `compare`, score trends and the domain list group by this value, so `www.example.com` and `example.com` are separate histories. Rows created by `db migrate` have a leading `www.` removed. |
 | `project_name` | TEXT | | `[project] name`, or `default` when it is empty, for `audit`. The crawl's project for `analyze`, with the same fallback. NULL for the dashboard and the desktop app. |
 | `crawl_id` | TEXT | | The legacy report's crawl id on rows created by `db migrate`. NULL otherwise. |
 | `start_url` | TEXT | NOT NULL | The audited URL, with any `user:password@` removed. |
-| `overall_score` | INTEGER | NOT NULL | Overall score after any score cap. The cap itself is not stored. |
+| `overall_score` | INTEGER | NOT NULL | Overall score after any score cap. The cap and the uncapped score are in `extras_json`. |
 | `total_rules` | INTEGER | DEFAULT 0 | Number of `audit_results` rows written for this audit: one per rule per page, unmeasured results included. On migrated rows, the legacy report's own total. |
-| `passed_count` | INTEGER | DEFAULT 0 | Passing results, summed over categories. Unmeasured results are not counted here. |
+| `passed_count` | INTEGER | DEFAULT 0 | Passing results, summed over categories. Unmeasured and advisory results are not counted here. |
 | `warning_count` | INTEGER | DEFAULT 0 | Warnings, counted the same way. |
 | `failed_count` | INTEGER | DEFAULT 0 | Failures, counted the same way. |
 | `pages_audited` | INTEGER | DEFAULT 1 | Pages the audit covered. |
@@ -87,9 +87,10 @@ One row per stored audit.
 | `started_at` | TEXT | DEFAULT `datetime('now')` | When the row was inserted. The insert happens after the audit has run, so this is the save time. On migrated rows it is the time of the migration, not of the original report. |
 | `completed_at` | TEXT | | Set in the same transaction as the insert. |
 | `status` | TEXT | DEFAULT `'running'` | `running`, `completed` or `failed`. The save transaction leaves `completed`. `failed` is written only by `AuditsDatabase.failAudit()`, which no command calls. `compare`, score trends and the domain list read `completed` rows only. |
-| `source` | TEXT | | The surface that saved the audit: `cli`, `dashboard`, `desktop` or `api`. `saveAuditToDatabase()` writes `cli` when the caller passes no source. No SEOmator surface writes `api`. NULL on rows written before 3.4.0 and on migrated rows. |
+| `source` | TEXT | | The surface that saved the audit: `cli`, `dashboard`, `desktop`, `mcp` or `api`. `saveAuditToDatabase()` writes `cli` when the caller passes no source. No SEOmator surface writes `api`. NULL on rows written before 3.4.0 and on migrated rows. |
 | `engine_version` | TEXT | | SEOmator version that wrote the row, read from `package.json`. NULL on rows written before 3.4.0 and on migrated rows. |
 | `run_json` | TEXT | | The run profile. See [The run profile](#the-run-profile-run_json). NULL on rows written before 3.4.0 and on migrated rows. |
+| `extras_json` | TEXT | | JSON object of the result's extra sections: `scoreCap`, `waivedCaps`, `overrides` (the `[rules.override]` applied, by rule id), `completion` (how a crawl ended and the counts behind its coverage line: `{ state, attempted, measured, rateLimited, failed, notFetched }`), and every `extras` section except `linkScores`. `custom` keeps only counts; the extracted values are rows of `audit_custom_values`, and Link Scores rows of `audit_link_scores`. A section larger than 1 MB is stored as `{ truncated, bytes }` and left out when read. NULL when there is no section, and on rows written before 8.0. |
 
 ### Table `audit_categories`
 
@@ -103,7 +104,7 @@ One row per category that ran. A category left out with `-c`, or whose rules wer
 | `category_name` | TEXT | NOT NULL | Category display name, such as `Core`. On migrated rows, the category id. |
 | `score` | INTEGER | NOT NULL | Category score, 0 to 100. |
 | `weight` | INTEGER | NOT NULL | The category's weight in the overall score. On migrated rows, 100 divided by the number of categories in the legacy report. |
-| `pass_count` | INTEGER | DEFAULT 0 | Passing results in this category. Unmeasured results are not counted. |
+| `pass_count` | INTEGER | DEFAULT 0 | Passing results in this category. Unmeasured and advisory results are not counted. |
 | `warn_count` | INTEGER | DEFAULT 0 | Warnings, counted the same way. |
 | `fail_count` | INTEGER | DEFAULT 0 | Failures, counted the same way. |
 
@@ -126,6 +127,8 @@ One row per rule per page. A single-page audit writes one row per rule that ran.
 | `details_json` | TEXT | | The result's `details` object as JSON, including the `pageUrl` the engine adds to every result. |
 | `executed_at` | TEXT | DEFAULT `datetime('now')` | When the row was inserted. |
 | `weight` | INTEGER | | The rule's weight for this result. `0` marks a result that took no reading. NULL on rows written before 3.4.0, which readers treat as weight 1. |
+| `reason` | TEXT | | Why a `not-measured` result took no reading: `not-applicable`, `not-compared`, `needs-render`, `needs-crawl`, `could-not-verify`, `probe-failed`, `disabled`, `unsupported` or `rule-error`. NULL for measured results, for an unmeasured result whose rule gave no reason, and on rows written before 8.0. |
+| `advisory` | INTEGER | | `1` when the result came from an advisory rule, which is reported and never counted in a score. NULL otherwise and on rows written before 8.0. |
 
 A row counts as unmeasured when `weight = 0 OR status = 'not-measured'` (`NOT_MEASURED_SQL` in `src/storage/audits-db/results.ts`). Three encodings exist in stored data:
 
@@ -191,6 +194,8 @@ The domain list in the dashboard and the desktop app (`listDomains()` in `src/da
 | `idx_issues_priority` | `issues(audit_id, priority_score DESC)` |
 | `idx_comparisons_current` | `audit_comparisons(current_audit_id)` |
 | `idx_comparisons_domain` | `audit_comparisons(domain)` |
+| `idx_audit_link_scores_audit` | `audit_link_scores(audit_id)` |
+| `idx_audit_custom_values_audit` | `audit_custom_values(audit_id)` |
 
 ### Schema changes
 
@@ -202,6 +207,11 @@ There is no version table. Opening the database runs `CREATE TABLE IF NOT EXISTS
 | `audits.source` | TEXT |
 | `audits.engine_version` | TEXT |
 | `audits.run_json` | TEXT |
+| `audits.extras_json` | TEXT |
+| `audit_results.reason` | TEXT |
+| `audit_results.advisory` | INTEGER |
+
+8.0 also creates two tables, each deleted with its audit through `ON DELETE CASCADE`: `audit_link_scores` (`audit_id`, `url` TEXT, `score` REAL), one row per crawled page with its internal Link Score, and `audit_custom_values` (`audit_id`, `extraction` TEXT, `url` TEXT, `position` INTEGER, `value` TEXT), one row per value a `[[custom.extract]]` pulled, in page order.
 
 The changes are additive, so an older SEOmator can keep writing to a database a newer one has opened. When two processes add the same column at once, the second `duplicate column name` error is ignored.
 
@@ -209,8 +219,7 @@ The changes are additive, so an older SEOmator can keep writing to a database a 
 
 These parts of an `AuditResult` (`src/types.ts`) have no column:
 
-- `scoreCap` (the uncapped score and the caps that applied) and `waivedCaps`. Only the capped `overall_score` is stored, so `report <id>`, the dashboard and the desktop app show a capped score without its reason.
-- `page` (the page snapshot), `coverage` and `schemaVersion`.
+- `page` (the page snapshot), `coverage`, `completionState`, `gate`, `warnings` and `schemaVersion`.
 - `timestamp`. `started_at` holds the save time instead.
 
 ## The run profile (`run_json`)
@@ -226,16 +235,17 @@ These parts of an `AuditResult` (`src/types.ts`) have no column:
 | `mobile` | boolean | A second render at a mobile viewport ran (`--cwv --mobile`). | mobile parity | Yes |
 | `simulateInteraction` | boolean | A synthetic interaction ran so INP could be measured (`--cwv --simulate-interaction`). | simulated interaction | Yes |
 | `categories` | string[] | The `-c` category filter. `[]` means every category. | categories | Yes |
-| `scoringVersion` | number, optional | The scoring model that produced the score, `SCORING_VERSION` in `src/scoring.ts`. Currently `4`. | scoring model | Yes |
+| `scoringVersion` | number, optional | The scoring model that produced the score, `SCORING_VERSION` in `src/scoring.ts`. Currently `5`. | scoring model | Yes |
 | `enableRules` | string[], optional | `[rules] enable` patterns in force. The CLI default is `["*"]`. | enabled rules | Yes |
 | `disableRules` | string[], optional | `[rules] disable` patterns in force. | disabled rules | Yes |
 | `staging` | boolean, optional | The audit ran with `--staging`. Written only when true. | staging mode | Yes |
+| `ruleOptions` | object, optional | `[rule_options]` values that differ from the rules' defaults, by rule id. Absent when every rule ran on its defaults. | rule options | Yes |
 | `timeout` | number | Request timeout in milliseconds. | Not compared | |
 
 Example, from `seomator audit https://example.com --staging`:
 
 ```json
-{"crawl":false,"maxPages":10,"concurrency":3,"measureCwv":false,"mobile":false,"simulateInteraction":false,"categories":[],"scoringVersion":4,"enableRules":["*"],"disableRules":[],"staging":true,"timeout":30000}
+{"crawl":false,"maxPages":10,"concurrency":3,"measureCwv":false,"mobile":false,"simulateInteraction":false,"categories":[],"scoringVersion":5,"enableRules":["*"],"disableRules":[],"staging":true,"timeout":30000}
 ```
 
 ### How the profile is assembled
@@ -244,9 +254,10 @@ The engine records its own profile on `AuditResult.run`. `saveAuditToDatabase()`
 
 | Surface | Fields the surface sets | Fields that come from the engine |
 |---|---|---|
-| `seomator audit` | `crawl`, `maxPages`, `concurrency`, `measureCwv`, `mobile`, `simulateInteraction`, `categories`, `timeout` | `scoringVersion`, `enableRules`, `disableRules`, `staging` |
+| `seomator audit` | `crawl`, `maxPages`, `concurrency`, `measureCwv`, `mobile`, `simulateInteraction`, `categories`, `timeout` | `scoringVersion`, `enableRules`, `disableRules`, `staging`, `ruleOptions` |
 | `seomator analyze` | All fields. `measureCwv`, `mobile` and `simulateInteraction` are always `false`. | None |
 | `seomator serve` and the desktop app | `crawl`, `maxPages`, `concurrency`, `measureCwv`, `mobile`, `simulateInteraction`, `categories`, `timeout` | `scoringVersion`, and `enableRules` and `disableRules` as `[]`. These surfaces do not apply `[rules]` filters and do not offer `--staging`. |
+| `seomator mcp` | The same fields as `seomator serve` | `scoringVersion`, and `enableRules`, `disableRules` and `ruleOptions` from the `seomator.toml` it reads |
 
 Older rows written by `audit`, the dashboard or the desktop app can lack `scoringVersion`, `enableRules` and `disableRules`, because those surfaces used to store only the fields they set themselves.
 
@@ -270,17 +281,21 @@ Example: a production audit, then the same site with `--staging`:
 $ seomator compare example.com --fail-on-regression
 
 Comparing example.com
-  previous  2026-10-15-d182f9  2026-10-15 14:41  score 88
-  current   2026-10-15-1022d7  2026-10-15 14:41  score 87
+  previous  2026-11-18-262601  2026-11-18 10:33  score 88
+  current   2026-11-18-c76490  2026-11-18 10:34  score 88
 
-  Overall  88 → 87  ▼ -1
+  Overall  88 → 88  = 0
   These audits were not measured the same way, so this diff is not a like-for-like comparison:
     staging mode: false → true
-...
+
+  No category scores changed.
+
+  No rules changed status.
+
   Not failing on regression: the two audits were measured differently, so any difference is not attributable to the site.
 ```
 
-The exit code is 0. Against an audit stored without a scoring version, the JSON output lists `{ "option": "scoring model", "previous": "not recorded", "current": "4", "material": true }`.
+The exit code is 0. Against an audit stored without a scoring version, the JSON output lists `{ "option": "scoring model", "previous": "not recorded", "current": "5", "material": true }`.
 
 ## Project databases (`projects/<domain>/project.db`)
 
@@ -349,7 +364,7 @@ Indexes: `idx_crawls_project`, `idx_crawls_status`, `idx_crawls_started` (`start
 
 ## Link cache (`link-cache.db`)
 
-`src/storage/link-cache.ts` defines a cache of external link checks. No command, rule or surface opens it, so the file is never created by normal use. `[external_links] cache_ttl_days` in `seomator.toml` is read into the config but has no effect: `seomator config validate` checks that it is between 0 and 365, and warns that it is not implemented when it differs from its default.
+`src/storage/link-cache.ts` keeps settled external link answers between runs. `audit`, `analyze` and `seomator mcp` open it for each run that checks external links, unless `[external_links] enabled = false` or `cache_ttl_days = 0`; the dashboard and the desktop app do not use it. Only answers for external URLs are kept, and only `ok` answers, 404 and 410: a 5xx or a DNS failure can be a short outage, so it is remembered for the run only. An entry older than `cache_ttl_days` (default 7) is asked again. `audit --refresh` ignores what the cache holds and stores the fresh answers. A cache that cannot open or fails mid-run costs speed, not correctness: the links are checked over the network.
 
 | Column | Type | Constraint | Contents |
 |---|---|---|---|
@@ -413,14 +428,14 @@ Project Databases:
   No project databases found
 
 Audits Database:
-  Size: 356.0 KB
+  Size: 388.0 KB
   Audits: 2
-  Results: 746
+  Results: 796
   Issues: 0
   Comparisons: 1
 
 Link Cache:
-  Not created yet
+  Size: 16.0 KB
 ```
 
 ### `seomator db restore`
@@ -452,6 +467,7 @@ export SEOMATOR_HOME=$(mktemp -d)
 seomator audit https://example.com
 ls "$SEOMATOR_HOME"
 # audits.db
+# link-cache.db
 ```
 
 Read the scoring model and staging flag of stored audits:
@@ -460,8 +476,8 @@ Read the scoring model and staging flag of stored audits:
 $ sqlite3 -header -column "$SEOMATOR_HOME/audits.db" "SELECT audit_id, source, overall_score, json_extract(run_json, '$.scoringVersion') AS scoring, json_extract(run_json, '$.staging') AS staging FROM audits ORDER BY id;"
     audit_id       source  overall_score  scoring  staging
 -----------------  ------  -------------  -------  -------
-2026-10-15-d182f9  cli                88        4
-2026-10-15-1022d7  cli                87        4        1
+2026-11-18-262601  cli                88        5
+2026-11-18-c76490  cli                88        5        1
 ```
 
 Run an audit without storing it:
@@ -474,7 +490,7 @@ seomator audit https://example.com --no-save
 
 ### Why stored runs carry a profile
 
-A score only means something next to another score produced the same way. Every surface that writes to `audits.db` starts with Core Web Vitals off, and each can turn them on for a run: `--cwv` on the CLI, the Core Web Vitals option in the run form shared by the dashboard and the desktop app. A run without a browser render leaves dozens of checks unmeasured, and the score moves for reasons that have nothing to do with the site. Rule filters, staging mode and scoring-model changes do the same. Through 7.0.0 the CLI rendered by default while the run form did not, so before `run_json` was read, `compare --fail-on-regression` could fail a CI build whose only change was which surface produced the baseline. Storing the profile lets `compare` say why two scores differ, and refuse to call a measurement change a regression.
+A score only means something next to another score produced the same way. Every surface that writes to `audits.db` starts with Core Web Vitals off, and each can turn them on for a run: `--render` on the CLI (`--cwv` is its older name), "Render in a browser" in the run form shared by the dashboard and the desktop app. A run without a browser render leaves dozens of checks unmeasured, and the score moves for reasons that have nothing to do with the site. Rule filters, staging mode and scoring-model changes do the same. Through 7.0.0 the CLI rendered by default while the run form did not, so before `run_json` was read, `compare --fail-on-regression` could fail a CI build whose only change was which surface produced the baseline. Storing the profile lets `compare` say why two scores differ, and refuse to call a measurement change a regression.
 
 ### Why unmeasured results are stored at score 50 with weight 0
 

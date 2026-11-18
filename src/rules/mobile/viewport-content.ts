@@ -39,7 +39,8 @@ export const viewportContentRule = defineRule({
       return notMeasured(
         'mobile-viewport-content',
         'No viewport meta tag present; content directives cannot be checked (handled by viewport-present rule)',
-        { viewportFound: false }
+        { viewportFound: false },
+        'not-applicable'
       );
     }
 

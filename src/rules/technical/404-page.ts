@@ -1,11 +1,14 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
-import { fetchPage } from '../../crawler/fetcher.js';
+import { getText } from '../../net/url-service.js';
 
 /**
  * Generates a random non-existent path for testing 404 responses
  */
-function generateRandomPath(): string {
+function generateRandomPath(runToken?: string): string {
+  // One path per run: every page of a crawl asks the same question of the
+  // same origin, so the run's URL service answers it with one request
+  if (runToken) return `/seo-audit-test-nonexistent-page-${runToken}`;
   const randomId = Math.random().toString(36).substring(2, 15);
   return `/seo-audit-test-nonexistent-page-${randomId}-${Date.now()}`;
 }
@@ -173,11 +176,11 @@ export const fourOhFourPageRule = defineRule({
   weight: 1,
   run: async (context: AuditContext) => {
     const baseUrl = getBaseUrl(context.url);
-    const testPath = generateRandomPath();
+    const testPath = generateRandomPath(context.urls?.runToken);
     const testUrl = `${baseUrl}${testPath}`;
 
     try {
-      const result = await fetchPage(testUrl);
+      const result = await getText(context, testUrl);
       const { statusCode, html } = result;
 
       // Check status code

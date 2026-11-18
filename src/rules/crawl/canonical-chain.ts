@@ -26,7 +26,7 @@ export const canonicalChainRule = defineRule({
     if (!context.site?.pages) {
       return notMeasured(
         'crawl-canonical-chain',
-        'Following the canonical chain needs per-page crawl state - run with --crawl to build it'
+        'Following the canonical chain needs per-page crawl state - run with --crawl to build it', undefined, 'needs-crawl'
       );
     }
 

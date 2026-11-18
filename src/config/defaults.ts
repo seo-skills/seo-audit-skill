@@ -10,7 +10,9 @@ export function getDefaultConfig(): SeomatorConfig {
       domains: [],
     },
     crawler: {
-      max_pages: 100,
+      // 10, the same as `-m`'s default, so a crawl with no config covers the
+      // same pages whichever way it is started.
+      max_pages: 10,
       delay_ms: 100,
       timeout_ms: 30000,
       concurrency: 3,
@@ -25,10 +27,14 @@ export function getDefaultConfig(): SeomatorConfig {
       follow_redirects: true,
       user_agent: '',
       max_prefix_budget: 0.25,
+      respect_crawl_delay: true,
+      max_retry_after_ms: 120000,
+      max_duration_s: 0,
     },
     rules: {
       enable: ['*'],
       disable: [],
+      override: {},
     },
     external_links: {
       enabled: true,
@@ -41,6 +47,14 @@ export function getDefaultConfig(): SeomatorConfig {
       path: '',
       save: true,
     },
+    ci: {
+      fail_under: 70,
+      min_coverage: 0,
+    },
     rule_options: {},
+    custom: {
+      search: [],
+      extract: [],
+    },
   };
 }

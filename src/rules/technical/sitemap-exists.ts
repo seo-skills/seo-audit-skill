@@ -1,6 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
-import { fetchUrl, fetchPage } from '../../crawler/fetcher.js';
+import { urlServiceFor, getText } from '../../net/url-service.js';
 import { rethrowIfAborted } from '../../errors.js';
 
 /**
@@ -55,7 +55,7 @@ export const sitemapExistsRule = defineRule({
 
     // Check default /sitemap.xml location
     try {
-      const statusCode = await fetchUrl(sitemapUrl, 10000, context.signal);
+      const statusCode = (await urlServiceFor(context).status(sitemapUrl)).status;
       checkedLocations.push(sitemapUrl);
 
       if (statusCode === 200) {
@@ -68,9 +68,7 @@ export const sitemapExistsRule = defineRule({
 
     // Check robots.txt for sitemap references
     try {
-      const robotsResult = await fetchPage(robotsTxtUrl, 30000, {
-        ...(context.signal && { signal: context.signal }),
-      });
+      const robotsResult = await getText(context, robotsTxtUrl);
       if (robotsResult.statusCode === 200) {
         const sitemapsInRobots = extractSitemapUrlsFromRobotsTxt(robotsResult.html);
 
@@ -79,7 +77,7 @@ export const sitemapExistsRule = defineRule({
             checkedLocations.push(sitemapUrlFromRobots);
 
             try {
-              const statusCode = await fetchUrl(sitemapUrlFromRobots, 10000, context.signal);
+              const statusCode = (await urlServiceFor(context).status(sitemapUrlFromRobots)).status;
               if (statusCode === 200) {
                 foundSitemaps.push(sitemapUrlFromRobots);
               }

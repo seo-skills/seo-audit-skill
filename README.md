@@ -50,6 +50,7 @@ and Search Console data is not part of the audit yet.
 - [Claude Code Skill](#claude-code-skill)
 - [FAQ](#faq) and [upgrading to 8.0](./docs/upgrading-to-8.md)
 - [Requirements](#requirements)
+- [Full documentation](./docs/README.md): guides, references and every config key
 
 ## Features
 
@@ -340,6 +341,7 @@ seomator self doctor -v          # Verbose diagnostics
 | 0 | Audit passed: the score reached `--fail-under` (default 70) and no `fail_ci` rule failed |
 | 1 | A gate failed: the score is below `--fail-under`, a `fail_ci` rule failed, a `fail_ci` rule could not be measured, or a crawl measured less than `--min-coverage`. The last line on stderr says which |
 | 2 | The command could not do its job: bad flag, invalid config, unreachable URL, a start page that stays rate-limited |
+| 130 | The run was cancelled (Ctrl-C or SIGTERM) |
 
 Gate a build on the rules that matter to you, whatever the score:
 
@@ -356,6 +358,8 @@ fail_under = 80
 
 Overrides change ranking and CI exit codes, never the score. JSON output carries
 the verdict in `gate`: `{ failUnder, score, failedCiRules, unevaluated, exitCode }`.
+Every gate, what a failing one prints, and a complete CI job:
+[docs/ci-gates.md](docs/ci-gates.md).
 
 A page that cannot rank fails whatever its other checks score. In a single-page
 audit, the overall score is capped while a page-level condition holds: `noindex`
@@ -904,6 +908,9 @@ Config priority (highest to lowest):
 
 Every key, which command reads it, and the CI, override, rule-option and
 custom-check sections: [docs/configuration.md](docs/configuration.md).
+Step-by-step guides: [gating CI](docs/ci-gates.md) and
+[your own checks](docs/custom-checks.md) (`[[custom.search]]`,
+`[[custom.extract]]`). Every doc: [docs/README.md](docs/README.md).
 
 ## Link Score
 
@@ -962,57 +969,17 @@ Score:     88/100  [A]
 
 ## CI/CD Integration
 
-### GitHub Actions
+The exit code is the verdict (see [Exit Codes](#exit-codes)), so a CI step is
+the command itself:
 
-```yaml
-name: SEO Audit
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-jobs:
-  audit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install SEOmator
-        run: npm install -g @seomator/seo-audit
-
-      - name: Install Playwright browsers
-        run: npx playwright install chromium
-
-      - name: Run SEO Audit
-        run: seomator audit https://your-staging-url.com --cwv --format json -o seo-report.json
-
-      - name: Upload Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: seo-report
-          path: seo-report.json
+```bash
+seomator config validate
+seomator audit https://your-staging-url.com --crawl -m 50 --no-save --format json -o reports/seo.json
 ```
 
-### GitLab CI
-
-```yaml
-seo-audit:
-  image: node:20
-  script:
-    - npm install -g @seomator/seo-audit
-    - npx playwright install chromium
-    - seomator audit https://your-staging-url.com --cwv --format json -o seo-report.json
-  artifacts:
-    paths:
-      - seo-report.json
-```
+[docs/ci-gates.md](docs/ci-gates.md) covers setting the score threshold,
+gating on rules and on crawl coverage, reading the verdict from JSON, and has
+complete GitHub Actions and GitLab CI jobs.
 
 ## Programmatic Usage
 
@@ -1069,7 +1036,7 @@ The CLI (`@seomator/seo-audit`) is MIT-licensed and free to install and run loca
 
 ### Can I run SEOmator in CI/CD?
 
-Yes. It returns exit code `0` for a passing run, `1` when a gate fails (a score below `--fail-under`, default 70, or a failing `fail_ci` rule), and `2` on error, plus JSON output for parsing. See the [GitHub Actions and GitLab CI examples](#cicd-integration).
+Yes. It returns exit code `0` for a passing run, `1` when a gate fails (a score below `--fail-under`, default 70, or a failing `fail_ci` rule), and `2` on error, plus JSON output for parsing. See [How to gate CI on an SEOmator audit](docs/ci-gates.md) for GitHub Actions and GitLab CI jobs.
 
 ### Can I use SEOmator with Claude or other AI agents?
 

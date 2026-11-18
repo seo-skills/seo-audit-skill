@@ -31,7 +31,7 @@ The `package.json` serves **both** the npm CLI package and the Electron desktop 
 
 1. Verify `dependencies` contains only CLI packages (no react, zustand, recharts, electron)
 2. Verify `files: ["dist"]` — only CLI build ships
-3. `npm run build` → builds CLI via tsup
+3. `npm run build` → cleans `dist/`, builds the CLI and library with tsup, then the dashboard bundle (`web:build`)
 4. `npm pack --dry-run` → confirm only `dist/` files + README + package.json
 5. `npm publish --access public`
 6. The `prepublishOnly` script auto-runs `npm run build` before publish
@@ -78,8 +78,8 @@ The Electron app is **purely additive** — all Electron code lives in `electron
 ### CLI
 
 ```bash
-npm run build          # Build with tsup (ESM, single entry: src/cli.ts)
-npm run dev            # Build in watch mode
+npm run build          # clean dist/, tsup (src/cli.ts and src/index.ts), then web:build into dist/web
+npm run dev            # tsup in watch mode (CLI and library only, not the dashboard)
 npm run test:run       # Run all tests once (vitest)
 npm test               # Run tests in watch mode
 ```
@@ -97,7 +97,7 @@ npx vitest run src/rules/core/core.test.ts
 ### Electron Desktop App
 
 ```bash
-npx electron-rebuild -f -w better-sqlite3   # Required before first run
+npm run rebuild:electron   # Required before first run, and after any rebuild:cli
 npm run electron:dev   # Dev mode with Vite HMR + Electron hot reload
 npm run electron:build # Production build (main + preload + renderer)
 npm run electron:pack  # Build + package into distributable
@@ -218,7 +218,7 @@ The desktop app wraps the existing audit engine without modifying `src/`:
 - **Preload security**: `contextIsolation: true`, `nodeIntegration: false`. The preload script exposes a typed `ElectronAPI` via `contextBridge.exposeInMainWorld()`.
 - **State management**: Zustand store (`audit-store.ts`) with state machine: `idle → running → complete | error`. IPC events drive state transitions.
 - **Rule metadata**: The rule registry only exists in the main process. After an audit completes, `audit-bridge.ts` builds a `ruleId → { name, description }` map via `getRuleById()` and sends it alongside the `AuditResult` so the renderer can display rule names and descriptions.
-- **Design tokens**: CSS variables in `globals.css` extracted from `src/reporters/html-reporter.ts` for visual consistency. Light/dark theme support via `[data-theme="dark"]`.
+- **Design tokens**: `src/design/tokens.ts` is the single source. `ui/styles/tokens.css` is generated from it at Vite `buildStart` (`scripts/vite-plugin-tokens.mjs`) and must not be edited; the HTML report reads the same module. Light/dark theme support via `[data-theme="dark"]`.
 - **Build**: electron-vite handles the triple build (main → CJS, preload → ESM, renderer → Vite/React). Config: `electron/electron-vite.config.ts`.
 - **Path aliases**: `@core` → `../src` (access CLI engine from Electron main), `@renderer` → `./renderer`.
 - **CSS**: Tailwind v4 uses `@theme {}` block for custom properties. `@layer base` is critical — unlayered CSS overrides Tailwind v4 utilities.
@@ -230,13 +230,13 @@ The desktop app wraps the existing audit engine without modifying `src/`:
 - Tests create a minimal `AuditContext` using `cheerio.load(html)` for `$`, with stub values for other fields
 - Use `null as any` for context fields not relevant to the rule under test
 - Import rules directly from their individual files, not via the category index
-- Run `npm rebuild better-sqlite3` before running CLI tests if you were previously running Electron
+- Run `npm run rebuild:cli` before running CLI tests if you were previously running Electron
 
 ## Tech Stack
 
 ### CLI (`src/`)
 - **TypeScript** (ES2022 target, ESM modules, bundler resolution)
-- **tsup** for building (single ESM entry, `#!/usr/bin/env node` banner)
+- **tsup** for building (two ESM entries: `src/cli.ts` with the `#!/usr/bin/env node` banner, and `src/index.ts`, the library, with type declarations)
 - **vitest** for testing
 - **Cheerio** for HTML parsing
 - **Playwright** for CWV measurement and rendered DOM capture

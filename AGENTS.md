@@ -19,7 +19,7 @@ scores and reports.
 ## Commands
 
 ```bash
-npm run build        # tsup → dist/ (CLI)
+npm run build        # clean dist/, tsup (CLI + library), then web:build (dashboard)
 npm run typecheck    # tsc --noEmit — runs on prepublish, must stay green
 npm run test:run     # vitest, all tests once
 npx vitest run src/rules/core/core.test.ts   # single test file
@@ -27,9 +27,11 @@ npx vitest run src/rules/core/core.test.ts   # single test file
 ```
 
 Electron: `npm run electron:dev` etc. — but **rebuild the native module first
-when switching sides**: `npx electron-rebuild -f -w better-sqlite3` before
-Electron, `npm rebuild better-sqlite3` before CLI/tests. Mismatch →
-`NODE_MODULE_VERSION` error.
+when switching sides**: `npm run rebuild:electron` before Electron,
+`npm run rebuild:cli` before CLI/tests. Mismatch → `NODE_MODULE_VERSION`
+error. Do not call `electron-rebuild` or `npm rebuild` directly: the scripts
+also re-sign the module, without which Electron dies silently on Apple
+Silicon (see `claude.md`).
 
 ## Hard Constraints (breaking these ships broken software)
 
@@ -53,8 +55,8 @@ Electron, `npm rebuild better-sqlite3` before CLI/tests. Mismatch →
   `src/rules/<category>/index.ts`, pulled in by static imports in
   `src/rules/loader.ts`.
 - `run(context: AuditContext)` returns `pass()` (100), `warn()` (50),
-  `fail()` (0), or `notMeasured()` (warn-status, **weight 0, excluded from
-  scoring**).
+  `fail()` (0), or `notMeasured()` (status `not-measured`, **weight 0,
+  excluded from scoring**).
 - `AuditContext` (`src/types.ts`): page data always present; Tier 2
   (`robotsTxtContent`, `sitemapContent`, `sitemapUrls`, `sitemapEntries`,
   `redirectChain`) fetched once per audit; Tier 4 (`rendered$`,
@@ -69,7 +71,7 @@ Electron, `npm rebuild better-sqlite3` before CLI/tests. Mismatch →
 This is the checklist for the hint-coverage-expansion rules:
 
 1. **File**: `src/rules/<category>/<rule-name>.ts`, ID `<category>-<name>`
-   (e.g. `crawl-canonical-outside-of-head`). Register it in the category's
+   (e.g. `crawl-canonical-to-noindex`). Register it in the category's
    `index.ts`. No loader/config wiring needed — rules are enabled by default
    (`src/rules/pattern-matcher.ts`), so **a new rule is live in every audit
    immediately**.
@@ -99,7 +101,7 @@ This is the checklist for the hint-coverage-expansion rules:
 8. **Verify before done**: `npm run typecheck && npm run test:run` green, plus
    one real smoke run (`./dist/cli.js audit <url> --no-cwv`) confirming the
    new rule appears and scores sanely. If you ran Electron since the last CLI
-   use, `npm rebuild better-sqlite3` first.
+   use, `npm run rebuild:cli` first.
 9. **Electron needs no changes** — the renderer receives rule metadata from
    the registry at runtime — but the audit flow there must still work, so
    don't change shared types (`AuditContext`, `RuleResult`, `AuditResult`) in

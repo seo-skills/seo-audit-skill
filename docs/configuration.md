@@ -595,19 +595,18 @@ format = "pdf"
 ```
 $ seomator config validate
 Validating configuration...
-
 Config file: /path/to/my-site/seomator.toml
-
-✗ Configuration has errors
 
 ✗ crawler.max_pages: crawler.max_pages must be between 1 and 10000
   Value: 20000
 ✗ output.format: output.format must be one of: console, text, json, html, markdown, llm
   Value: "pdf"
-
-Warnings:
 ⚠ crawler.concurrency: crawler.concurrency is high (>10), may cause performance issues
+  Value: 12
 ⚠ project.domains[1]: project.domains[1] may not be a valid domain name
+  Value: "not a domain"
+
+✗ Configuration has 2 errors
 ```
 
 `config path`, with your own paths in place of the ones shown:

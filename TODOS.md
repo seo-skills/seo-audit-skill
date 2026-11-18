@@ -742,12 +742,14 @@ run, and a misspelled `[ci]` or custom-search key being ignored. What is left:
 **P2: network guard, from the pre-landing review**
 
 - **A local target's addresses are allowed on any port.** A page on
-  `localhost:3000` can make the audit request another local service. Pin the
-  port as well as the host.
+  `localhost:3000` can make the audit request another local service. Pinning
+  by port alone would break the http-to-https redirects pinning exists for, so
+  allow the ports the entry redirect chain used.
 - **The link cache is read before the network policy is checked.** A strict
   MCP run can learn a private URL's earlier status that way. Check the policy
   first.
-- **`--allow-host` cannot take an IPv6 address**, bracketed or not.
+- **`--allow-host` cannot express an IPv6 target** (`[::1]:port`): a bracket
+  mismatch in the connector.
 
 **P3: found by QA, not fixed**
 

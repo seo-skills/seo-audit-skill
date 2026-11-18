@@ -699,3 +699,64 @@ between the two renderers (they ship different Chromium versions).
 - `seomator self doctor` checks the MCP setup; MCP saves still use the
   blocking busy retry.
 
+### Left after the QA pass on 8.0.0 (/qa, 2026-11-18)
+
+The QA pass fixed six defects before release: a hang in a terminal that reports
+0 columns, misspelled gate keys accepted, a dead start page scored as a crawl,
+the LLM report's page counts, cross-page checks with no reason for not being
+measured, and a stored crawl losing its gaps. It also fixed two gaps the PR
+listed as known: a `fail_ci` gate on a cross-page rule passing a single-page
+run, and a misspelled `[ci]` or custom-search key being ignored. What is left:
+
+**P2: PRD items not built**
+
+- **Secrets in output (EN28).** A report can carry a token or key that appears
+  in a page's HTML, a URL or a header. Redact known secret shapes before any
+  format is written.
+- **Cold first-run timing (DX15).** The repo has no CI. Add a job that installs
+  the package fresh and times the first audit.
+
+**P2: PRD items built in part**
+
+- **Advisory and override marks on every surface (DS1, DS12, F17).** JSON marks
+  advisory results and overrides. The terminal, HTML and markdown reports show
+  no advisory chip, and the dashboard has no "Ignored by config" row or
+  override chip.
+- **Group not-measured checks by reason in the reports (DS2).** The dashboard
+  groups them; the console counts only the render and crawl groups; HTML and
+  markdown list them flat.
+- **Crawl summary in the HTML report (F3).** It has no "Measured N of M pages"
+  line. Web and desktop runs ignore `respect_crawl_delay`, and `crawl` has no
+  `--ignore-crawl-delay`.
+- **The desktop fetcher ignores its timeout and abort (EN12).**
+  `electron/main/electron-fetcher.ts`.
+- **Extraction caps are silent (F16).** Values are cut at 1 KB and 50 per page
+  with no note in the output.
+- **Probe errors are swallowed (S3)**; run counters (S2) and the annotation
+  shape (EN7) are partial.
+- Docs and flags: `docs/errors.md` and `retryAfterS` (DX6), `analyze
+  --min-coverage` (DX3), `--cwv` in `--help` (DX9), hard-coded thresholds
+  (DX13), the `rule_options` table in sync-docs (DX14), report section order
+  (DS6), the axe HTML snippet (DS14).
+
+**P2: network guard, from the pre-landing review**
+
+- **A local target's addresses are allowed on any port.** A page on
+  `localhost:3000` can make the audit request another local service. Pin the
+  port as well as the host.
+- **The link cache is read before the network policy is checked.** A strict
+  MCP run can learn a private URL's earlier status that way. Check the policy
+  first.
+- **`--allow-host` cannot take an IPv6 address**, bracketed or not.
+
+**P3: found by QA, not fixed**
+
+- **"1 page stayed rate-limited after their retries."** `crawlWarnings()` in
+  `src/commands/crawl.ts` needs "its" for one page. Repro: crawl a site with
+  one page that always answers 429.
+- **`analyze` says "Crawling and auditing up to N pages..."** while it reads a
+  stored crawl (`src/reporters/progress.ts`). Repro: `seomator crawl <url>`,
+  then `seomator analyze --latest`.
+- **`/verify` cannot map this branch's files to tests.** The repo has no
+  `.gstack/pregate.json`, so the checker reports `tests=UNMAPPED` even when
+  every test passes. Add a policy, or accept the full suite as the gate.

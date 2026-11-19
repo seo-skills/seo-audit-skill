@@ -7,6 +7,8 @@
 
 **SEOmator is a comprehensive SEO audit tool that scans any website against 398 rules across 20 categories** — technical SEO, Core Web Vitals, structured data, accessibility, security headers, and AI/GEO search readiness — and returns a prioritized, actionable report. It ships as a **command-line tool**, an **Electron desktop app**, and a **Claude Code skill**, so you can run an SEO audit from a terminal, a visual dashboard, or directly inside an AI coding agent.
 
+![seomator audit https://books.toscrape.com in a terminal: the categories fill in as they run, then the report opens with an 85/100 score, a bar per category and the first issues](docs/assets/cli-demo.gif)
+
 > **Prefer a web interface?** Try our [Free SEO Audit Tool](https://seomator.com/free-seo-audit-tool) for a visual, browser-based SEO analysis.
 
 ## Where SEOmator fits
@@ -104,6 +106,10 @@ seomator audit https://example.com
 ## Desktop App
 
 The desktop app provides a visual audit dashboard with real-time progress streaming, interactive results, score history, and light/dark theme support.
+
+![The SEOmator desktop app: audit history, a crawl's report opening on its score and a fix queue ranked by score points, the points strip filtering the queue to one category, and a new audit started from the run form](docs/assets/desktop-app.gif)
+
+`seomator serve` shows the same screens in your browser.
 
 ### Running
 

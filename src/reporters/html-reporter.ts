@@ -8,6 +8,7 @@ import type {
 import type { RuleSummary } from '../dashboard/contract.js';
 import { scoreToVerdict, verdictStyle } from '../verdict.js';
 import { rulePriority } from '../rules/priority.js';
+import { overridePriorityFactor } from '../rules/overrides.js';
 import type { OverridePriority } from '../types.js';
 import { toCss as tokensToCss } from '../design/tokens.js';
 import { getCategoryById } from '../categories/index.js';
@@ -151,12 +152,13 @@ const AGENT_EMBLEM = `<svg viewBox="0 0 150 150" role="img" aria-label="SEOmator
 function queueIntroHtml(
   ranked: AggregatedIssue[],
   pointsOf: (issue: AggregatedIssue) => number,
-  result: AuditResult
+  result: AuditResult,
+  totalMissing: number
 ): string {
   // One entry per rule: a live crawl can list a rule as a failure and a warning
   const seen = new Set<string>();
   const fixes = ranked.filter((issue) => !seen.has(issue.ruleId) && seen.add(issue.ruleId)).map((issue) => ({ issue, points: pointsOf(issue) }));
-  return `<div class="fb-dock">${AGENT_EMBLEM}<span class="fb-say">${escapeHtml(agentLine(fixes, result))}</span></div>`;
+  return `<div class="fb-dock">${AGENT_EMBLEM}<span class="fb-say">${escapeHtml(agentLine(fixes, result, totalMissing))}</span></div>`;
 }
 
 /**
@@ -282,12 +284,13 @@ function aggregateIssuesByRule(
  * printed the whole rule's points, so the queue counted that rule twice (115
  * fixes where the dashboard said 105 for the same audit). The entry takes the
  * worst status and every page the rule was found on. Advisory findings score
- * nothing yet, so they are not fixes to rank; the category sections list them.
+ * nothing yet, and ignored findings are hidden by config, so neither is a fix
+ * to rank; the category sections still list them.
  */
 function fixQueue(issues: AggregatedIssue[]): AggregatedIssue[] {
   const byRule = new Map<string, AggregatedIssue>();
   for (const issue of issues) {
-    if (issue.advisory) continue;
+    if (issue.advisory || issue.override === 'ignore') continue;
     const queued = byRule.get(issue.ruleId);
     if (!queued) {
       byRule.set(issue.ruleId, issue);
@@ -2312,22 +2315,13 @@ export function renderHtmlReport(result: AuditResult): string {
   const issuePoints = pointsByRule(result.categoryResults);
   const pointsOf = (issue: AggregatedIssue) => issuePoints.get(issue.ruleId) ?? 0;
   const missingPoints = [...issuePoints.values()].reduce((sum, value) => sum + value, 0);
-  // The score as the app draws it: the exact value on a meter, and what the
-  // next grade costs in the queue's own terms (`fix-brief.ts`).
-  const exactScore = result.scoreCap ? result.overallScore : 100 - missingPoints;
-  const queueForGrade = [...issuePoints.values()].filter((v) => v > 0).sort((a, b) => b - a).map((points) => ({ points }));
-  const scoreMeter = `<div class="score-meter" role="img" aria-label="Score ${result.overallScore} of 100">
-            <div class="score-meter-track"><span class="score-meter-fill" style="width: ${Math.max(0, Math.min(100, exactScore)).toFixed(2)}%; background: ${scoreColor}"></span>${[50, 70, 80, 90].map((t) => `<span class="score-meter-tick" style="left: ${t}%"></span>`).join('')}</div>
-            <div class="score-meter-scale" aria-hidden="true">${[50, 70, 80, 90].map((t) => `<span style="left: ${t}%; transform: translateX(-50%)">${t}</span>`).join('')}</div>
-          </div>
-          ${result.scoreCap ? '' : `<p class="score-next">${escapeHtml(nextGradeLine(exactScore, queueForGrade))}</p>`}`;
 
   // One queue ranked by the score points each fix returns, failures and
   // warnings together (DESIGN.md, R2): a heavy, widespread warning can come
   // before a narrow failure, and the status shape still says which is which.
-  // Priority, page count and rule id break ties so the order is stable.
+  // Overrides scale only the sort key; the printed points remain exact.
   const byPoints = (a: AggregatedIssue, b: AggregatedIssue) =>
-    pointsOf(b) - pointsOf(a) ||
+    pointsOf(b) * overridePriorityFactor(b.override) - pointsOf(a) * overridePriorityFactor(a.override) ||
     b.priority - a.priority ||
     b.pageCount - a.pageCount ||
     a.ruleId.localeCompare(b.ruleId);
@@ -2336,6 +2330,17 @@ export function renderHtmlReport(result: AuditResult): string {
   // twice — 3,191px of rows and 12,217px of cards, 90% of a 17,199px page. The
   // table is a ranked index now: what to fix first, linking down to the detail.
   const rankedIssues = fixQueue([...failures, ...warnings]).sort(byPoints);
+
+  // The score as the app draws it: the exact value on a meter, and what the
+  // next grade costs in the queue's own terms (`fix-brief.ts`).
+  const exactScore = result.scoreCap ? result.overallScore : 100 - missingPoints;
+  const queueForGrade = rankedIssues.map((issue) => ({ points: pointsOf(issue) }));
+  const scoreMeter = `<div class="score-meter" role="img" aria-label="Score ${result.overallScore} of 100">
+            <div class="score-meter-track"><span class="score-meter-fill" style="width: ${Math.max(0, Math.min(100, exactScore)).toFixed(2)}%; background: ${scoreColor}"></span>${[50, 70, 80, 90].map((t) => `<span class="score-meter-tick" style="left: ${t}%"></span>`).join('')}</div>
+            <div class="score-meter-scale" aria-hidden="true">${[50, 70, 80, 90].map((t) => `<span style="left: ${t}%; transform: translateX(-50%)">${t}</span>`).join('')}</div>
+          </div>
+          ${result.scoreCap ? '' : `<p class="score-next">${escapeHtml(nextGradeLine(exactScore, queueForGrade))}</p>`}`;
+
   const TOP_ISSUES = 10;
   const issueTableRows = rankedIssues
     .slice(0, TOP_ISSUES)
@@ -2680,7 +2685,7 @@ export function renderHtmlReport(result: AuditResult): string {
               ? `Fix queue: the first ${TOP_ISSUES} of ${rankedIssues.length}, by score points returned`
               : `Fix queue (${rankedIssues.length}), by score points returned`
           }</span>
-          ${queueIntroHtml(rankedIssues, pointsOf, result)}
+          ${queueIntroHtml(rankedIssues, pointsOf, result, missingPoints)}
         </div>
         <table class="issues-table">
           <thead>

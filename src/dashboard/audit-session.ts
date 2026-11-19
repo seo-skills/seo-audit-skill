@@ -21,6 +21,7 @@ import { generateId } from '../storage/utils/hash.js';
 import type { AuditRunOptions, AuditSource } from '../storage/types.js';
 import { buildRuleMetadata } from './queries.js';
 import { applyRuleOverrides } from '../rules/overrides.js';
+import { getDefaultConfig } from '../config/defaults.js';
 import type { RuleOverride } from '../config/schema.js';
 import type { RuleMetadata } from './contract.js';
 
@@ -538,6 +539,7 @@ export class AuditSession {
       staging: args.staging,
       ...(args.maxDuration !== null && { maxDurationMs: Math.min(args.maxDuration * 1000, SESSION_MAX_DURATION_MS) }),
       ...(args.ignoreCrawlDelay && { respectCrawlDelay: false }),
+      perHostConcurrency: this.options.auditorOptions?.perHostConcurrency ?? getDefaultConfig().crawler.per_host_concurrency,
       ...(args.refresh && { externalLinks: { ...this.options.auditorOptions?.externalLinks, refresh: true } }),
       categories: args.categories,
       timeout: args.timeout,

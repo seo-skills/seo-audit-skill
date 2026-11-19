@@ -134,7 +134,7 @@ export const httpApi = {
 
   getAppInfo: (): Promise<AppInfoIpc> => request('/api/info'),
 
-  compare: (auditId: string, against?: string): Promise<StoredComparison> =>
+  compare: (auditId: string, against?: string): Promise<StoredComparison | null> =>
     request(`/api/audits/${encodeURIComponent(auditId)}/compare${queryString({ against })}`),
 
   deleteAudit: (auditId: string): Promise<void> =>

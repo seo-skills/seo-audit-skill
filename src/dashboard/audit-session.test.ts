@@ -159,6 +159,7 @@ describe('normalizeRunArgs — the CLI options the run form now offers', () => {
     expect(options.staging).toBe(true);
     expect(options.respectCrawlDelay).toBe(false);
     expect(options.maxDurationMs).toBe(90_000);
+    expect(options.perHostConcurrency).toBe(2);
     // The host's link settings are kept; only refresh is added
     expect(options.externalLinks).toEqual({ timeoutMs: 5000, refresh: true });
     session.cancel();

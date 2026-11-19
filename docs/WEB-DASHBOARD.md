@@ -206,10 +206,10 @@ The dashboard UI ships in the package as `dist/web`.
   dashboard UI is not built in this install." Build the UI with
   `npm run web:build`, or the CLI and the UI together with `npm run build`.
 
-`npm run web:dev` (Vite on port 7361, proxying `/api` to `serve` on 7360) does
-not work with this server. The proxy forwards `Host: localhost:7361`, so `serve`
-answers every API call with `403 bad-origin`, and the page Vite serves never
-receives the token cookie. Use `npm run web:build` and `serve`.
+`npm run web:dev` starts Vite on port 7361 and the real API on 7360. The
+loopback proxy reads the API's per-launch token from `serve.json` and forwards
+it only to that local server, so browser reads and runs work without exposing
+the token to the page.
 
 <a id="data-directory"></a>
 ### The data directory cannot be used

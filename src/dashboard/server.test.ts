@@ -23,6 +23,7 @@ let token: string;
 let db: AuditsDatabase;
 let cleanup: () => void;
 let auditId: string;
+let firstAuditId: string;
 let ruleId: string;
 
 beforeAll(async () => {
@@ -31,7 +32,7 @@ beforeAll(async () => {
   cleanup = temp.cleanup;
 
   // Two audits of one domain, so compare and trend have something to work on.
-  saveAuditToDatabase(
+  const first = saveAuditToDatabase(
     makeAuditResult(URL_UNDER_TEST, {
       core: {
         'core-title': [{ pageUrl: URL_UNDER_TEST, status: 'fail' }],
@@ -40,6 +41,7 @@ beforeAll(async () => {
     }, 40),
     { db }
   );
+  firstAuditId = first.auditId;
   const second = saveAuditToDatabase(
     makeAuditResult(URL_UNDER_TEST, {
       core: {
@@ -292,6 +294,12 @@ describe('read endpoints', () => {
   it('returns a trend oldest first', async () => {
     const res = await api('/api/domains/served.test/trend');
     expect(res.json.map((p: { score: number }) => p.score)).toEqual([40, 85]);
+  });
+
+  it('answers no comparison, not a 404, for a domain\'s first audit', async () => {
+    const res = await api(`/api/audits/${firstAuditId}/compare`);
+    expect(res.status).toBe(200);
+    expect(res.json).toBeNull();
   });
 
   it('compares against the previous audit by default', async () => {

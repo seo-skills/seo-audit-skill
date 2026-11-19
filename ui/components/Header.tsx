@@ -10,6 +10,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme.js';
 import { Logo } from './Logo.js';
+import { getHost } from '../lib/api-client.js';
 
 interface HeaderProps {
   /** Whether this host can start an audit; the web build cannot until Phase 3 */
@@ -19,10 +20,11 @@ interface HeaderProps {
 export function Header({ canRunAudits }: HeaderProps) {
   const { theme, toggle } = useTheme();
   const { pathname } = useLocation();
+  const desktop = getHost() === 'electron';
 
   return (
     <header
-      className="toolbar drag-region fixed top-0 left-0 right-0 h-[var(--header-height)] z-50 flex items-center pl-[var(--traffic-light-width)] pr-3 gap-3"
+      className={`toolbar drag-region fixed top-0 left-0 right-0 h-[var(--header-height)] z-50 flex items-center ${desktop ? 'pl-[var(--traffic-light-width)]' : 'pl-3'} pr-3 gap-3`}
     >
       {/* Brand. The lockup names the product, so no text beside it; its
           wordmark is painted in currentColor and follows the theme. */}

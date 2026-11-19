@@ -42,7 +42,7 @@ export interface ElectronAPI {
   getAuditedDomains: () => Promise<string[]>;
   listDomains: () => Promise<DomainSummary[]>;
   getAuditDetail: (auditId: string) => Promise<AuditDetail | null>;
-  compare: (auditId: string, against?: string) => Promise<StoredComparison>;
+  compare: (auditId: string, against?: string) => Promise<StoredComparison | null>;
   deleteAudit: (auditId: string) => Promise<void>;
   /** Opens a save dialog; resolves with the written path, or null if cancelled */
   exportAudit: (auditId: string, format: 'html' | 'markdown' | 'json' | 'llm') => Promise<string | null>;

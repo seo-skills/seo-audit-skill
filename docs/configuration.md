@@ -730,7 +730,7 @@ Write a `seomator.toml` for your project from one of the four presets.
 
 #### Prerequisites
 
-- SEOmator installed: `seomator --version` prints `8.0.0`.
+- SEOmator installed: `seomator --version` prints `8.0.1`.
 - A terminal open in your project's directory.
 
 #### Steps

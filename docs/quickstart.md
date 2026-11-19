@@ -39,7 +39,7 @@ seomator --version
 ```
 
 ```
-8.0.0
+8.0.1
 ```
 
 Then check your setup:
@@ -88,7 +88,7 @@ audit takes five to ten seconds. You will see output like this (trimmed):
  ███████║███████╗╚██████╔╝██║ ╚═╝ ██║██║  ██║   ██║   ╚██████╔╝██║  ██║
  ╚══════╝╚══════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝
 
-  v8.0.0  •  https://seomator.com
+  v8.0.1  •  https://seomator.com
 ──────────────────────────────────────────────────
 Config: (none, using defaults)
 Auditing: example.com

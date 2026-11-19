@@ -24,7 +24,7 @@ are trimmed and file paths shortened; nothing else is changed.
 
 ## Prerequisites
 
-- SEOmator 8.0: `seomator --version` prints `8.0.0`.
+- SEOmator 8.0: `seomator --version` prints `8.0.0` or a later 8.0 patch.
 - A `seomator.toml` in the directory you run from, or a parent of it.
   `seomator init -y` writes one.
 

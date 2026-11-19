@@ -37,7 +37,7 @@ stderr.
 
 ## Prerequisites
 
-- SEOmator 8.0 on the runner: `seomator --version` prints `8.0.0`.
+- SEOmator 8.0 on the runner: `seomator --version` prints `8.0.0` or a later 8.0 patch.
 - A URL the runner can reach: a staging or preview deploy, or the live site.
 - Optional: a `seomator.toml` in the repository root.
   `seomator init --preset ci -y` writes one that sends a JSON report to

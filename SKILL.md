@@ -261,6 +261,12 @@ per-rule detail, comparisons, exports). For scripted access, read the token
 from `~/.seomator/serve.json` and send it as `X-SEOmator-Token`; `GET /api`
 lists every route. See `docs/WEB-DASHBOARD.md`.
 
+Each audit opens on its score, then one fix queue ranked by the score points
+each fix returns. In `GET /api/audits/:id`, every failing or warning rule
+summary carries `points`: what the score gains when that rule passes. An
+audit's points add up to what its score is missing, so they rank fixes
+exactly; the detail also carries `categoryWeights`.
+
 ### Compare Command Options
 
 `seomator compare <domain>` diffs two stored audits of the same site. Every
@@ -300,7 +306,9 @@ seomator db stats          # Show database statistics
 
 The `--format llm` output is a compact XML format optimized for token efficiency:
 - **50-70% smaller** than JSON output
-- Issues sorted by severity (critical first)
+- Issues sorted with failures first, then by impact (rule and category weight,
+  share of pages, `[rules.override]` priority); the dashboard and the HTML report
+  rank one fix queue by score points instead
 - Fix suggestions included for each issue
 - Clean stdout for piping to AI tools
 

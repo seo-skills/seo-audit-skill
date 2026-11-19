@@ -126,9 +126,9 @@ npm run electron:pack     # Build + package distributable
 ### Desktop App Features
 
 - **Real-time progress** - Live category-by-category progress as the audit runs
-- **Score dashboard** - Overall score circle, category grid, and issues summary table
+- **The score, then what to fix** - Each audit opens on its score, with a meter and what the next grade costs, then one fix queue ranked by the score points each fix returns. A "Where the points went" strip shows what each category costs the score; pick a column to filter the queue
 - **Interactive results** - Expandable rule cards with rule descriptions, affected items, page URL badges, and inline fix suggestions
-- **Filter & navigate** - Filter by status (All/Failures/Warnings/Passed), click issues to jump to details
+- **Filter & navigate** - Filter by status (All/Failed/Warnings/Passed/Not measured), click a fix to open its evidence
 - **Score history** - Track audit scores over time per domain with trend charts
 - **Light/dark theme** - Follows your system preference or toggle manually
 
@@ -197,7 +197,8 @@ Audits are stored in `~/.seomator/audits.db` by default, which is what
 
 ### `seomator serve`
 
-Run the local dashboard: every audit you have run, in your browser.
+Run the local dashboard: every audit you have run, in your browser, laid out as
+the desktop app lays it out (the score, then the fix queue ranked by score points).
 
 ```bash
 seomator serve                   # opens http://127.0.0.1:7360

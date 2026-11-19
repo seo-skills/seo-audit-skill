@@ -1550,10 +1550,11 @@ Checks language declarations and multi-language hreflang implementation.
 | `i18n-hreflang-incoming-invalid` | Invalid Incoming Hreflang Annotations | 8 | fail | Hreflang annotations from other crawled pages targeting this URL use invalid language/region codes (requires --crawl) |
 
 #### i18n-lang-attribute
+- **What it checks:** The `lang` attribute on `<html>`. A missing or empty one fails. A value that is not a well-formed BCP 47 tag warns. Tags are read in any case and may carry a script, a region of two letters or three digits, and variants (`en-US`, `EN-US`, `zh-Hant-TW`, `es-419`, `de-CH-1996`); a two-letter language must exist, so `es419`, `en_US`, `english` and `GB` warn.
 - **Fix:** Add `<html lang="en">` with a valid BCP 47 language code (e.g., "en", "en-US", "zh-Hans").
 
 #### i18n-hreflang
-- **What it checks:** Each `<link rel="alternate" hreflang>`. An empty value, a code not written `xx` or `xx-YY` (lowercase language, uppercase region), or a repeated code fails. A relative href, no self-reference, or no x-default among two or more annotations warns. A page with no hreflang link elements passes when the HTTP `Link` header declares hreflang. Otherwise it warns only when the page links to its own path under another locale prefix (`/en/docs/x` to `/fr/docs/x`) and its first path segment matches `<html lang>`. Hreflang in the XML sitemap is not read.
+- **What it checks:** Each `<link rel="alternate" hreflang>`. An empty value, a code that is not an ISO 639-1 language with an optional ISO 15924 script and ISO 3166-1 alpha-2 region (`en`, `en-GB`, `zh-Hant`, `zh-Hans-US`, in any case; numeric regions such as `es-419` are not hreflang codes), or a repeated code (`en-GB` and `en-gb` are one code) fails. A relative href, no self-reference, or no x-default among two or more annotations warns. A page with no hreflang link elements passes when the HTTP `Link` header declares hreflang. Otherwise it warns only when the page links to its own path under another locale prefix (`/en/docs/x` to `/fr/docs/x`) and its first path segment matches `<html lang>`. Hreflang in the XML sitemap is not read.
 - **Fix:** Add `<link rel="alternate" hreflang="xx" href="...">` for each language version. Include x-default.
 
 #### i18n-hreflang-return-links
@@ -1592,8 +1593,8 @@ Checks language declarations and multi-language hreflang implementation.
 - **Fix:** No action required; confirm the overlap is intentional
 
 #### i18n-hreflang-incoming-invalid
-- **What it checks:** The incoming counterpart to i18n-hreflang's outgoing validation: other crawled pages pointing hreflang annotations AT this URL must use valid language/region codes (`xx` or `xx-YY`; x-default is always valid). An invalid code makes the annotation unusable, so this page loses the cluster membership the source page tried to declare. Crawl mode only
-- **Fix:** Fix the annotations on the source pages to use valid ISO 639-1 language codes with optional ISO 3166-1 Alpha-2 region codes (e.g. "en", "en-GB")
+- **What it checks:** The incoming counterpart to i18n-hreflang's outgoing validation: other crawled pages pointing hreflang annotations AT this URL must use valid codes, read as `i18n-hreflang` reads them: a language with an optional script and region, in any case (`en`, `en-GB`, `zh-Hant`; x-default is always valid). An invalid code makes the annotation unusable, so this page loses the cluster membership the source page tried to declare. Crawl mode only
+- **Fix:** Fix the annotations on the source pages to use valid ISO 639-1 language codes with an optional ISO 15924 script and ISO 3166-1 Alpha-2 region (e.g. "en", "en-GB", "zh-Hant")
 
 ---
 

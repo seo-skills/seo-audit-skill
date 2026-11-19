@@ -173,14 +173,17 @@ What counts:
 ## Re-rank findings without changing the score
 
 `priority` in the same table moves a finding in the "what to fix first" order.
-It never changes a status, a score or a weight.
+It never changes a status, a score, a weight or the points a fix shows. What it
+scales is the rank: the finding's priority in the console, markdown, LLM and MCP
+lists, and its score points in the fix queue of the dashboard, the desktop app
+and the HTML report.
 
 | `priority` | Effect |
 |---|---|
-| `high` | Ranks the finding higher (its priority is multiplied by 4). |
+| `high` | Ranks the finding higher (its rank is multiplied by 4). |
 | `normal` | No change. |
 | `low` | Ranks it lower (multiplied by 0.25). |
-| `ignore` | Takes it out of every findings list. Reports name it once in a collapsed "Ignored by config" line, and JSON keeps the result. |
+| `ignore` | Takes it out of every findings list and the fix queue. Reports name it once in a collapsed "Ignored by config" line, JSON keeps the result, and its points still count in what the score is missing. |
 
 ```toml
 [rules.override]

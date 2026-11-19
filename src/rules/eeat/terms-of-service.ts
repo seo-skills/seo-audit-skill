@@ -45,7 +45,7 @@ const TOS_PATTERNS = {
 };
 
 /**
- * Checks for terms of service link presence (E-E-A-T trust signal)
+ * Looks for a link to a terms of service page (E-E-A-T trust signal)
  *
  * Terms of service define the rules for using a website or service.
  * They demonstrate professionalism and are especially important for:
@@ -57,7 +57,7 @@ const TOS_PATTERNS = {
 export const termsOfServiceRule = defineRule({
   id: 'eeat-terms-of-service',
   name: 'Terms of Service',
-  description: 'Checks for terms of service page',
+  description: 'Checks that a terms of service page is linked',
   category: 'eeat',
   weight: 6,
 

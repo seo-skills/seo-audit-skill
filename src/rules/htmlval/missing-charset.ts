@@ -48,7 +48,7 @@ export const missingCharsetRule = defineRule({
 
     return fail(
       'htmlval-missing-charset',
-      'No charset declaration found. Add <meta charset="utf-8"> as the first element in <head>',
+      'No charset declaration found. Put <meta charset="utf-8"> at the very top of <head>',
       { found: false }
     );
   },

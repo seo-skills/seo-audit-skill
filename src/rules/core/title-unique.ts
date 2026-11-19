@@ -20,7 +20,7 @@ import {
 export const titleUniqueRule = defineRule({
   id: 'core-title-unique',
   name: 'Title Uniqueness',
-  description: 'Checks that page titles are unique across the site',
+  description: 'Checks whether another crawled page uses the same <title>',
   category: 'core',
   weight: 5,
   options: ELIGIBILITY_RULE_OPTIONS,
@@ -54,7 +54,7 @@ export const titleUniqueRule = defineRule({
         title,
         duplicateUrls: listed.urls,
         duplicateCount: listed.total,
-        impact: 'Duplicate titles confuse search engines about which page to prioritize',
+        impact: 'Pages that share a title compete for the same query and look identical in results',
         recommendation: 'Create unique, descriptive titles for each page (e.g., "Page Topic | Brand Name")',
       });
     }

@@ -15,7 +15,7 @@ import { defineRule, pass, warn } from '../define-rule.js';
 export const skipLinkRule = defineRule({
   id: 'a11y-skip-link',
   name: 'Skip Link',
-  description: 'Checks for skip-to-content link for keyboard navigation',
+  description: 'Checks for a link that lets keyboard users jump straight to the main content',
   category: 'a11y',
   weight: 6,
   run: (context: AuditContext) => {

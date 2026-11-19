@@ -40,7 +40,7 @@ const PRIVACY_PATTERNS = {
 };
 
 /**
- * Checks for privacy policy link presence (E-E-A-T trust signal)
+ * Looks for a link to a privacy policy (E-E-A-T trust signal)
  *
  * A privacy policy demonstrates transparency and builds trust.
  * It's also legally required in many jurisdictions (GDPR, CCPA).
@@ -52,7 +52,7 @@ const PRIVACY_PATTERNS = {
 export const privacyPolicyRule = defineRule({
   id: 'eeat-privacy-policy',
   name: 'Privacy Policy',
-  description: 'Checks for privacy policy page linked from footer',
+  description: 'Checks that a privacy policy is linked, ideally from the footer',
   category: 'eeat',
   weight: 8,
 

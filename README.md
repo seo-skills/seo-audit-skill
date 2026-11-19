@@ -157,7 +157,7 @@ seomator audit https://example.com --format json
 seomator audit https://example.com --format html -o report.html
 
 # LLM-optimized output (pipe to Claude)
-seomator audit https://example.com --format llm | claude "analyze and prioritize fixes"
+seomator audit https://example.com --format llm | claude "rank these issues by impact and fix the top ones"
 
 # Crawl multiple pages
 seomator audit https://example.com --crawl --max-pages 20
@@ -612,7 +612,7 @@ the launch checklist.
 | `schema-faq` | Validates FAQPage schema structure |
 | `schema-local-business` | Validates LocalBusiness for local SEO |
 | `schema-organization` | Validates Organization schema |
-| `schema-product` | Validates Product schema for e-commerce |
+| `schema-product` | Checks Product markup for shopping rich results |
 | `schema-review` | Validates Review/AggregateRating schema |
 | `schema-video` | Validates VideoObject schema |
 | `schema-website-search` | Checks WebSite sitelinks searchbox |
@@ -885,7 +885,7 @@ Create a `seomator.toml` config file with `seomator init`:
 
 ```toml
 [project]
-name = "my-website"
+name = "marketing-site"
 domains = ["example.com", "www.example.com"]
 
 [crawler]

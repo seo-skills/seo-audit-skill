@@ -41,7 +41,7 @@ const ABOUT_PATTERNS = {
 export const aboutPageRule = defineRule({
   id: 'eeat-about-page',
   name: 'About Page',
-  description: 'Checks for an about/company page with content',
+  description: 'Looks for a link to an About or company page',
   category: 'eeat',
   weight: 8,
 

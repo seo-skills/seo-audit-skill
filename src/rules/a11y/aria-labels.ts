@@ -96,7 +96,7 @@ function hasAccessibleName($: CheerioAPI, el: Element): boolean {
 /**
  * Rule: ARIA Labels
  *
- * Checks that interactive elements have accessible names via:
+ * Checks that buttons, links and other controls expose a name to assistive technology via:
  * - Text content
  * - aria-label or aria-labelledby
  * - Associated label element
@@ -106,7 +106,7 @@ function hasAccessibleName($: CheerioAPI, el: Element): boolean {
 export const ariaLabelsRule = defineRule({
   id: 'a11y-aria-labels',
   name: 'ARIA Labels',
-  description: 'Checks that interactive elements have accessible names',
+  description: 'Checks that buttons, links and other controls expose a name to assistive technology',
   category: 'a11y',
   weight: 10,
   run: (context: AuditContext) => {

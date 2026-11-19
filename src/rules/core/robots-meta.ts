@@ -22,7 +22,7 @@ export function parseRobotsDirectives(content: string): string[] {
 export const robotsMetaRule = defineRule({
   id: 'core-robots-meta',
   name: 'Robots Meta',
-  description: 'Checks robots meta tag for indexing directives',
+  description: 'Reads meta robots and X-Robots-Tag for noindex, nofollow and similar directives',
   category: 'core',
   weight: 5,
   run: async (context: AuditContext) => {

@@ -78,7 +78,7 @@ const DISCLOSURE_LOCATIONS = [
 ];
 
 /**
- * Checks for affiliate and sponsored content disclosures
+ * Checks that pages with affiliate or sponsored links disclose them
  *
  * When content contains affiliate links or sponsored content,
  * FTC guidelines require clear and conspicuous disclosure.
@@ -89,7 +89,7 @@ const DISCLOSURE_LOCATIONS = [
 export const affiliateDisclosureRule = defineRule({
   id: 'eeat-affiliate-disclosure',
   name: 'Affiliate Disclosure',
-  description: 'Checks for affiliate and sponsored content disclosures',
+  description: 'Checks that pages with affiliate or sponsored links disclose them',
   category: 'eeat',
   weight: 5,
 

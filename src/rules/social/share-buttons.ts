@@ -47,7 +47,7 @@ const SHARE_SELECTORS = [
 ];
 
 /**
- * Rule: Check for social sharing buttons on content pages
+ * Rule: share buttons on articles and other content pages
  *
  * Detects common social sharing mechanisms including:
  * - Direct share URLs (Facebook, Twitter, LinkedIn, etc.)
@@ -58,7 +58,7 @@ export const shareButtonsRule = defineRule({
   id: 'social-share-buttons',
   name: 'Social Share Buttons',
   description:
-    'Checks for social sharing buttons on content pages to encourage social engagement',
+    'Looks for share buttons on articles and other content pages',
   category: 'social',
   weight: 1,
   run: async (context: AuditContext) => {

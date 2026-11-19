@@ -13,7 +13,7 @@ import { defineRule, pass, warn } from '../define-rule.js';
 export const contentDatesRule = defineRule({
   id: 'eeat-content-dates',
   name: 'Content Dates',
-  description: 'Checks for published and modified dates on content',
+  description: 'Checks that content shows when it was published and last updated',
   category: 'eeat',
   weight: 8,
   run: async (context: AuditContext) => {

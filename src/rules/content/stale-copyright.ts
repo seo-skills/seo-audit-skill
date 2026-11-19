@@ -14,7 +14,7 @@ const COPYRIGHT = /(?:©|\(c\)|copyright)\s*(\d{4})(?:\s*[-–—]\s*(\d{4}))?/g
 export const staleCopyrightRule = defineRule({
   id: 'content-stale-copyright',
   name: 'Stale Copyright Year',
-  description: 'Checks the footer copyright year against the current year',
+  description: 'Warns when the copyright year in the footer has not been updated',
   category: 'content',
   weight: 2,
   run: (context: AuditContext) => {

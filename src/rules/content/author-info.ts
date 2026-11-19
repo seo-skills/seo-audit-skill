@@ -104,7 +104,7 @@ export const authorInfoRule = defineRule({
         `Author information found (${signals.length} signal${signals.length > 1 ? 's' : ''})`,
         {
           signals,
-          impact: 'Author attribution supports E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness)',
+          impact: 'A named author is one of the clearest E-E-A-T signals a page can give',
         }
       );
     }

@@ -202,7 +202,7 @@ export const brokenHtmlRule = defineRule({
           ...details,
           impact: 'Minor HTML issues may affect accessibility or cause subtle rendering problems',
           recommendation:
-            'Review and fix the identified issues. Modern browsers are forgiving, but search engine parsers may not be.',
+            'Fix the markup errors listed. A browser often repairs broken HTML silently; a crawler reading the raw source may not.',
         }
       );
     }

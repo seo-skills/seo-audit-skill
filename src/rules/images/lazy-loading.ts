@@ -57,7 +57,7 @@ export const lazyLoadingRule = defineRule({
           images: notLazyLoaded.slice(0, 10).map((img) => ({
             src: img.src,
           })),
-          suggestion: 'Add loading="lazy" to images below the fold to improve initial page load performance',
+          suggestion: 'Set loading="lazy" on images outside the first screen so they load only when scrolled to',
         }
       );
     }

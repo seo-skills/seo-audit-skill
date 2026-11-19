@@ -17,7 +17,7 @@ interface UnlabeledInput {
 /**
  * Rule: Form Labels
  *
- * Checks that form inputs have associated labels via:
+ * Checks that each form control gets its name from one of:
  * - <label for="id"> element
  * - Wrapping <label> element
  * - aria-label attribute
@@ -28,7 +28,7 @@ interface UnlabeledInput {
 export const formLabelsRule = defineRule({
   id: 'a11y-form-labels',
   name: 'Form Labels',
-  description: 'Checks that form inputs have associated labels',
+  description: 'Checks that each form control is named by a label, not by placeholder text alone',
   category: 'a11y',
   weight: 10,
   run: (context: AuditContext) => {

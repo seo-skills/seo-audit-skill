@@ -509,16 +509,16 @@ Validates HTTPS, security headers, mixed content, SSL, and leaked secrets.
 | `security-x-frame-options` | X-Frame-Options | 5 | warn/fail | Checks X-Frame-Options header |
 | `security-x-content-type-options` | X-Content-Type-Options | 4 | fail | Checks X-Content-Type-Options: nosniff |
 | `security-external-links` | External Link Security | 3 | warn | Checks target="_blank" has noopener/noreferrer |
-| `security-form-https` | Form HTTPS | 5 | warn/fail | Checks form actions use HTTPS |
-| `security-mixed-content` | Mixed Content | 8 | warn/fail | Checks for HTTP resources on HTTPS pages |
+| `security-form-https` | Form HTTPS | 5 | warn/fail | Flags forms that submit to an insecure http:// URL |
+| `security-mixed-content` | Mixed Content | 8 | warn/fail | Flags http:// subresources loaded by an HTTPS page |
 | `security-permissions-policy` | Permissions-Policy | 2 | warn | Checks for Permissions-Policy header |
-| `security-referrer-policy` | Referrer-Policy | 2 | warn | Checks for Referrer-Policy header |
+| `security-referrer-policy` | Referrer-Policy | 2 | warn | Checks that a Referrer-Policy is set by header or meta tag |
 | `security-coop` | Cross-Origin-Opener-Policy | 3 | warn | Isolates the page from windows that open it |
 | `security-csp-xss` | CSP Strength Against XSS | 6 | warn/fail | Grades whether the CSP actually constrains script execution |
 | `security-info-disclosure` | Software Version Disclosure | 3 | warn | Headers do not advertise server software and version |
 | `security-paste-blocking` | Inputs Allow Pasting | 2 | fail | Input fields do not prevent pasting |
 | `security-trusted-types` | Trusted Types | 2 | warn | CSP requires Trusted Types for DOM XSS sinks |
-| `security-leaked-secrets` | Leaked Secrets | 10 | fail | Detects exposed API keys, credentials in HTML/JS |
+| `security-leaked-secrets` | Leaked Secrets | 10 | fail | Scans HTML and inline scripts for API keys, tokens and passwords left in public view |
 | `security-password-http` | Password Input on HTTP | 10 | fail | Detects password fields on non-HTTPS pages |
 | `security-protocol-relative` | Protocol-Relative URLs | 6 | warn | Detects `//example.com` URLs |
 | `security-cookie-flags` | Cookie Security Flags | 10 | warn/fail | Checks Set-Cookie for Secure, HttpOnly and SameSite |
@@ -731,7 +731,7 @@ The cross-page rules (`crawl-sitemap-orphan-urls`, `crawl-pagination-isolated`, 
 
 #### crawl-indexability-conflict
 - **What it checks:** The page against Googlebot's group in robots.txt (the `*` group when no group names Googlebot). A disallowed page warns either way: with noindex, Googlebot never fetches the page to read the directive; without it, the URL can still be indexed from links. Noindex comes from the `robots` or `googlebot` meta tag or the X-Robots-Tag header. Passes when no robots.txt can be read
-- **Fix:** To keep a page out of the index, allow it in robots.txt and add noindex. A Disallow on its own still warns.
+- **Fix:** To keep a page out of the index, let crawlers fetch it and serve noindex; a robots.txt Disallow by itself still warns.
 
 #### crawl-canonical-redirect
 - **Fix:** Update canonical to point directly to the final destination URL. Avoid redirect chains.
@@ -934,7 +934,7 @@ Analyzes text quality, readability, headings, and duplicate content.
 - **Fix:** Use shorter sentences, simpler vocabulary, bullet points.
 
 #### content-keyword-stuffing
-- **Fix:** Write naturally for users. Use synonyms and related terms instead of repeating keywords.
+- **Fix:** Write for the reader and vary the wording rather than repeating one keyword.
 
 #### content-heading-hierarchy
 - **Valid:** H1 -> H2 -> H3. **Invalid:** H1 -> H3 (skips H2).
@@ -1071,7 +1071,7 @@ Checks for WCAG compliance, screen reader support, and keyboard navigation.
 |---------|------|-------:|----------|-------------|
 | `a11y-aria-labels` | ARIA Labels | 10 | warn/fail | Interactive elements have accessible names |
 | `a11y-color-contrast` | Color Contrast | 8 | warn/fail | With `--cwv`, axe-core's measured contrast (serious violations fail). Without, a heuristic check of inline-style colours that warns; not measured when no element has an inline colour |
-| `a11y-focus-visible` | Focus Visible | 8 | warn/fail | Checks for focus indicator styles |
+| `a11y-focus-visible` | Focus Visible | 8 | warn/fail | Flags CSS that removes or hides the keyboard focus outline |
 | `a11y-form-labels` | Form Labels | 10 | warn/fail | Form inputs have associated labels |
 | `a11y-heading-order` | Heading Order | 8 | warn/fail | Heading levels don't skip |
 | `a11y-landmark-regions` | Landmark Regions | 6 | warn | Page has main, nav, header and footer landmarks; several `<main>` elements or unlabelled `<nav>`s also warn |
@@ -1158,7 +1158,7 @@ Checks for WCAG compliance, screen reader support, and keyboard navigation.
 - **Fix:** Add `<track kind="captions">` to video elements or provide a transcript link nearby.
 
 #### a11y-zoom-disabled
-- **Fix:** Remove `user-scalable=no` and `maximum-scale=1` from the viewport meta tag.
+- **Fix:** Let users zoom: take `user-scalable=no` and `maximum-scale=1` out of the viewport meta tag.
 
 #### a11y-aria-hidden-focusable
 - **Fix:** Add `tabindex="-1"` to focusable descendants, or use `display:none`/`hidden` instead.
@@ -1623,7 +1623,7 @@ Validates HTML document structure, DOCTYPE, charset, and common markup issues.
 - **Fix:** Add `<!DOCTYPE html>` as the first line of every HTML document.
 
 #### htmlval-missing-charset
-- **Fix:** Add `<meta charset="utf-8">` as the first element in `<head>`.
+- **Fix:** Put `<meta charset="utf-8">` at the very top of `<head>`.
 
 #### htmlval-invalid-head
 - **What it checks:** Start tags in the served source between `<head>` and `</head>` (or `<body>`), leaving out comments and the content of script, style, template and `<noscript>`. Body elements such as `div`, `span`, `p`, `img`, `a`, `form`, `table`, lists and `h2` to `h6` warn. The rule reads the source because the parsed DOM has already moved these elements into `<body>`.
@@ -1752,7 +1752,7 @@ disable = ["core-*", "security-*", "js-*"]
 
 List every pattern in one array. A TOML table holds each key once, so a second `disable =` line is a parse error and the audit exits 2.
 
-### Enable Only Specific Categories
+### Run a Subset of Categories
 ```toml
 [rules]
 enable = ["core-*", "perf-*", "links-*"]

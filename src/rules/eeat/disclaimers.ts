@@ -57,7 +57,7 @@ const DISCLAIMER_SELECTORS = [
 ];
 
 /**
- * Checks for appropriate disclaimers on sensitive content
+ * Checks that YMYL content, such as health or finance advice, carries a disclaimer
  *
  * YMYL (Your Money Your Life) content should include appropriate
  * disclaimers to protect both users and publishers.
@@ -65,7 +65,7 @@ const DISCLAIMER_SELECTORS = [
 export const disclaimersRule = defineRule({
   id: 'eeat-disclaimers',
   name: 'Disclaimers',
-  description: 'Checks for appropriate disclaimers on sensitive content',
+  description: 'Checks that YMYL content, such as health or finance advice, carries a disclaimer',
   category: 'eeat',
   weight: 4,
 

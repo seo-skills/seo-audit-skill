@@ -13,7 +13,7 @@ import { defineRule, pass, warn } from '../define-rule.js';
 export const authorBylineRule = defineRule({
   id: 'eeat-author-byline',
   name: 'Author Bylines',
-  description: 'Checks for visible author names on content pages',
+  description: 'Checks that articles name the person who wrote them',
   category: 'eeat',
   weight: 8,
   run: async (context: AuditContext) => {
@@ -104,7 +104,7 @@ export const authorBylineRule = defineRule({
         `Author byline found (${signals.length} signal${signals.length > 1 ? 's' : ''})`,
         {
           signals,
-          impact: 'Author attribution supports E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness)',
+          impact: 'A named author is one of the clearest E-E-A-T signals a page can give',
         }
       );
     }

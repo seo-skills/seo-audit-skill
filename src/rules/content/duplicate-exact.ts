@@ -60,7 +60,7 @@ export const duplicateExactRule = defineRule({
           duplicateOf: others[0],
           duplicateUrls: listed.urls,
           duplicateCount: listed.total,
-          impact: 'Exact duplicate content confuses search engines about which page to rank and dilutes link equity',
+          impact: 'Identical pages compete for the same queries and split the links that point at them',
           recommendation:
             'Consolidate duplicate pages using canonical tags, 301 redirects, or by removing the duplicate. Ensure each URL serves unique content.',
         }

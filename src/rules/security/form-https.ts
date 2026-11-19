@@ -15,13 +15,13 @@ interface InsecureForm {
 /**
  * Rule: Form HTTPS
  *
- * Checks that form actions use HTTPS to protect submitted data.
+ * Flags forms that submit to an insecure http:// URL, where the data travels unencrypted.
  * POST forms with HTTP actions are critical security issues.
  */
 export const formHttpsRule = defineRule({
   id: 'security-form-https',
   name: 'Form HTTPS',
-  description: 'Checks that form actions use HTTPS',
+  description: 'Flags forms that submit to an insecure http:// URL',
   category: 'security',
   weight: 5,
   run: (context: AuditContext) => {

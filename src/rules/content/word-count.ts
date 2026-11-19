@@ -19,7 +19,7 @@ const OPTIMAL_MAX = 2500;
 export const wordCountRule = defineRule({
   id: 'content-word-count',
   name: 'Word Count',
-  description: 'Checks content length for thin content issues',
+  description: 'Counts the words in the main content and flags thin pages',
   category: 'content',
   weight: 4,
   run: async (context: AuditContext) => {

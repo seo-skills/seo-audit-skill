@@ -83,13 +83,13 @@ function maskSecret(value: string): string {
 /**
  * Rule: Leaked Secrets
  *
- * Detects exposed API keys, credentials, and secrets in HTML and inline JavaScript.
+ * Scans HTML and inline JavaScript for API keys, tokens and passwords left in public view.
  * This is a critical security issue that requires immediate action.
  */
 export const leakedSecretsRule = defineRule({
   id: 'security-leaked-secrets',
   name: 'Leaked Secrets',
-  description: 'Detects exposed API keys, credentials, and secrets in HTML/JS',
+  description: 'Scans HTML and inline scripts for API keys, tokens and passwords left in public view',
   category: 'security',
   weight: 10,
   run: (context: AuditContext) => {

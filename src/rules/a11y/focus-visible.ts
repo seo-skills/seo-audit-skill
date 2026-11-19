@@ -16,7 +16,7 @@ import type { Element } from 'domhandler';
 export const focusVisibleRule = defineRule({
   id: 'a11y-focus-visible',
   name: 'Focus Visible',
-  description: 'Checks for focus indicator styles',
+  description: 'Flags CSS that removes or hides the keyboard focus outline',
   category: 'a11y',
   weight: 8,
   run: (context: AuditContext) => {

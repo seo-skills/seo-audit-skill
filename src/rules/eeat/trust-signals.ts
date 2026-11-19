@@ -135,7 +135,7 @@ const TRUST_BADGES = {
 };
 
 /**
- * Checks for trust badges, certifications, and social proof
+ * Looks for reviews, certifications, security badges and press mentions
  *
  * Trust signals like reviews, certifications, media mentions,
  * and security badges help establish credibility and authority.
@@ -143,7 +143,7 @@ const TRUST_BADGES = {
 export const trustSignalsRule = defineRule({
   id: 'eeat-trust-signals',
   name: 'Trust Signals',
-  description: 'Checks for trust badges, certifications, and social proof',
+  description: 'Looks for reviews, certifications, security badges and press mentions',
   category: 'eeat',
   weight: 6,
 

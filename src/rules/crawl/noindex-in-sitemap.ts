@@ -113,7 +113,7 @@ function isSitemapIndex(content: string): boolean {
 export const noindexInSitemapRule = defineRule({
   id: 'crawl-noindex-in-sitemap',
   name: 'Noindex in Sitemap',
-  description: 'Checks for noindexed pages listed in sitemap',
+  description: 'Flags a noindex page that the sitemap still lists',
   category: 'crawl',
   weight: 15,
   run: async (context: AuditContext) => {

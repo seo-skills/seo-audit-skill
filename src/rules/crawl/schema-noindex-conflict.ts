@@ -91,14 +91,14 @@ function extractSchemaTypes($: AuditContext['$']): string[] {
 /**
  * Rule: Schema + Noindex Conflict
  *
- * Detects pages with rich result schema that are blocked from indexing.
+ * Flags pages that carry rich-result markup but are set to noindex.
  * Having schema markup on noindexed pages wastes markup effort and
  * prevents rich results from being displayed.
  */
 export const schemaNoindexConflictRule = defineRule({
   id: 'crawl-schema-noindex-conflict',
   name: 'Schema + Noindex Conflict',
-  description: 'Detects pages with rich result schema that are blocked from indexing',
+  description: 'Flags pages that carry rich-result markup but are set to noindex',
   category: 'crawl',
   weight: 15,
   run: async (context: AuditContext) => {

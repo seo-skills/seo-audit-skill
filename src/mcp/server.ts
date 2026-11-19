@@ -278,7 +278,7 @@ export function createMcpServer(options: McpServerOptions): McpServer {
           return failure({ code: 'usage', message: `Not a valid URL: ${url}`, hint: 'Pass an absolute http(s) URL.' });
         }
         if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-          return failure({ code: 'usage', message: `Only http and https URLs can be audited, got ${parsed.protocol}` });
+          return failure({ code: 'usage', message: `Cannot audit a ${parsed.protocol} URL: only http and https are supported` });
         }
 
         if (render && !options.allowPrivate) {

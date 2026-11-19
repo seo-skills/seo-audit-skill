@@ -4,13 +4,13 @@ import { defineRule, pass, warn } from '../define-rule.js';
 /**
  * Rule: Detect nosnippet directive that blocks search engine snippets
  *
- * The nosnippet directive prevents search engines from showing descriptions
- * in search results, which severely harms click-through rates.
+ * With nosnippet, a result shows only its title and URL. With no text under
+ * the title, searchers have little reason to pick it, so clicks drop.
  */
 export const nosnippetRule = defineRule({
   id: 'core-nosnippet',
   name: 'Nosnippet Directive',
-  description: 'Detects pages preventing search engine snippets',
+  description: 'Flags pages whose robots directives forbid a search result snippet',
   category: 'core',
   weight: 7,
   run: async (context: AuditContext) => {
@@ -75,7 +75,7 @@ export const nosnippetRule = defineRule({
         {
           issues,
           directives,
-          impact: 'Prevents search engines from showing descriptions in search results, severely harming click-through rates',
+          impact: 'The result shows no text summary under its title, which usually costs clicks',
           recommendation: 'Remove nosnippet directive unless specifically needed for sensitive content (login, legal pages)',
         }
       );

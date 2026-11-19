@@ -5,7 +5,7 @@ import { DOCUMENT_TITLE } from '../document-title.js';
 /**
  * Rule: Detect meta tags incorrectly placed in document body
  *
- * Meta tags in the body are ignored by browsers and search engines.
+ * A <meta> element only takes effect inside <head>; in <body> nothing reads it.
  * This is often caused by incorrect HTML structure or dynamic rendering issues.
  *
  * Critical issue - returns fail status.
@@ -13,7 +13,7 @@ import { DOCUMENT_TITLE } from '../document-title.js';
 export const metaInBodyRule = defineRule({
   id: 'content-meta-in-body',
   name: 'Meta Tags in Body',
-  description: 'Detects meta tags incorrectly placed in document body',
+  description: 'Flags <meta> elements placed in <body>, where they have no effect',
   category: 'content',
   weight: 8,
   run: async (context: AuditContext) => {
@@ -71,7 +71,7 @@ export const metaInBodyRule = defineRule({
         {
           issues,
           impact:
-            'Meta tags in the body are ignored by browsers and search engines, causing SEO signals to be lost',
+            'A <meta> element only takes effect inside <head>, so these signals are lost',
           recommendation:
             'Move all meta tags, title, and canonical link to the <head> section. Check for HTML template errors or dynamic rendering issues.',
         }

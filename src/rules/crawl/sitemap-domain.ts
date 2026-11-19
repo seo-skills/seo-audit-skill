@@ -82,7 +82,7 @@ function isSitemapIndex(content: string): boolean {
 export const sitemapDomainRule = defineRule({
   id: 'crawl-sitemap-domain',
   name: 'Sitemap Domain Validation',
-  description: 'Checks that all sitemap URLs belong to the expected domain',
+  description: 'Flags sitemap entries whose host differs from the audited site',
   category: 'crawl',
   weight: 15,
   run: async (context: AuditContext) => {

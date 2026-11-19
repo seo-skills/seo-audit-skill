@@ -13,7 +13,7 @@ interface ScrollIssue {
 /**
  * Rule: Horizontal Scroll
  *
- * Identifies elements that may cause horizontal scrolling on mobile devices.
+ * Finds elements likely to overflow a phone screen sideways.
  * Horizontal scrolling degrades UX and fails Google's mobile-friendly test.
  *
  * Detects:
@@ -27,7 +27,7 @@ interface ScrollIssue {
 export const horizontalScrollRule = defineRule({
   id: 'mobile-horizontal-scroll',
   name: 'Horizontal Scroll',
-  description: 'Checks for elements that may cause horizontal scrolling on mobile',
+  description: 'Flags elements likely to overflow a phone screen sideways',
   category: 'mobile',
   weight: 15,
   run: (context: AuditContext) => {
@@ -221,7 +221,7 @@ export const horizontalScrollRule = defineRule({
     if (criticalCount >= 3 || issues.length >= 5) {
       return fail(
         'mobile-horizontal-scroll',
-        `Found ${issues.length} element(s) that may cause horizontal scrolling`,
+        `${issues.length} element(s) may overflow the screen sideways`,
         {
           issues: issues.slice(0, 10),
           totalIssues: issues.length,

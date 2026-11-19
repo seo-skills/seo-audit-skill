@@ -103,7 +103,7 @@ export const duplicateNearRule = defineRule({
         `Near-duplicate content detected: ${Math.round(highest.similarity * 100)}% similar to ${highest.url}`,
         {
           ...details,
-          impact: 'Near-duplicate pages cause keyword cannibalization and confuse search engines about which page to rank',
+          impact: 'Near-duplicate pages compete for the same queries, and a search engine may rank a different one than you intend',
           recommendation:
             'Consolidate similar pages, differentiate their content significantly, or use canonical tags to indicate the preferred version.',
         }

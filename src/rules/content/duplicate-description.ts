@@ -19,7 +19,7 @@ import {
 export const duplicateDescriptionRule = defineRule({
   id: 'content-duplicate-description',
   name: 'Duplicate Description',
-  description: 'Checks for duplicate meta descriptions across the site',
+  description: 'Checks whether another crawled page uses the same meta description',
   category: 'content',
   weight: 5,
   options: ELIGIBILITY_RULE_OPTIONS,
@@ -70,7 +70,7 @@ export const duplicateDescriptionRule = defineRule({
           duplicateUrls: listed.urls,
           duplicateCount: listed.total,
           impact:
-            'Duplicate descriptions confuse search engines about which page to display. They also reduce click-through rates by not differentiating pages.',
+            'Pages that share a description show the same summary in search results, so a searcher cannot tell them apart.',
           recommendation:
             'Create unique, descriptive meta descriptions for each page that accurately summarize the specific content',
         }

@@ -134,7 +134,7 @@ export const canonicalRedirectRule = defineRule({
       if (severity === 'fail') {
         return fail('crawl-canonical-redirect', message, {
           ...details,
-          impact: 'Redirect chains waste crawl budget and dilute link equity',
+          impact: 'A canonical that redirects sends crawlers through extra hops before the URL you want indexed',
           recommendation: `Update canonical to point directly to ${redirectInfo.finalUrl}`,
         });
       }

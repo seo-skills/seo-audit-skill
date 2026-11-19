@@ -10,13 +10,13 @@ const OFFER_REQUIRED = ['price', 'priceCurrency', 'availability'];
 /**
  * Rule: Product Schema
  *
- * Validates Product schema for e-commerce rich results.
+ * Checks Product markup for the fields shopping rich results need.
  * Checks for required fields and proper offers structure.
  */
 export const structuredDataProductRule = defineRule({
   id: 'schema-product',
   name: 'Product Schema',
-  description: 'Validates Product schema for e-commerce rich results',
+  description: 'Checks Product markup for the fields shopping rich results need',
   category: 'schema',
   weight: 12,
   run: (context: AuditContext) => {

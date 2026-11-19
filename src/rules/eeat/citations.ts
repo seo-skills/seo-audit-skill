@@ -67,7 +67,7 @@ const CITATION_SELECTORS = [
 ];
 
 /**
- * Checks for citations to authoritative external sources
+ * Checks whether the content links out to authoritative sources for its claims
  *
  * Quality content often cites authoritative sources to back up claims.
  * This is especially important for YMYL content.
@@ -92,7 +92,7 @@ function siteOf(hostname: string): string {
 export const citationsRule = defineRule({
   id: 'eeat-citations',
   name: 'Citations',
-  description: 'Checks for citations to authoritative external sources',
+  description: 'Checks whether the content links out to authoritative sources for its claims',
   category: 'eeat',
   weight: 6,
 

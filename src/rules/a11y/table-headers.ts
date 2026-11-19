@@ -26,7 +26,7 @@ interface TableIssue {
 export const tableHeadersRule = defineRule({
   id: 'a11y-table-headers',
   name: 'Table Headers',
-  description: 'Checks that data tables have proper headers',
+  description: 'Checks that data tables mark their header cells with <th> and a scope',
   category: 'a11y',
   weight: 6,
   run: (context: AuditContext) => {

@@ -11,7 +11,7 @@ import { defineRule, pass, warn, fail } from '../define-rule.js';
 export const mainLandmarkRule = defineRule({
   id: 'a11y-main-landmark',
   name: 'Main Landmark',
-  description: 'Checks that the page has exactly one <main> or role="main" landmark',
+  description: 'Checks for a single <main> (or role="main") landmark, no more and no fewer',
   category: 'a11y',
   weight: 5,
   run: (context: AuditContext) => {

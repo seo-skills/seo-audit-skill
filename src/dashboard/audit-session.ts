@@ -249,7 +249,7 @@ export function normalizeRunArgs(args: AuditRunArgs, capabilities: Capabilities)
     throw new Error(`Not a valid URL: ${args.url}`);
   }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new Error(`Only http and https URLs can be audited, got ${parsed.protocol}`);
+    throw new Error(`Cannot audit a ${parsed.protocol} URL: only http and https are supported`);
   }
 
   const known = new Set(categoryDefinitions.map((c) => c.id));

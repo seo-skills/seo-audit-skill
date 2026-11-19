@@ -45,7 +45,7 @@ const SOCIAL_PATTERNS = {
 export const authorExpertiseRule = defineRule({
   id: 'eeat-author-expertise',
   name: 'Author Expertise',
-  description: 'Checks for author credentials and expertise indicators',
+  description: 'Looks for author credentials, bios and profile links that show expertise',
   category: 'eeat',
   weight: 8,
 

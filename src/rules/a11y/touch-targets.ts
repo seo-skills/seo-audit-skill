@@ -12,7 +12,7 @@ interface SmallTarget {
 /**
  * Rule: Touch Targets
  *
- * Checks for minimum touch target sizing hints in CSS, against 44x44 CSS
+ * Looks for CSS signs that tap targets are smaller than the 44x44 CSS
  * pixels: WCAG 2.5.5 Target Size (Enhanced, Level AAA), and Apple's and
  * Google's touch guidance. The Level AA minimum, 2.5.8, is 24x24.
  *
@@ -27,7 +27,7 @@ interface SmallTarget {
 export const touchTargetsRule = defineRule({
   id: 'a11y-touch-targets',
   name: 'Touch Targets',
-  description: 'Checks for minimum touch target sizing hints',
+  description: 'Looks for CSS signs that tap targets are smaller than touch guidelines allow',
   category: 'a11y',
   weight: 6,
   run: (context: AuditContext) => {

@@ -141,7 +141,7 @@ export const paginationCanonicalRule = defineRule({
         `Paginated page ${paginationInfo.pageNumber} canonicalizes to page 1 (incorrect)`,
         {
           ...details,
-          issue: 'Paginated pages should NOT all canonicalize to page 1',
+          issue: 'Page 2 and later canonicalize to page 1, so search engines may drop them and miss the items they list',
           recommendation: 'Each paginated page should have a self-referencing canonical',
         }
       );

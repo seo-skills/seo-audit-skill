@@ -56,7 +56,7 @@ const EDITORIAL_SIGNALS = {
 };
 
 /**
- * Checks for editorial and content policy pages
+ * Looks for a published editorial policy or content guidelines page
  *
  * Editorial policies demonstrate commitment to content quality
  * and fact-checking, which are important E-E-A-T signals,
@@ -65,7 +65,7 @@ const EDITORIAL_SIGNALS = {
 export const editorialPolicyRule = defineRule({
   id: 'eeat-editorial-policy',
   name: 'Editorial Policy',
-  description: 'Checks for editorial and content policy pages',
+  description: 'Looks for a published editorial policy or content guidelines page',
   category: 'eeat',
   weight: 4,
 

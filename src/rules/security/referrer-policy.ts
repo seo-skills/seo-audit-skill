@@ -24,13 +24,13 @@ const RECOMMENDED_POLICIES = [
 /**
  * Rule: Referrer-Policy
  *
- * Checks for Referrer-Policy header or meta tag.
+ * Checks that a Referrer-Policy is set by header or meta tag.
  * Controls how much referrer information is passed to other sites.
  */
 export const referrerPolicyRule = defineRule({
   id: 'security-referrer-policy',
   name: 'Referrer-Policy',
-  description: 'Checks for Referrer-Policy header',
+  description: 'Checks that a Referrer-Policy is set by header or meta tag',
   category: 'security',
   weight: 2,
   run: (context: AuditContext) => {

@@ -41,7 +41,7 @@ const ADDRESS_SELECTORS = [
 ];
 
 /**
- * Checks for visible physical address information
+ * Looks for a street address in the page text or its schema
  *
  * A physical address builds trust by showing the business has
  * a real-world presence. This is especially important for
@@ -50,7 +50,7 @@ const ADDRESS_SELECTORS = [
 export const physicalAddressRule = defineRule({
   id: 'eeat-physical-address',
   name: 'Physical Address',
-  description: 'Checks for visible physical address information',
+  description: 'Looks for a street address in the page text or its schema',
   category: 'eeat',
   weight: 6,
 

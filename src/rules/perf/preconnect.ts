@@ -139,7 +139,7 @@ function analyzePreconnects($: AuditContext['$'], pageUrl: string): PreconnectAn
 export const preconnectRule = defineRule({
   id: 'perf-preconnect',
   name: 'Preconnect Hints',
-  description: 'Checks for preconnect hints to critical third-party origins',
+  description: 'Checks that key third-party hosts, such as font, analytics and CDN origins, get a preconnect hint',
   category: 'perf',
   weight: 15,
   run: (context: AuditContext) => {

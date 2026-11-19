@@ -13,7 +13,7 @@ interface VideoIssue {
 /**
  * Rule: Video Captions
  *
- * Checks that videos have captions or transcripts for deaf/hard of hearing users.
+ * Checks that each video offers a caption track or a transcript for deaf/hard of hearing users.
  *
  * Valid caption sources:
  * - <track kind="captions"> element
@@ -29,7 +29,7 @@ interface VideoIssue {
 export const videoCaptionsRule = defineRule({
   id: 'a11y-video-captions',
   name: 'Video Captions',
-  description: 'Checks that videos have captions or transcripts',
+  description: 'Checks that each video offers a caption track or a transcript',
   category: 'a11y',
   weight: 8,
   run: (context: AuditContext) => {

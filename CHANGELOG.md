@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Rule text is now written in our own words throughout.** 42 rule
+  descriptions, a set of fix and impact messages, and the opening, examples
+  and troubleshooting sections of `SKILL.md` had matched wording from another
+  audit tool's public docs and agent skill, taken in January 2026. All of it
+  is rewritten, and a re-scan finds no shared sentence left. Rule IDs, checks and
+  scoring are unchanged; only the wording you read differs.
+- The error for a non-http(s) URL in `seomator mcp` and the dashboard now
+  reads "Cannot audit a file: URL: only http and https are supported".
+
 ## [8.0.0] - 2026-11-19
 
 Upgrading from 7.x: see [docs/upgrading-to-8.md](docs/upgrading-to-8.md) for

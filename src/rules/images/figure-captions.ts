@@ -7,7 +7,7 @@ import { defineRule, pass, warn } from '../define-rule.js';
 export const figureCaptionsRule = defineRule({
   id: 'images-figure-captions',
   name: 'Figure Captions',
-  description: 'Checks for proper use of figure and figcaption elements',
+  description: 'Checks that <figure> blocks pair their media with a <figcaption>',
   category: 'images',
   weight: 5,
   run: (context: AuditContext) => {

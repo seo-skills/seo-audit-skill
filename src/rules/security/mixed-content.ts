@@ -23,7 +23,7 @@ const ACTIVE_TYPES: MixedContentType[] = ['script', 'stylesheet', 'iframe', 'obj
 export const mixedContentRule = defineRule({
   id: 'security-mixed-content',
   name: 'Mixed Content',
-  description: 'Checks for HTTP resources on HTTPS pages',
+  description: 'Flags http:// subresources loaded by an HTTPS page',
   category: 'security',
   weight: 8,
   run: (context: AuditContext) => {

@@ -126,7 +126,7 @@ export function detectYMYL($: CheerioAPI): YMYLDetectionResult {
 export const ymylDetectionRule = defineRule({
   id: 'eeat-ymyl-detection',
   name: 'YMYL Detection',
-  description: 'Detects Your Money Your Life (YMYL) content',
+  description: 'Tells whether a page covers YMYL topics such as health, finance, law or safety',
   category: 'eeat',
   weight: 5,
 

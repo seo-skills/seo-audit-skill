@@ -1,6 +1,6 @@
 ---
 name: seo-audit
-description: Audit websites for SEO, technical, content, security, JS rendering, and AI readiness using SEOmator CLI. Returns LLM-optimized reports with health scores across 398 rules and 20 categories, and can diff two audits to show what a deploy changed. Use when analyzing websites, debugging SEO issues, checking site health, or comparing a site before and after a change.
+description: Run the SEOmator CLI on a site and score it against 398 rules across 20 categories (SEO, technical, content, security, JS rendering, AI readiness), with reports an LLM can act on. It can also diff two audits to show what a deploy changed. Reach for it to find out why a site underperforms in search, to review a site's health, or to check a release before and after.
 license: MIT
 compatibility: Requires Node.js 20.18.1+ and npm. Chrome/Chromium optional for Core Web Vitals and JS rendering.
 metadata:
@@ -11,11 +11,7 @@ allowed-tools: Bash(seomator:*)
 
 # SEO Audit Skill
 
-Audit websites for SEO, technical, content, performance, security, JavaScript rendering, and AI readiness using the SEOmator CLI.
-
-SEOmator provides comprehensive website auditing by analyzing website structure and content against **398 rules** across **20 categories**.
-
-It provides a list of issues with severity levels, affected URLs, and actionable fix suggestions.
+SEOmator is a command-line auditor. Point it at a URL and it fetches the page (or crawls the site), checks it against **398 rules** across **20 categories**, and prints every problem it finds with a severity, the URLs involved, and a fix.
 
 ## Links
 
@@ -23,9 +19,9 @@ It provides a list of issues with severity levels, affected URLs, and actionable
 * GitHub repository: [github.com/seo-skills/seo-audit-skill](https://github.com/seo-skills/seo-audit-skill)
 * Web UI: [seomator.com/free-seo-audit-tool](https://seomator.com/free-seo-audit-tool)
 
-## What This Skill Does
+## Coverage
 
-This skill enables AI agents to audit websites for **398 rules** in **20 categories**, including:
+The CLI runs **398 rules** in **20 categories**:
 
 - **Core SEO** (27 rules): Canonical URLs, indexing directives, title uniqueness, canonical conflicts/loops
 - **Performance** (30 rules): LCP, CLS, FCP, TTFB, INP, compression, caching, minification, HTTP/2
@@ -48,16 +44,16 @@ This skill enables AI agents to audit websites for **398 rules** in **20 categor
 - **AI/GEO Readiness** (13 rules): Semantic HTML, AI bot access, llms.txt, schema drift
 - **Legal Compliance** (1 rule): Cookie consent
 
-The audit crawls the website, analyzes each page against audit rules, and returns a comprehensive report with:
-- Overall health score (0-100) with letter grade (A-F)
-- Category breakdowns with pass/warn/fail counts
-- Specific issues with affected URLs grouped by rule
-- Actionable fix recommendations
+A report contains:
+- A score out of 100 and a letter grade (A-F) for the whole site
+- Pass, warn and fail counts for each category
+- Every issue, grouped by rule, with the URLs it affects
+- A concrete fix for each issue
 
-## When to Use
+## Typical Requests
 
-Use this skill when you need to:
-- Analyze a website's SEO health
+Load this skill for requests such as:
+- A general SEO health check of a site
 - Debug technical SEO issues
 - Check for broken links and redirect chains
 - Validate meta tags, canonical URLs, and structured data
@@ -139,13 +135,12 @@ When auditing:
 
 ### Website Discovery
 
-If the user doesn't provide a website to audit:
-1. Check for local dev server configurations (package.json scripts, .env files)
-2. Look for Vercel/Netlify project links
-3. Check environment variables for deployment URLs
-4. Ask the user which URL to audit
+No URL in the request? Work one out before asking:
+1. Read the project for a deployed address: `package.json` homepage, `.env` files, hosting config
+2. Read the project for a dev server: the `dev` or `start` script and its port
+3. Only then ask which URL to audit
 
-If you have both local and live websites available, **suggest auditing the live site** for accurate results.
+When both a deployed site and a local dev server exist, **prefer the deployed site**: only there do real headers, redirects, CDN caching and TLS show up.
 
 ### Basic Workflow
 
@@ -231,9 +226,9 @@ refused), `playwright-missing`, `no-pages`, `config`, `aborted` or `unknown`.
 
 ## Command Reference
 
-### Audit Command Options
+### `audit` Flags
 
-| Option | Alias | Description | Default |
+| Flag | Short | What it does | Default |
 |--------|-------|-------------|---------|
 | `--format <fmt>` | `-f` | Output format: console, json, html, markdown, llm | console |
 | `--max-pages <n>` | `-m` | Maximum pages to crawl | 10 |
@@ -314,24 +309,24 @@ The `--format llm` output is a compact XML format optimized for token efficiency
 
 ## Examples
 
-### Example 1: Quick Audit with LLM Output
+### Example 1: One page, report for the agent
 
 ```bash
-# User asks: "Check example.com for SEO issues"
+# Request: "Any SEO problems on example.com?"
 seomator audit https://example.com --format llm
 ```
 
-### Example 2: Deep Crawl for Large Site
+### Example 2: Crawl up to 100 pages
 
 ```bash
-# User asks: "Do a thorough audit with up to 100 pages"
+# Request: "Go through the whole site, up to 100 pages"
 seomator audit https://example.com --crawl -m 100 --format llm
 ```
 
-### Example 3: Fresh Audit After Changes
+### Example 3: Re-check after a deploy
 
 ```bash
-# User asks: "Re-audit the site, ignore cached results"
+# Request: "Run it again and re-check every external link"
 # Pages are always fetched fresh. External link answers are kept in a link
 # cache for 7 days by default; --refresh checks every external link again.
 seomator audit https://example.com --format llm --refresh
@@ -488,19 +483,15 @@ nor against the site — you cannot score what you did not measure. This is why:
 > generated before 3.1.0, re-run the baseline rather than treating the drop as a
 > regression.
 
-## Output Summary
+## Reporting Back
 
-After implementing fixes, give the user a summary of all changes made.
-
-When planning scope, organize tasks so they can run concurrently as sub-agents to speed up implementation.
+Once the fixes are in, tell the user what changed and which issue each change resolves. Independent fixes can be split into separate tasks and handed to sub-agents in parallel.
 
 ## Troubleshooting
 
-### seomator command not found
+### `seomator: command not found`
 
-If you see this error, seomator is not installed or not in your PATH.
-
-**Solution:**
+The CLI is missing, or npm's global bin folder is not on PATH. Install it globally:
 ```bash
 npm install -g @seomator/seo-audit
 ```
@@ -526,7 +517,7 @@ For large sites, audits may take several minutes.
 
 ### Invalid URL
 
-Ensure the URL includes the protocol:
+Pass the full URL, scheme included:
 
 ```bash
 # Wrong
@@ -536,7 +527,7 @@ seomator audit example.com
 seomator audit https://example.com
 ```
 
-## How It Works
+## Pipeline
 
 1. **Fetch**: Downloads the page HTML and measures response time
 2. **Parse**: Extracts DOM, meta tags, links, images, structured data

@@ -106,13 +106,13 @@ Auditing: example.com
 
 ──────────────────────────────────────────────────
 SEOMATOR REPORT
-example.com • 1 page • 87/100 (B)
+example.com • 1 page • 84/100 (B)
 ──────────────────────────────────────────────────
 
-Health Score: 87/100 (B)
+Health Score: 84/100 (B)
 ```
 
-That is your first result: example.com scores 87 out of 100, a B. Your numbers
+That is your first result: example.com scores 84 out of 100, a B. Your numbers
 may differ, because some checks time the page on every run and the page itself
 can change.
 

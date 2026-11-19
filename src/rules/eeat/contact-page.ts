@@ -57,7 +57,7 @@ const CONTACT_METHODS = {
 };
 
 /**
- * Checks for contact page with multiple contact methods
+ * Looks for a contact page that offers more than one way to get in touch
  *
  * A contact page with multiple ways to reach the business builds trust.
  * It shows transparency and accessibility, key E-E-A-T signals.
@@ -65,7 +65,7 @@ const CONTACT_METHODS = {
 export const contactPageRule = defineRule({
   id: 'eeat-contact-page',
   name: 'Contact Page',
-  description: 'Checks for contact page with multiple contact methods',
+  description: 'Looks for a contact page that offers more than one way to get in touch',
   category: 'eeat',
   weight: 8,
 

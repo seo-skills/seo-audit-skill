@@ -13,7 +13,7 @@ const MIN_WORDS_FOR_CHECK = 100; // Skip check for very short content
 /**
  * Rule: Check article link density
  *
- * Articles should have appropriate internal and external links based on length.
+ * Longer articles should link to more related pages, inside and outside the site.
  * Too few links = missed opportunities for internal linking and citations.
  * Too many links = potential link spam or poor user experience.
  */
@@ -38,7 +38,7 @@ export const articleLinksRule = defineRule({
   id: 'content-article-links',
   name: 'Article Link Density',
   description:
-    'Checks that articles have appropriate internal and external links based on length',
+    'Checks that an article links to enough related pages, internal and external, for its length',
   category: 'content',
   weight: 4,
   run: async (context: AuditContext) => {

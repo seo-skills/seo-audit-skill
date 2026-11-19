@@ -11,7 +11,7 @@ import { defineRule, pass, fail } from '../define-rule.js';
 export const inputImageAltRule = defineRule({
   id: 'a11y-input-image-alt',
   name: 'Image Button Alt Text',
-  description: 'Checks that <input type="image"> elements have alt text',
+  description: 'Flags <input type="image"> buttons that have no alt text',
   category: 'a11y',
   weight: 4,
   run: (context: AuditContext) => {

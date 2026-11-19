@@ -40,7 +40,7 @@ const PRIVACY_PATTERNS = {
 };
 
 /**
- * Checks for privacy policy link presence
+ * Looks for a link to a privacy policy
  *
  * A privacy policy is legally required in many jurisdictions (GDPR, CCPA).
  * It should document what data is collected, how it's used, and user rights.
@@ -52,7 +52,7 @@ const PRIVACY_PATTERNS = {
 export const privacyPolicyRule = defineRule({
   id: 'legal-privacy-policy',
   name: 'Privacy Policy',
-  description: 'Checks for privacy policy link presence',
+  description: 'Looks for a link to a privacy policy',
   category: 'legal',
   weight: 20,
 

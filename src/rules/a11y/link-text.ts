@@ -43,7 +43,7 @@ const MIN_LINK_LENGTH = 2;
 /**
  * Rule: Link Text
  *
- * Checks for descriptive link text that makes sense out of context.
+ * Checks that link wording tells the reader where the link goes, even read on its own.
  * Screen reader users often navigate by links alone, so link text
  * should describe the destination.
  *
@@ -56,7 +56,7 @@ const MIN_LINK_LENGTH = 2;
 export const linkTextRule = defineRule({
   id: 'a11y-link-text',
   name: 'Link Text',
-  description: 'Checks for descriptive link text',
+  description: 'Checks that link wording tells the reader where the link goes',
   category: 'a11y',
   weight: 8,
   run: (context: AuditContext) => {

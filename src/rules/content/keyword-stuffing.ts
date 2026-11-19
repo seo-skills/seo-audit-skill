@@ -60,7 +60,7 @@ interface OverusedWord {
 export const keywordStuffingRule = defineRule({
   id: 'content-keyword-stuffing',
   name: 'Keyword Stuffing',
-  description: 'Detects excessive keyword repetition in content',
+  description: 'Flags body text that repeats one term far more than natural writing would',
   category: 'content',
   weight: 5,
   run: async (context: AuditContext) => {

@@ -45,7 +45,7 @@ const TOS_PATTERNS = {
 };
 
 /**
- * Checks for terms of service link presence
+ * Looks for a link to a terms of service page
  *
  * Terms of service define the rules for using a website or service.
  * While not always legally required, they're important for:
@@ -59,7 +59,7 @@ const TOS_PATTERNS = {
 export const termsOfServiceRule = defineRule({
   id: 'legal-terms-of-service',
   name: 'Terms of Service',
-  description: 'Checks for terms of service link presence',
+  description: 'Looks for a link to a terms of service page',
   category: 'legal',
   weight: 15,
 

@@ -17,7 +17,7 @@ import { defineRule, pass, fail } from '../define-rule.js';
 export const zoomDisabledRule = defineRule({
   id: 'a11y-zoom-disabled',
   name: 'Zoom Disabled',
-  description: 'Checks if viewport meta tag disables user zoom',
+  description: 'Flags a viewport setting that stops users from zooming in',
   category: 'a11y',
   weight: 10,
   run: (context: AuditContext) => {

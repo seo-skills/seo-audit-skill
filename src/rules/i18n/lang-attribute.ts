@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { isLanguageTag } from './language-tag.js';
 
 /**
  * Rule: Lang Attribute
@@ -10,8 +11,8 @@ import { defineRule, pass, warn, fail } from '../define-rule.js';
  * - SEO: Helps search engines understand page language
  * - Browser features: Auto-translation, spell-check, hyphenation
  *
- * Valid formats: "en", "en-US", "zh-Hans", "pt-BR"
- * Reference: BCP 47 language tags
+ * Valid formats: "en", "en-US", "zh-Hans", "pt-BR", "es-419", "de-CH-1996", in any case
+ * Reference: BCP 47 language tags (RFC 5646)
  */
 export const langAttributeRule = defineRule({
   id: 'i18n-lang-attribute',
@@ -53,10 +54,7 @@ export const langAttributeRule = defineRule({
       });
     }
 
-    // BCP 47 language tag validation
-    // Primary language (2-3 chars), optional script (4 chars), optional region (2 chars or 3 digits)
-    const langPattern = /^[a-z]{2,3}(-[A-Za-z]{4})?(-[A-Za-z]{2}|\d{3})?$/;
-    if (!langPattern.test(trimmedLang)) {
+    if (!isLanguageTag(trimmedLang)) {
       return warn(
         'i18n-lang-attribute',
         `Lang attribute "${trimmedLang}" may not be valid BCP 47 format`,

@@ -107,6 +107,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The queue holds one entry per scored rule now, at its worst status and with
   every page it was found on, and advisory findings, which score nothing yet,
   are no longer counted as fixes.
+- **Valid language tags were reported as invalid** (#14).
+  `i18n-lang-attribute` warned on `<html lang="es-419">`, `EN-US` and
+  `de-CH-1996` and passed the malformed `es419`; `i18n-hreflang` and
+  `i18n-hreflang-incoming-invalid` failed hreflang codes with a script
+  subtag (`zh-Hant`, `zh-Hans-US`) or a lowercase region (`en-gb`). The three
+  rules share one check now (`src/rules/i18n/language-tag.ts`): `<html lang>`
+  takes any well-formed BCP 47 tag in any case, and hreflang takes a language
+  with an optional script and region, in any case, as Google reads it.
+  Numeric regions and variants stay invalid in hreflang, which Google does not
+  document. A two-letter language must exist, so a country code in its place
+  (`hreflang="GB"`) still fails, and `en-GB` beside `en-gb` is reported as
+  the duplicate it is.
 
 ## [8.0.0] - 2026-11-17
 

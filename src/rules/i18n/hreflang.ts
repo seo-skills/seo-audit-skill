@@ -1,5 +1,6 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, warn, fail } from '../define-rule.js';
+import { isHreflangCode, isXDefault } from './language-tag.js';
 
 interface HreflangTag {
   /** Language/region code */
@@ -85,7 +86,7 @@ export const hreflangRule = defineRule({
     // Collect hreflang from link elements
     $('link[rel="alternate"][hreflang]').each((_, el) => {
       const $el = $(el);
-      const hreflang = $el.attr('hreflang') || '';
+      const hreflang = ($el.attr('hreflang') || '').trim();
       const href = $el.attr('href') || '';
 
       hreflangTags.push({ hreflang, href });
@@ -127,6 +128,8 @@ export const hreflangRule = defineRule({
     let hasSelfReference = false;
     let hasXDefault = false;
     const seenLanguages = new Set<string>();
+    // Codes are case-insensitive: en-GB and en-gb are one code
+    const seenCodes = new Set<string>();
 
     for (const tag of hreflangTags) {
       const { hreflang, href } = tag;
@@ -143,14 +146,13 @@ export const hreflangRule = defineRule({
       }
 
       // Check for x-default
-      if (hreflang === 'x-default') {
+      if (isXDefault(hreflang)) {
         hasXDefault = true;
         continue;
       }
 
-      // Validate language code format
-      const langPattern = /^[a-z]{2}(-[A-Z]{2})?$/;
-      if (!langPattern.test(hreflang)) {
+      // Validate the code: a language, then an optional script and region (`language-tag.ts`)
+      if (!isHreflangCode(hreflang)) {
         issues.push({
           issue: `Invalid hreflang format: "${hreflang}"`,
           hreflang,
@@ -159,12 +161,14 @@ export const hreflangRule = defineRule({
       }
 
       // Check for duplicate language codes
-      if (seenLanguages.has(hreflang)) {
+      const code = hreflang.toLowerCase();
+      if (seenCodes.has(code)) {
         issues.push({
           issue: `Duplicate hreflang: "${hreflang}"`,
           hreflang,
         });
       }
+      seenCodes.add(code);
       seenLanguages.add(hreflang);
 
       // Check for absolute URLs

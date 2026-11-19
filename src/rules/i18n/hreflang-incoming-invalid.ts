@@ -1,14 +1,11 @@
 import type { AuditContext } from '../../types.js';
 import { defineRule, pass, fail, notMeasured } from '../define-rule.js';
+import { isHreflangCode } from './language-tag.js';
 
 // Reference hint: international/invalid-incoming-hreflang-annotations
 
-/**
- * Same code shape `i18n-hreflang` enforces on outgoing annotations
- * (`/^[a-z]{2}(-[A-Z]{2})?$/`), applied case-insensitively because the crawl
- * records codes verbatim from the source pages' markup.
- */
-const HREFLANG_CODE_PATTERN = /^[a-z]{2}(-[a-z]{2})?$/i;
+// The same code check `i18n-hreflang` applies to outgoing annotations
+// (`language-tag.ts`); the crawl records codes verbatim from the source pages.
 
 /**
  * Rule: Invalid Incoming Hreflang Annotations
@@ -51,8 +48,7 @@ export const hreflangIncomingInvalidRule = defineRule({
       for (const [code, target] of Object.entries(info.hreflangOut)) {
         if (site.normalize(target) !== ownKey) continue;
         incomingCount++;
-        if (code.trim().toLowerCase() === 'x-default') continue;
-        if (!HREFLANG_CODE_PATTERN.test(code.trim())) {
+        if (!isHreflangCode(code.trim())) {
           invalid.push({ source: sourceUrl, hreflang: code });
         }
       }

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { agentLine, formatPoints, nextGrade, nextGradeLine, rankedFixes, splitFix, tied, type Fix } from './fixes.js';
+import { agentLine, formatPoints, missingPoints, nextGrade, nextGradeLine, rankedFixes, splitFix, tied, type Fix } from './fixes.js';
 import type { AuditResult } from '../../src/types.js';
 
-function result(rules: Array<{ ruleId: string; status: string; points?: number; priority?: number; advisory?: boolean }>, extra: Partial<AuditResult> = {}): AuditResult {
+function result(rules: Array<{ ruleId: string; status: string; points?: number; priority?: number; advisory?: boolean; overridden?: { priority?: 'high' | 'normal' | 'low' | 'ignore' } }>, extra: Partial<AuditResult> = {}): AuditResult {
   return {
     url: 'https://example.com',
     overallScore: 90,
@@ -73,6 +73,33 @@ describe('rankedFixes', () => {
       undefined
     );
     expect(fixes.map((f) => f.ruleId)).toEqual(['b', 'a']);
+  });
+
+  it('leaves ignored findings out without losing their missing score points', () => {
+    const audit = result([
+      { ruleId: 'visible', status: 'fail', points: 2 },
+      { ruleId: 'ignored', status: 'fail', points: 5, overridden: { priority: 'ignore' } },
+    ]);
+    const all = rankedFixes(audit, undefined, { includeIgnored: true });
+    const fixes = rankedFixes(audit, undefined);
+    expect(fixes.map((f) => f.ruleId)).toEqual(['visible']);
+    expect(missingPoints(all)).toBe(7);
+    expect(agentLine(fixes, audit, missingPoints(all))).toBe(
+      'One fix in the queue returns 2.0 of the 7.0 points this page is missing.'
+    );
+  });
+
+  it('applies high and low priority to the order while printing exact points', () => {
+    const fixes = rankedFixes(
+      result([
+        { ruleId: 'ordinary', status: 'fail', points: 2 },
+        { ruleId: 'urgent', status: 'fail', points: 1, overridden: { priority: 'high' } },
+        { ruleId: 'later', status: 'fail', points: 20, overridden: { priority: 'low' } },
+      ]),
+      undefined
+    );
+    expect(fixes.map((f) => f.ruleId)).toEqual(['later', 'urgent', 'ordinary']);
+    expect(fixes.map((f) => f.points)).toEqual([20, 1, 2]);
   });
 });
 

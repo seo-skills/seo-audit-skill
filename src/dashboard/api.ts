@@ -225,9 +225,10 @@ export function createReadRoutes(deps: ApiDependencies): Route[] {
         const comparison = compareStored(deps.db(), id, against ?? undefined);
         if (!comparison) {
           if (!deps.db().getAudit(id)) throw notFound(`Audit ${id}`);
+          if (against === null) return null;
           throw notFound(
-            `A previous audit of this domain`,
-            'Run the audit again to have something to compare against.'
+            `Audit ${against}`,
+            'Choose a stored audit of the same domain to compare against.'
           );
         }
         return comparison;

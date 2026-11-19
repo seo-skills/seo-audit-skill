@@ -23,6 +23,8 @@ type StatusFilter = 'all' | 'fail' | 'warn';
 
 interface FixQueueProps {
   fixes: Fix[];
+  /** Missing points still include findings hidden by `[rules.override]` */
+  totalMissing: number;
   /** For the agent's sentence, and the page a copied brief names */
   result: AuditResult;
   crawl: boolean;
@@ -37,7 +39,7 @@ interface FixQueueProps {
   greet?: 'alert' | 'delighted';
 }
 
-export function FixQueue({ fixes, result, crawl, capped, category, onClearCategory, onReveal, greet }: FixQueueProps) {
+export function FixQueue({ fixes, totalMissing, result, crawl, capped, category, onClearCategory, onReveal, greet }: FixQueueProps) {
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [open, setOpen] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -85,7 +87,7 @@ export function FixQueue({ fixes, result, crawl, capped, category, onClearCatego
       <Dock
         state={result.scoreCap ? 'alert' : fixes.length === 0 ? 'idle' : 'focused'}
         greet={greet}
-        line={agentLine(fixes, result)}
+        line={agentLine(fixes, result, totalMissing)}
       />
 
       {category && (

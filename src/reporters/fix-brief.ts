@@ -69,18 +69,24 @@ export function capHeadline(capId: string): string {
  * only say what the numbers support: "more than the next four together" is
  * printed when it is true and never as a slogan.
  */
-export function agentLine(fixes: readonly PointedFix[], result: FixBriefAudit): string {
+export function agentLine(fixes: readonly PointedFix[], result: FixBriefAudit, totalMissing?: number): string {
   const where = result.crawledPages > 1 ? 'this site' : 'this page';
   if (result.scoreCap) return 'Lift the score cap first. Nothing in this queue moves the score until it is gone.';
   if (fixes.length === 0) return 'Nothing to fix in what we measured.';
 
-  const missing = missingPoints(fixes).toFixed(1);
+  const visiblePoints = missingPoints(fixes);
+  const missing = (totalMissing ?? visiblePoints).toFixed(1);
   const [lead, ...rest] = fixes;
   const nextFour = rest.slice(0, 4).reduce((sum, fix) => sum + fix.points, 0);
   if (rest.length >= 4 && lead!.points > nextFour) {
     return `Work from the top. 01 alone returns more than the next four together, of the ${missing} points ${where} is missing.`;
   }
   if (fixes.length <= 5) {
+    if (Math.abs((totalMissing ?? visiblePoints) - visiblePoints) > 0.0001) {
+      return fixes.length === 1
+        ? `One fix in the queue returns ${visiblePoints.toFixed(1)} of the ${missing} points ${where} is missing.`
+        : `These ${fixes.length} fixes return ${visiblePoints.toFixed(1)} of the ${missing} points ${where} is missing.`;
+    }
     return fixes.length === 1
       ? `One fix left, worth all ${missing} missing points.`
       : `These ${fixes.length} fixes return all ${missing} points ${where} is missing.`;

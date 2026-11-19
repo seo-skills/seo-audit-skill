@@ -16,7 +16,7 @@ import type { AuditResult, CategoryResult, RuleResult } from '../types.js';
 
 const PAGES = ['https://site.test/', 'https://site.test/a', 'https://site.test/b'];
 
-function row(ruleId: string, status: RuleResult['status'], page: string, advisory = false): RuleResult {
+function row(ruleId: string, status: RuleResult['status'], page: string, advisory = false, overridden?: RuleResult['overridden']): RuleResult {
   return {
     ruleId,
     status,
@@ -25,6 +25,7 @@ function row(ruleId: string, status: RuleResult['status'], page: string, advisor
     message: `${ruleId} on ${page}`,
     details: { pageUrl: `https://site.test${page}` },
     ...(advisory && { advisory: true }),
+    ...(overridden && { overridden }),
   };
 }
 
@@ -93,5 +94,39 @@ describe('the HTML fix queue counts a rule once', () => {
     // core: weight-10 rule lost 10 × 100 of 10 × 3, times 11/21
     const shown = rows.map((r) => Number(r.match(/class="fb-num">\+([\d.]+)/)?.[1]));
     expect(shown).toEqual([31.7, 17.5]);
+  });
+});
+
+describe('the HTML fix queue honours rule overrides', () => {
+  it('leaves an ignored rule in the score maths but out of the queue', () => {
+    const html = renderHtmlReport({
+      ...crawl,
+      categoryResults: [
+        category('perf', [row('perf-render-blocking', 'fail', '/')]),
+        category('core', [row('core-canonical-present', 'fail', '/', false, { priority: 'ignore' })]),
+      ],
+    });
+    const ids = queueRows(html).map((r) => r.match(/data-rule-id="([^"]*)"/)?.[1]);
+    expect(ids).toEqual(['perf-render-blocking']);
+    expect(html).toContain('Fix queue (1), by score points returned');
+    expect(html).toContain('One fix in the queue returns 47.6 of the 100.0 points this site is missing.');
+    expect(html).toContain('Ignored by config (1)');
+  });
+
+  it('uses high and low to re-rank points without changing the points shown', () => {
+    const html = renderHtmlReport({
+      ...crawl,
+      categoryResults: [
+        category('perf', [row('perf-render-blocking', 'fail', '/', false, { priority: 'high' })]),
+        category('core', [row('core-canonical-present', 'fail', '/', false, { priority: 'low' })]),
+      ],
+    });
+    const rows = queueRows(html);
+    expect(rows.map((r) => r.match(/data-rule-id="([^"]*)"/)?.[1])).toEqual([
+      'perf-render-blocking',
+      'core-canonical-present',
+    ]);
+    expect(rows[0]).toContain('+47.6');
+    expect(rows[1]).toContain('+52.4');
   });
 });

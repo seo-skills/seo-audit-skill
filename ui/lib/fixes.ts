@@ -12,6 +12,7 @@ import type { AuditResult } from '../../src/types.js';
 import type { RuleMetadata, RuleSummary } from '../../src/dashboard/contract.js';
 import { formatRuleIdAsName } from './format.js';
 import { splitFix } from '../../src/reporters/fix-brief.js';
+import { overridePriorityFactor } from '../../src/rules/overrides.js';
 
 export {
   agentLine,
@@ -51,6 +52,8 @@ export interface Fix {
   description: string;
   /** Score points this fix returns; 0 when the server sent none */
   points: number;
+  /** `[rules.override]` placement, which re-ranks without changing points */
+  override?: 'high' | 'normal' | 'low' | 'ignore';
   priority: number;
   affectedPages: number;
   measuredPages: number;
@@ -61,14 +64,22 @@ export interface Fix {
  * Every scored failure and warning, most points first.
  *
  * Advisory findings are left out: they score nothing yet, so they cannot be
- * "what to fix first". The report lists them with the measurement gaps.
+ * "what to fix first". Ignored findings are left out unless `includeIgnored`
+ * is set, so score totals can still include them. High and low overrides scale
+ * the order without changing the points shown.
+ * The report lists advisories with the measurement gaps.
  */
-export function rankedFixes(result: AuditResult, ruleMetadata: Record<string, RuleMetadata> | undefined): Fix[] {
+export function rankedFixes(
+  result: AuditResult,
+  ruleMetadata: Record<string, RuleMetadata> | undefined,
+  options: { includeIgnored?: boolean } = {}
+): Fix[] {
   const fixes: Fix[] = [];
   for (const category of result.categoryResults) {
     for (const rule of category.results as RuleSummary[]) {
       if (rule.status !== 'fail' && rule.status !== 'warn') continue;
       if (rule.advisory) continue;
+      if (!options.includeIgnored && rule.overridden?.priority === 'ignore') continue;
       const meta = ruleMetadata?.[rule.ruleId];
       const { headline, rest } = splitFix(meta?.fix || meta?.name || formatRuleIdAsName(rule.ruleId));
       fixes.push({
@@ -82,6 +93,7 @@ export function rankedFixes(result: AuditResult, ruleMetadata: Record<string, Ru
         message: rule.message,
         description: meta?.description ?? '',
         points: rule.points ?? 0,
+        ...(rule.overridden?.priority && { override: rule.overridden.priority }),
         priority: rule.priority ?? 0,
         affectedPages: rule.affectedPages ?? 1,
         measuredPages: rule.measuredPages ?? 1,
@@ -89,9 +101,11 @@ export function rankedFixes(result: AuditResult, ruleMetadata: Record<string, Ru
       });
     }
   }
-  // Points first; the server's priority breaks ties and orders a payload from
-  // a build that sent no points; the rule id makes the order total.
+  // Overrides scale the points-only sort key, not the points printed or the
+  // score. The server's priority breaks ties and orders an older payload that
+  // sent no points; the rule id makes the order total.
+  const rank = (fix: Fix) => fix.points * overridePriorityFactor(fix.override);
   return fixes.sort(
-    (a, b) => b.points - a.points || b.priority - a.priority || a.ruleId.localeCompare(b.ruleId)
+    (a, b) => rank(b) - rank(a) || b.priority - a.priority || a.ruleId.localeCompare(b.ruleId)
   );
 }

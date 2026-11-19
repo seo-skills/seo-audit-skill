@@ -119,6 +119,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   document. A two-letter language must exist, so a country code in its place
   (`hreflang="GB"`) still fails, and `en-GB` beside `en-gb` is reported as
   the duplicate it is.
+- **Rule overrides now reach every fix queue.** The dashboard, desktop app and
+  HTML report leave `priority = "ignore"` findings out of the queue while
+  keeping their points in the score maths, and apply `high` and `low` to the
+  queue order without changing the points a fix prints.
+- Dashboard and desktop crawls use the CLI's default limit of two requests at
+  once per host. The run form now says that its Pages at once setting is a
+  cross-host limit.
+- A domain's first audit returns an empty comparison instead of two console
+  404s. `web:dev` proxies its API with the local server's per-launch token, and
+  the web header and points strip no longer overflow a 375px screen.
 
 ## [8.0.0] - 2026-11-17
 

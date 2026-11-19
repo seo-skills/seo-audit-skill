@@ -55,10 +55,11 @@ export function AuditDetailPage() {
   const [stripCategory, setStripCategory] = useState<string | null>(null);
   // Expand all / Collapse all over every category in All checks
   const [force, setForce] = useState<{ expanded: boolean; nonce: number }>({ expanded: false, nonce: 0 });
-  const fixes = useMemo(
-    () => (detail.data ? rankedFixes(detail.data.result, detail.data.ruleMetadata) : []),
+  const allFixes = useMemo(
+    () => (detail.data ? rankedFixes(detail.data.result, detail.data.ruleMetadata, { includeIgnored: true }) : []),
     [detail.data]
   );
+  const fixes = useMemo(() => allFixes.filter((fix) => fix.override !== 'ignore'), [allFixes]);
 
   // History keeps `state` across a reload, so the arrival reaction would
   // replay; drop the flag once the reaction has had time to play.
@@ -204,7 +205,7 @@ export function AuditDetailPage() {
   const scoredRules = summaries.filter(
     (rule) => !rule.advisory && (rule.status === 'pass' || rule.status === 'warn' || rule.status === 'fail')
   ).length;
-  const missing = missingPoints(fixes);
+  const missing = missingPoints(allFixes);
   const crawl = result.crawledPages > 1;
   // A stored audit keeps its run options on the audit row, not on the result;
   // reading only `result.run` lost them, so "Run again" dropped the render.
@@ -321,6 +322,7 @@ export function AuditDetailPage() {
 
       <FixQueue
         fixes={fixes}
+        totalMissing={missing}
         result={result}
         crawl={crawl}
         capped={Boolean(result.scoreCap)}
@@ -334,7 +336,7 @@ export function AuditDetailPage() {
         <PointsStrip
           categories={result.categoryResults}
           weights={detail.data.categoryWeights}
-          fixes={fixes}
+          fixes={allFixes}
           active={stripCategory}
           onPick={(categoryId) => {
             setStripCategory(categoryId);

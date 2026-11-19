@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 import { designTokens } from './scripts/vite-plugin-tokens.mjs';
 import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'path';
+import { readServeFile } from './src/dashboard/token.js';
 
 /**
  * The dashboard build.
@@ -40,7 +41,15 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:7360',
-        changeOrigin: false,
+        changeOrigin: true,
+        configure(proxy) {
+          proxy.on('proxyReq', (request) => {
+            const serve = readServeFile();
+            if (!serve) return;
+            request.setHeader('x-seomator-token', serve.token);
+            request.setHeader('origin', `http://127.0.0.1:${serve.port}`);
+          });
+        },
       },
     },
   },

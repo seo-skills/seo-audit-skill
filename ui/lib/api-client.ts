@@ -30,7 +30,7 @@ export interface DashboardReads {
   getScoreTrend(args: DbScoreTrendArgs): Promise<ScoreTrendPointDto[]>;
   listDomains(): Promise<DomainSummary[]>;
   getAppInfo(): Promise<AppInfoIpc>;
-  compare(auditId: string, against?: string): Promise<StoredComparison>;
+  compare(auditId: string, against?: string): Promise<StoredComparison | null>;
   deleteAudit(auditId: string): Promise<void>;
   exportUrl(auditId: string, format: 'html' | 'markdown' | 'json' | 'llm'): string;
 }

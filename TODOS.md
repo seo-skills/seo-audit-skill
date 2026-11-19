@@ -771,53 +771,8 @@ cross-page checks, Link Score, custom checks, gates and MCP held up against the
 real pages. The HTML report's fix queue counting a rule twice is fixed. What
 is left:
 
-**P2: `[rules.override]` priority no longer reaches the fix queue**
-
-- **`priority = "ignore"` findings stay in the queue, and can lead it.** The
-  dashboard's `rankedFixes()` (`ui/lib/fixes.ts`) and the HTML report's queue
-  rank every scored failure and warning by points, ignored or not. Repro: a
-  5-page crawl of books.toscrape.com with `"schema-present" = { priority =
-  "ignore" }` opens on "Add JSON-LD structured data" (+1.0) while the same
-  report lists it under "Ignored by config (1)". `docs/ci-gates.md` says ignore
-  "takes it out of every findings list". Leaving it out of the queue must not
-  change "of the N points this site is missing": `agentLine()` sums the fixes
-  it is given, so pass it the full total.
-- **`high` and `low` only break ties.** The queue sorts by points first, so
-  `priority = "low"` left `core-canonical-present` at 04 and `"high"` left
-  `geo-well-known` at 76 of 77. The docs promise x4 and x0.25. Decide: keep the
-  queue points-only and say so in `docs/ci-gates.md`, or scale the sort key by
-  the override while printing the exact points. The console and LLM reports
-  still rank by priority, so today an agent and a person get different first
-  fixes for the same audit (MCP `get_findings` led with
-  `core-description-present`, the dashboard with `schema-present`).
-- Both touch `agentLine()`, `FixQueue` and the score panel, which
-  `fix/report-opens-on-score` is reworking; land it there or after it.
-
-**P2: dashboard and desktop crawls skip the per-host limit**
-
-- 8.0.0 made `crawler.per_host_concurrency` (default 2) cap how many pages a
-  crawl loads at once from one host. `seomator audit` and `crawl` pass it;
-  `AuditSession` (`src/dashboard/audit-session.ts`) never does, and the
-  crawler reads a missing value as no limit. Measured on an owned 13-page
-  fixture that answers each page after 400 ms: the CLI with
-  `--concurrency 6` peaked at 2 page GETs in flight, the same crawl started
-  through `POST /api/runs` with `concurrency: 6` peaked at 6. The run form's
-  "Pages at once" (default 3, up to 20) is what a dashboard crawl really
-  uses, so its "same run from the terminal" command is not the same run.
-  Decide: make "Pages at once" set the per-host count too and default it to
-  2, or apply the default and say the field is capped per host. Passing the
-  default alone would leave the field doing nothing above 2.
-
 **P3: found by QA, not fixed**
 
-- **A domain's first audit logs two 404s.** The audit page asks
-  `GET /api/audits/:id/compare` twice and the API answers 404 when there is no
-  earlier audit. The page handles it ("Nothing to compare yet"), but the
-  console shows two errors on every first audit. Answer 200 with no previous
-  audit, or skip the request when the audit list says there is none.
-- **At 375px the dashboard header is 4px too wide** and clips the theme
-  toggle, and the lead fix's code headline breaks mid-word
-  ("width=de / vice-width").
 - **A crawl checks every internal link of every page.** On crawler-test.com
   the home page links 407 internal URLs, so a 40-page crawl sent about 450
   extra requests and took 393 s (62 s fetching, about 99 s on the site's slow

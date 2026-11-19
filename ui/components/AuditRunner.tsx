@@ -278,6 +278,7 @@ export function AuditRunner({
               />
               <NumberField
                 label="Pages at once"
+                hint="Across hosts; at most 2 per host, as in the CLI."
                 value={options.concurrency}
                 min={1}
                 max={20}
@@ -391,7 +392,7 @@ export function AuditRunner({
         <div className="lg:sticky lg:top-[calc(var(--header-height)+24px)]">
           <div className="label">This run</div>
           <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[13px]">
-            <Row term="Pages" value={options.crawl ? `up to ${options.maxPages.toLocaleString()}, ${options.concurrency} at once` : '1'} />
+            <Row term="Pages" value={options.crawl ? `up to ${options.maxPages.toLocaleString()}, ${options.concurrency} at once across hosts, 2 per host` : '1'} />
             <Row term="Browser render" value={options.measureCwv && canRender ? 'On' : 'Off'} />
             {options.measureCwv && canRender && (
               <Row
@@ -418,7 +419,7 @@ export function AuditRunner({
                 // A long value (the category list) wraps at its commas instead
                 // of being cut off: what is shown is what gets copied
                 <span key={i} className={`mr-[0.6em] ${part.length > 40 ? '[overflow-wrap:anywhere]' : 'inline-block whitespace-nowrap'}`}>
-                  {part.length > 40 ? part.replace(/,/g, ',\u200b') : part}
+                  {part.length > 40 ? part.replace(/,/g, ',\u200b') : part}{' '}
                 </span>
               ))}
             </pre>

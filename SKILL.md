@@ -335,14 +335,14 @@ seomator audit https://example.com --format llm --refresh
 ### Example 4: Generate Shareable Report
 
 ```bash
-# User asks: "Create an HTML report I can share"
+# Request: "Create an HTML report I can share"
 seomator audit https://example.com --crawl -m 20 --format html -o seo-report.html
 ```
 
 ### Example 5: Focus on Specific Areas
 
 ```bash
-# User asks: "Just check my JavaScript rendering and redirects"
+# Request: "Just check my JavaScript rendering and redirects"
 seomator audit https://example.com -c js,redirect --format llm --cwv
 ```
 

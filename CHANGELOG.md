@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0] - 2026-11-19
+
+Upgrading from 7.x: see [docs/upgrading-to-8.md](docs/upgrading-to-8.md) for
+what can break a script or CI job, why scores move, and what to change.
+
 ### Added
 
 - **The report opens on its score, then goes straight to what to fix.** In
@@ -33,110 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   queue, and reacting once when a run hands over to its report. Reduced motion
   shows still poses.
 - `DESIGN.md`: the design system ("The Fix Brief") the three surfaces follow.
-
-### Changed
-
-- **One fix queue, ranked by points across failures and warnings.** A heavy,
-  widespread warning can now come before a narrow failure; the status shape
-  still says which is which. The HTML report ranks the same way, and its
-  category sections follow the same order.
-- **Colour only where it is wrong.** Scores of 80 and above are drawn in ink,
-  70 to 79 in amber and under 70 in red; nothing in the grade ladder is orange
-  any more (the D grade was `#c2410c`, next to the brand orange). Passing
-  checks are quiet; green now means "better than the last run". The terminal
-  keeps its own green-for-good palette.
-- Status is a shape beside its word everywhere: a filled square fails, a
-  half-filled one warns, an open one passes, a dashed one was not measured and
-  a circle is advisory.
-- The audit page has no category sidebar or score ring: the score is a plain
-  number at the top, with what it is missing, what it did not count, and what
-  changed since the last run beside it. Export formats sit in one menu and
-  Delete in the ⋯ menu.
-- **All checks reads like the rest of the report.** Each category is one white
-  surface with hairline rows (it was faint grey boxes on the grey page), the
-  filters stay pinned under the app bar while you scroll the list, the active
-  filter is ink with each status's shape beside it, Expand all / Collapse all
-  sits next to them, and choosing Warnings or Not measured opens the
-  categories that have them. "Details · 3 items" is a real control, and a
-  single-page audit no longer prints a "/" page chip on every check.
-- **The score is a measured bar.** Under the number, a meter shows the exact
-  score with the missing part hatched and a notch where each grade starts, and
-  one line says what the next grade costs in the queue's own terms ("3.5 points
-  to Good: the first 3 fixes get you there"). Grades read the rounded score,
-  so the gap is to half a point under the threshold. The same meter sits beside
-  every category score and in the history table, and the HTML report has it too.
-- Interaction details: buttons answer a press (scale 0.97), hover styles only
-  apply where there is a hovering pointer, menus grow from their trigger and
-  take arrow keys, Home and End, the strip's tooltip appears after a moment and
-  then follows the pointer instantly, fix-queue rows show a chevron and open
-  on a click anywhere, and the report shows its own shape while it loads.
-- **The run form offers every option a run takes.** Core Web Vitals with its
-  mobile render and interaction run, crawl with pages, pages at once, a time
-  limit and ignoring the site's crawl-delay, staging, the categories to run
-  (with each one's weight), the page timeout, checking external links again,
-  and saving to history. An option that needs another first, or that this app
-  cannot do, stays on the page with the reason instead of disappearing. A
-  summary beside the form says what the run will do and gives the same run as
-  a `seomator audit` command to copy.
-- The dashboard and desktop run API take `staging`, `refresh`,
-  `ignoreCrawlDelay` and `maxDuration` (seconds), as the CLI's `--staging`,
-  `--refresh`, `--ignore-crawl-delay` and `--max-duration` do.
-- The primary button's label is white, as on seomator.com (3.3:1, the brand's
-  own call; a test holds it above 3:1).
-- The run screen shows the phase as its headline, a 2px progress line, the
-  latest results and the run's scope, with Stop beside it.
-- History is a ledger: thousands separators, no green or red count columns.
-  The row of site cards above it is now a Site menu in the table's header,
-  with each site's latest score and change.
-- Corners stop at 6px (4px on controls); status colours follow seomator.com
-  (fails `#be1212`, improved `#167a34`).
-- The HTML report carries Geist and Geist Mono inline (about 70 KB), so it
-  reads in brand type offline, including when exported from the desktop app.
-
-### Fixed
-
-- The web dashboard never loaded its build facts: it asked only the desktop
-  app's bridge, so it had no rule count, no capabilities and no category list.
-  It reads them from `/api/info` now.
-- "Run again" on a stored audit dropped the audit's crawl and render options.
-  A stored audit keeps them on the audit row, which the page now reads.
-- The HTML report's fix queue listed a rule twice when a crawl found it
-  failing on some pages and warning on others, and each row printed the
-  rule's whole points: a 40-page crawl showed "Add async/defer to scripts" at
-  03 and 04, +0.5 each, and counted 115 fixes where the dashboard counted 105.
-  The queue holds one entry per scored rule now, at its worst status and with
-  every page it was found on, and advisory findings, which score nothing yet,
-  are no longer counted as fixes.
-- **Valid language tags were reported as invalid** (#14).
-  `i18n-lang-attribute` warned on `<html lang="es-419">`, `EN-US` and
-  `de-CH-1996` and passed the malformed `es419`; `i18n-hreflang` and
-  `i18n-hreflang-incoming-invalid` failed hreflang codes with a script
-  subtag (`zh-Hant`, `zh-Hans-US`) or a lowercase region (`en-gb`). The three
-  rules share one check now (`src/rules/i18n/language-tag.ts`): `<html lang>`
-  takes any well-formed BCP 47 tag in any case, and hreflang takes a language
-  with an optional script and region, in any case, as Google reads it.
-  Numeric regions and variants stay invalid in hreflang, which Google does not
-  document. A two-letter language must exist, so a country code in its place
-  (`hreflang="GB"`) still fails, and `en-GB` beside `en-gb` is reported as
-  the duplicate it is.
-- **Rule overrides now reach every fix queue.** The dashboard, desktop app and
-  HTML report leave `priority = "ignore"` findings out of the queue while
-  keeping their points in the score maths, and apply `high` and `low` to the
-  queue order without changing the points a fix prints.
-- Dashboard and desktop crawls use the CLI's default limit of two requests at
-  once per host. The run form now says that its Pages at once setting is a
-  cross-host limit.
-- A domain's first audit returns an empty comparison instead of two console
-  404s. `web:dev` proxies its API with the local server's per-launch token, and
-  the web header and points strip no longer overflow a 375px screen.
-
-## [8.0.0] - 2026-11-17
-
-Upgrading from 7.x: see [docs/upgrading-to-8.md](docs/upgrading-to-8.md) for
-what can break a script or CI job, why scores move, and what to change.
-
-### Added
-
 - **CI gates you control.** `--fail-under <n>` on `audit` and `analyze`, and
   `[ci] fail_under` in `seomator.toml`, replace the fixed threshold of 70 (the
   flag wins; `0` never fails on score).
@@ -323,6 +224,62 @@ what can break a script or CI job, why scores move, and what to change.
 
 ### Changed
 
+- **One fix queue, ranked by points across failures and warnings.** A heavy,
+  widespread warning can now come before a narrow failure; the status shape
+  still says which is which. The HTML report ranks the same way, and its
+  category sections follow the same order.
+- **Colour only where it is wrong.** Scores of 80 and above are drawn in ink,
+  70 to 79 in amber and under 70 in red; nothing in the grade ladder is orange
+  any more (the D grade was `#c2410c`, next to the brand orange). Passing
+  checks are quiet; green now means "better than the last run". The terminal
+  keeps its own green-for-good palette.
+- Status is a shape beside its word everywhere: a filled square fails, a
+  half-filled one warns, an open one passes, a dashed one was not measured and
+  a circle is advisory.
+- The audit page has no category sidebar or score ring: the score is a plain
+  number at the top, with what it is missing, what it did not count, and what
+  changed since the last run beside it. Export formats sit in one menu and
+  Delete in the ⋯ menu.
+- **All checks reads like the rest of the report.** Each category is one white
+  surface with hairline rows (it was faint grey boxes on the grey page), the
+  filters stay pinned under the app bar while you scroll the list, the active
+  filter is ink with each status's shape beside it, Expand all / Collapse all
+  sits next to them, and choosing Warnings or Not measured opens the
+  categories that have them. "Details · 3 items" is a real control, and a
+  single-page audit no longer prints a "/" page chip on every check.
+- **The score is a measured bar.** Under the number, a meter shows the exact
+  score with the missing part hatched and a notch where each grade starts, and
+  one line says what the next grade costs in the queue's own terms ("3.5 points
+  to Good: the first 3 fixes get you there"). Grades read the rounded score,
+  so the gap is to half a point under the threshold. The same meter sits beside
+  every category score and in the history table, and the HTML report has it too.
+- Interaction details: buttons answer a press (scale 0.97), hover styles only
+  apply where there is a hovering pointer, menus grow from their trigger and
+  take arrow keys, Home and End, the strip's tooltip appears after a moment and
+  then follows the pointer instantly, fix-queue rows show a chevron and open
+  on a click anywhere, and the report shows its own shape while it loads.
+- **The run form offers every option a run takes.** Core Web Vitals with its
+  mobile render and interaction run, crawl with pages, pages at once, a time
+  limit and ignoring the site's crawl-delay, staging, the categories to run
+  (with each one's weight), the page timeout, checking external links again,
+  and saving to history. An option that needs another first, or that this app
+  cannot do, stays on the page with the reason instead of disappearing. A
+  summary beside the form says what the run will do and gives the same run as
+  a `seomator audit` command to copy.
+- The dashboard and desktop run API take `staging`, `refresh`,
+  `ignoreCrawlDelay` and `maxDuration` (seconds), as the CLI's `--staging`,
+  `--refresh`, `--ignore-crawl-delay` and `--max-duration` do.
+- The primary button's label is white, as on seomator.com (3.3:1, the brand's
+  own call; a test holds it above 3:1).
+- The run screen shows the phase as its headline, a 2px progress line, the
+  latest results and the run's scope, with Stop beside it.
+- History is a ledger: thousands separators, no green or red count columns.
+  The row of site cards above it is now a Site menu in the table's header,
+  with each site's latest score and change.
+- Corners stop at 6px (4px on controls); status colours follow seomator.com
+  (fails `#be1212`, improved `#167a34`).
+- The HTML report carries Geist and Geist Mono inline (about 70 KB), so it
+  reads in brand type offline, including when exported from the desktop app.
 - **Breaking: a config that does not mean what it says stops the run.**
   `audit` and `analyze` now run the same checks as `config validate` before
   the first request, and exit 2 with error code `config` on any error: an
@@ -475,6 +432,40 @@ what can break a script or CI job, why scores move, and what to change.
 
 ### Fixed
 
+- The web dashboard never loaded its build facts: it asked only the desktop
+  app's bridge, so it had no rule count, no capabilities and no category list.
+  It reads them from `/api/info` now.
+- "Run again" on a stored audit dropped the audit's crawl and render options.
+  A stored audit keeps them on the audit row, which the page now reads.
+- The HTML report's fix queue listed a rule twice when a crawl found it
+  failing on some pages and warning on others, and each row printed the
+  rule's whole points: a 40-page crawl showed "Add async/defer to scripts" at
+  03 and 04, +0.5 each, and counted 115 fixes where the dashboard counted 105.
+  The queue holds one entry per scored rule now, at its worst status and with
+  every page it was found on, and advisory findings, which score nothing yet,
+  are no longer counted as fixes.
+- **Valid language tags were reported as invalid** (#14).
+  `i18n-lang-attribute` warned on `<html lang="es-419">`, `EN-US` and
+  `de-CH-1996` and passed the malformed `es419`; `i18n-hreflang` and
+  `i18n-hreflang-incoming-invalid` failed hreflang codes with a script
+  subtag (`zh-Hant`, `zh-Hans-US`) or a lowercase region (`en-gb`). The three
+  rules share one check now (`src/rules/i18n/language-tag.ts`): `<html lang>`
+  takes any well-formed BCP 47 tag in any case, and hreflang takes a language
+  with an optional script and region, in any case, as Google reads it.
+  Numeric regions and variants stay invalid in hreflang, which Google does not
+  document. A two-letter language must exist, so a country code in its place
+  (`hreflang="GB"`) still fails, and `en-GB` beside `en-gb` is reported as
+  the duplicate it is.
+- **Rule overrides now reach every fix queue.** The dashboard, desktop app and
+  HTML report leave `priority = "ignore"` findings out of the queue while
+  keeping their points in the score maths, and apply `high` and `low` to the
+  queue order without changing the points a fix prints.
+- Dashboard and desktop crawls use the CLI's default limit of two requests at
+  once per host. The run form now says that its Pages at once setting is a
+  cross-host limit.
+- A domain's first audit returns an empty comparison instead of two console
+  404s. `web:dev` proxies its API with the local server's per-launch token, and
+  the web header and points strip no longer overflow a 375px screen.
 - **The dashboard showed checks that took no reading as warnings.** A stored
   rule that was not measured on any page came back as a warning-shaped row,
   so it took a warning icon and could be listed under "Issues to fix". It now
